@@ -12,6 +12,12 @@ import { generalSurgeryBody } from "./generalSurgery";
 import { vascularBody } from "./vascular";
 import { obgynBody } from "./obgyn";
 import { urologyBody } from "./urology";
+import { plasticsBody } from "./plastics";
+import { orthopedicsBody } from "./orthopedics";
+import { neurosurgeryBody } from "./neurosurgery";
+import { entBody } from "./ent";
+import { pediatricSurgeryBody } from "./pediatricSurgery";
+import { cardiothoracicBody } from "./cardiothoracic";
 import { genericProcedureBody } from "./generic";
 import { getStyleProfile } from "../style/store";
 import { applyStyleProfile } from "../style/apply";
@@ -32,13 +38,18 @@ export function resolveServiceFromCase(c: CaseLog): ServiceKey {
   ) {
     return "obgyn";
   }
+  if (s.includes("pediatric")) return "pediatric-surgery";
+  if (s.includes("cardio") || s.includes("thoracic") || s.includes("ct surg")) {
+    return "cardiothoracic";
+  }
   if (s.includes("general surgery")) return "general-surgery";
   if (s.includes("urology") || s.includes("urologic")) return "urology";
   if (s.includes("plastic")) return "plastics";
   if (s.includes("ortho")) return "orthopedics";
   if (s.includes("neuro")) return "neurosurgery";
-  if (s.includes("ent") || s.includes("otolaryng")) return "ent";
-  if (s.includes("pediatric")) return "pediatric-surgery";
+  if (s.includes("ent") || s.includes("otolaryng") || s.includes("head and neck")) {
+    return "ent";
+  }
   return "unknown";
 }
 
@@ -52,6 +63,18 @@ function bodyForCase(c: CaseLog, service: ServiceKey): string[] {
       return obgynBody(c);
     case "urology":
       return urologyBody(c);
+    case "plastics":
+      return plasticsBody(c);
+    case "orthopedics":
+      return orthopedicsBody(c);
+    case "neurosurgery":
+      return neurosurgeryBody(c);
+    case "ent":
+      return entBody(c);
+    case "pediatric-surgery":
+      return pediatricSurgeryBody(c);
+    case "cardiothoracic":
+      return cardiothoracicBody(c);
     default:
       return genericProcedureBody(c);
   }

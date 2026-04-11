@@ -13,6 +13,7 @@ export type ServiceKey =
   | "neurosurgery"
   | "ent"
   | "pediatric-surgery"
+  | "cardiothoracic"
   | "icu-trauma"
   | "emergency"
   | "ward"

@@ -38,8 +38,8 @@ export type { StyleProfile, ServiceStyle, NoteTypeStyle } from "./style/profile"
 export { DEFAULT_STYLE_PROFILE } from "./style/profile";
 
 // Revision engine
-export { reviseDictation } from "./revise";
-export type { ReviseInput, ReviseResult } from "./revise";
+export { reviseDictation, applyUserCorrection, DICTATION_MODEL } from "./revise";
+export type { ReviseInput, ReviseResult, ApplyCorrectionInput } from "./revise";
 
 // Types
 export type { NoteContext, NoteType, LengthLevel, ServiceKey, BuildResult };
