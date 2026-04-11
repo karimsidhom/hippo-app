@@ -1,10 +1,12 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check } from "lucide-react";
+import { useState, useMemo, useEffect } from "react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw } from "lucide-react";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
 import { generateDictation } from "@/lib/dictation";
+import { resolveServiceFromCase } from "@/lib/dictation/operative";
+import { applyUserCorrection } from "@/lib/dictation/style/learn";
 
 const APPROACHES = ["All", "Open", "Laparoscopic", "Robotic", "Endoscopic", "Percutaneous"];
 const ROLES = ["All", "Observer", "Assistant", "First Assistant", "Primary Surgeon", "Console Surgeon"];
@@ -213,17 +215,29 @@ function Sheet({ c, onClose, onDelete }: { c: CaseLog; onClose: () => void; onDe
 
 function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
-  const dictation = useMemo(() => generateDictation(c), [c]);
+  const [saved, setSaved] = useState(false);
+  const draft = useMemo(() => generateDictation(c), [c]);
+  const [value, setValue] = useState(draft);
+  const [editing, setEditing] = useState(false);
+
+  // Reset the editor whenever the underlying case changes so a freshly-opened
+  // sheet always starts on the newest draft.
+  useEffect(() => {
+    setValue(draft);
+    setEditing(false);
+  }, [draft]);
+
+  const dirty = value !== draft;
 
   const handleCopy = async () => {
     try {
-      await navigator.clipboard.writeText(dictation);
+      await navigator.clipboard.writeText(value);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
       // Fallback
       const ta = document.createElement("textarea");
-      ta.value = dictation;
+      ta.value = value;
       document.body.appendChild(ta);
       ta.select();
       document.execCommand("copy");
@@ -231,6 +245,28 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }
+  };
+
+  const handleSaveAndLearn = () => {
+    if (!dirty) return;
+    try {
+      applyUserCorrection({
+        noteType: "operative",
+        service: resolveServiceFromCase(c),
+        draft,
+        corrected: value,
+      });
+      setSaved(true);
+      setEditing(false);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (err) {
+      console.error("Failed to save correction", err);
+    }
+  };
+
+  const handleRevert = () => {
+    setValue(draft);
+    setEditing(false);
   };
 
   return (
@@ -278,7 +314,62 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
               {c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
             </div>
           </div>
-          <div style={{ display: "flex", gap: 6 }}>
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+            {!editing ? (
+              <button
+                onClick={() => setEditing(true)}
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "6px 12px",
+                  background: "var(--glass-mid)",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: 6,
+                  color: "var(--primary-hi)",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                <Edit3 size={12} /> Edit
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={handleSaveAndLearn}
+                  disabled={!dirty}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "6px 12px",
+                    background: saved ? "rgba(16,185,129,0.12)" : (dirty ? "rgba(14,165,233,0.12)" : "var(--glass-mid)"),
+                    border: `1px solid ${saved ? "rgba(16,185,129,0.28)" : (dirty ? "rgba(14,165,233,0.28)" : "var(--border-glass)")}`,
+                    borderRadius: 6,
+                    color: saved ? "var(--success)" : (dirty ? "var(--primary-hi)" : "var(--muted)"),
+                    fontSize: 11, fontWeight: 600,
+                    cursor: dirty ? "pointer" : "not-allowed",
+                    fontFamily: "inherit",
+                    opacity: dirty || saved ? 1 : 0.55,
+                  }}
+                >
+                  {saved ? <><Check size={12} /> Learned</> : <><Save size={12} /> Save &amp; Learn</>}
+                </button>
+                <button
+                  onClick={handleRevert}
+                  disabled={!dirty}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 5,
+                    padding: "6px 12px",
+                    background: "var(--glass-mid)",
+                    border: "1px solid var(--border-glass)",
+                    borderRadius: 6,
+                    color: "var(--muted)",
+                    fontSize: 11, fontWeight: 600,
+                    cursor: dirty ? "pointer" : "not-allowed",
+                    fontFamily: "inherit",
+                    opacity: dirty ? 1 : 0.55,
+                  }}
+                >
+                  <RotateCcw size={12} /> Revert
+                </button>
+              </>
+            )}
             <button
               onClick={handleCopy}
               style={{
@@ -309,17 +400,46 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
           flex: 1,
           padding: "16px 20px",
         }}>
-          <pre style={{
-            fontFamily: "'Geist Mono', monospace",
-            fontSize: 12,
-            lineHeight: 1.7,
-            color: "var(--text)",
-            whiteSpace: "pre-wrap",
-            wordBreak: "break-word",
-            margin: 0,
-          }}>
-            {dictation}
-          </pre>
+          {editing ? (
+            <textarea
+              value={value}
+              onChange={(e) => setValue(e.target.value)}
+              spellCheck={false}
+              style={{
+                width: "100%",
+                minHeight: "55vh",
+                fontFamily: "'Geist Mono', monospace",
+                fontSize: 12,
+                lineHeight: 1.7,
+                color: "var(--text)",
+                background: "var(--glass-lo)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                padding: 12,
+                resize: "vertical",
+                outline: "none",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+              }}
+            />
+          ) : (
+            <pre
+              onDoubleClick={() => setEditing(true)}
+              style={{
+                fontFamily: "'Geist Mono', monospace",
+                fontSize: 12,
+                lineHeight: 1.7,
+                color: "var(--text)",
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                margin: 0,
+                cursor: "text",
+              }}
+              title="Double-click to edit"
+            >
+              {value}
+            </pre>
+          )}
         </div>
 
         {/* Footer hint */}
@@ -329,7 +449,9 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
           flexShrink: 0,
         }}>
           <div style={{ fontSize: 11, color: "var(--text-3)", textAlign: "center" }}>
-            Copy and paste into your dictation system. Edit bracketed fields as needed.
+            {editing
+              ? "Edit freely. Save & Learn teaches the style profile from your changes."
+              : "Copy and paste into your dictation system, or click Edit to refine and teach."}
           </div>
         </div>
       </div>

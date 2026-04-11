@@ -2,6 +2,111 @@ import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
 import { laparotomyPreamble, laparoscopicPreamble } from "../shared/preamble";
 import { standardOpenClosure, standardLapClosure } from "../shared/closure";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// OB/GYN — forced fields:
+//   - Fetal lie, presentation, position at delivery
+//   - Fetal heart rate category during case
+//   - Placental findings and cord issues
+//   - Uterine tone response (oxytocin / methergine / hemabate)
+//   - Cord gases and APGAR scores
+//   - Repair layers (hysterotomy closure, vaginal repair)
+//   - Adnexal findings and pelvic pathology
+// ---------------------------------------------------------------------------
+
+export function obgynTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["cesarean", "caesarean", "c-section", "lscs", "c/s"])) {
+    return {
+      anesthesia: "Spinal / combined spinal-epidural anesthesia (or general endotracheal for emergent cases).",
+      ebl: "Approximately 800–1000 ml.",
+      drains: "None routinely.",
+      specimens: "Placenta to pathology per indication.",
+      disposition:
+        "The patient tolerated the procedure well. Mother and baby are stable and transferred to postpartum recovery together for skin-to-skin and breastfeeding initiation. Standard post-cesarean pathway: IV oxytocin infusion, multimodal analgesia, early ambulation, voiding trial, advance diet as tolerated.",
+    };
+  }
+
+  if (includesAny(name, ["hysterectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–250 ml.",
+      drains: "None.",
+      specimens: "Uterus +/- cervix oriented for pathology; adnexa submitted separately when removed.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the surgical floor. Clear liquids advancing as tolerated, early ambulation, multimodal analgesia, DVT prophylaxis. Foley removal on POD 1.",
+    };
+  }
+
+  if (includesAny(name, ["d&c", "dilation and curettage"])) {
+    return {
+      anesthesia: "Monitored anesthesia care / general anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Endometrial curettings to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Return precautions for heavy bleeding, fever, or severe pain.",
+    };
+  }
+
+  if (includesAny(name, ["myomectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "None routinely.",
+      specimens: "Leiomyomata submitted for pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for standard recovery. Pain control, early ambulation, uterine contractility monitoring. Counsel regarding uterine scar implications for future pregnancy.",
+    };
+  }
+
+  if (includesAny(name, ["salping", "oophorectom", "cystectomy", "tubal"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Adnexal structure / ovarian cyst to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Recovery as outpatient or short admission depending on indication. Hormonal counseling when oophorectomy performed on premenopausal patient.",
+    };
+  }
+
+  return {
+    anesthesia: "General / regional anesthesia.",
+    ebl: "Approximately ________ ml.",
+    drains: "None.",
+    specimens: "[Specimens to pathology or 'None'].",
+    disposition: "The patient tolerated the procedure well. Recovery per standard OB/GYN service protocol.",
+  };
+}
+
+export function obgynFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["cesarean", "caesarean", "c-section", "lscs", "c/s"])) {
+    return `A live [singleton / twin] gestation was delivered in [vertex / breech / transverse] presentation. Fetal heart rate during the procedure remained [Category I / intermittently Category II with reassuring return / Category III prompting expedited delivery]. The amniotic fluid was [clear / meconium-stained / bloody]. The placenta was delivered intact with a 3-vessel umbilical cord. Cord gases were sent. APGAR scores were [__] at 1 minute and [__] at 5 minutes. Estimated weight [__] g. The uterus was delivered into the operative field and responded well to oxytocin / methergine with good tone. The fallopian tubes and ovaries were inspected and were normal. The hysterotomy was closed in two layers with running absorbable suture and was hemostatic.`;
+  }
+
+  if (includesAny(name, ["hysterectomy"])) {
+    return `The uterus was [enlarged / normal in size / fibroid-studded] with [__] cm largest myoma identified. The adnexa were [normal bilaterally / contained a [__] cm simple cyst]. There were [no / dense] pelvic adhesions. The ureters were identified bilaterally and traced safely throughout the dissection. The cuff was closed with interrupted / running absorbable suture and was hemostatic. No bladder or bowel injury was encountered.`;
+  }
+
+  if (includesAny(name, ["d&c", "dilation and curettage"])) {
+    return `The cervix dilated atraumatically to [__] Hegar. Uniform endometrial curettings were obtained from all four quadrants without evidence of perforation. The uterus sounded to [__] cm. Minimal blood loss was encountered.`;
+  }
+
+  if (includesAny(name, ["myomectomy"])) {
+    return `The uterus contained [__] intramural / subserosal / submucosal leiomyomata, the largest measuring approximately [__] cm at the [anterior / posterior / fundal] wall. The myomata were enucleated within their capsules. The myometrial defect was closed in layers with absorbable suture. The tubes and ovaries were inspected and were normal.`;
+  }
+
+  if (includesAny(name, ["salping", "oophorectom", "cystectomy", "tubal"])) {
+    return `The [left / right / bilateral] adnexa were identified. A [__] cm [simple / complex / hemorrhagic] ovarian cyst / [hydrosalpinx / ectopic pregnancy] was identified, consistent with the preoperative imaging. The ureter was identified and protected. The contralateral adnexa were normal. No evidence of peritoneal implants or carcinomatosis was encountered.`;
+  }
+
+  return `Intraoperative findings were consistent with the preoperative diagnosis. The pelvic anatomy was identified and inspected. Hemostasis was satisfactory.`;
+}
 
 function obgynOpSteps(c: CaseLog): string[] {
   const name = c.procedureName.toLowerCase();

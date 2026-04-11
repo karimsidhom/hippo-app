@@ -18,10 +18,40 @@ export interface StyleProfile {
     brevity: "verbose" | "standard" | "concise";
     /** Preferred section-header style. */
     headerStyle: "upper" | "title" | "plain";
+    /**
+     * Preferred section order keyed by section label. When present, the
+     * renderer will reorder to match and drop any sections the user
+     * consistently removes.
+     */
+    sectionOrder?: string[];
+    /** Sections the user consistently removed from their corrections. */
+    droppedSections?: string[];
     /** Wording patterns the user reliably uses. */
     preferredPhrases: string[];
     /** Wording patterns the user explicitly removed when correcting. */
     avoidPhrases: string[];
+    /**
+     * Phrase substitutions the user has shown a preference for —
+     * { from: "drafted phrase", to: "preferred phrase" }. Applied at
+     * render time as a literal replace.
+     */
+    phraseSubstitutions?: Array<{ from: string; to: string }>;
+    /** Formatting preferences — line spacing, blank lines between sections. */
+    formatting?: {
+      /** 0 = no blank line between sections, 1 = one blank (default), 2 = two. */
+      blankLinesBetweenSections?: number;
+      /** If true, keep blank lines between labeled header rows. */
+      blankLineAfterHeaders?: boolean;
+      /** If true, section headers end with a colon on their own line. */
+      headersOnOwnLine?: boolean;
+      /** User's preferred bullet character, or null if they prefer prose. */
+      bulletStyle?: "-" | "•" | "*" | null;
+    };
+    /**
+     * Count of corrections ingested. Used to weight noisy single-correction
+     * signals versus high-confidence repeated patterns.
+     */
+    correctionCount?: number;
   };
 
   /** Service-scoped overrides, keyed by ServiceKey. */

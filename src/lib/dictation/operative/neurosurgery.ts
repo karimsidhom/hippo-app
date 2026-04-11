@@ -1,5 +1,115 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// Neurosurgery — forced fields:
+//   - Pre- and post-operative GCS and motor exam
+//   - Intraoperative neuromonitoring (SSEP, MEP, EMG)
+//   - Frame/neuronavigation accuracy
+//   - Dural closure technique and watertight status
+//   - EVD / ICP readings when placed
+//   - Hemostasis and brain relaxation
+//   - Imaging correlation (MRI/CT stealth)
+// ---------------------------------------------------------------------------
+
+export function neurosurgeryTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["craniotomy for tumor", "tumor resection", "glioma", "meningioma", "metastasis"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, Foley catheter, and continuous intraoperative neuromonitoring (SSEP, MEP, EMG).",
+      ebl: "Approximately 150–400 ml.",
+      drains: "Subgaleal drain placed; Foley catheter.",
+      specimens: "Tumor specimen submitted fresh for frozen section and permanent pathology.",
+      disposition: "The patient tolerated the procedure well. Extubated in the OR after intact neurologic exam. Admitted to the neuro-ICU for serial hourly neurologic checks, blood pressure control, and seizure prophylaxis. Postoperative MRI within 24–48 hours.",
+    };
+  }
+
+  if (includesAny(name, ["craniotomy for hematoma", "evacuation", "subdural", "epidural"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and neuromonitoring.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "Subdural drain / subgaleal drain; Foley catheter.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Admitted to the neuro-ICU for hourly neurologic checks, blood pressure control, and CT imaging within 24 hours.",
+    };
+  }
+
+  if (includesAny(name, ["burr hole", "chronic subdural"])) {
+    return {
+      anesthesia: "General / local with MAC.",
+      ebl: "Minimal.",
+      drains: "Subdural drain to gravity drainage × 24–48 hours.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Admitted for 24-hour drain monitoring, serial neuro exams, and repeat CT prior to drain removal.",
+    };
+  }
+
+  if (includesAny(name, ["evd", "external ventricular drain"])) {
+    return {
+      anesthesia: "Local anesthesia with MAC.",
+      ebl: "Minimal.",
+      drains: "External ventricular drain leveled at the tragus at [__] cmH2O, draining clear CSF.",
+      specimens: "CSF sent for cell count, protein, glucose, Gram stain, and culture.",
+      disposition: "The patient tolerated the procedure well. ICU admission. Serial ICP monitoring and EVD output recording. CT confirmation of catheter tip placement.",
+    };
+  }
+
+  if (includesAny(name, ["vp shunt", "ventriculoperitoneal shunt"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "CSF sent for studies.",
+      disposition: "The patient tolerated the procedure well. Admitted for overnight observation. Shunt valve setting confirmed. Postoperative CT head / shunt series to confirm placement.",
+    };
+  }
+
+  if (includesAny(name, ["microdiscectomy", "laminectomy", "decompression"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with neuromonitoring.",
+      ebl: "Approximately 100–250 ml.",
+      drains: "None routinely.",
+      specimens: "Disc / ligamentum flavum / bone to pathology as indicated.",
+      disposition: "The patient tolerated the procedure well. Intact postoperative neurologic exam. Admitted briefly for pain control and mobilization. PT for ambulation and log-roll precautions.",
+    };
+  }
+
+  return {
+    anesthesia: "General endotracheal anesthesia with arterial line and neuromonitoring.",
+    ebl: "Approximately ________ ml.",
+    drains: "[Describe drains or 'None'].",
+    specimens: "[Describe specimens or 'None'].",
+    disposition: "The patient tolerated the procedure well. Neuro-ICU admission per standard neurosurgery protocol.",
+  };
+}
+
+export function neurosurgeryFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["craniotomy for tumor"])) {
+    return `Preoperative MRI demonstrated an enhancing mass in the [right frontal / left temporal / other] lobe measuring approximately [__] × [__] × [__] cm with surrounding vasogenic edema. Preoperative GCS was 15 with [intact / mild] focal neurologic deficit. Frameless stealth neuronavigation was registered with accuracy within 1 mm. Intraoperative neuromonitoring with SSEPs and MEPs was intact throughout. The tumor was [firm / soft / vascular / cystic] and was resected to a [gross-total / subtotal] extent under microscopic visualization. Brain relaxation was excellent and the cortex was protected throughout. Hemostasis within the tumor bed was meticulously confirmed. The dura was closed in a watertight fashion and leak-tested with Valsalva.`;
+  }
+
+  if (includesAny(name, ["craniotomy for hematoma", "evacuation", "subdural", "epidural"])) {
+    return `Preoperative CT demonstrated an acute [subdural / epidural / intraparenchymal] hematoma in the [right / left] [frontal / temporal / parietal] region with [__] mm of midline shift and [compressed / effaced] basal cisterns. Preoperative GCS was [__] with [__] pupillary response. The hematoma was evacuated completely with immediate brain relaxation and decompression of the brainstem. Active bleeding sources were controlled. [A decompressive craniectomy was performed / the bone flap was replaced] based on intraoperative swelling. Hemostasis was meticulously confirmed.`;
+  }
+
+  if (includesAny(name, ["burr hole", "chronic subdural"])) {
+    return `Preoperative CT demonstrated a chronic / subacute subdural hematoma with a hypodense / mixed density collection measuring [__] mm in maximum thickness and [__] mm of midline shift. Preoperative GCS [__] with [mild hemiparesis / confusion]. Two burr holes were made, the dura was opened, and xanthochromic subdural fluid was evacuated with copious saline irrigation until the effluent ran clear. A subdural drain was left in place.`;
+  }
+
+  if (includesAny(name, ["evd", "external ventricular drain"])) {
+    return `Preoperative imaging demonstrated hydrocephalus with [effaced / enlarged] ventricles. Preoperative GCS [__]. A right / left frontal approach via Kocher's point was used with trajectory toward the ipsilateral medial canthus and external auditory meatus. The ventricle was successfully cannulated on the first pass at a depth of approximately 6 cm, with immediate return of clear CSF. ICP on initial drainage was [__] cmH2O.`;
+  }
+
+  if (includesAny(name, ["microdiscectomy", "laminectomy", "decompression"])) {
+    return `Preoperative MRI demonstrated [central / paracentral / foraminal] disc herniation / severe central canal stenosis at [__] causing compression of the traversing / exiting nerve root. Preoperative neurologic exam showed [radicular symptoms in the __ distribution / motor weakness of __]. Intraoperative fluoroscopy confirmed the correct level. The nerve root was identified, decompressed, and mobilized without injury. Hemostasis within the epidural space was meticulously confirmed.`;
+  }
+
+  return `Preoperative imaging was reviewed and intraoperative findings were consistent. Preoperative GCS and neurologic exam were documented. Intraoperative neuromonitoring was intact throughout. Hemostasis was meticulously achieved and the dura was closed in a watertight fashion.`;
+}
 
 // ---------------------------------------------------------------------------
 // Neurosurgery — procedure-specific operative steps.

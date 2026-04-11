@@ -1,5 +1,143 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// Orthopedics — forced fields:
+//   - Limb and laterality
+//   - Pre- and post-operative neurovascular status
+//   - Fixation details (plate/screws/nail/prosthesis model and size)
+//   - Tourniquet time and pressure
+//   - Weight-bearing status
+//   - Splint / cast / brace plan
+//   - DVT prophylaxis plan
+// ---------------------------------------------------------------------------
+
+function detectLaterality(name: string): string {
+  const n = name.toLowerCase();
+  if (/\bbilateral\b/.test(n)) return "bilateral";
+  if (/\bleft\b/.test(n)) return "left";
+  if (/\bright\b/.test(n)) return "right";
+  return "[left/right]";
+}
+
+export function orthopedicsTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+  const lat = detectLaterality(name);
+
+  if (includesAny(name, ["total knee arthroplasty", "tka"])) {
+    return {
+      anesthesia: "Spinal anesthesia with adductor canal block for postoperative analgesia.",
+      ebl: "Approximately 100–200 ml. Tourniquet time [__] min at 300 mmHg.",
+      drains: "None.",
+      specimens: "None routinely.",
+      disposition: `The patient tolerated the procedure well. Admitted to the ortho floor. Weight-bearing as tolerated on the ${lat} lower extremity with a front-wheeled walker. Immediate physical therapy, CPM as indicated. DVT prophylaxis with ASA 81 mg BID for 4 weeks (or therapeutic anticoagulation for high-risk). Discharge home or to acute rehab when ambulating safely.`,
+    };
+  }
+
+  if (includesAny(name, ["total hip arthroplasty", "tha"])) {
+    return {
+      anesthesia: "Spinal anesthesia.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "None routinely.",
+      specimens: "Femoral head and resected acetabulum to pathology per indication.",
+      disposition: `The patient tolerated the procedure well. Admitted to the ortho floor. Weight-bearing as tolerated on the ${lat} lower extremity, posterior hip precautions (for posterior approach), early physical therapy, ASA 81 mg BID × 4 weeks for DVT prophylaxis.`,
+    };
+  }
+
+  if (includesAny(name, ["orif", "open reduction internal fixation", "plating", "im nail", "intramedullary"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–300 ml.",
+      drains: "None routinely.",
+      specimens: "None.",
+      disposition: `The patient tolerated the procedure well. Intact postoperative neurovascular exam documented in the ${lat} extremity. Splinted in appropriate position. Weight-bearing status: [non-weight-bearing / toe-touch / weight-bearing as tolerated] on the operative extremity. DVT prophylaxis per protocol. Follow-up in 2 weeks for wound check and suture removal.`,
+    };
+  }
+
+  if (includesAny(name, ["rotator cuff repair", "arthroscopic rotator cuff"])) {
+    return {
+      anesthesia: "General anesthesia with interscalene block.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: `The patient tolerated the procedure well. ${lat} shoulder placed in an abduction sling. Non-weight-bearing / no active abduction × 6 weeks. Physical therapy with passive ROM only for the first 6 weeks, then progressive active ROM.`,
+    };
+  }
+
+  if (includesAny(name, ["acl reconstruction", "acl repair"])) {
+    return {
+      anesthesia: "General anesthesia with adductor canal block.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: `The patient tolerated the procedure well. ${lat} knee in a hinged brace locked in extension. Weight-bearing as tolerated with crutches. Early physical therapy focusing on quadriceps activation and range of motion per ACL protocol.`,
+    };
+  }
+
+  if (includesAny(name, ["arthroscopy", "knee scope", "shoulder scope"])) {
+    return {
+      anesthesia: "General or regional anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Meniscal / labral tissue submitted to pathology as indicated.",
+      disposition: `The patient tolerated the procedure well. Discharge home the same day. Weight-bearing as tolerated with crutches × 3–5 days. Elevation, ice, and early range of motion.`,
+    };
+  }
+
+  if (includesAny(name, ["fusion", "acdf", "tlif", "plif", "laminectomy with fusion"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 200–500 ml.",
+      drains: "15 Fr closed-suction drain at the surgical site.",
+      specimens: "Bone for pathology as indicated.",
+      disposition: "The patient tolerated the procedure well. Intact postoperative neurologic exam documented. Admitted for pain control and mobilization. Log-roll precautions. Cervical / lumbar brace as indicated. PT mobilization on POD 1.",
+    };
+  }
+
+  return {
+    anesthesia: "General or regional anesthesia.",
+    ebl: "Approximately ________ ml.",
+    drains: "[None / closed-suction drain].",
+    specimens: "[None / pathology specimen].",
+    disposition: "The patient tolerated the procedure well. Neurovascular exam intact. Weight-bearing and immobilization plan per operating surgeon.",
+  };
+}
+
+export function orthopedicsFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+  const lat = detectLaterality(name);
+
+  if (includesAny(name, ["total knee arthroplasty", "tka"])) {
+    return `The ${lat} knee had severe tricompartmental osteoarthritis with eburnated bone, osteophytes, and [varus / valgus] deformity of approximately [__] degrees. The cruciate and collateral ligaments were [intact / partially deficient]. After bony cuts and trial reduction, the knee tracked centrally with excellent stability in full extension and flexion. Final components: [femoral / tibial / patellar] [manufacturer model, size]. Preoperative and postoperative neurovascular exam of the operative extremity was intact with 2+ distal pulses and normal sensation in all dermatomes.`;
+  }
+
+  if (includesAny(name, ["total hip arthroplasty", "tha"])) {
+    return `The ${lat} hip demonstrated severe degenerative joint disease with loss of joint space, femoral head deformity, and osteophytic overgrowth. The acetabular bone stock was adequate with no significant defects. The femoral canal was suitable for a [cemented / cementless] stem. Final components: [acetabular cup size, liner, femoral stem model and size, femoral head size]. Leg lengths were equalized and trial reduction was stable through full range of motion without impingement. Pre- and post-operative neurovascular exam of the operative extremity was intact.`;
+  }
+
+  if (includesAny(name, ["orif", "open reduction internal fixation"])) {
+    return `The ${lat} [bone/fracture site] fracture was confirmed by intraoperative fluoroscopy, consistent with the preoperative imaging. The fracture was [comminuted / simple / displaced / angulated]. Fracture reduction was achieved under direct visualization with anatomic alignment restored. [Implant type and model, screws/plates/intramedullary nail] was applied and reduction/fixation confirmed on AP and lateral fluoroscopy. Preoperative and postoperative neurovascular exam was intact with 2+ distal pulses and normal sensation/motor function.`;
+  }
+
+  if (includesAny(name, ["rotator cuff repair"])) {
+    return `${lat} shoulder arthroscopy demonstrated a [supraspinatus / infraspinatus / subscapularis] full-thickness rotator cuff tear measuring approximately [__] cm in AP × ML dimensions. The tear was [retracted to / over the glenoid rim / at the footprint]. Tissue quality was [excellent / fair / poor]. The biceps tendon was [normal / frayed / torn]. The cuff was mobilized and repaired in a [single-row / double-row / suture-bridge] configuration with [__] anchors, restoring the footprint without undue tension.`;
+  }
+
+  if (includesAny(name, ["acl reconstruction"])) {
+    return `${lat} knee arthroscopy demonstrated a complete ACL tear with [intact / torn] menisci and [no / grade __] chondral injury. Graft choice: [bone-patellar tendon-bone autograft / hamstring autograft / quadriceps tendon autograft / allograft]. Femoral and tibial tunnels were drilled in anatomic position under direct visualization. The graft was passed and fixed with [interference screws / suspensory fixation], achieving excellent tension and stability. Lachman and pivot-shift were negative under anesthesia after reconstruction.`;
+  }
+
+  if (includesAny(name, ["arthroscopy", "knee scope", "shoulder scope"])) {
+    return `${lat} [knee / shoulder] arthroscopy demonstrated [intraarticular pathology consistent with preoperative imaging]. [Describe chondral, meniscal, labral, or rotator cuff findings]. The appropriate intervention was performed as described below.`;
+  }
+
+  if (includesAny(name, ["fusion", "acdf", "tlif", "plif"])) {
+    return `Preoperative imaging showed degenerative disc disease / spondylolisthesis / central canal stenosis at [__]. Intraoperative fluoroscopy confirmed the correct levels. Adequate decompression was achieved with restoration of the neural foramen / central canal. Pedicle screws were placed under fluoroscopic guidance with intact neuromonitoring signals throughout. Interbody graft was placed with satisfactory alignment. Preoperative and postoperative neurologic exam was documented.`;
+  }
+
+  return `The ${lat} operative limb and relevant joint were identified and prepped under tourniquet. Neurovascular examination was intact preoperatively. Fluoroscopic imaging confirmed anatomy and alignment throughout. Postoperative neurovascular exam was intact with 2+ distal pulses and normal sensation/motor function.`;
+}
 
 // ---------------------------------------------------------------------------
 // Orthopedic Surgery — procedure-specific operative steps.

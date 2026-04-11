@@ -10,6 +10,191 @@ import {
   standardLapClosure,
   endoscopicClosure,
 } from "../shared/closure";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// Urology — forced fields:
+//   - Laterality (left/right/bilateral)
+//   - Stent/catheter details (size, type, balloon volume)
+//   - Stone burden / location (for stone cases)
+//   - Urine quality at end of case
+//   - Drainage plan
+//   - Hematuria level
+//   - Renal function considerations
+//   - Follow-up device plan (when is the catheter/stent coming out)
+// ---------------------------------------------------------------------------
+
+function detectLaterality(name: string): string {
+  const n = name.toLowerCase();
+  if (/\bbilateral\b/.test(n)) return "bilateral";
+  if (/\bleft\b/.test(n)) return "left";
+  if (/\bright\b/.test(n)) return "right";
+  return "[left / right]";
+}
+
+export function urologyTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  // Stone cases
+  if (includesAny(name, ["ureteroscopy", "urs", "laser lithotripsy"])) {
+    return {
+      anesthesia: "General anesthesia.",
+      ebl: "Minimal.",
+      drains:
+        "6 Fr × 26 cm double-J ureteral stent (proximal coil in renal pelvis, distal coil in bladder) and 16 Fr Foley catheter.",
+      specimens: "Stone fragments sent for chemical analysis.",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. All counts were reported as correct prior to closure. The patient was transferred to the recovery area in stable condition. Plan: discharge home the same day on tamsulosin and an oral analgesic regimen. The ureteral stent will be removed in clinic in approximately 1–2 weeks. KUB will be obtained prior to stent removal to assess residual stone burden.",
+    };
+  }
+
+  if (includesAny(name, ["pcnl", "percutaneous nephrolithotomy"])) {
+    return {
+      anesthesia: "General anesthesia.",
+      ebl: "Approximately 100–200 ml.",
+      drains:
+        "14 Fr Council-tip nephrostomy tube in the upper-pole access tract and 16 Fr urethral Foley catheter.",
+      specimens: "Stone fragments sent for chemical analysis and culture.",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Admitted for overnight observation. Plan: nephrostogram on postoperative day 1 to confirm antegrade flow, with nephrostomy tube removal thereafter if satisfactory. Continue IV antibiotics until culture results return.",
+    };
+  }
+
+  if (includesAny(name, ["turbt", "transurethral resection of bladder"])) {
+    return {
+      anesthesia: "General anesthesia with paralytic to avoid obturator reflex during lateral-wall resection.",
+      ebl: "Minimal to approximately 50 ml.",
+      drains: "22 Fr three-way Foley catheter on continuous bladder irrigation until the effluent clears.",
+      specimens:
+        "Tumor chips labeled separately by location, with a distinct deep-muscle specimen submitted to confirm adequacy of staging.",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Admitted overnight for bladder irrigation. Plan: CBI until the urine clears, then Foley removal on postoperative day 1. Discharge home when voiding adequately. Repeat cystoscopy at 3 months per AUA guidelines.",
+    };
+  }
+
+  if (
+    includesAny(name, [
+      "turp",
+      "transurethral resection of prostate",
+      "greenlight",
+      "photovaporization",
+      "pvp",
+      "holep",
+      "holmium enucleation",
+    ])
+  ) {
+    return {
+      anesthesia: "General anesthesia.",
+      ebl: "Minimal.",
+      drains: "22 Fr three-way Foley catheter with 30 cc in the balloon.",
+      specimens: "None. / Prostate chips sent for pathology (for TURP only).",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Admitted for overnight observation on continuous bladder irrigation. Plan: discontinue CBI when the effluent is clear, Foley removal on postoperative day 1 or 2 with voiding trial. Discharge home when voiding adequately.",
+    };
+  }
+
+  if (includesAny(name, ["radical prostatectomy", "rrp", "rarp", "lrp"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 200–300 ml.",
+      drains: "15 Fr Blake drain in the pelvis and 20 Fr urethral Foley catheter.",
+      specimens: "Prostate and seminal vesicles sent en bloc for permanent section; obturator and pelvic lymph nodes submitted separately when dissected.",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Admitted for standard post-prostatectomy recovery pathway. Plan: advance diet as tolerated, ambulate early, drain removal when output is < 100 ml/day, Foley catheter for 7–10 days with cystogram-guided removal.",
+    };
+  }
+
+  if (includesAny(name, ["nephrectomy", "partial nephrectomy"])) {
+    const partial = name.includes("partial");
+    return {
+      anesthesia: "General endotracheal anesthesia with epidural for open cases.",
+      ebl: partial ? "Approximately 150–300 ml." : "Approximately 100–200 ml.",
+      drains: partial
+        ? "15 Fr Blake drain in the perinephric space and 16 Fr Foley catheter."
+        : "16 Fr Foley catheter.",
+      specimens: partial
+        ? "Renal mass with a rim of normal parenchyma sent fresh for frozen-section margin assessment, then permanent section."
+        : "Kidney and surrounding Gerota's fascia en bloc, with ipsilateral adrenal gland [preserved / included] as indicated.",
+      disposition:
+        "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Admitted to the surgical floor. Plan: advance diet as tolerated, early ambulation, serial hemoglobin checks, drain removal when output is low.",
+    };
+  }
+
+  // Generic urology default
+  const lat = detectLaterality(name);
+  return {
+    anesthesia: "General anesthesia.",
+    ebl: "Approximately ________ ml.",
+    drains: `Foley catheter. [Describe ureteral stent/drain specifics if placed.] Laterality: ${lat}.`,
+    specimens: "[Describe specimens or 'None'].",
+    disposition:
+      "The patient tolerated the procedure well and was awakened from anesthesia uneventfully. Transferred to the recovery area in stable condition. Postoperative plan per standard urology service protocol.",
+  };
+}
+
+export function urologyFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+  const lat = detectLaterality(name);
+
+  if (includesAny(name, ["ureteroscopy", "urs", "laser lithotripsy"])) {
+    return `A ${lat} ureteral stone was identified at the [proximal / mid / distal] ureter measuring approximately [__] mm. The ureter was patent to the level of the stone with [no / mild / moderate] upstream hydroureter. No evidence of ureteral stricture, tumor, or perforation was appreciated. The renal pelvis and visualized calyces were clear of additional stone burden at the conclusion of the procedure. The urine returned clear at the end of the case, and hemostasis within the ureter was excellent. A double-J stent was positioned with the proximal coil in the renal pelvis and the distal coil in the bladder, confirmed by direct and fluoroscopic visualization. Preoperative renal function was within acceptable limits for contrast and anesthesia.`;
+  }
+
+  if (includesAny(name, ["pcnl"])) {
+    return `A ${lat} staghorn / large-volume renal stone burden was identified, involving the [renal pelvis and lower / upper pole calyx]. A posterior lower-pole calyceal access was obtained under combined fluoroscopic and ultrasound guidance. Stone fragments were systematically cleared with [ultrasonic / combined pneumatic and ultrasonic] lithotripsy. Residual fragments in inaccessible calyces were addressed with flexible nephroscopy. At the conclusion of the case there was [no / minimal] residual stone burden, the urothelium was intact, and hemostasis at the access tract was satisfactory. Urine returned lightly blood-tinged.`;
+  }
+
+  if (includesAny(name, ["turbt", "transurethral resection of bladder"])) {
+    return `Cystoscopy demonstrated [single / multiple] bladder tumor(s), the dominant lesion located at the [left lateral / right lateral / posterior / dome / trigone] wall, measuring approximately [__] cm and appearing [papillary / sessile / solid]. No carcinoma in situ was appreciated on inspection. The ureteral orifices were identified bilaterally and were uninvolved. The tumor(s) were completely resected down to and including detrusor muscle, and the base was fulgurated. At the end of the procedure the bladder was well drained, the effluent was clearing, and there was no evidence of perforation.`;
+  }
+
+  if (includesAny(name, ["greenlight", "photovaporization", "pvp"])) {
+    return `There was a large obstructing median lobe. There was also lateral lobe adenoma, more notable on the ${lat} lateral side. At the end of the procedure there was a widely patent prostatic channel with good hemostasis. Care was taken to keep treatment proximal to the verumontanum to preserve the external urethral sphincter. Minimal hematuria was present at the conclusion of the case. The bladder neck and ureteral orifices were identified and uninvolved. Urine returned clear.`;
+  }
+
+  if (includesAny(name, ["turp", "transurethral resection of prostate"])) {
+    return `There was a large obstructing prostate with prominent [median / lateral / bilateral] lobe enlargement measuring approximately [__] g by preoperative imaging. The bladder neck was identified and the verumontanum was used as the distal landmark to protect the external urethral sphincter. At the conclusion of the resection there was a widely patent prostatic fossa, the ureteral orifices were preserved and uninvolved, hemostasis was achieved throughout the fossa, and the effluent was clearing with only minimal hematuria.`;
+  }
+
+  if (includesAny(name, ["holep", "holmium enucleation"])) {
+    return `There was a large obstructing prostatic adenoma enucleated off the surgical capsule along the plane of dissection. The verumontanum was preserved throughout. Each enucleated lobe was morcellated in the bladder, and at the conclusion of the procedure there was a widely patent prostatic fossa with excellent hemostasis, clear effluent, and only minimal residual hematuria.`;
+  }
+
+  if (includesAny(name, ["radical prostatectomy", "rrp", "rarp", "lrp"])) {
+    return `Intraoperative findings were consistent with the preoperative diagnosis of prostate cancer. The prostate was mobilized from the endopelvic fascia and dorsal venous complex without evidence of extraprostatic extension on visual inspection. The neurovascular bundles were [spared bilaterally / spared on one side only / widely excised for oncologic control] based on preoperative risk. The seminal vesicles were dissected without evidence of gross invasion. A tension-free, watertight vesicourethral anastomosis was achieved and confirmed with bladder irrigation. No gross lymphadenopathy was noted during the pelvic lymph node dissection.`;
+  }
+
+  if (includesAny(name, ["radical nephrectomy", "total nephrectomy"])) {
+    return `A ${lat} renal mass was identified, consistent with the preoperative imaging and contained within Gerota's fascia. There was no gross invasion into the renal vein, vena cava, adjacent colon, duodenum, pancreatic tail, or adrenal gland. The kidney was removed en bloc within Gerota's fascia. The renal hilum was controlled with vascular staplers without complication. Hemostasis within the renal fossa was satisfactory at the conclusion of the case.`;
+  }
+
+  if (includesAny(name, ["partial nephrectomy", "nephron sparing"])) {
+    return `A ${lat} renal mass was identified at the [upper / mid / lower] pole, measuring approximately [__] cm on intraoperative ultrasound, consistent with preoperative imaging. The tumor was circumferentially excised with a rim of normal parenchyma. Frozen-section margins were sent and returned [negative]. The collecting system and transected intrarenal vessels were reconstructed. Warm ischemia time was approximately [__] minutes. The renorrhaphy was inspected after clamp release and was hemostatic.`;
+  }
+
+  if (includesAny(name, ["radical cystectomy", "cystoprostatectomy"])) {
+    return `A bulky, muscle-invasive bladder tumor was identified, consistent with the preoperative diagnosis. There was no gross evidence of invasion into the rectum, vaginal wall, or pelvic sidewall. Bilateral pelvic lymphadenectomy did not demonstrate gross adenopathy. The ureters were patent and mobilized without injury. The specimen was removed en bloc and urinary diversion was performed as described below.`;
+  }
+
+  if (includesAny(name, ["vasectomy"])) {
+    return `Both vas deferens were identified, isolated, and found to be grossly normal in caliber. Each vas was clearly distinct from surrounding cord structures. Fascial interposition was completed bilaterally. No intraoperative bleeding was encountered.`;
+  }
+
+  if (includesAny(name, ["circumcision"])) {
+    return `The foreskin was [phimotic / redundant / normal] with [no / mild] adhesions to the glans. The coronal anatomy was normal. No meatal stenosis or chordee was identified. Hemostasis was excellent at the completion of the procedure.`;
+  }
+
+  if (includesAny(name, ["orchiectomy"])) {
+    return `A ${lat} testicular mass was identified, consistent with the preoperative diagnosis, with normal-appearing contralateral testis and cord structures. There was no evidence of invasion beyond the tunica albuginea or involvement of the spermatic cord up to the internal ring. The specimen was removed intact and hemostasis was achieved.`;
+  }
+
+  if (includesAny(name, ["hydrocele", "hydrocelectomy"])) {
+    return `A large ${lat} hydrocele was identified with normal underlying testis and epididymis. There was no evidence of testicular mass, varicocele, or inguinal hernia. The sac was opened and drained, then plicated behind the cord in Jaboulay fashion.`;
+  }
+
+  // Generic urology finding
+  return `Intraoperative findings were consistent with the preoperative diagnosis. The ${lat} genitourinary anatomy was identified and inspected. There was no evidence of unanticipated pathology. Hemostasis was satisfactory and the urine returned clear at the conclusion of the case.`;
+}
 
 // ---------------------------------------------------------------------------
 // Urology — procedure-specific operative steps.

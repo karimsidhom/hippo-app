@@ -1,5 +1,147 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// ENT — forced fields:
+//   - Airway management (intubation, throat pack)
+//   - Facial nerve monitoring and landmarking
+//   - Recurrent laryngeal nerve identification and integrity
+//   - Parathyroid identification and preservation
+//   - Vocal cord / laryngeal exam findings
+//   - Nasal packing plan
+//   - Tracheostomy tube size and cuff status
+// ---------------------------------------------------------------------------
+
+export function entTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["tonsillectomy", "adenoidectomy", "t&a"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with oral RAE tube.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Tonsils right and left, submitted separately.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day on clear liquids advancing as tolerated, scheduled acetaminophen/ibuprofen, return precautions for bleeding or fever.",
+    };
+  }
+
+  if (includesAny(name, ["myringotomy", "tympanostomy", "m&t", "ear tubes"])) {
+    return {
+      anesthesia: "Mask general anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day. Ear drops for 5 days. Follow-up in 4 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["septoplasty", "turbinate"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with oral RAE tube and throat pack.",
+      ebl: "Minimal.",
+      drains: "Nasal splints or Doyle splints in place.",
+      specimens: "Cartilage / bone fragments to pathology if removed.",
+      disposition: "The patient tolerated the procedure well. Discharge home. Saline nasal sprays, head-of-bed elevation. Splints removed in clinic at 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["fess", "functional endoscopic sinus", "sinus surgery"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with throat pack.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "Bioresorbable packing in place.",
+      specimens: "Sinus tissue and polyps submitted to pathology.",
+      disposition: "The patient tolerated the procedure well. Discharge home. Saline irrigations starting POD 1, intranasal steroid, no nose-blowing × 1 week. Debridement in clinic at 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["thyroidectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with continuous intraoperative recurrent laryngeal nerve monitoring via NIM tube.",
+      ebl: "Minimal.",
+      drains: "None routinely (7 Fr JP may be placed for large goiters).",
+      specimens: "Thyroid [lobe / gland] oriented for pathology; parathyroid glands identified and preserved on vascular pedicle.",
+      disposition: "The patient tolerated the procedure well. Both RLN signals intact at the end of the case. Admitted for overnight observation for airway and serial ionized calcium checks. Discharge home on POD 1 if stable.",
+    };
+  }
+
+  if (includesAny(name, ["parotidectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with facial nerve monitoring; paralysis avoided.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "10 Fr closed-suction drain in the parotid bed.",
+      specimens: "Superficial / total parotid gland oriented for pathology.",
+      disposition: "The patient tolerated the procedure well. Facial nerve function preserved with intact monitoring signals throughout. Admitted for overnight observation. Drain removal when output < 30 ml/day.",
+    };
+  }
+
+  if (includesAny(name, ["neck dissection"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "15 Fr closed-suction drain in the neck.",
+      specimens: "Neck lymph node contents by level, oriented for pathology.",
+      disposition: "The patient tolerated the procedure well. Admitted to the floor for drain monitoring and pain control. Drain removal when output < 30 ml/day for 48 hours.",
+    };
+  }
+
+  if (includesAny(name, ["tracheostomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia (converted at the end of the case).",
+      ebl: "Minimal.",
+      drains: "[__] Shiley cuffed tracheostomy tube in place.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well with stable airway on the tracheostomy tube. Admitted for trach care, suctioning, and humidification. First trach change at POD 5–7.",
+    };
+  }
+
+  return {
+    anesthesia: "General endotracheal anesthesia.",
+    ebl: "Minimal.",
+    drains: "[Describe drains, packing, or 'None'].",
+    specimens: "[Specimens or 'None'].",
+    disposition: "The patient tolerated the procedure well. Postoperative plan per standard ENT service protocol.",
+  };
+}
+
+export function entFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["tonsillectomy", "adenoidectomy", "t&a"])) {
+    return `The tonsils were [markedly hypertrophic / cryptic / chronically inflamed] bilaterally. The adenoids [fully obstructed / partially obstructed] the posterior nasal choanae. No evidence of retained dental hardware or airway compromise. Hemostasis was excellent in the tonsillar fossae and nasopharynx at the completion of the case. The airway was clear.`;
+  }
+
+  if (includesAny(name, ["myringotomy", "tympanostomy", "m&t"])) {
+    return `Bilateral tympanic membranes were [retracted / effused / bulging] with [serous / mucoid / purulent] middle ear effusions. Myringotomies were made in the antero-inferior quadrants and fluid was suctioned. Pressure-equalization tubes were placed without difficulty bilaterally.`;
+  }
+
+  if (includesAny(name, ["septoplasty"])) {
+    return `The nasal septum was significantly deviated to the [right / left] with a bony / cartilaginous spur causing airway obstruction. The inferior turbinates were hypertrophied. After septoplasty and turbinate reduction, the nasal airway was markedly improved with a midline septum. Hemostasis was excellent.`;
+  }
+
+  if (includesAny(name, ["fess"])) {
+    return `Nasal endoscopy confirmed [polyposis / chronic mucosal thickening / purulent secretions] in the [maxillary / ethmoid / frontal / sphenoid] sinuses bilaterally, consistent with preoperative CT. The uncinate, middle turbinate, skull base, and lamina papyracea were identified and preserved. Sinus ostia were widely opened. No CSF leak or orbital injury was encountered.`;
+  }
+
+  if (includesAny(name, ["thyroidectomy"])) {
+    return `The thyroid was [diffusely enlarged / nodular / contained a [__] cm dominant nodule in the [right / left] lobe]. Both recurrent laryngeal nerves were identified and traced throughout their cervical course, with intact NIM signals at 2 mA stimulation before and after dissection. All four parathyroid glands were identified and preserved on their vascular pedicles with viable color. No evidence of extrathyroidal extension or central compartment lymphadenopathy.`;
+  }
+
+  if (includesAny(name, ["parotidectomy"])) {
+    return `A [__] cm parotid mass was identified in the [superficial / deep] lobe, consistent with the preoperative imaging. The facial nerve trunk was identified at the tragal pointer / tympanomastoid suture and dissected out to its branches with intact stimulation throughout. All five facial nerve branches had intact function at the conclusion of the case. The tumor was removed en bloc with a rim of normal parotid tissue.`;
+  }
+
+  if (includesAny(name, ["neck dissection"])) {
+    return `Neck dissection was performed preserving the spinal accessory nerve, internal jugular vein, and sternocleidomastoid muscle where oncologically appropriate. Lymph node contents were harvested from levels [II / III / IV / V] as indicated. No gross extracapsular extension was identified. The carotid sheath was protected throughout.`;
+  }
+
+  if (includesAny(name, ["tracheostomy"])) {
+    return `The trachea was identified between the second and third tracheal rings. A Bjork flap / vertical tracheal incision was made and a [__] Shiley cuffed tracheostomy tube was placed without difficulty, with immediate capnography confirming airway position and bilateral breath sounds auscultated.`;
+  }
+
+  return `Intraoperative findings were consistent with the preoperative diagnosis. The airway was secured and relevant cranial nerves were identified and preserved. Hemostasis was satisfactory at the conclusion of the case.`;
+}
 
 // ---------------------------------------------------------------------------
 // Otolaryngology — Head and Neck Surgery (ENT) — procedure-specific steps.

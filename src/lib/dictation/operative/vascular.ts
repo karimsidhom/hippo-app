@@ -1,5 +1,97 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// Vascular — forced fields:
+//   - Laterality and vessel targeted
+//   - Inflow and outflow quality
+//   - Distal pulses preoperatively and postoperatively
+//   - Heparin dose and ACT
+//   - Graft type, size, tunneling route
+//   - Patch material (bovine pericardium / PTFE / vein)
+//   - Intraoperative completion imaging (duplex / angio)
+// ---------------------------------------------------------------------------
+
+export function vascularTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["carotid endarterectomy", "cea"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with intraoperative EEG / cerebral oximetry monitoring.",
+      ebl: "Approximately 50–100 ml.",
+      drains: "None routinely (closed-suction drain may be placed for extensive dissection).",
+      specimens: "Carotid plaque specimen sent for pathology.",
+      disposition:
+        "The patient tolerated the procedure well and was extubated in the operating room. Neurologic exam intact. Admitted to the step-down unit for overnight monitoring of neurologic status, blood pressure control, and neck hematoma surveillance.",
+    };
+  }
+
+  if (includesAny(name, ["bypass", "fem-pop", "fem-fem", "fem pop", "fem fem", "axillo-fem", "aorto-bifem", "aorto-femoral"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and central venous access.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "None routinely.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for postoperative monitoring. Serial distal pulse and graft checks every hour × 4, then every 4 hours. Maintain mean arterial pressure to support graft perfusion. Therapeutic anticoagulation / antiplatelet per service protocol.",
+    };
+  }
+
+  if (includesAny(name, ["av fistula", "avf", "arteriovenous fistula", "dialysis access"])) {
+    return {
+      anesthesia: "Regional block with monitored anesthesia care.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Thrill and bruit palpable / audible over the anastomosis. Discharge home the same day. Follow-up in 2 weeks for fistula maturation assessment; plan for duplex ultrasound at 4–6 weeks prior to first cannulation.",
+    };
+  }
+
+  if (includesAny(name, ["evar", "tevar", "endovascular aneurysm repair"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and central access.",
+      ebl: "Approximately 100–200 ml.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for overnight monitoring. Serial femoral access site checks, distal pulse checks, and hemoglobin monitoring. Completion angiogram confirmed no type I or III endoleak. Plan for surveillance CT angiogram at 1 month and 6 months.",
+    };
+  }
+
+  return {
+    anesthesia: "General endotracheal anesthesia.",
+    ebl: "Approximately ________ ml.",
+    drains: "[None / closed-suction drain].",
+    specimens: "[None / plaque / clot].",
+    disposition:
+      "The patient tolerated the procedure well. Serial distal pulse checks, BP management, and anticoagulation per service protocol.",
+  };
+}
+
+export function vascularFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+  const side = /\bbilateral\b/.test(name) ? "bilateral" : /\bleft\b/.test(name) ? "left" : /\bright\b/.test(name) ? "right" : "[left/right]";
+
+  if (includesAny(name, ["carotid endarterectomy", "cea"])) {
+    return `A ${side} carotid bifurcation with a high-grade (> 70%) atherosclerotic plaque at the origin of the internal carotid artery was identified, consistent with the preoperative duplex imaging. The plaque was [soft and ulcerated / calcified and stable]. A feathered distal endpoint on the ICA was achieved without residual flap. The hypoglossal, vagus, and marginal mandibular nerves were identified and preserved. The patient was heparinized with 5,000 units IV heparin and the ACT was confirmed > 250 seconds. Shunting was [not required based on stump pressure / used via a Pruitt-Inahara shunt]. After closure with a bovine pericardial patch, intraoperative duplex / Doppler confirmed triphasic flow in the ICA, CCA, and ECA without evidence of intimal flap or residual stenosis.`;
+  }
+
+  if (includesAny(name, ["bypass", "fem-pop", "fem pop", "fem-fem", "fem fem", "axillo-fem", "aorto-femoral"])) {
+    return `The inflow artery was soft, pulsatile, and free of significant disease on inspection and palpation. The outflow target vessel was [patent / moderately diseased with an acceptable landing zone]. The patient was heparinized with 80 units/kg IV heparin and ACT was confirmed > 250 seconds. A ${side} bypass graft was constructed from [reversed great saphenous vein / 6 mm ringed PTFE / 8 mm Dacron] tunneled in the [anatomic / subcutaneous] plane. End-to-side anastomoses were created proximally and distally with running 5-0 Prolene. After release of clamps there was strong palpable pulse throughout the graft and restored Doppler signals in the [DP / PT / plantar] vessels distally. Completion angiography / duplex confirmed patency without kinking or distal embolization. Preoperative distal pulses were absent; postoperatively they were palpable.`;
+  }
+
+  if (includesAny(name, ["av fistula", "arteriovenous fistula", "avf", "dialysis access"])) {
+    return `A ${side} [radiocephalic / brachiocephalic / brachiobasilic] configuration was used, consistent with the preoperative vein mapping. The target vein was at least 3 mm in caliber and free of prior cannulation injury. The inflow artery was > 2 mm and soft. An end-to-side anastomosis was created with running 6-0 Prolene. On clamp release there was a strong palpable thrill across the anastomosis and a clearly audible bruit distally. There was no evidence of steal, hematoma, or anastomotic stenosis.`;
+  }
+
+  if (includesAny(name, ["evar", "tevar"])) {
+    return `Aortic anatomy was consistent with preoperative CTA: adequate proximal and distal landing zones, suitable iliac access, and no excessive thrombus at the sealing zones. The aneurysm sac measured approximately [__] cm in maximum diameter. An appropriately sized [Zenith / Endurant / Excluder] endograft was deployed under fluoroscopic guidance with accurate placement at the planned landing zones. Completion angiography demonstrated no type I or type III endoleak, with a small type II endoleak [present / absent] and no target organ compromise.`;
+  }
+
+  return `Intraoperative findings were consistent with the preoperative imaging. The target vessel was identified and controlled proximally and distally. The patient was systemically heparinized with adequate ACT. Inflow and outflow were satisfactory. Distal perfusion was restored at the conclusion of the case, confirmed by palpable pulse / Doppler signal / completion imaging.`;
+}
 
 function vascularOpSteps(c: CaseLog): string[] {
   const name = c.procedureName.toLowerCase();

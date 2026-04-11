@@ -1,5 +1,6 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
 import {
   laparotomyPreamble,
   laparoscopicPreamble,
@@ -10,12 +11,116 @@ import {
 } from "../shared/closure";
 
 // ---------------------------------------------------------------------------
+// Pediatric Surgery — forced fields:
+//   - Age and weight (weight-based dosing)
+//   - Thermoregulation during case
+//   - Pylorus dimensions for pyloromyotomy
+//   - Sac integrity for hernia repairs
+//   - Air-leak test when applicable
+//   - Specific anatomic findings
+//   - Feeding / activity plan
+// ---------------------------------------------------------------------------
+
+export function pediatricSurgeryTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["pyloromyotomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia; stomach decompressed preoperatively.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Extubated in the OR. Ad lib feeds started 4 hours postoperatively per pediatric surgery protocol. Discharge home when tolerating goal feeds without emesis.",
+    };
+  }
+
+  if (includesAny(name, ["inguinal hernia", "high ligation"])) {
+    return {
+      anesthesia: "General anesthesia with caudal block for postoperative analgesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Hernia sac to pathology.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day. Regular diet and activity per age. Return precautions for bulge, redness, or fever.",
+    };
+  }
+
+  if (includesAny(name, ["orchidopexy"])) {
+    return {
+      anesthesia: "General anesthesia with caudal block.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day. Scrotal exam at 1 week and 3 months to confirm testicular position and viability.",
+    };
+  }
+
+  if (includesAny(name, ["umbilical hernia"])) {
+    return {
+      anesthesia: "General anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Hernia sac to pathology.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day. Return precautions for fever or wound concerns.",
+    };
+  }
+
+  if (includesAny(name, ["ladd", "malrotation"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None (or ischemic bowel if resected).",
+      disposition: "The patient tolerated the procedure well. Admitted for bowel rest and gradual advancement of feeds per pediatric surgery protocol.",
+    };
+  }
+
+  if (includesAny(name, ["peg tube"])) {
+    return {
+      anesthesia: "General anesthesia.",
+      ebl: "Minimal.",
+      drains: "PEG tube in place to gravity drainage.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. PEG feeds can be initiated 6 hours postoperatively. Site care teaching and follow-up scheduled.",
+    };
+  }
+
+  return {
+    anesthesia: "General anesthesia.",
+    ebl: "Minimal.",
+    drains: "None.",
+    specimens: "[Specimens or 'None'].",
+    disposition: "The patient tolerated the procedure well. Postoperative plan per pediatric surgery protocol.",
+  };
+}
+
+export function pediatricSurgeryFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["pyloromyotomy"])) {
+    return `Preoperative ultrasound demonstrated pyloric stenosis with a pyloric channel length of [__] mm and muscle thickness of [__] mm, consistent with the clinical presentation of projectile non-bilious emesis. Intraoperatively the pylorus was thickened, olive-shaped, and clearly demarcated from the antrum and duodenum. The seromuscular incision was carried through to the submucosal plane without mucosal breach. An air-leak test with instilled air via the OG tube confirmed intact mucosa. Infant thermoregulation was maintained throughout the case with forced-air warming.`;
+  }
+
+  if (includesAny(name, ["inguinal hernia", "high ligation"])) {
+    return `A [left / right / bilateral] indirect inguinal hernia was identified with a thin-walled sac extending through the internal ring. The sac was dissected free of the cord structures without injury to the vas deferens or testicular vessels. High ligation was performed at the level of the internal ring. The cord structures were returned to the scrotum and the testis palpated to confirm normal position.`;
+  }
+
+  if (includesAny(name, ["orchidopexy"])) {
+    return `A [left / right / bilateral] undescended testis was identified in the [inguinal canal / superficial ring / abdominal]. The testis was of [normal / atrophic] size and had [normal / short] gubernaculum. The vas deferens and spermatic vessels were mobilized to achieve tension-free descent into the dependent scrotum. The testis was fixed in a sub-dartos pouch without tension on the cord.`;
+  }
+
+  if (includesAny(name, ["umbilical hernia"])) {
+    return `An umbilical fascial defect measuring approximately [__] cm was identified. The hernia sac contained [omentum / preperitoneal fat]. The contents were reduced and the fascial edges were healthy. Primary closure was achieved without tension.`;
+  }
+
+  if (includesAny(name, ["ladd", "malrotation"])) {
+    return `Malrotation was confirmed with a narrow-based mesentery and duodenal obstruction by Ladd's bands. [No / Segmental] volvulus was present. The bowel was viable throughout. The Ladd's bands were divided, the mesentery was widened, and an incidental appendectomy was performed. The bowel was returned to the abdomen in non-rotation position.`;
+  }
+
+  return `Intraoperative findings were consistent with the preoperative diagnosis. The patient tolerated the procedure well with stable vital signs and maintained thermoregulation throughout.`;
+}
+
+// ---------------------------------------------------------------------------
 // Pediatric Surgery — procedure-specific operative steps.
-//
-// Covers the high-volume neonatal and pediatric cases: pyloromyotomy,
-// inguinal hernia (indirect), orchidopexy, umbilical hernia, pediatric
-// appendectomy, and common emergent presentations (malrotation/Ladd's,
-// intussusception, NEC).
 // ---------------------------------------------------------------------------
 
 function pedsOpSteps(c: CaseLog): string[] {

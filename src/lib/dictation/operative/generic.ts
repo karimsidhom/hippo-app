@@ -1,4 +1,18 @@
 import type { CaseLog } from "@/lib/types";
+import type { TopMatter } from "./index";
+
+export function genericFindings(_c: CaseLog): string {
+  return `Intraoperative findings were consistent with the preoperative diagnosis. The relevant anatomy was identified and inspected. No unanticipated pathology was encountered. Hemostasis was satisfactory at the conclusion of the case.`;
+}
+
+export function genericTopMatter(_c: CaseLog): TopMatter {
+  return {
+    anesthesia: "General anesthesia.",
+    ebl: "Approximately ________ ml.",
+    drains: "[Describe drains or 'None'].",
+    specimens: "[Describe specimens sent to pathology, or 'None'].",
+  };
+}
 
 /**
  * Approach-based fallback body for specialties that don't yet have a

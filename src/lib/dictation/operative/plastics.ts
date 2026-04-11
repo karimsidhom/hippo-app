@@ -1,13 +1,139 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
 
 // ---------------------------------------------------------------------------
 // Plastic & Reconstructive Surgery — procedure-specific operative steps.
 //
-// Covers the high-frequency aesthetic, reconstructive, breast, hand, and
-// craniofacial cases residents dictate. Wording is original; structure
-// follows standard plastic-surgery operative-note conventions.
+// Forced fields:
+//   - Wound bed quality and viability
+//   - Tissue quality (turgor, vascularity, perfusion)
+//   - Margins (oncologic margin status)
+//   - Coverage plan (primary, STSG, FTSG, flap)
+//   - Flap / graft considerations (thickness, inset, pedicle, Doppler)
+//   - Dressing plan
+//   - Donor site management
 // ---------------------------------------------------------------------------
+
+export function plasticsTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["breast reduction", "reduction mammaplasty"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–300 ml.",
+      drains: "15 Fr closed-suction drain to each breast, brought out through separate stab incisions.",
+      specimens: "Breast tissue from each side weighed and submitted separately for pathology.",
+      disposition: "The patient tolerated the procedure well. Discharged home in a surgical bra. Drain care teaching provided. Follow-up in 1 week for wound check and drain removal when output < 30 ml/day.",
+    };
+  }
+
+  if (includesAny(name, ["breast augmentation", "augmentation mammaplasty"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None routinely.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day in a surgical bra. Activity restriction × 4 weeks. Follow-up in 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["flap", "diep", "tram", "latissimus", "alt", "radial forearm", "fibula free flap"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and Foley catheter.",
+      ebl: "Approximately 200–500 ml.",
+      drains: "15 Fr closed-suction drains to recipient and donor sites.",
+      specimens: "None routinely.",
+      disposition: "The patient tolerated the procedure well. Admitted to a flap-monitoring unit for hourly clinical and Doppler checks × 48–72 hours. Flap warming, hydration, and vasopressor avoidance per standard protocol. Donor site dressed appropriately.",
+    };
+  }
+
+  if (includesAny(name, ["skin graft", "stsg", "ftsg"])) {
+    return {
+      anesthesia: "General or monitored anesthesia care depending on wound size.",
+      ebl: "Minimal.",
+      drains: "None (bolster dressing applied over graft).",
+      specimens: "None / wound bed biopsy as indicated.",
+      disposition: "The patient tolerated the procedure well. Graft dressing left intact for 5 days. Donor site dressed with Xeroform. Strict immobilization of the grafted region. First dressing change on POD 5.",
+    };
+  }
+
+  if (includesAny(name, ["carpal tunnel", "trigger finger", "a1 pulley"])) {
+    return {
+      anesthesia: "Local anesthesia with monitored sedation (or WALANT).",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day in a soft bulky dressing. Begin gentle range of motion immediately. Suture removal at 10–14 days.",
+    };
+  }
+
+  if (includesAny(name, ["abdominoplasty", "panniculectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "Two 15 Fr closed-suction drains.",
+      specimens: "Pannus / abdominal skin and subcutaneous tissue.",
+      disposition: "The patient tolerated the procedure well. Admitted overnight in flexed position to reduce tension on closure. Drain care teaching, abdominal binder, early ambulation with flexed posture.",
+    };
+  }
+
+  if (includesAny(name, ["mohs", "local flap", "rotation flap", "advancement flap"])) {
+    return {
+      anesthesia: "Local anesthesia with or without sedation.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None (Mohs specimen already processed by Mohs surgeon).",
+      disposition: "The patient tolerated the procedure well. Discharge home with wound care instructions. Suture removal at 5–14 days depending on anatomic location.",
+    };
+  }
+
+  return {
+    anesthesia: "General or local anesthesia with sedation.",
+    ebl: "Approximately ________ ml.",
+    drains: "[Describe drains or 'None'].",
+    specimens: "[Specimens or 'None'].",
+    disposition: "The patient tolerated the procedure well. Wound care and follow-up per standard plastic surgery protocol.",
+  };
+}
+
+export function plasticsFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["breast reduction", "reduction mammaplasty"])) {
+    return `Bilateral breast hypertrophy was addressed. Skin and parenchymal tissue were of [normal / attenuated] quality with good turgor. The inferior / superomedial pedicle was designed and confirmed to have reliable perfusion. Nipple-areolar perfusion was excellent at the conclusion of the reduction, confirmed by capillary refill and brisk dermal bleeding. [__] g was resected from the right breast and [__] g from the left.`;
+  }
+
+  if (includesAny(name, ["breast augmentation", "augmentation mammaplasty"])) {
+    return `Breast anatomy was symmetric with well-defined inframammary folds. Soft tissue thickness over the upper pole was [adequate / thin]. The [subglandular / subpectoral / dual-plane] pocket was developed to precisely match the implant dimensions. [__] mL [smooth / textured] silicone implants were selected bilaterally. Symmetric pocket dimensions and implant position were confirmed with the patient in the seated position.`;
+  }
+
+  if (includesAny(name, ["flap", "diep", "tram", "alt", "radial forearm", "latissimus", "fibula free flap"])) {
+    return `The recipient wound bed was [healthy with viable tissue / previously irradiated and scarred / contaminated but debrided and granulating]. The defect measured approximately [__] × [__] cm with exposed [vital structure]. The flap pedicle was identified, isolated, and confirmed patent with strong Doppler signal proximally and throughout the course of the flap. After inset, the flap demonstrated [excellent color, turgor, capillary refill / immediate Doppler signal over the pedicle]. Coverage plan achieved with a [pedicled / free] flap with [single venous / double venous] anastomosis. Donor site was closed primarily / required STSG coverage.`;
+  }
+
+  if (includesAny(name, ["skin graft", "stsg", "ftsg"])) {
+    return `The recipient wound bed was [healthy granulation tissue / freshly debrided] with [no / minimal] contamination and good vascularity confirmed by dermal bleeding. The wound measured approximately [__] × [__] cm. No exposed bone, tendon, or hardware was present. A [0.012-inch split-thickness / full-thickness] skin graft was harvested from the [thigh / post-auricular / groin] donor site with excellent quality. The graft was meshed 1.5:1 and inset with [skin staples / running absorbable sutures].`;
+  }
+
+  if (includesAny(name, ["carpal tunnel"])) {
+    return `The transverse carpal ligament was identified and was [thickened / normal]. The median nerve was compressed with [hourglass deformity / mild flattening]. After complete release, the nerve regained normal caliber and color. No anomalous thenar motor branch was encountered. The recurrent motor branch was visualized and preserved.`;
+  }
+
+  if (includesAny(name, ["trigger finger", "a1 pulley"])) {
+    return `The A1 pulley was identified and was thickened and constricting. Triggering of the flexor tendon was reproduced prior to release. After complete release of the A1 pulley, the tendon glided smoothly without any residual catching, and full active range of motion was demonstrated. The A2 pulley was preserved.`;
+  }
+
+  if (includesAny(name, ["abdominoplasty", "panniculectomy"])) {
+    return `A large abdominal pannus with [striae / stretch marks / a healed prior incision] was identified. The rectus fascia was [diastatic by __ cm / intact]. No ventral hernia was encountered. The umbilicus was preserved on a healthy vascularized stalk. Skin and soft tissue quality was good. Closure was achieved in a tension-free fashion after plication of the midline fascia.`;
+  }
+
+  if (includesAny(name, ["mohs", "local flap", "rotation flap", "advancement flap"])) {
+    return `The defect measured approximately [__] × [__] cm on the [forehead / cheek / nasal / ear / scalp / lip / extremity] region and was [superficial / deep to fascia / full thickness]. Margins had been confirmed clear by the Mohs surgeon. Adjacent skin was of [good / scarred / actinically damaged] quality with adequate laxity for local coverage. A [rotation / advancement / rhomboid / bilobed] flap was designed and elevated in the subdermal plane with preservation of perforators. Perfusion of the flap was excellent at the conclusion of inset.`;
+  }
+
+  return `The wound bed was [healthy / debrided] with viable surrounding tissue. Margins of prior resection were inspected and were [clear on intraoperative assessment]. Adjacent tissue was of adequate quality for the planned coverage. Vascularity was confirmed by capillary refill and dermal bleeding at the wound edges.`;
+}
 
 function plasticsOpSteps(c: CaseLog): string[] {
   const name = c.procedureName.toLowerCase();

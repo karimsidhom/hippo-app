@@ -1,5 +1,123 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
+import type { TopMatter } from "./index";
+
+// ---------------------------------------------------------------------------
+// Cardiothoracic — forced fields:
+//   - Bypass time and cross-clamp time
+//   - Cardioplegia route (antegrade/retrograde), type, volume
+//   - Cannulation strategy
+//   - Pre- and post-bypass TEE findings
+//   - EF preoperatively and estimated postoperatively
+//   - Graft / valve specs (sizes, models, prosthesis type)
+//   - Chest tube sizes and locations
+// ---------------------------------------------------------------------------
+
+export function cardiothoracicTopMatter(c: CaseLog): TopMatter {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["cabg", "coronary artery bypass"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central venous access, PA catheter, and intraoperative TEE.",
+      ebl: "Approximately 400–800 ml.",
+      drains: "Mediastinal and left pleural 32 Fr chest tubes. Temporary atrial and ventricular pacing wires.",
+      specimens: "None.",
+      disposition: "The patient tolerated the procedure well. Chest closed over pacing wires and chest tubes. Transferred intubated to the cardiac ICU in stable condition on minimal vasoactive support. Standard post-cardiac pathway: early extubation, serial CT output checks, glucose control, DVT prophylaxis when bleeding stabilized.",
+    };
+  }
+
+  if (includesAny(name, ["avr", "aortic valve replacement"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central venous access, PA catheter, and intraoperative TEE.",
+      ebl: "Approximately 400–600 ml.",
+      drains: "Mediastinal and left pleural 32 Fr chest tubes. Temporary atrial and ventricular pacing wires.",
+      specimens: "Native aortic valve leaflets to pathology.",
+      disposition: "The patient tolerated the procedure well. Transferred intubated to the cardiac ICU. Post-bypass TEE confirmed well-seated prosthetic valve with no paravalvular leak, trace transvalvular gradient, and preserved biventricular function.",
+    };
+  }
+
+  if (includesAny(name, ["mvr", "mitral valve replacement", "mitral repair", "mitral valve repair"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central access, PA catheter, and TEE.",
+      ebl: "Approximately 400–600 ml.",
+      drains: "Mediastinal and left pleural 32 Fr chest tubes. Pacing wires.",
+      specimens: "Resected mitral leaflet tissue / native valve to pathology.",
+      disposition: "The patient tolerated the procedure well. Transferred intubated to the CICU. Post-bypass TEE confirmed [no residual MR / trace MR after repair] with well-seated annuloplasty ring / competent prosthetic valve.",
+    };
+  }
+
+  if (includesAny(name, ["vats", "wedge", "lobectomy", "pneumonectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with double-lumen endotracheal tube for single-lung ventilation, arterial line, and epidural / paravertebral block.",
+      ebl: "Approximately 100–300 ml.",
+      drains: "28 Fr chest tube to the operative hemithorax on -20 cmH2O suction.",
+      specimens: "Resected lung / lobe / wedge specimen, with lymph nodes submitted separately by station.",
+      disposition: "The patient tolerated the procedure well. Extubated in the OR with stable respiratory status. Admitted to the thoracic step-down unit. Serial chest X-rays, incentive spirometry, early ambulation.",
+    };
+  }
+
+  if (includesAny(name, ["mediastinoscopy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Mediastinal lymph nodes from levels [2R, 4R, 4L, 7] sent for pathology.",
+      disposition: "The patient tolerated the procedure well. Discharge home the same day or admitted for overnight observation. Return precautions for bleeding, dyspnea, or hoarseness.",
+    };
+  }
+
+  if (includesAny(name, ["pericardial window"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "Pericardial drain to suction.",
+      specimens: "Pericardial fluid for cytology, Gram stain, and culture; pericardial tissue biopsy.",
+      disposition: "The patient tolerated the procedure well. Admitted for pericardial drain monitoring. Serial echo. Drain removal when output < 50 ml/day.",
+    };
+  }
+
+  return {
+    anesthesia: "General endotracheal anesthesia with appropriate monitoring.",
+    ebl: "Approximately ________ ml.",
+    drains: "[Describe chest tubes and drains].",
+    specimens: "[Describe specimens or 'None'].",
+    disposition: "The patient tolerated the procedure well. Admitted to the cardiothoracic ICU / step-down per standard service protocol.",
+  };
+}
+
+export function cardiothoracicFindings(c: CaseLog): string {
+  const name = c.procedureName.toLowerCase();
+
+  if (includesAny(name, ["cabg", "coronary artery bypass"])) {
+    return `Preoperative cardiac catheterization demonstrated severe triple-vessel coronary artery disease with [__%] stenosis of the LAD, [__%] of the circumflex / OM, and [__%] of the RCA. Preoperative ejection fraction was [__%]. Pre-bypass TEE confirmed preserved biventricular function and no significant valvular disease. Aortic and bicaval cannulation was established without complication. Cardiopulmonary bypass time was [__] minutes and cross-clamp time was [__] minutes. Antegrade and retrograde cold blood cardioplegia was used for myocardial protection. Grafts performed: LIMA to LAD, and saphenous vein grafts to [__, __]. All anastomoses were inspected and were widely patent with good Doppler signals. Weaning from bypass was uneventful. Post-bypass TEE confirmed preserved biventricular function without new wall motion abnormalities.`;
+  }
+
+  if (includesAny(name, ["avr", "aortic valve replacement"])) {
+    return `Preoperative TTE and catheterization showed severe aortic stenosis with a mean gradient of [__] mmHg, peak velocity [__] m/s, and valve area [__] cm². Preoperative EF was [__%]. The native valve was [tricuspid / bicuspid] and heavily calcified. Pre-bypass TEE confirmed findings. Aortic and bicaval cannulation was performed. Bypass time [__] min, cross-clamp [__] min. Antegrade cold blood cardioplegia. The native valve was excised and the annulus debrided and sized. A [__] mm [manufacturer, bioprosthetic / mechanical] valve was secured with pledgeted 2-0 Ethibond sutures. Post-bypass TEE confirmed a well-seated valve with no paravalvular leak, trace transvalvular gradient, and preserved biventricular function.`;
+  }
+
+  if (includesAny(name, ["mvr", "mitral valve"])) {
+    return `Preoperative TEE demonstrated severe mitral regurgitation due to [prolapse of P2 / flail posterior leaflet / rheumatic disease / functional MR]. Preoperative EF was [__%]. Pre-bypass TEE confirmed findings. Bypass time [__] min, cross-clamp [__] min, antegrade/retrograde cold blood cardioplegia. Via a left atriotomy through Sondergaard's groove, the mitral valve was exposed and [repaired with a [__] mm Edwards Physio ring and neochordae / replaced with a [__] mm bioprosthetic valve]. Post-bypass TEE confirmed [no residual MR / trace MR] with preserved biventricular function.`;
+  }
+
+  if (includesAny(name, ["vats", "wedge", "lobectomy"])) {
+    return `The operative lung collapsed well after one-lung ventilation was established. The [right upper / right middle / right lower / left upper / left lower] lobe contained a [__] cm mass consistent with the preoperative imaging, with no gross evidence of pleural or chest wall invasion. Mediastinal and hilar lymph nodes were sampled from stations [__, __, __]. The pulmonary vein, artery, and bronchus were identified, isolated, and divided with endoscopic staplers. The bronchial stump was tested underwater and had no air leak.`;
+  }
+
+  if (includesAny(name, ["pneumonectomy"])) {
+    return `The [right / left] lung was found to contain a bulky mass with [__] involvement. No gross pleural implants or chest wall invasion were identified. The pulmonary artery, superior and inferior pulmonary veins, and mainstem bronchus were divided in sequence. The bronchial stump was closed with a stapler and buttressed with intercostal muscle / pleural flap and tested underwater without air leak.`;
+  }
+
+  if (includesAny(name, ["mediastinoscopy"])) {
+    return `The mediastinoscope was advanced along the pretracheal plane and paratracheal / subcarinal lymph node stations were identified and biopsied as indicated. Hemostasis was meticulously confirmed at each station. No great vessel or airway injury was encountered.`;
+  }
+
+  if (includesAny(name, ["pericardial window"])) {
+    return `A large pericardial effusion was identified on preoperative echo with tamponade physiology. Upon entering the pericardium, [serous / sanguineous / purulent] fluid was drained under pressure with immediate hemodynamic improvement. A pericardial biopsy was obtained. No gross tumor implants were identified on the pericardium.`;
+  }
+
+  return `Preoperative imaging and catheterization findings were reviewed and were consistent with intraoperative findings. Cardiopulmonary bypass (if used) was established and weaned without complication with documented bypass and cross-clamp times. Post-bypass or end-of-case imaging confirmed satisfactory result.`;
+}
 
 // ---------------------------------------------------------------------------
 // Cardiothoracic Surgery — procedure-specific operative steps.
