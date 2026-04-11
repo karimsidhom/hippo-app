@@ -1,6 +1,6 @@
 import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
-import type { TopMatter } from "./index";
+import type { TopMatter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Neurosurgery — forced fields:
