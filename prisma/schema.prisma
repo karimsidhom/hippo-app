@@ -98,6 +98,7 @@ model User {
   updatedAt DateTime @updatedAt
 
   profile         Profile?
+  dictationStyle  UserDictationStyle?
   caseLogs        CaseLog[]
   milestones      Milestone[]
   personalRecords PersonalRecord[]
@@ -110,6 +111,23 @@ model User {
   quoteHistory    UserQuoteHistory[]
 
   @@map("users")
+}
+
+// Learned dictation style preferences. One row per user, mutated in place as
+// the user corrects drafts. `profile` is the full StyleProfile blob; we keep
+// it as JSON rather than a grid of columns because the schema version can
+// evolve without a migration and the profile is always read/written whole.
+model UserDictationStyle {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile         Json
+  schemaVersion   Int      @default(1)
+  correctionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("user_dictation_styles")
 }
 
 model Profile {

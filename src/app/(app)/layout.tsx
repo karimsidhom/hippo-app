@@ -7,6 +7,10 @@ import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus } from "l
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { HippoMark } from "@/components/HippoMark";
 import { useAuth } from "@/context/AuthContext";
+import {
+  hydrateStyleProfile,
+  flushStyleProfileWrites,
+} from "@/lib/dictation/style/store";
 
 const NAV = [
   { href: "/dashboard", label: "Home",    icon: LayoutDashboard },
@@ -27,6 +31,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (!user) { router.replace("/login"); return; }
     if (!onboardingDone) { router.replace("/onboarding"); return; }
   }, [user, loading, onboardingDone, router]);
+
+  // Pull the server-backed StyleProfile into the client cache once the user
+  // is confirmed logged in. Non-blocking — the cache falls back to
+  // localStorage / defaults until this resolves.
+  useEffect(() => {
+    if (loading || !user) return;
+    hydrateStyleProfile().catch(() => { /* non-fatal */ });
+  }, [loading, user]);
+
+  // Flush pending profile writes before the tab unloads, so a freshly-saved
+  // correction doesn't get lost if the user closes the tab within ~400ms.
+  useEffect(() => {
+    const handler = () => { void flushStyleProfileWrites(); };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, []);
 
   if (loading || !user || !onboardingDone) {
     return (
