@@ -10,7 +10,7 @@ import {
   standardLapClosure,
   endoscopicClosure,
 } from "../shared/closure";
-import type { TopMatter } from "./index";
+import type { TopMatter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Urology — forced fields:

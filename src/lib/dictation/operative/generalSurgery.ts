@@ -2,7 +2,7 @@ import type { CaseLog } from "@/lib/types";
 import { includesAny } from "../shared/format";
 import { laparotomyPreamble, laparoscopicPreamble } from "../shared/preamble";
 import { standardOpenClosure, standardLapClosure } from "../shared/closure";
-import type { TopMatter } from "./index";
+import type { TopMatter } from "./types";
 
 // ---------------------------------------------------------------------------
 // General Surgery — forced fields:

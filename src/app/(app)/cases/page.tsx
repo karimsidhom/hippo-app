@@ -4,8 +4,11 @@ import { useState, useMemo, useEffect } from "react";
 import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw } from "lucide-react";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
-import { generateDictation } from "@/lib/dictation";
-import { resolveServiceFromCase } from "@/lib/dictation/operative";
+// NOTE: import directly from the operative builder + learn module rather
+// than the @/lib/dictation barrel. The barrel re-exports the revision
+// engine (revise.ts → llm.ts) which has no business in a client bundle.
+// Going direct keeps the client graph small and avoids hydration surprises.
+import { generateDictation, resolveServiceFromCase } from "@/lib/dictation/operative";
 import { applyUserCorrection } from "@/lib/dictation/style/learn";
 
 const APPROACHES = ["All", "Open", "Laparoscopic", "Robotic", "Endoscopic", "Percutaneous"];
@@ -216,7 +219,18 @@ function Sheet({ c, onClose, onDelete }: { c: CaseLog; onClose: () => void; onDe
 function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
-  const draft = useMemo(() => generateDictation(c), [c]);
+  // Guard the generator so a malformed case can never crash the whole
+  // page tree. Falls back to a bracketed placeholder the user can edit.
+  const draft = useMemo(() => {
+    try {
+      return generateDictation(c);
+    } catch (err) {
+      console.error("generateDictation failed for case", c?.id, err);
+      return `[Unable to generate dictation for this case — ${
+        err instanceof Error ? err.message : "unknown error"
+      }]`;
+    }
+  }, [c]);
   const [value, setValue] = useState(draft);
   const [editing, setEditing] = useState(false);
 

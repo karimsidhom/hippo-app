@@ -1,5 +1,5 @@
 import type { CaseLog } from "@/lib/types";
-import type { TopMatter } from "./index";
+import type { TopMatter } from "./types";
 
 export function genericFindings(_c: CaseLog): string {
   return `Intraoperative findings were consistent with the preoperative diagnosis. The relevant anatomy was identified and inspected. No unanticipated pathology was encountered. Hemostasis was satisfactory at the conclusion of the case.`;

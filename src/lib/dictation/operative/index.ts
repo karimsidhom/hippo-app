@@ -1,5 +1,6 @@
 import type { CaseLog, SurgicalApproach } from "@/lib/types";
 import type { LengthLevel, ServiceKey } from "../types";
+import type { TopMatter } from "./types";
 import { formatDate, article } from "../shared/format";
 import {
   APPROACH_LABELS,
@@ -8,6 +9,23 @@ import {
   OUTCOME_LABELS,
   COMPLICATION_LABELS,
 } from "../shared/labels";
+import { generalSurgeryBody, generalSurgeryFindings, generalSurgeryTopMatter } from "./generalSurgery";
+import { vascularBody, vascularFindings, vascularTopMatter } from "./vascular";
+import { obgynBody, obgynFindings, obgynTopMatter } from "./obgyn";
+import { urologyBody, urologyFindings, urologyTopMatter } from "./urology";
+import { plasticsBody, plasticsFindings, plasticsTopMatter } from "./plastics";
+import { orthopedicsBody, orthopedicsFindings, orthopedicsTopMatter } from "./orthopedics";
+import { neurosurgeryBody, neurosurgeryFindings, neurosurgeryTopMatter } from "./neurosurgery";
+import { entBody, entFindings, entTopMatter } from "./ent";
+import { pediatricSurgeryBody, pediatricSurgeryFindings, pediatricSurgeryTopMatter } from "./pediatricSurgery";
+import { cardiothoracicBody, cardiothoracicFindings, cardiothoracicTopMatter } from "./cardiothoracic";
+import { genericProcedureBody, genericFindings, genericTopMatter } from "./generic";
+import { getStyleProfile } from "../style/store";
+import { applyStyleProfile } from "../style/apply";
+
+// Re-export so `import { TopMatter } from "@/lib/dictation/operative"` keeps
+// working for any consumer that was relying on it being here.
+export type { TopMatter } from "./types";
 
 // ---------------------------------------------------------------------------
 // Build a procedure header line without duplicating approach words that are
@@ -72,33 +90,6 @@ function buildProcedureHeader(
     return name;
   }
   return `${prefix} ${name}`;
-}
-import { generalSurgeryBody, generalSurgeryFindings, generalSurgeryTopMatter } from "./generalSurgery";
-import { vascularBody, vascularFindings, vascularTopMatter } from "./vascular";
-import { obgynBody, obgynFindings, obgynTopMatter } from "./obgyn";
-import { urologyBody, urologyFindings, urologyTopMatter } from "./urology";
-import { plasticsBody, plasticsFindings, plasticsTopMatter } from "./plastics";
-import { orthopedicsBody, orthopedicsFindings, orthopedicsTopMatter } from "./orthopedics";
-import { neurosurgeryBody, neurosurgeryFindings, neurosurgeryTopMatter } from "./neurosurgery";
-import { entBody, entFindings, entTopMatter } from "./ent";
-import { pediatricSurgeryBody, pediatricSurgeryFindings, pediatricSurgeryTopMatter } from "./pediatricSurgery";
-import { cardiothoracicBody, cardiothoracicFindings, cardiothoracicTopMatter } from "./cardiothoracic";
-import { genericProcedureBody, genericFindings, genericTopMatter } from "./generic";
-import { getStyleProfile } from "../style/store";
-import { applyStyleProfile } from "../style/apply";
-
-// ---------------------------------------------------------------------------
-// Top-matter overrides that specialty modules can supply to replace the
-// generic defaults for ESTIMATED BLOOD LOSS, DRAINS, SPECIMENS, ANESTHESIA,
-// and the Disposition line.
-// ---------------------------------------------------------------------------
-
-export interface TopMatter {
-  anesthesia?: string;
-  ebl?: string;
-  drains?: string;
-  specimens?: string;
-  disposition?: string;
 }
 
 // ---------------------------------------------------------------------------
