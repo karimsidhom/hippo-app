@@ -7,8 +7,21 @@
 // same so callers don't need to change.
 // ---------------------------------------------------------------------------
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
+
+/**
+ * Resolve the Messages endpoint. Honours `ANTHROPIC_BASE_URL` so the same
+ * code works through the Netlify AI Gateway (which injects a per-site base
+ * URL + JWT at `netlify dev` and on Netlify-hosted builds) as well as
+ * against `api.anthropic.com` directly when a raw `sk-ant-…` key is set.
+ */
+function resolveMessagesUrl(): string {
+  const base = (process.env.ANTHROPIC_BASE_URL ?? DEFAULT_ANTHROPIC_BASE_URL)
+    .trim()
+    .replace(/\/+$/, "");
+  return `${base}/v1/messages`;
+}
 
 /**
  * The model ID we target for dictation revision. Claude Opus 4.6 is the
@@ -63,7 +76,7 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
 
   let response: Response;
   try {
-    response = await fetch(ANTHROPIC_API_URL, {
+    response = await fetch(resolveMessagesUrl(), {
       method: "POST",
       headers: {
         "content-type": "application/json",
