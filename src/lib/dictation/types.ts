@@ -14,67 +14,24 @@ export type ServiceKey =
   | "ent"
   | "pediatric-surgery"
   | "cardiothoracic"
-  | "icu-trauma"
-  | "emergency"
-  | "ward"
   | "unknown";
 
-/** The kinds of notes the system can produce. */
-export type NoteType =
-  | "operative"
-  | "bedside-procedure"
-  | "consult"
-  | "follow-up"
-  | "clinic"
-  | "discharge"
-  | "handover";
+/**
+ * The only note type this system produces right now is the operative note.
+ * Kept as a single-member union so other files keep their type imports clean
+ * and so adding future note types (if ever) is a one-line change.
+ */
+export type NoteType = "operative";
 
 /**
- * Three length variants for every note type:
+ * Three length variants for the operative note:
  * - full: the complete dictation, suitable for the formal record
  * - concise: trimmed to the clinically relevant essentials
  * - handover: one-screen summary suitable for sign-out / verbal handoff
  */
 export type LengthLevel = "full" | "concise" | "handover";
 
-/** Minimal clinical context the non-operative note types need. */
-export interface NoteContext {
-  service: ServiceKey;
-  /** Free-text problem / reason for consult / chief complaint. */
-  reason?: string;
-  /** One-liner about the patient (age, sex, comorbidities). */
-  patientOneLiner?: string;
-  /** Pertinent history of present illness. */
-  hpi?: string;
-  /** Relevant past medical/surgical history. */
-  pmh?: string;
-  /** Medications. */
-  meds?: string;
-  /** Allergies. */
-  allergies?: string;
-  /** Exam findings. */
-  exam?: string;
-  /** Labs / imaging / investigations. */
-  investigations?: string;
-  /** Clinical assessment / impression (free-text if pre-written). */
-  assessment?: string;
-  /** Management plan (free-text if pre-written). */
-  plan?: string;
-  /** Disposition for consult/discharge notes. */
-  disposition?: string;
-  /** Any additional context the revision engine should preserve. */
-  raw?: string;
-}
-
-/** Core request object for building any note. */
-export interface BuildRequest<TCtx = NoteContext> {
-  noteType: NoteType;
-  length: LengthLevel;
-  service: ServiceKey;
-  context: TCtx;
-}
-
-/** Result of building a note — text plus any warnings for missing details. */
+/** Result of building / revising a note — text plus any warnings. */
 export interface BuildResult {
   text: string;
   missing: string[];
