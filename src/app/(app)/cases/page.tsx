@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders } from "lucide-react";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
 // NOTE: import directly from the operative builder + learn module rather
@@ -461,12 +462,33 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
           padding: "10px 20px",
           borderTop: "1px solid var(--border)",
           flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
         }}>
-          <div style={{ fontSize: 11, color: "var(--text-3)", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "var(--text-3)", flex: 1 }}>
             {editing
               ? "Edit freely. Save & Learn teaches the style profile from your changes."
               : "Copy and paste into your dictation system, or click Edit to refine and teach."}
           </div>
+          <Link
+            href="/settings/dictation"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              color: "var(--muted)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+            title="Adjust dictation style preferences"
+          >
+            <Sliders size={11} />
+            Style
+          </Link>
         </div>
       </div>
     </div>
