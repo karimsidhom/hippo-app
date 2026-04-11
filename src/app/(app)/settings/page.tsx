@@ -4,7 +4,8 @@ import { useState } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PRICING } from "@/lib/pricing";
-import { Shield, Users, BarChart2, Download, Trash2, Bell, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle } from "lucide-react";
+import Link from "next/link";
+import { Shield, Users, BarChart2, Download, Trash2, Bell, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
 
 const TABS = [
   { key: "profile", label: "Profile", icon: User },
@@ -14,6 +15,15 @@ const TABS = [
   { key: "export", label: "Export", icon: Download },
   { key: "subscription", label: "Subscription", icon: CreditCard },
   { key: "account", label: "Account", icon: Trash2 },
+];
+
+// Subroutes that render as nav links rather than in-page tabs.
+const SUBROUTES = [
+  {
+    href: "/settings/dictation",
+    label: "Dictation Style",
+    icon: Sparkles,
+  },
 ];
 
 export default function SettingsPage() {
@@ -117,6 +127,23 @@ export default function SettingsPage() {
                 {label}
               </button>
             ))}
+
+            {/* Subroute links — render as Link components so they navigate. */}
+            <div className="pt-2 mt-2 border-t border-[#1e2130]">
+              {SUBROUTES.map(({ href, label, icon: Icon }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-all"
+                >
+                  <span className="flex items-center gap-3">
+                    <Icon className="w-4 h-4" />
+                    {label}
+                  </span>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#475569]" />
+                </Link>
+              ))}
+            </div>
           </nav>
         </div>
 
