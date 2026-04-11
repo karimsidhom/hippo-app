@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hippo Logo Concepts v2</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0B1120;
+    color: #e2e8f0;
+    font-family: 'Geist', -apple-system, 'SF Pro Display', 'Helvetica Neue', sans-serif;
+    padding: 56px 40px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: #475569;
+    margin-bottom: 12px;
+  }
+  .title {
+    font-size: 40px;
+    font-weight: 800;
+    letter-spacing: -2px;
+    color: #fff;
+    margin-bottom: 6px;
+    line-height: 1;
+  }
+  .subtitle {
+    font-size: 14px;
+    color: #334155;
+    margin-bottom: 56px;
+    letter-spacing: .1px;
+    border-bottom: 1px solid #1e293b;
+    padding-bottom: 40px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1px;
+    background: #1e293b;
+    max-width: 1200px;
+  }
+  .cell {
+    background: #0B1120;
+    padding: 48px 40px;
+    display: flex;
+    flex-direction: column;
+  }
+  .cell-number {
+    font-size: 10px;
+    font-weight: 500;
+    color: #334155;
+    letter-spacing: 2px;
+    margin-bottom: 32px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .logo-area {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 180px;
+    margin-bottom: 32px;
+  }
+  .cell-title {
+    font-size: 15px;
+    font-weight: 600;
+    color: #e2e8f0;
+    margin-bottom: 6px;
+    letter-spacing: -.3px;
+  }
+  .cell-desc {
+    font-size: 11px;
+    color: #475569;
+    line-height: 1.6;
+    max-width: 260px;
+  }
+  /* Wordmark preview row */
+  .wordmark-row {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid #1e293b;
+  }
+  .wordmark-label {
+    font-size: 10px;
+    font-weight: 500;
+    color: #334155;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-bottom: 32px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .wordmark-grid {
+    display: flex;
+    gap: 56px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .wm-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .wm-text {
+    font-size: 26px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1.2px;
+  }
+  /* Size strip */
+  .size-strip {
+    margin-top: 56px;
+    padding-top: 40px;
+    border-top: 1px solid #1e293b;
+  }
+  .size-row {
+    display: flex;
+    gap: 32px;
+    align-items: flex-end;
+    flex-wrap: wrap;
+  }
+  .size-item {
+    text-align: center;
+  }
+  .size-item .sz-label {
+    font-size: 9px;
+    color: #334155;
+    margin-top: 8px;
+    font-family: 'SF Mono', 'Fira Code', monospace;
+  }
+  .sz-box {
+    background: #111827;
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid #1e293b;
+  }
+</style>
+</head>
+<body>
+
+<h1>Logo Exploration</h1>
+<div class="title">Hippo</div>
+<p class="subtitle">Six directions. Surgical training tracker for residents.</p>
+
+<div class="grid">
+
+  <!-- 1. Minimal Hippo -->
+  <div class="cell">
+    <div class="cell-number">01</div>
+    <div class="logo-area">
+      <svg width="96" height="96" viewBox="0 0 96 96" fill="none">
+        <defs>
+          <linearGradient id="h1" x1="16" y1="8" x2="80" y2="88" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22D3EE"/>
+            <stop offset="1" stop-color="#0EA5E9"/>
+          </linearGradient>
+        </defs>
+        <!-- Ears -->
+        <ellipse cx="26" cy="18" rx="11" ry="16" fill="url(#h1)" opacity="0.85" transform="rotate(-8 26 18)"/>
+        <ellipse cx="70" cy="18" rx="11" ry="16" fill="url(#h1)" opacity="0.85" transform="rotate(8 70 18)"/>
+        <!-- Inner ears -->
+        <ellipse cx="26" cy="20" rx="6" ry="9" fill="#0B1120" opacity="0.3" transform="rotate(-8 26 20)"/>
+        <ellipse cx="70" cy="20" rx="6" ry="9" fill="#0B1120" opacity="0.3" transform="rotate(8 70 20)"/>
+        <!-- Head -->
+        <path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V50C82 50 88 55 88 62C88 69 82 73 78 73V76C78 88 66 96 48 96C30 96 18 88 18 76V73C14 73 8 69 8 62C8 55 14 50 18 50Z" fill="url(#h1)"/>
+        <!-- Eyes -->
+        <ellipse cx="36" cy="44" rx="6" ry="6.5" fill="#0B1120"/>
+        <ellipse cx="60" cy="44" rx="6" ry="6.5" fill="#0B1120"/>
+        <circle cx="38" cy="42" r="2.5" fill="#fff" opacity="0.7"/>
+        <circle cx="62" cy="42" r="2.5" fill="#fff" opacity="0.7"/>
+        <!-- Muzzle bump -->
+        <ellipse cx="48" cy="68" rx="16" ry="10" fill="url(#h1)" opacity="0.15"/>
+        <!-- Nostrils -->
+        <ellipse cx="42" cy="66" rx="3.5" ry="3" fill="#0B1120" opacity="0.35"/>
+        <ellipse cx="54" cy="66" rx="3.5" ry="3" fill="#0B1120" opacity="0.35"/>
+      </svg>
+    </div>
+    <div class="cell-title">Minimal Hippo</div>
+    <div class="cell-desc">Geometric hippo head. Friendly, distinctive, works at any size from favicon to splash.</div>
+  </div>
+
+  <!-- 2. Scalpel + Growth -->
+  <div class="cell">
+    <div class="cell-number">02</div>
+    <div class="logo-area">
+      <svg width="88" height="96" viewBox="0 0 88 96" fill="none">
+        <defs>
+          <linearGradient id="s1" x1="10" y1="86" x2="78" y2="10" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#0EA5E9" stop-opacity="0.5"/>
+            <stop offset="1" stop-color="#22D3EE"/>
+          </linearGradient>
+        </defs>
+        <!-- Scalpel handle -->
+        <rect x="8" y="72" width="6" height="20" rx="3" fill="#334155"/>
+        <rect x="6" y="68" width="10" height="8" rx="2" fill="#475569"/>
+        <!-- Blade path as growth curve -->
+        <path d="M11 68 C20 55 35 35 55 20 L68 10" stroke="url(#s1)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+        <!-- Blade tip -->
+        <path d="M68 10 L76 4 L72 14 Z" fill="#0EA5E9"/>
+        <!-- Data points along curve -->
+        <circle cx="18" cy="62" r="2" fill="#0EA5E9" opacity="0.25"/>
+        <circle cx="26" cy="53" r="2.5" fill="#0EA5E9" opacity="0.35"/>
+        <circle cx="34" cy="44" r="3" fill="#0EA5E9" opacity="0.5"/>
+        <circle cx="43" cy="34" r="3.5" fill="#0EA5E9" opacity="0.65"/>
+        <circle cx="52" cy="25" r="4" fill="#0EA5E9" opacity="0.8"/>
+        <circle cx="62" cy="15" r="4.5" fill="#0EA5E9"/>
+        <!-- Subtle sparkle at peak -->
+        <line x1="72" y1="2" x2="72" y2="8" stroke="#22D3EE" stroke-width="1" opacity="0.5"/>
+        <line x1="69" y1="5" x2="75" y2="5" stroke="#22D3EE" stroke-width="1" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="cell-title">Scalpel Growth</div>
+    <div class="cell-desc">Blade traces an ascending curve. Data points mark milestones. Precision meets progression.</div>
+  </div>
+
+  <!-- 3. H Monogram -->
+  <div class="cell">
+    <div class="cell-number">03</div>
+    <div class="logo-area">
+      <svg width="84" height="96" viewBox="0 0 84 96" fill="none">
+        <defs>
+          <linearGradient id="hm1" x1="4" y1="8" x2="80" y2="88" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22D3EE"/>
+            <stop offset="1" stop-color="#0EA5E9"/>
+          </linearGradient>
+        </defs>
+        <!-- Left pillar -->
+        <rect x="8" y="12" width="8" height="72" rx="4" fill="url(#hm1)"/>
+        <!-- Right pillar -->
+        <rect x="68" y="12" width="8" height="72" rx="4" fill="url(#hm1)"/>
+        <!-- Scalpel crossbar -->
+        <line x1="16" y1="48" x2="64" y2="48" stroke="url(#hm1)" stroke-width="3.5" stroke-linecap="round"/>
+        <!-- Blade tip -->
+        <path d="M64 48 L80 42 L80 54 Z" fill="#0EA5E9"/>
+        <!-- Subtle heartbeat on crossbar -->
+        <path d="M28 48 L32 48 L35 40 L38 56 L41 44 L44 52 L47 48 L56 48" stroke="#0B1120" stroke-width="1.2" fill="none" opacity="0.4" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </div>
+    <div class="cell-title">H Monogram</div>
+    <div class="cell-desc">Bold H with scalpel crossbar. Pulse line runs through it. Typographic, works everywhere.</div>
+  </div>
+
+  <!-- 4. Ascending Bars -->
+  <div class="cell">
+    <div class="cell-number">04</div>
+    <div class="logo-area">
+      <svg width="88" height="96" viewBox="0 0 88 96" fill="none">
+        <!-- Five bars with increasing opacity -->
+        <rect x="6" y="68" width="10" height="22" rx="2.5" fill="#0EA5E9" opacity="0.2"/>
+        <rect x="22" y="54" width="10" height="36" rx="2.5" fill="#0EA5E9" opacity="0.35"/>
+        <rect x="38" y="40" width="10" height="50" rx="2.5" fill="#0EA5E9" opacity="0.5"/>
+        <rect x="54" y="26" width="10" height="64" rx="2.5" fill="#0EA5E9" opacity="0.7"/>
+        <rect x="70" y="10" width="10" height="80" rx="2.5" fill="#0EA5E9"/>
+        <!-- Growth connector -->
+        <path d="M11 68 L27 54 L43 40 L59 26 L75 10" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Arrow at peak -->
+        <path d="M75 10 L71 16" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+        <path d="M75 10 L80 14" stroke="#10B981" stroke-width="2" stroke-linecap="round"/>
+        <!-- Baseline -->
+        <line x1="2" y1="90" x2="84" y2="90" stroke="#1e293b" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="cell-title">Growth Bars</div>
+    <div class="cell-desc">Refined ascending bars with emerald growth line. Analytics DNA. Evolution of current mark.</div>
+  </div>
+
+  <!-- 5. Shield -->
+  <div class="cell">
+    <div class="cell-number">05</div>
+    <div class="logo-area">
+      <svg width="72" height="96" viewBox="0 0 72 96" fill="none">
+        <defs>
+          <linearGradient id="sh1" x1="36" y1="2" x2="36" y2="94" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22D3EE" stop-opacity="0.9"/>
+            <stop offset="1" stop-color="#0EA5E9" stop-opacity="0.4"/>
+          </linearGradient>
+        </defs>
+        <!-- Shield outline -->
+        <path d="M36 4 L66 18 C66 18 68 48 62 64 C56 80 36 94 36 94 C36 94 16 80 10 64 C4 48 6 18 6 18 Z" stroke="url(#sh1)" stroke-width="2" fill="none"/>
+        <!-- Inner glow fill -->
+        <path d="M36 4 L66 18 C66 18 68 48 62 64 C56 80 36 94 36 94 C36 94 16 80 10 64 C4 48 6 18 6 18 Z" fill="#0EA5E9" opacity="0.04"/>
+        <!-- Ascending line inside -->
+        <path d="M20 62 L28 52 L36 42 L44 34 L52 24" stroke="#0EA5E9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Arrow -->
+        <path d="M52 24 L48 30" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round"/>
+        <path d="M52 24 L56 28" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round"/>
+        <!-- Small cross -->
+        <line x1="36" y1="70" x2="36" y2="80" stroke="#0EA5E9" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+        <line x1="31" y1="75" x2="41" y2="75" stroke="#0EA5E9" stroke-width="1.5" stroke-linecap="round" opacity="0.3"/>
+      </svg>
+    </div>
+    <div class="cell-title">The Shield</div>
+    <div class="cell-desc">Residency-badge DNA. Growth line within, medical cross below. Trust and training.</div>
+  </div>
+
+  <!-- 6. Abstract Ear / Spiral -->
+  <div class="cell">
+    <div class="cell-number">06</div>
+    <div class="logo-area">
+      <svg width="88" height="96" viewBox="0 0 88 96" fill="none">
+        <defs>
+          <linearGradient id="ear1" x1="20" y1="4" x2="72" y2="92" gradientUnits="userSpaceOnUse">
+            <stop stop-color="#22D3EE"/>
+            <stop offset="1" stop-color="#0EA5E9"/>
+          </linearGradient>
+        </defs>
+        <!-- Outer spiral -->
+        <path d="M48 6 C22 6 8 28 8 52 C8 76 22 94 48 94 C64 94 74 82 74 68 C74 54 64 46 52 46 C42 46 36 52 36 60 C36 66 40 70 46 70" stroke="url(#ear1)" stroke-width="3.5" fill="none" stroke-linecap="round"/>
+        <!-- Second line — offset echo -->
+        <path d="M54 10 C30 10 18 30 18 52 C18 74 30 90 54 90" stroke="#0EA5E9" stroke-width="2" fill="none" stroke-linecap="round" opacity="0.2"/>
+        <!-- Center dot -->
+        <circle cx="46" cy="70" r="4" fill="#0EA5E9"/>
+        <!-- Subtle growth tick -->
+        <line x1="78" y1="22" x2="82" y2="16" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+        <line x1="78" y1="22" x2="84" y2="24" stroke="#10B981" stroke-width="1.5" stroke-linecap="round" opacity="0.5"/>
+      </svg>
+    </div>
+    <div class="cell-title">Abstract Ear</div>
+    <div class="cell-desc">Hippo ear as golden spiral. Organic, unique, evokes growth and deep listening.</div>
+  </div>
+
+</div>
+
+<!-- Wordmark lockups -->
+<div class="wordmark-row">
+  <div class="wordmark-label">Wordmark Lockups</div>
+  <div class="wordmark-grid">
+    <div class="wm-item">
+      <svg width="36" height="36" viewBox="0 0 96 96" fill="none"><defs><linearGradient id="wh1" x1="16" y1="8" x2="80" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#22D3EE"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient></defs><ellipse cx="26" cy="18" rx="11" ry="16" fill="url(#wh1)" opacity="0.85" transform="rotate(-8 26 18)"/><ellipse cx="70" cy="18" rx="11" ry="16" fill="url(#wh1)" opacity="0.85" transform="rotate(8 70 18)"/><path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V50C82 50 88 55 88 62C88 69 82 73 78 73V76C78 88 66 96 48 96C30 96 18 88 18 76V73C14 73 8 69 8 62C8 55 14 50 18 50Z" fill="url(#wh1)"/><ellipse cx="36" cy="44" rx="6" ry="6.5" fill="#0B1120"/><ellipse cx="60" cy="44" rx="6" ry="6.5" fill="#0B1120"/><circle cx="38" cy="42" r="2.5" fill="#fff" opacity="0.7"/><circle cx="62" cy="42" r="2.5" fill="#fff" opacity="0.7"/><ellipse cx="42" cy="66" rx="3.5" ry="3" fill="#0B1120" opacity="0.35"/><ellipse cx="54" cy="66" rx="3.5" ry="3" fill="#0B1120" opacity="0.35"/></svg>
+      <div class="wm-text">Hippo</div>
+    </div>
+    <div class="wm-item">
+      <svg width="36" height="36" viewBox="0 0 84 96" fill="none"><defs><linearGradient id="whm" x1="4" y1="8" x2="80" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#22D3EE"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient></defs><rect x="8" y="12" width="8" height="72" rx="4" fill="url(#whm)"/><rect x="68" y="12" width="8" height="72" rx="4" fill="url(#whm)"/><line x1="16" y1="48" x2="64" y2="48" stroke="url(#whm)" stroke-width="3.5" stroke-linecap="round"/><path d="M64 48 L80 42 L80 54 Z" fill="#0EA5E9"/></svg>
+      <div class="wm-text">Hippo</div>
+    </div>
+    <div class="wm-item">
+      <svg width="36" height="36" viewBox="0 0 88 96" fill="none"><rect x="6" y="68" width="10" height="22" rx="2.5" fill="#0EA5E9" opacity="0.2"/><rect x="22" y="54" width="10" height="36" rx="2.5" fill="#0EA5E9" opacity="0.35"/><rect x="38" y="40" width="10" height="50" rx="2.5" fill="#0EA5E9" opacity="0.5"/><rect x="54" y="26" width="10" height="64" rx="2.5" fill="#0EA5E9" opacity="0.7"/><rect x="70" y="10" width="10" height="80" rx="2.5" fill="#0EA5E9"/><path d="M11 68 L27 54 L43 40 L59 26 L75 10" stroke="#10B981" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <div class="wm-text">Hippo</div>
+    </div>
+    <div class="wm-item">
+      <svg width="36" height="36" viewBox="0 0 72 96" fill="none"><path d="M36 4 L66 18 C66 18 68 48 62 64 C56 80 36 94 36 94 C36 94 16 80 10 64 C4 48 6 18 6 18 Z" stroke="#0EA5E9" stroke-width="2" fill="none"/><path d="M20 62 L28 52 L36 42 L44 34 L52 24" stroke="#0EA5E9" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      <div class="wm-text">Hippo</div>
+    </div>
+  </div>
+</div>
+
+<!-- App icon sizes -->
+<div class="size-strip">
+  <div class="wordmark-label">App Icon Sizes</div>
+  <div class="size-row">
+    <!-- 64px -->
+    <div class="size-item">
+      <div class="sz-box" style="width:64px;height:64px;">
+        <svg width="44" height="44" viewBox="0 0 96 96" fill="none"><defs><linearGradient id="i1" x1="16" y1="8" x2="80" y2="88" gradientUnits="userSpaceOnUse"><stop stop-color="#22D3EE"/><stop offset="1" stop-color="#0EA5E9"/></linearGradient></defs><ellipse cx="26" cy="18" rx="11" ry="16" fill="url(#i1)" opacity="0.85" transform="rotate(-8 26 18)"/><ellipse cx="70" cy="18" rx="11" ry="16" fill="url(#i1)" opacity="0.85" transform="rotate(8 70 18)"/><path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V50C82 50 88 55 88 62C88 69 82 73 78 73V76C78 88 66 96 48 96C30 96 18 88 18 76V73C14 73 8 69 8 62C8 55 14 50 18 50Z" fill="url(#i1)"/><ellipse cx="36" cy="44" rx="6" ry="6.5" fill="#111827"/><ellipse cx="60" cy="44" rx="6" ry="6.5" fill="#111827"/><circle cx="38" cy="42" r="2.5" fill="#fff" opacity="0.6"/><circle cx="62" cy="42" r="2.5" fill="#fff" opacity="0.6"/></svg>
+      </div>
+      <div class="sz-label">64px</div>
+    </div>
+    <!-- 48px -->
+    <div class="size-item">
+      <div class="sz-box" style="width:48px;height:48px;">
+        <svg width="32" height="32" viewBox="0 0 96 96" fill="none"><path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V50C82 50 88 55 88 62C88 69 82 73 78 73V76C78 88 66 96 48 96C30 96 18 88 18 76V73C14 73 8 69 8 62C8 55 14 50 18 50Z" fill="#0EA5E9"/><ellipse cx="26" cy="18" rx="11" ry="16" fill="#0EA5E9" opacity="0.85" transform="rotate(-8 26 18)"/><ellipse cx="70" cy="18" rx="11" ry="16" fill="#0EA5E9" opacity="0.85" transform="rotate(8 70 18)"/><ellipse cx="36" cy="44" rx="6" ry="6.5" fill="#111827"/><ellipse cx="60" cy="44" rx="6" ry="6.5" fill="#111827"/></svg>
+      </div>
+      <div class="sz-label">48px</div>
+    </div>
+    <!-- 32px -->
+    <div class="size-item">
+      <div class="sz-box" style="width:32px;height:32px;">
+        <svg width="22" height="22" viewBox="0 0 96 96" fill="none"><path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V50C82 50 88 55 88 62C88 69 82 73 78 73V76C78 88 66 96 48 96C30 96 18 88 18 76V73C14 73 8 69 8 62C8 55 14 50 18 50Z" fill="#0EA5E9"/><ellipse cx="26" cy="18" rx="11" ry="16" fill="#0EA5E9" transform="rotate(-8 26 18)"/><ellipse cx="70" cy="18" rx="11" ry="16" fill="#0EA5E9" transform="rotate(8 70 18)"/><ellipse cx="36" cy="44" rx="5" ry="5.5" fill="#111827"/><ellipse cx="60" cy="44" rx="5" ry="5.5" fill="#111827"/></svg>
+      </div>
+      <div class="sz-label">32px</div>
+    </div>
+    <!-- 16px -->
+    <div class="size-item">
+      <div class="sz-box" style="width:24px;height:24px;">
+        <svg width="16" height="16" viewBox="0 0 96 96" fill="none"><path d="M18 40C18 26 30 16 48 16C66 16 78 26 78 40V76C78 88 66 96 48 96C30 96 18 88 18 76Z" fill="#0EA5E9"/><ellipse cx="26" cy="18" rx="11" ry="16" fill="#0EA5E9" transform="rotate(-8 26 18)"/><ellipse cx="70" cy="18" rx="11" ry="16" fill="#0EA5E9" transform="rotate(8 70 18)"/></svg>
+      </div>
+      <div class="sz-label">16px</div>
+    </div>
+
+    <div style="width:32px"></div>
+
+    <!-- H monogram sizes -->
+    <div class="size-item">
+      <div class="sz-box" style="width:48px;height:48px;">
+        <svg width="32" height="32" viewBox="0 0 84 96" fill="none"><rect x="8" y="12" width="8" height="72" rx="4" fill="#0EA5E9"/><rect x="68" y="12" width="8" height="72" rx="4" fill="#0EA5E9"/><line x1="16" y1="48" x2="64" y2="48" stroke="#0EA5E9" stroke-width="3.5" stroke-linecap="round"/><path d="M64 48 L80 42 L80 54 Z" fill="#0EA5E9"/></svg>
+      </div>
+      <div class="sz-label">48px</div>
+    </div>
+    <div class="size-item">
+      <div class="sz-box" style="width:32px;height:32px;">
+        <svg width="22" height="22" viewBox="0 0 84 96" fill="none"><rect x="8" y="12" width="8" height="72" rx="4" fill="#0EA5E9"/><rect x="68" y="12" width="8" height="72" rx="4" fill="#0EA5E9"/><line x1="16" y1="48" x2="64" y2="48" stroke="#0EA5E9" stroke-width="4" stroke-linecap="round"/><path d="M64 48 L80 42 L80 54 Z" fill="#0EA5E9"/></svg>
+      </div>
+      <div class="sz-label">32px</div>
+    </div>
+
+    <div style="width:32px"></div>
+
+    <!-- Shield sizes -->
+    <div class="size-item">
+      <div class="sz-box" style="width:48px;height:48px;">
+        <svg width="30" height="36" viewBox="0 0 72 96" fill="none"><path d="M36 4 L66 18 C66 18 68 48 62 64 C56 80 36 94 36 94 C36 94 16 80 10 64 C4 48 6 18 6 18 Z" stroke="#0EA5E9" stroke-width="2.5" fill="none"/><path d="M20 62 L28 52 L36 42 L44 34 L52 24" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+      <div class="sz-label">48px</div>
+    </div>
+    <div class="size-item">
+      <div class="sz-box" style="width:32px;height:32px;">
+        <svg width="20" height="24" viewBox="0 0 72 96" fill="none"><path d="M36 4 L66 18 C66 18 68 48 62 64 C56 80 36 94 36 94 C36 94 16 80 10 64 C4 48 6 18 6 18 Z" stroke="#0EA5E9" stroke-width="3" fill="none"/><path d="M20 62 L28 52 L36 42 L44 34 L52 24" stroke="#0EA5E9" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+      </div>
+      <div class="sz-label">32px</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

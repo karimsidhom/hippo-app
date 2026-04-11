@@ -1,0 +1,330 @@
+// Hippo — Prisma Schema
+// Provider: Supabase Postgres
+// Auth: Supabase Auth (User.id === auth.users.id)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // Pooled (pgbouncer) — runtime
+  directUrl = env("DIRECT_URL")     // Direct — migrations only
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+  PRO
+}
+
+enum UserRoleType {
+  RESIDENT
+  FELLOW
+  STAFF
+  ATTENDING
+}
+
+enum AutonomyLevel {
+  OBSERVER
+  ASSISTANT
+  SUPERVISOR_PRESENT
+  INDEPENDENT
+  TEACHING
+}
+
+enum SurgicalApproach {
+  OPEN
+  LAPAROSCOPIC
+  ROBOTIC
+  ENDOSCOPIC
+  HYBRID
+  PERCUTANEOUS
+  OTHER
+}
+
+enum OutcomeCategory {
+  UNCOMPLICATED
+  MINOR_COMPLICATION
+  MAJOR_COMPLICATION
+  REOPERATION
+  DEATH
+  UNKNOWN
+}
+
+enum ComplicationCategory {
+  NONE
+  BLEEDING
+  INFECTION
+  ORGAN_INJURY
+  ANASTOMOTIC_LEAK
+  DVT_PE
+  ILEUS
+  CONVERSION
+  READMISSION
+  OTHER
+}
+
+enum AgeBin {
+  UNDER_18
+  AGE_18_30
+  AGE_31_45
+  AGE_46_60
+  AGE_61_75
+  OVER_75
+  UNKNOWN
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// User.id is explicitly set to the Supabase auth UUID on registration.
+// No @default — always provided by the auth layer.
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  image     String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile         Profile?
+  caseLogs        CaseLog[]
+  milestones      Milestone[]
+  personalRecords PersonalRecord[]
+  sentFriendReqs  FriendRequest[]      @relation("SentRequests")
+  recvFriendReqs  FriendRequest[]      @relation("ReceivedRequests")
+  friendsAsUser1  Friendship[]         @relation("User1")
+  friendsAsUser2  Friendship[]         @relation("User2")
+  feedEvents      FeedEvent[]
+  favoriteQuotes  UserFavoriteQuote[]
+  quoteHistory    UserQuoteHistory[]
+
+  @@map("users")
+}
+
+model Profile {
+  id                            String       @id @default(cuid())
+  userId                        String       @unique
+  user                          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleType                      UserRoleType @default(RESIDENT)
+  specialty                     String?
+  subspecialty                  String?
+  institution                   String?
+  city                          String?
+  pgyYear                       Int?
+  trainingYearLabel             String?
+  publicProfile                 Boolean      @default(false)
+  allowFriendRequests           Boolean      @default(true)
+  allowLeaderboardParticipation Boolean      @default(true)
+  allowBenchmarkSharing         Boolean      @default(true)
+  bio                           String?
+  onboardingCompleted           Boolean      @default(false)
+  tier                          String       @default("free")
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+
+  @@map("profiles")
+}
+
+model Specialty {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  procedures ProcedureDefinition[]
+
+  @@map("specialties")
+}
+
+model ProcedureDefinition {
+  id                 String           @id @default(cuid())
+  specialtyId        String
+  specialty          Specialty        @relation(fields: [specialtyId], references: [id])
+  name               String
+  category           String
+  defaultApproach    SurgicalApproach @default(LAPAROSCOPIC)
+  cptCode            String?
+  avgDurationMinutes Int?
+  difficultyBase     Int              @default(3)
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+
+  caseLogs CaseLog[]
+
+  @@unique([specialtyId, name])
+  @@map("procedure_definitions")
+}
+
+model CaseLog {
+  id                      String               @id @default(cuid())
+  userId                  String
+  user                    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialtyId             String?              // stores the specialty slug — no FK constraint
+  procedureDefinitionId   String?
+  procedureDefinition     ProcedureDefinition? @relation(fields: [procedureDefinitionId], references: [id])
+  procedureName           String
+  procedureCategory       String?
+  surgicalApproach        SurgicalApproach     @default(LAPAROSCOPIC)
+  role                    String
+  autonomyLevel           AutonomyLevel        @default(SUPERVISOR_PRESENT)
+  difficultyScore         Int                  @default(3)
+  operativeDurationMinutes Int?
+  consoleTimeMinutes      Int?
+  dockingTimeMinutes      Int?
+  attendingLabel          String?
+  institutionSite         String?
+  patientAgeBin           AgeBin               @default(UNKNOWN)
+  diagnosisCategory       String?
+  outcomeCategory         OutcomeCategory      @default(UNCOMPLICATED)
+  complicationCategory    ComplicationCategory @default(NONE)
+  conversionOccurred      Boolean              @default(false)
+  notes                   String?
+  tags                    String[]             @default([])
+  reflection              String?
+  isPublic                Boolean              @default(false)
+  benchmarkOptIn          Boolean              @default(true)
+  caseDate                DateTime
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  @@index([userId])
+  @@index([userId, caseDate(sort: Desc)])
+  @@map("case_logs")
+}
+
+model Milestone {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  procedureName String?
+  value         Int
+  achievedAt    DateTime @default(now())
+  badgeKey      String
+
+  @@index([userId])
+  @@map("milestones")
+}
+
+model PersonalRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procedureName String
+  recordType    String
+  value         Float
+  previousValue Float?
+  achievedAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("personal_records")
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  fromUserId String
+  fromUser   User                @relation("SentRequests",    fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User                @relation("ReceivedRequests", fields: [toUserId],   references: [id], onDelete: Cascade)
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+
+  @@unique([fromUserId, toUserId])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  user1Id   String
+  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+  @@map("friendships")
+}
+
+model FeedEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType   String   // MILESTONE | PERSONAL_RECORD | CASE_LOGGED | STREAK
+  title       String
+  description String?
+  isPublic    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("feed_events")
+}
+
+// ─── Quote Library ───────────────────────────────────────────────────────────
+
+model Quote {
+  id               Int      @id @default(autoincrement())
+  quote            String
+  shortQuote       String?  @map("short_quote")
+  author           String
+  era              String
+  source           String?
+  sourceConfidence String   @default("medium") @map("source_confidence")
+  themes           String[]
+  category         String
+  mood             String
+  useCase          String[] @map("use_case")
+  isVerified       Boolean  @default(true) @map("is_verified")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  favorites UserFavoriteQuote[]
+  history   UserQuoteHistory[]
+
+  @@index([author])
+  @@index([category])
+  @@index([mood])
+  @@map("quotes")
+}
+
+model UserFavoriteQuote {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  quoteId     Int      @map("quote_id")
+  favoritedAt DateTime @default(now()) @map("favorited_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quoteId])
+  @@index([userId])
+  @@index([quoteId])
+  @@map("user_favorite_quotes")
+}
+
+model UserQuoteHistory {
+  id      String   @id @default(cuid())
+  userId  String   @map("user_id")
+  quoteId Int      @map("quote_id")
+  shownAt DateTime @default(now()) @map("shown_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([shownAt(sort: Desc)])
+  @@map("user_quote_history")
+}

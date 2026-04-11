@@ -1,0 +1,19 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+.next/
+.netlify/
+out/
+build/
+dist/
+*.tsbuildinfo
+
+# Environment / secrets
+.env
+.env.local
+.env*.local
+
+# OS / editor
+.DS_Store
+*.log

@@ -1,0 +1,367 @@
+"use client";
+
+import Link from "next/link";
+import { ChevronRight, Flame, ArrowUpRight } from "lucide-react";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { useAuth } from "@/context/AuthContext";
+import { useCases } from "@/hooks/useCases";
+import { useMilestones } from "@/hooks/useMilestones";
+import { getStreak } from "@/lib/milestones";
+import { getLearningCurveData, getWeeklyHeatmapData } from "@/lib/stats";
+import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
+import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
+import { BADGE_KEYS } from "@/lib/constants";
+import { TodaysPrinciple } from "@/components/TodaysPrinciple";
+
+function approachColor(approach: string): string {
+  const m: Record<string, string> = {
+    ROBOTIC: "#0EA5E9", LAPAROSCOPIC: "#38BDF8", OPEN: "#F59E0B",
+    ENDOSCOPIC: "#64748B", HYBRID: "#10B981", PERCUTANEOUS: "#F97316",
+  };
+  return m[approach] ?? "#334155";
+}
+
+export default function DashboardPage() {
+  useSubscription();
+  const { user, profile } = useAuth();
+  const { cases } = useCases();
+  const { milestones } = useMilestones();
+  const now = new Date();
+
+  const thisMonth = cases.filter(c => {
+    const d = new Date(c.caseDate);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
+  const durations = cases.filter(c => (c.operativeDurationMinutes ?? 0) > 0).map(c => c.operativeDurationMinutes as number);
+  const avgOR = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+
+  const firstSurgeonCount = cases.filter(c =>
+    c.role === "Primary Surgeon" || c.role === "Console Surgeon" || c.role === "First Surgeon"
+  ).length;
+  const firstSurgeonRate = cases.length > 0 ? Math.round((firstSurgeonCount / cases.length) * 100) : 0;
+
+  const streakInfo = getStreak(cases ?? []);
+  const heatmapData = getWeeklyHeatmapData(cases ?? []);
+
+  const recentCases = [...cases]
+    .sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime())
+    .slice(0, 5);
+
+  const procedureCount: Record<string, number> = {};
+  cases.forEach(c => { procedureCount[c.procedureName] = (procedureCount[c.procedureName] || 0) + 1; });
+  const topProcs = Object.entries(procedureCount).sort(([, a], [, b]) => b - a).slice(0, 5);
+  const maxCount = topProcs[0]?.[1] ?? 1;
+  const topProcName = topProcs[0]?.[0] ?? "";
+  const learningCurve = topProcName ? getLearningCurveData(cases ?? [], topProcName) : [];
+
+  const firstName = user?.name?.split(" ")[0] ?? "Surgeon";
+
+  return (
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+
+      {/* ── Identity + Primary Metric ─────────────────────────────────── */}
+      <div style={{ marginBottom: 36 }}>
+        <div style={{
+          fontSize: 11,
+          color: "var(--text-3)",
+          marginBottom: 8,
+          letterSpacing: ".04em",
+          fontFamily: "'Geist', sans-serif",
+        }}>
+          {profile?.specialty}
+          {profile?.trainingYearLabel && ` \u00b7 ${profile.trainingYearLabel}`}
+        </div>
+        <div style={{
+          fontSize: 32,
+          fontWeight: 800,
+          color: "var(--text)",
+          letterSpacing: "-1.5px",
+          lineHeight: 1,
+          fontFamily: "'Geist', sans-serif",
+        }}>
+          Dr. {firstName}
+        </div>
+      </div>
+
+      {/* ── Principle ─────────────────────────────────────────────────── */}
+      <TodaysPrinciple />
+
+      {/* ── Thin divider ──────────────────────────────────────────────── */}
+      <div style={{
+        height: 1,
+        background: "var(--border)",
+        margin: "28px 0",
+      }} />
+
+      {/* ── Hero number — left-aligned, massive, mono ─────────────────── */}
+      <div style={{ marginBottom: 8 }}>
+        <div style={{
+          fontSize: 64,
+          fontWeight: 800,
+          color: "var(--text)",
+          letterSpacing: "-3px",
+          lineHeight: .85,
+          fontFamily: "'Geist Mono', monospace",
+        }}>
+          {cases.length}
+        </div>
+        <div style={{
+          fontSize: 10,
+          color: "var(--text-3)",
+          marginTop: 8,
+          textTransform: "uppercase",
+          letterSpacing: "1.2px",
+          fontWeight: 500,
+        }}>
+          Total Cases Logged
+        </div>
+      </div>
+
+      {/* ── Metrics row — monospace numbers, no boxes ─────────────────── */}
+      <div style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+        gap: 0,
+        padding: "20px 0",
+        borderTop: "1px solid var(--border)",
+        borderBottom: "1px solid var(--border)",
+        marginBottom: 28,
+      }}>
+        {[
+          { n: String(thisMonth), l: "This mo" },
+          { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+          { n: `${firstSurgeonRate}%`, l: "Primary" },
+          { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
+        ].map((s, i) => (
+          <div key={i} style={{
+            paddingLeft: i > 0 ? 16 : 0,
+            borderLeft: i > 0 ? "1px solid var(--border)" : "none",
+          }}>
+            <div style={{
+              display: "flex", alignItems: "baseline", gap: 3,
+            }}>
+              <span style={{
+                fontSize: 18,
+                fontWeight: 700,
+                color: "var(--text)",
+                fontFamily: "'Geist Mono', monospace",
+                letterSpacing: "-0.5px",
+                lineHeight: 1,
+              }}>
+                {s.n}
+              </span>
+              {s.icon && <Flame size={11} color="var(--warning)" />}
+            </div>
+            <div style={{
+              fontSize: 9,
+              color: "var(--text-3)",
+              marginTop: 4,
+              textTransform: "uppercase",
+              letterSpacing: ".8px",
+              fontWeight: 500,
+            }}>
+              {s.l}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* ── Activity ──────────────────────────────────────────────────── */}
+      <section style={{ marginBottom: 28 }}>
+        <div style={{
+          fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+          textTransform: "uppercase", letterSpacing: "1px",
+          marginBottom: 12,
+        }}>Activity</div>
+        <VolumeHeatmap data={heatmapData} />
+      </section>
+
+      {/* ── Top procedures ────────────────────────────────────────────── */}
+      {topProcs.length > 0 && (
+        <section style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "1px",
+            marginBottom: 14,
+          }}>Top Procedures</div>
+          {topProcs.map(([name, count], i) => (
+            <div key={name} style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 12,
+              padding: "8px 0",
+              borderBottom: i < topProcs.length - 1 ? "1px solid var(--border)" : "none",
+            }}>
+              <span style={{
+                fontSize: 10,
+                fontWeight: 600,
+                color: "var(--text-3)",
+                fontFamily: "'Geist Mono', monospace",
+                width: 16,
+                flexShrink: 0,
+              }}>{i + 1}</span>
+              <span style={{
+                flex: 1, fontSize: 13, fontWeight: 500,
+                color: "var(--text)", minWidth: 0,
+                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+              }}>{name}</span>
+              <div style={{ width: 60, height: 2, background: "var(--border-mid)", borderRadius: 1, flexShrink: 0 }}>
+                <div style={{
+                  height: "100%",
+                  width: `${Math.round((count / maxCount) * 100)}%`,
+                  background: "var(--primary)",
+                  borderRadius: 1,
+                  transition: "width .5s cubic-bezier(.16,1,.3,1)",
+                }} />
+              </div>
+              <span style={{
+                fontSize: 12, fontWeight: 600,
+                color: "var(--text-2)",
+                fontFamily: "'Geist Mono', monospace",
+                minWidth: 20, textAlign: "right",
+              }}>{count}</span>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* ── Learning curve ────────────────────────────────────────────── */}
+      {learningCurve.length >= 3 && (
+        <section style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "1px",
+            marginBottom: 14,
+          }}>Learning Curve — {topProcName}</div>
+          <LearningCurveChart data={learningCurve} height={120} procedureName={topProcName} />
+        </section>
+      )}
+
+      {/* ── Recent cases ──────────────────────────────────────────────── */}
+      <section>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 12,
+        }}>
+          <span style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "1px",
+          }}>Recent</span>
+          <Link href="/cases" style={{
+            fontSize: 11, color: "var(--text-3)", textDecoration: "none",
+            display: "flex", alignItems: "center", gap: 2,
+            transition: "color .15s",
+          }}>
+            All <ArrowUpRight size={10} />
+          </Link>
+        </div>
+
+        {recentCases.length === 0 ? (
+          <div style={{
+            padding: "48px 0",
+            textAlign: "center",
+          }}>
+            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
+              No cases yet
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+              Tap Log to record your first procedure
+            </div>
+          </div>
+        ) : recentCases.map((c, i) => (
+          <div key={c.id} style={{
+            display: "flex",
+            alignItems: "flex-start",
+            gap: 10,
+            padding: "10px 0",
+            borderBottom: i < recentCases.length - 1 ? "1px solid var(--border)" : "none",
+            animation: `fadeIn .3s cubic-bezier(.16,1,.3,1) ${i * 50}ms both`,
+          }}>
+            <div style={{ paddingTop: 5, flexShrink: 0 }}>
+              <div style={{
+                width: 5, height: 5, borderRadius: "50%",
+                background: approachColor(c.surgicalApproach),
+              }} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <span style={{
+                  fontSize: 13, fontWeight: 500, color: "var(--text)",
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                  marginRight: 8,
+                }}>{c.procedureName}</span>
+                <span style={{
+                  fontSize: 11, color: "var(--text-3)",
+                  fontFamily: "'Geist Mono', monospace",
+                  flexShrink: 0,
+                }}>
+                  {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                </span>
+              </div>
+              <div style={{
+                display: "flex", gap: 6, marginTop: 2,
+                fontSize: 11, color: "var(--text-3)",
+              }}>
+                <span>{c.role}</span>
+                {c.operativeDurationMinutes && (
+                  <>
+                    <span style={{ color: "var(--muted)" }}>&middot;</span>
+                    <span style={{ fontFamily: "'Geist Mono', monospace" }}>{c.operativeDurationMinutes}m</span>
+                  </>
+                )}
+              </div>
+            </div>
+          </div>
+        ))}
+      </section>
+
+      {/* ── Milestones ────────────────────────────────────────────────── */}
+      {milestones.length > 0 && (
+        <section style={{ marginTop: 28 }}>
+          <div style={{
+            height: 1, background: "var(--border)", marginBottom: 20,
+          }} />
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "1px",
+            marginBottom: 14,
+          }}>Milestones</div>
+          {milestones.slice(0, 3).map((m, i) => {
+            const badge = BADGE_KEYS[m.badgeKey] ?? { label: m.badgeKey, color: "#0EA5E9" };
+            return (
+              <div key={m.id} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "10px 0",
+                borderBottom: i < 2 && i < milestones.length - 1 ? "1px solid var(--border)" : "none",
+              }}>
+                <div style={{
+                  width: 32, height: 32, borderRadius: 6,
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border-mid)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  flexShrink: 0,
+                }}>
+                  <div style={{
+                    width: 8, height: 8, borderRadius: "50%",
+                    background: badge.color ?? "var(--primary)",
+                  }} />
+                </div>
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
+                    {badge.label}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
+                    {m.procedureName ?? m.type?.replace(/_/g, " ")}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </section>
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Hippo Logo Concepts</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0B1120;
+    color: #e2e8f0;
+    font-family: 'SF Pro Display', -apple-system, 'Helvetica Neue', sans-serif;
+    padding: 48px 32px;
+    min-height: 100vh;
+  }
+  h1 {
+    font-size: 28px;
+    font-weight: 700;
+    letter-spacing: -1px;
+    margin-bottom: 8px;
+    color: #fff;
+  }
+  .subtitle {
+    font-size: 13px;
+    color: #64748b;
+    margin-bottom: 48px;
+    letter-spacing: .2px;
+  }
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
+    gap: 32px;
+    max-width: 1100px;
+  }
+  .card {
+    background: #111827;
+    border: 1px solid #1e293b;
+    border-radius: 16px;
+    padding: 32px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+  .card-number {
+    font-size: 9px;
+    font-weight: 600;
+    color: #0EA5E9;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    margin-bottom: 20px;
+    align-self: flex-start;
+  }
+  .logo-area {
+    width: 100%;
+    height: 160px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 24px;
+  }
+  .logo-area svg {
+    filter: drop-shadow(0 0 20px rgba(14, 165, 233, 0.15));
+  }
+  .card-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: #f1f5f9;
+    margin-bottom: 8px;
+    text-align: center;
+  }
+  .card-desc {
+    font-size: 12px;
+    color: #64748b;
+    text-align: center;
+    line-height: 1.6;
+    max-width: 280px;
+  }
+  .sizes {
+    display: flex;
+    gap: 20px;
+    align-items: flex-end;
+    margin-top: 20px;
+    padding-top: 16px;
+    border-top: 1px solid #1e293b;
+    width: 100%;
+    justify-content: center;
+  }
+  .sizes .size-label {
+    font-size: 9px;
+    color: #475569;
+    text-align: center;
+    margin-top: 6px;
+  }
+  .wordmark {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-top: 16px;
+  }
+  .wordmark-text {
+    font-size: 28px;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: -1px;
+  }
+</style>
+</head>
+<body>
+
+<h1>Hippo &mdash; Logo Concepts</h1>
+<p class="subtitle">Six directions for a surgical training tracker. All shown on app background (#0B1120).</p>
+
+<div class="grid">
+
+  <!-- 1. Minimal Hippo Silhouette -->
+  <div class="card">
+    <div class="card-number">Concept 01</div>
+    <div class="logo-area">
+      <svg width="120" height="120" viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <!-- Hippo head silhouette - geometric, minimal -->
+        <defs>
+          <linearGradient id="g1" x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+        </defs>
+        <!-- Main head shape -->
+        <path d="M30 45 C30 30 45 20 60 20 C75 20 90 30 90 45 L90 55 C95 55 102 60 102 68 C102 76 95 80 90 80 L90 82 C90 95 78 105 60 105 C42 105 30 95 30 82 L30 80 C25 80 18 76 18 68 C18 60 25 55 30 55 Z" fill="url(#g1)"/>
+        <!-- Left ear -->
+        <ellipse cx="35" cy="24" rx="10" ry="14" fill="url(#g1)" transform="rotate(-15 35 24)"/>
+        <!-- Right ear -->
+        <ellipse cx="85" cy="24" rx="10" ry="14" fill="url(#g1)" transform="rotate(15 85 24)"/>
+        <!-- Left eye -->
+        <circle cx="45" cy="48" r="5" fill="#0B1120"/>
+        <circle cx="46" cy="47" r="2" fill="#fff" opacity="0.8"/>
+        <!-- Right eye -->
+        <circle cx="75" cy="48" r="5" fill="#0B1120"/>
+        <circle cx="76" cy="47" r="2" fill="#fff" opacity="0.8"/>
+        <!-- Nostrils -->
+        <circle cx="50" cy="72" r="4" fill="#0B1120" opacity="0.4"/>
+        <circle cx="70" cy="72" r="4" fill="#0B1120" opacity="0.4"/>
+        <!-- Subtle smile -->
+        <path d="M48 82 Q60 90 72 82" stroke="#0B1120" stroke-width="2" fill="none" opacity="0.25"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">Minimal Hippo</div>
+    <div class="card-desc">Friendly, geometric hippo head. Instantly recognizable, works as app icon. Approachable yet professional.</div>
+    <div class="sizes">
+      <div>
+        <svg width="48" height="48" viewBox="0 0 120 120" fill="none"><defs><linearGradient id="g1s" x1="20" y1="20" x2="100" y2="100" gradientUnits="userSpaceOnUse"><stop offset="0%" stop-color="#0EA5E9"/><stop offset="100%" stop-color="#06B6D4"/></linearGradient></defs><path d="M30 45 C30 30 45 20 60 20 C75 20 90 30 90 45 L90 55 C95 55 102 60 102 68 C102 76 95 80 90 80 L90 82 C90 95 78 105 60 105 C42 105 30 95 30 82 L30 80 C25 80 18 76 18 68 C18 60 25 55 30 55 Z" fill="url(#g1s)"/><ellipse cx="35" cy="24" rx="10" ry="14" fill="url(#g1s)" transform="rotate(-15 35 24)"/><ellipse cx="85" cy="24" rx="10" ry="14" fill="url(#g1s)" transform="rotate(15 85 24)"/><circle cx="45" cy="48" r="5" fill="#0B1120"/><circle cx="75" cy="48" r="5" fill="#0B1120"/><circle cx="50" cy="72" r="4" fill="#0B1120" opacity="0.4"/><circle cx="70" cy="72" r="4" fill="#0B1120" opacity="0.4"/></svg>
+        <div class="size-label">48px</div>
+      </div>
+      <div>
+        <svg width="32" height="32" viewBox="0 0 120 120" fill="none"><path d="M30 45 C30 30 45 20 60 20 C75 20 90 30 90 45 L90 55 C95 55 102 60 102 68 C102 76 95 80 90 80 L90 82 C90 95 78 105 60 105 C42 105 30 95 30 82 L30 80 C25 80 18 76 18 68 C18 60 25 55 30 55 Z" fill="#0EA5E9"/><ellipse cx="35" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(-15 35 24)"/><ellipse cx="85" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(15 85 24)"/><circle cx="45" cy="48" r="5" fill="#0B1120"/><circle cx="75" cy="48" r="5" fill="#0B1120"/></svg>
+        <div class="size-label">32px</div>
+      </div>
+      <div>
+        <svg width="16" height="16" viewBox="0 0 120 120" fill="none"><path d="M30 45 C30 30 45 20 60 20 C75 20 90 30 90 45 L90 55 C95 55 102 60 102 68 C102 76 95 80 90 80 L90 82 C90 95 78 105 60 105 C42 105 30 95 30 82 L30 80 C25 80 18 76 18 68 C18 60 25 55 30 55 Z" fill="#0EA5E9"/><ellipse cx="35" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(-15 35 24)"/><ellipse cx="85" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(15 85 24)"/></svg>
+        <div class="size-label">16px</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 2. Scalpel + Growth -->
+  <div class="card">
+    <div class="card-number">Concept 02</div>
+    <div class="logo-area">
+      <svg width="100" height="120" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g2" x1="20" y1="100" x2="80" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9"/>
+            <stop offset="100%" stop-color="#10B981"/>
+          </linearGradient>
+        </defs>
+        <!-- Scalpel blade forming an upward curve -->
+        <path d="M25 95 L30 90 Q50 50 75 25" stroke="url(#g2)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- Blade tip -->
+        <path d="M75 25 L80 18 L72 22 Z" fill="#0EA5E9"/>
+        <!-- Handle -->
+        <path d="M25 95 L18 105 C16 108 18 112 22 112 L28 112 C32 112 34 108 32 105 Z" fill="#334155"/>
+        <!-- Growth dots along curve -->
+        <circle cx="30" cy="88" r="3" fill="#0EA5E9" opacity="0.3"/>
+        <circle cx="38" cy="74" r="3.5" fill="#0EA5E9" opacity="0.45"/>
+        <circle cx="48" cy="58" r="4" fill="#0EA5E9" opacity="0.6"/>
+        <circle cx="58" cy="44" r="4.5" fill="#0EA5E9" opacity="0.75"/>
+        <circle cx="68" cy="32" r="5" fill="#0EA5E9" opacity="0.9"/>
+        <!-- Subtle ascending bars in background -->
+        <rect x="15" y="85" width="8" height="18" rx="2" fill="#0EA5E9" opacity="0.08"/>
+        <rect x="27" y="72" width="8" height="31" rx="2" fill="#0EA5E9" opacity="0.08"/>
+        <rect x="39" y="58" width="8" height="45" rx="2" fill="#0EA5E9" opacity="0.08"/>
+        <rect x="51" y="44" width="8" height="59" rx="2" fill="#0EA5E9" opacity="0.08"/>
+        <rect x="63" y="30" width="8" height="73" rx="2" fill="#0EA5E9" opacity="0.08"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">Scalpel + Growth</div>
+    <div class="card-desc">Scalpel blade traces an ascending growth curve. Precision meets progression. Data dots mark the journey upward.</div>
+  </div>
+
+  <!-- 3. H Monogram with Scalpel Crossbar -->
+  <div class="card">
+    <div class="card-number">Concept 03</div>
+    <div class="logo-area">
+      <svg width="110" height="120" viewBox="0 0 110 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g3" x1="10" y1="10" x2="100" y2="110" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+        </defs>
+        <!-- Left vertical of H -->
+        <rect x="18" y="20" width="10" height="80" rx="5" fill="url(#g3)"/>
+        <!-- Right vertical of H -->
+        <rect x="82" y="20" width="10" height="80" rx="5" fill="url(#g3)"/>
+        <!-- Scalpel crossbar -->
+        <path d="M28 58 L78 58" stroke="url(#g3)" stroke-width="4" stroke-linecap="round"/>
+        <!-- Scalpel blade on the right -->
+        <path d="M78 58 L98 52 L98 64 Z" fill="#0EA5E9"/>
+        <!-- Scalpel handle detail on left -->
+        <rect x="10" y="54" width="18" height="8" rx="4" fill="#334155" opacity="0.6"/>
+        <!-- Subtle pulse line on crossbar -->
+        <path d="M38 58 L42 58 L45 50 L48 66 L51 54 L54 62 L57 58 L68 58" stroke="#0B1120" stroke-width="1.5" fill="none" opacity="0.35"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">H Monogram</div>
+    <div class="card-desc">Bold "H" letterform with a scalpel as the crossbar. A subtle pulse line runs through it. Typographic, clean, works at any size.</div>
+  </div>
+
+  <!-- 4. Refined Ascending Bars -->
+  <div class="card">
+    <div class="card-number">Concept 04</div>
+    <div class="logo-area">
+      <svg width="110" height="120" viewBox="0 0 110 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g4" x1="15" y1="100" x2="95" y2="20" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.6"/>
+            <stop offset="100%" stop-color="#0EA5E9"/>
+          </linearGradient>
+        </defs>
+        <!-- Five ascending bars with subtle instrument feel -->
+        <rect x="15" y="78" width="12" height="30" rx="3" fill="#0EA5E9" opacity="0.35"/>
+        <rect x="33" y="62" width="12" height="46" rx="3" fill="#0EA5E9" opacity="0.5"/>
+        <rect x="51" y="46" width="12" height="62" rx="3" fill="#0EA5E9" opacity="0.65"/>
+        <rect x="69" y="32" width="12" height="76" rx="3" fill="#0EA5E9" opacity="0.8"/>
+        <rect x="87" y="18" width="12" height="90" rx="3" fill="#0EA5E9"/>
+        <!-- Connecting growth line -->
+        <path d="M21 78 L39 62 L57 46 L75 32 L93 18" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Growth arrow at peak -->
+        <path d="M93 18 L89 24 M93 18 L98 22" stroke="#10B981" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Baseline -->
+        <line x1="10" y1="108" x2="104" y2="108" stroke="#1e293b" stroke-width="1"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">Ascending Bars (Refined)</div>
+    <div class="card-desc">Evolution of current logo. Bars with increasing opacity, connected by an emerald growth line. Clean data visualization feel.</div>
+  </div>
+
+  <!-- 5. The Shield -->
+  <div class="card">
+    <div class="card-number">Concept 05</div>
+    <div class="logo-area">
+      <svg width="100" height="120" viewBox="0 0 100 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g5" x1="50" y1="8" x2="50" y2="115" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9"/>
+            <stop offset="100%" stop-color="#0284C7"/>
+          </linearGradient>
+          <linearGradient id="g5inner" x1="50" y1="30" x2="50" y2="90" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.15"/>
+            <stop offset="100%" stop-color="#0EA5E9" stop-opacity="0.05"/>
+          </linearGradient>
+        </defs>
+        <!-- Shield outline -->
+        <path d="M50 8 L88 24 C88 24 90 60 82 78 C74 96 50 115 50 115 C50 115 26 96 18 78 C10 60 12 24 12 24 Z" stroke="url(#g5)" stroke-width="2.5" fill="url(#g5inner)"/>
+        <!-- Inner ascending line -->
+        <path d="M30 75 L40 62 L50 50 L60 40 L70 30" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+        <!-- Arrow tip -->
+        <path d="M70 30 L65 36 M70 30 L75 35" stroke="#0EA5E9" stroke-width="2.5" stroke-linecap="round"/>
+        <!-- Small cross/plus at center -->
+        <line x1="50" y1="78" x2="50" y2="92" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+        <line x1="43" y1="85" x2="57" y2="85" stroke="#0EA5E9" stroke-width="2" stroke-linecap="round" opacity="0.4"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">The Shield</div>
+    <div class="card-desc">Residency-patch inspired shield. Ascending growth line inside, medical cross below. Trust, protection, training credentials.</div>
+  </div>
+
+  <!-- 6. Abstract Hippo Ear -->
+  <div class="card">
+    <div class="card-number">Concept 06</div>
+    <div class="logo-area">
+      <svg width="110" height="120" viewBox="0 0 110 120" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="g6a" x1="30" y1="10" x2="80" y2="110" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9"/>
+            <stop offset="100%" stop-color="#06B6D4"/>
+          </linearGradient>
+          <linearGradient id="g6b" x1="50" y1="20" x2="90" y2="100" gradientUnits="userSpaceOnUse">
+            <stop offset="0%" stop-color="#0EA5E9" stop-opacity="0.4"/>
+            <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.15"/>
+          </linearGradient>
+        </defs>
+        <!-- Primary ear shape — large, rounded, organic -->
+        <path d="M55 10 C30 10 15 35 15 60 C15 85 30 110 55 110 C70 110 80 95 80 80 C80 65 72 55 60 55 C52 55 48 60 48 68 C48 72 50 75 55 75" stroke="url(#g6a)" stroke-width="4" fill="none" stroke-linecap="round"/>
+        <!-- Second overlapping ear — lighter -->
+        <path d="M65 15 C40 15 28 38 28 60 C28 82 40 105 65 105" stroke="url(#g6b)" stroke-width="3" fill="none" stroke-linecap="round"/>
+        <!-- Accent dot at inner spiral -->
+        <circle cx="55" cy="75" r="4" fill="#0EA5E9"/>
+        <!-- Small growth accent -->
+        <path d="M85 45 L88 38 M85 45 L92 42" stroke="#10B981" stroke-width="2" stroke-linecap="round" opacity="0.6"/>
+      </svg>
+    </div>
+    <div class="wordmark">
+      <div class="wordmark-text">Hippo</div>
+    </div>
+    <div class="card-title" style="margin-top:16px">Abstract Ear</div>
+    <div class="card-desc">The distinctive hippo ear abstracted into a spiral form. Organic, unique, evokes growth and listening. Doesn't read as medical clip art.</div>
+  </div>
+
+</div>
+
+<!-- Bonus: All six at app-icon size comparison -->
+<div style="margin-top: 56px; padding-top: 32px; border-top: 1px solid #1e293b;">
+  <div style="font-size: 9px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 20px;">App Icon Comparison (48px)</div>
+  <div style="display: flex; gap: 24px; align-items: center; flex-wrap: wrap;">
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="36" height="36" viewBox="0 0 120 120" fill="none"><path d="M30 45 C30 30 45 20 60 20 C75 20 90 30 90 45 L90 55 C95 55 102 60 102 68 C102 76 95 80 90 80 L90 82 C90 95 78 105 60 105 C42 105 30 95 30 82 L30 80 C25 80 18 76 18 68 C18 60 25 55 30 55 Z" fill="#0EA5E9"/><ellipse cx="35" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(-15 35 24)"/><ellipse cx="85" cy="24" rx="10" ry="14" fill="#0EA5E9" transform="rotate(15 85 24)"/><circle cx="45" cy="48" r="5" fill="#111827"/><circle cx="75" cy="48" r="5" fill="#111827"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="32" height="36" viewBox="0 0 100 120" fill="none"><path d="M25 95 L30 90 Q50 50 75 25" stroke="#0EA5E9" stroke-width="4" fill="none" stroke-linecap="round"/><path d="M75 25 L80 18 L72 22 Z" fill="#0EA5E9"/><circle cx="38" cy="74" r="3" fill="#0EA5E9" opacity="0.5"/><circle cx="48" cy="58" r="3" fill="#0EA5E9" opacity="0.65"/><circle cx="58" cy="44" r="3" fill="#0EA5E9" opacity="0.8"/><circle cx="68" cy="32" r="3" fill="#0EA5E9"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="36" height="36" viewBox="0 0 110 120" fill="none"><rect x="18" y="20" width="10" height="80" rx="5" fill="#0EA5E9"/><rect x="82" y="20" width="10" height="80" rx="5" fill="#0EA5E9"/><path d="M28 58 L78 58" stroke="#0EA5E9" stroke-width="4" stroke-linecap="round"/><path d="M78 58 L98 52 L98 64 Z" fill="#0EA5E9"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="36" height="36" viewBox="0 0 110 120" fill="none"><rect x="15" y="78" width="12" height="30" rx="3" fill="#0EA5E9" opacity="0.35"/><rect x="33" y="62" width="12" height="46" rx="3" fill="#0EA5E9" opacity="0.5"/><rect x="51" y="46" width="12" height="62" rx="3" fill="#0EA5E9" opacity="0.65"/><rect x="69" y="32" width="12" height="76" rx="3" fill="#0EA5E9" opacity="0.8"/><rect x="87" y="18" width="12" height="90" rx="3" fill="#0EA5E9"/><path d="M21 78 L39 62 L57 46 L75 32 L93 18" stroke="#10B981" stroke-width="2.5" stroke-linecap="round" fill="none"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="32" height="36" viewBox="0 0 100 120" fill="none"><path d="M50 8 L88 24 C88 24 90 60 82 78 C74 96 50 115 50 115 C50 115 26 96 18 78 C10 60 12 24 12 24 Z" stroke="#0EA5E9" stroke-width="3" fill="none"/><path d="M30 75 L40 62 L50 50 L60 40 L70 30" stroke="#0EA5E9" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </div>
+    <div style="width: 48px; height: 48px; background: #111827; border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+      <svg width="36" height="36" viewBox="0 0 110 120" fill="none"><path d="M55 10 C30 10 15 35 15 60 C15 85 30 110 55 110 C70 110 80 95 80 80 C80 65 72 55 60 55 C52 55 48 60 48 68 C48 72 50 75 55 75" stroke="#0EA5E9" stroke-width="4" fill="none" stroke-linecap="round"/><circle cx="55" cy="75" r="4" fill="#0EA5E9"/></svg>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

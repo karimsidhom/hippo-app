@@ -1,0 +1,768 @@
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700;800&family=Geist+Mono:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   HIPPO DESIGN SYSTEM v2
+   Premium surgical performance ecosystem.
+   Single accent (Teal). Geist type. Restrained surfaces. No card soup.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Canvas */
+  --bg:           #060d13;
+  --bg-elevated:  #0c1219;
+
+  /* Surfaces — only two levels, never more */
+  --surface:      #0c1219;
+  --surface2:     #111a23;
+  --glass:        rgba(14, 165, 233, 0.02);
+  --glass-mid:    rgba(14, 165, 233, 0.04);
+  --glass-hi:     rgba(14, 165, 233, 0.06);
+
+  /* Borders — surgical thin lines */
+  --border:       rgba(255,255,255,0.04);
+  --border-mid:   rgba(255,255,255,0.06);
+  --border-glass: rgba(14,165,233,0.08);
+  --border-glow:  rgba(14,165,233,0.16);
+
+  /* Text — 4-tier hierarchy */
+  --text:         #E2E8F0;
+  --text-2:       #64748B;
+  --text-3:       #475569;
+  --muted:        #334155;
+
+  /* Single accent — Surgical Teal */
+  --primary:      #0EA5E9;
+  --primary-hi:   #38BDF8;
+  --primary-lo:   #0284C7;
+  --primary-dim:  rgba(14,165,233,0.05);
+  --primary-glow: rgba(14,165,233,0.10);
+
+  /* Signal */
+  --success:      #10B981;
+  --danger:       #EF4444;
+  --warning:      #F59E0B;
+
+  /* Radii — tight, not bubbly */
+  --r:   6px;
+  --rs:  4px;
+  --rl:  10px;
+}
+
+/* ─── Reset ─────────────────────────────────────────────────────────────── */
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { height: 100%; }
+
+body {
+  min-height: 100%;
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow-y: scroll;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+}
+
+/* Scrollbar — nearly invisible, teal tint */
+::-webkit-scrollbar { width: 3px; height: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(14,165,233,0.12); border-radius: 2px; }
+* { scrollbar-width: thin; scrollbar-color: rgba(14,165,233,0.12) transparent; }
+
+::selection { background: rgba(14,165,233,0.25); color: var(--text); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   Derived from the scalpel: decisive single motion, no bounce, no wiggle.
+   Entry = upward reveal (the blade emerges). Easing = surgical precision.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes scalpelDraw {
+  from { width: 0; opacity: 0; }
+  to   { width: 48px; opacity: 1; }
+}
+@keyframes glassReveal {
+  from { opacity: 0; backdrop-filter: blur(0px); transform: translateY(8px); }
+  to   { opacity: 1; backdrop-filter: blur(12px); transform: translateY(0); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(14,165,233,0); }
+  50%      { box-shadow: 0 0 12px 2px rgba(14,165,233,0.08); }
+}
+@keyframes confetti-fall {
+  0%   { transform: translateY(-10px) rotate(0deg); opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+}
+
+.animate-fadeIn    { animation: fadeIn .35s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-slideUp   { animation: slideUp .4s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-confetti  { animation: confetti-fall linear forwards; }
+.animate-fade-in   { animation: fadeIn .35s cubic-bezier(.16,1,.3,1) forwards; }
+.animate-slide-up  { animation: slideUp .4s cubic-bezier(.16,1,.3,1) forwards; }
+
+/* Today's Principle — the daily ritual */
+@keyframes principleLabel {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes principleLine {
+  from { width: 0; }
+  to   { width: 48px; }
+}
+@keyframes principleQuote {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes principleAttrib {
+  from { opacity: 0; }
+  to   { opacity: 0.7; }
+}
+
+/* ─── Skeleton loader ───────────────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+  border-radius: var(--rs);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   GLASS SURFACE SYSTEM
+   The H-mark's translucent teal panels become the primary surface language.
+   Three tiers: glass (subtle), glass-mid (interactive), glass-hi (focus).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.glass {
+  background: var(--glass);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  /* Inner refraction — simulates the glass edge from the logo */
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.glass-elevated {
+  background: var(--glass-mid);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--r);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 4px 24px -4px rgba(0,0,0,0.3);
+}
+.glass-active {
+  background: var(--glass-hi);
+  border: 1px solid var(--border-glow);
+  border-radius: var(--r);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.06),
+    0 0 0 1px rgba(14,165,233,0.06),
+    0 8px 32px -8px rgba(0,0,0,0.4);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   THE SCALPEL ACCENT
+   The 32-degree diagonal slash — the brand's signature gesture.
+   Used for dividers, highlights, and decorative moments.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scalpel-line {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(14,165,233,0.3) 20%,
+    rgba(14,165,233,0.08) 80%,
+    transparent
+  );
+}
+.scalpel-accent {
+  position: relative;
+}
+.scalpel-accent::after {
+  content: '';
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 32px;
+  height: 1px;
+  background: linear-gradient(90deg, var(--primary), transparent);
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTION TITLE
+   Mirrors the logo's uppercase "HIPPO" lettering — tight, confident.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.section-title {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  margin: 0 0 14px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BADGES
+   Small glass chips — the H-bar's teal tint at micro scale.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.badge {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 2px 7px;
+  border-radius: 4px;
+  display: inline-block;
+  letter-spacing: .02em;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.badge-primary  { background: rgba(14,165,233,.07);  color: #38BDF8; border: 1px solid rgba(14,165,233,.12); }
+.badge-success  { background: rgba(16,185,129,.07);  color: #34D399; border: 1px solid rgba(16,185,129,.12); }
+.badge-warning  { background: rgba(245,158,11,.07);  color: #FBBF24; border: 1px solid rgba(245,158,11,.12); }
+.badge-danger   { background: rgba(239,68,68,.07);   color: #F87171; border: 1px solid rgba(239,68,68,.12); }
+.badge-muted    { background: rgba(255,255,255,.03);  color: var(--text-2); border: 1px solid var(--border); }
+.badge-purple   { background: rgba(139,92,246,.07);  color: #A78BFA; border: 1px solid rgba(139,92,246,.12); }
+.badge-cyan     { background: rgba(56,189,248,.07);  color: #7DD3FC; border: 1px solid rgba(56,189,248,.12); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CHIPS — filter pills
+   Frosted glass with teal glow on selection.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.chip {
+  background: var(--glass);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--rs);
+  padding: 6px 13px;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text-2);
+  transition: all .2s cubic-bezier(.16,1,.3,1);
+  font-weight: 500;
+  user-select: none;
+  font-family: inherit;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.chip:active { transform: scale(.97); }
+.chip.selected {
+  background: var(--primary-dim);
+  border-color: var(--border-glow);
+  color: var(--primary-hi);
+  box-shadow: 0 0 12px -4px rgba(14,165,233,0.15);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CARDS — glass panels
+   Sparingly used. Elevation = glass tier. From the H-bar panels.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.st-card {
+  background: var(--glass);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  padding: 16px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+.mb-3 { margin-bottom: 12px; }
+.mb-4 { margin-bottom: 16px; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INPUTS — glass fields
+   Dark glass with teal focus glow — the scalpel illuminates what you touch.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.st-input {
+  width: 100%;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--rs);
+  padding: 10px 12px;
+  color: var(--text);
+  font-size: 14px;
+  outline: none;
+  transition: all .2s cubic-bezier(.16,1,.3,1);
+  -webkit-appearance: none;
+  appearance: none;
+  font-family: inherit;
+}
+.st-input:focus {
+  border-color: rgba(14,165,233,.30);
+  box-shadow: 0 0 0 3px rgba(14,165,233,0.06);
+  background: var(--surface2);
+}
+.st-input::placeholder { color: var(--muted); }
+
+select.st-input {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232D3748' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  padding-right: 36px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BUTTONS
+   Primary = solid teal (the H-bar fill). Secondary = glass panel.
+   Active = scale-down like a physical push.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.st-btn {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  border: none; border-radius: var(--r);
+  padding: 12px 20px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: all .2s cubic-bezier(.16,1,.3,1);
+  font-family: inherit; width: 100%;
+}
+.st-btn:active { transform: scale(0.98); opacity: .9; }
+.st-btn-primary {
+  background: linear-gradient(135deg, var(--primary), var(--primary-lo));
+  color: #fff;
+  box-shadow: 0 2px 12px -2px rgba(14,165,233,0.25);
+}
+.st-btn-primary:hover {
+  box-shadow: 0 4px 20px -2px rgba(14,165,233,0.30);
+}
+.st-btn-secondary {
+  background: var(--glass);
+  color: var(--text-2);
+  border: 1px solid var(--border-mid);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.st-btn-sm { width: auto; padding: 6px 14px; font-size: 13px; border-radius: var(--rs); }
+.st-btn-danger {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid rgba(239,68,68,.12);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STATS STRIP
+   Unboxed — data breathes in open space. Vertical dividers echo
+   the parallel H-bars. Numbers are heavy like the mark itself.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.stats-grid {
+  display: flex;
+  gap: 0;
+  margin-bottom: 0;
+}
+.stat-card {
+  flex: 1;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  position: relative;
+}
+.stat-card + .stat-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 2px;
+  bottom: 2px;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, var(--border-mid), transparent);
+}
+.stat-card + .stat-card { padding-left: 20px; }
+.stat-num {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+  letter-spacing: -0.5px;
+}
+.stat-label {
+  font-size: 9px;
+  color: var(--text-3);
+  margin-top: 5px;
+  letter-spacing: .8px;
+  text-transform: uppercase;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   BAR ROWS — procedure frequency
+   The bar fill uses the teal gradient. Track = ghost of the H-bar.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.bar-row { display: flex; align-items: center; gap: 12px; padding: 7px 0; }
+.bar-label {
+  font-size: 13px;
+  font-weight: 500;
+  flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--text);
+}
+.bar-track {
+  width: 80px;
+  height: 2px;
+  background: var(--border-mid);
+  border-radius: 1px;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-hi));
+  border-radius: 1px;
+  transition: width .6s cubic-bezier(.16,1,.3,1);
+}
+.bar-count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-2);
+  min-width: 24px;
+  text-align: right;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   YEAR TABS
+   Glass pills. Active = teal-tinted glass. From the H-bar panel states.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.year-tabs {
+  display: flex;
+  gap: 3px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  margin-bottom: 16px;
+  scrollbar-width: none;
+}
+.year-tabs::-webkit-scrollbar { display: none; }
+.year-tab {
+  background: transparent;
+  border: none;
+  border-radius: var(--rs);
+  padding: 6px 14px;
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+  color: var(--muted);
+  transition: all .2s cubic-bezier(.16,1,.3,1);
+  font-family: inherit;
+  font-weight: 500;
+}
+.year-tab:hover { color: var(--text-2); }
+.year-tab.active {
+  background: var(--glass-mid);
+  color: var(--text);
+  border: 1px solid var(--border-glass);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.04);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CASE ROWS
+   Clean list entries. The approach dot (colored circle) is the only
+   decoration — like the scalpel's point of contact.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.case-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 0;
+  margin-bottom: 0;
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  background: transparent;
+  cursor: pointer;
+  transition: all .2s cubic-bezier(.16,1,.3,1);
+}
+.case-card:hover {
+  background: var(--glass);
+  margin-left: -8px;
+  margin-right: -8px;
+  padding-left: 8px;
+  padding-right: 8px;
+  border-radius: var(--rs);
+  border-color: transparent;
+}
+.case-card:last-child { border-bottom: none; }
+.case-proc {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.3;
+  color: var(--text);
+}
+.case-date {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.case-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 3px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SHEET MODAL — detail panel
+   Glass-elevated surface sliding up — the scalpel reveals the detail.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sheet {
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--rl) var(--rl) 0 0;
+  padding: 20px;
+  width: 100%;
+  max-width: 500px;
+  max-height: 82vh;
+  overflow-y: auto;
+  animation: slideUp .25s cubic-bezier(.16,1,.3,1);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,0.05),
+    0 -8px 40px rgba(0,0,0,0.5);
+}
+.sheet-handle {
+  width: 32px;
+  height: 3px;
+  background: var(--border-mid);
+  border-radius: 2px;
+  margin: 0 auto 18px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STEP DOTS — onboarding progress
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.step-dots { display: flex; gap: 6px; justify-content: center; margin-bottom: 24px; }
+.step-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--border-mid);
+  transition: all .25s cubic-bezier(.16,1,.3,1);
+}
+.step-dot.active {
+  background: var(--primary);
+  width: 20px;
+  border-radius: 3px;
+  box-shadow: 0 0 8px rgba(14,165,233,0.2);
+}
+.step-dot.done { background: var(--success); }
+
+/* ─── Progress bar ──────────────────────────────────────────────────────── */
+.progress-bar {
+  height: 2px;
+  background: var(--border-mid);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--primary-hi));
+  border-radius: 1px;
+  transition: width .4s cubic-bezier(.16,1,.3,1);
+}
+
+/* ─── Stars ─────────────────────────────────────────────────────────────── */
+.star {
+  font-size: 20px;
+  cursor: pointer;
+  transition: transform .15s cubic-bezier(.16,1,.3,1);
+  color: var(--border-mid);
+}
+.star.filled { color: var(--warning); }
+.star:active { transform: scale(1.15); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FORM ELEMENTS
+   Labels = uppercase like the logo wordmark. Fields = glass inputs.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.form-label {
+  display: block;
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 8px;
+}
+.form-group { margin-bottom: 16px; }
+.chip-group { display: flex; flex-wrap: wrap; gap: 6px; }
+
+.divider {
+  height: 1px;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    var(--border-mid) 20%,
+    var(--border-mid) 80%,
+    transparent
+  );
+  margin: 16px 0;
+}
+.req { color: var(--danger); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   EMPTY STATE
+   Restrained, not sad. The void before the first case.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.empty-state {
+  text-align: center;
+  padding: 56px 24px;
+  color: var(--muted);
+}
+.empty-icon { font-size: 32px; margin-bottom: 12px; opacity: .3; }
+.empty-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+}
+.empty-text { font-size: 12px; line-height: 1.6; color: var(--text-3); }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MILESTONE BADGES
+   Glass chips with category-tinted glow.
+   The achievement icon sits in a teal-glass circle.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.milestone-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
+.milestone-row:last-child { border-bottom: none; }
+.milestone-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--r);
+  background: var(--glass-mid);
+  border: 1px solid var(--border-glass);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.milestone-label {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+}
+.milestone-sub {
+  font-size: 11px;
+  color: var(--text-3);
+  margin-top: 1px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   STREAK BADGE
+   A teal-glow glass chip that pulses subtly when active.
+   The H-bar's confidence at badge scale.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.streak-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: var(--glass-mid);
+  border: 1px solid var(--border-glass);
+  border-radius: var(--rs);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-hi);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.streak-badge.active {
+  animation: pulseGlow 3s ease-in-out infinite;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LEADERBOARD
+   Ranked rows with position indicator. Top 3 get teal accent.
+   Clean data table — no boxes, just lines + hierarchy.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.lb-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--border);
+  transition: background .15s;
+}
+.lb-row:hover { background: var(--glass); margin: 0 -8px; padding: 11px 8px; border-radius: var(--rs); }
+.lb-rank {
+  width: 24px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-3);
+  text-align: center;
+  flex-shrink: 0;
+}
+.lb-row.top-3 .lb-rank { color: var(--primary-hi); }
+.lb-name {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.lb-value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANALYTICS / CHART CONTAINERS
+   Glass panels that hold charts. The teal gradient is the data color.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.chart-container {
+  background: var(--glass);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 16px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
