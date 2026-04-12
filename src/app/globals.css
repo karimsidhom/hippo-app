@@ -766,3 +766,75 @@ select.st-input {
   -webkit-backdrop-filter: blur(8px);
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   OPENING EXPERIENCE
+   Precision-first motion language: contour reveal, morphing geometry,
+   subtle depth parallax. No bounce, no overshoot — the blade emerges.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+@keyframes oe-draw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes oe-fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+@keyframes oe-fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes oe-glowBloom {
+  from { opacity: 0; transform: scale(0.5); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes oe-splashExit {
+  to { opacity: 0; transform: scale(1.02); }
+}
+@keyframes oe-exitUp {
+  to { opacity: 0; transform: translateY(-8px) scale(0.99); }
+}
+@keyframes oe-bgDrift1 {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-10px, -8px); }
+}
+@keyframes oe-bgDrift2 {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(8px, -12px); }
+}
+@keyframes oe-bgDrift3 {
+  0%, 100% { transform: translate(0, 0); }
+  50%      { transform: translate(-6px, 10px); }
+}
+
+/* CTA shimmer — a single restrained highlight sweep */
+.oe-btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+.oe-btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0; left: -100%;
+  width: 100%; height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.06), transparent);
+  animation: oe-shimmer 5s ease-in-out 3.5s infinite;
+}
+@keyframes oe-shimmer {
+  0%  { left: -100%; }
+  25% { left: 100%; }
+  100%{ left: 100%; }
+}
+
+/* Reduced motion — all opening animations resolve immediately */
+@media (prefers-reduced-motion: reduce) {
+  .oe-motion,
+  .oe-motion * {
+    animation-duration: 0.01ms !important;
+    animation-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+  }
+  .oe-btn-shimmer::after {
+    animation: none !important;
+  }
+}

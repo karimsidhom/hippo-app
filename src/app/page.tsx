@@ -1,8 +1,16 @@
 "use client";
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   Root Page — Auth router + loading state
+
+   Shows a refined loading state with the PrecisionMark while determining
+   where to send the user (login / onboarding / dashboard).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { PrecisionMark } from "@/components/PrecisionMark";
 
 export default function RootPage() {
   const router = useRouter();
@@ -10,51 +18,71 @@ export default function RootPage() {
 
   useEffect(() => {
     if (loading) return;
-
     if (!user) {
       router.replace("/login");
       return;
     }
-
     if (!onboardingDone) {
       router.replace("/onboarding");
       return;
     }
-
     router.replace("/dashboard");
   }, [user, loading, onboardingDone, router]);
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex items-center justify-center">
-      <div className="flex flex-col items-center gap-4 animate-fade-in">
-        {/* Logo */}
-        <div className="w-16 h-16 rounded-2xl bg-gradient-blue flex items-center justify-center shadow-glow-blue">
-          <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-            <path
-              d="M8 24 L16 4 L24 24"
-              stroke="white"
-              strokeWidth="3"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-            />
-            <path
-              d="M10 18 L22 18"
-              stroke="white"
-              strokeWidth="3"
-              strokeLinecap="round"
-            />
-            <circle cx="24" cy="24" r="4" fill="#10b981" />
-          </svg>
-        </div>
-
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-[#f1f5f9]">Hippo</h1>
-          <p className="text-[#94a3b8] text-sm mt-1">Loading your dashboard...</p>
-        </div>
-
-        {/* Spinner */}
-        <div className="w-6 h-6 border-2 border-[#1e2130] border-t-[#2563eb] rounded-full animate-spin" />
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "#060d13",
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 20,
+      }}
+    >
+      <div style={{ animation: "oe-fadeIn 0.4s cubic-bezier(.16,1,.3,1) both" }}>
+        <PrecisionMark size={64} />
       </div>
+
+      <div style={{ textAlign: "center" }}>
+        <h1
+          style={{
+            fontSize: 24,
+            fontWeight: 700,
+            color: "#E2E8F0",
+            letterSpacing: "-0.5px",
+            margin: 0,
+            animation: "oe-fadeInUp 0.4s cubic-bezier(.16,1,.3,1) 0.1s both",
+          }}
+        >
+          Hippo
+        </h1>
+        <p
+          style={{
+            fontSize: 13,
+            color: "#475569",
+            marginTop: 8,
+            animation: "oe-fadeInUp 0.3s cubic-bezier(.16,1,.3,1) 0.2s both",
+          }}
+        >
+          Loading your dashboard\u2026
+        </p>
+      </div>
+
+      {/* Minimal spinner */}
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          border: "2px solid rgba(14,165,233,0.1)",
+          borderTopColor: "#0EA5E9",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
