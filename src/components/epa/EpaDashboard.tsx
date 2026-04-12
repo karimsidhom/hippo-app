@@ -12,18 +12,29 @@ const EPA_TABS = ["Overview", "EPAs", "Milestones", "Gaps"];
 
 // ── Colors ─────────────────────────────────────────────────────────────────
 const LEVEL_COLORS = ["#64748b", "#f59e0b", "#0ea5e9", "#10b981", "#8b5cf6"];
-const EPA_STAGE_COLORS: Record<string, string> = {
-  // ACGME
-  EPA: "#0ea5e9",
-  // Royal College CBD stages
-  FOD: "#f59e0b",
-  COD: "#0ea5e9",
-  TTP: "#10b981",
-};
 
+/** Determine CBD stage color from EPA id prefix */
 function getStageColor(epaId: string): string {
-  const prefix = epaId.replace(/\d+$/, "");
-  return EPA_STAGE_COLORS[prefix] || "#0ea5e9";
+  const id = epaId.toUpperCase();
+  if (id.startsWith("TTP")) return "#10b981"; // Transition to Practice — green
+  if (id.startsWith("TD")) return "#6366f1";  // Transition to Discipline — indigo
+  if (id.startsWith("CSA") || id.startsWith("FSA") || id.startsWith("TTPSA")) return "#a855f7"; // Special assessments — purple
+  if (id.startsWith("C")) return "#0ea5e9";   // Core of Discipline — blue
+  if (id.startsWith("F")) return "#f59e0b";   // Foundations — amber
+  return "#0ea5e9";
+}
+
+/** Determine CBD stage label from EPA id prefix */
+function getStageLabel(epaId: string): string {
+  const id = epaId.toUpperCase();
+  if (id.startsWith("TTPSA")) return "TTP Special Assessment";
+  if (id.startsWith("TTP")) return "Transition to Practice";
+  if (id.startsWith("TD")) return "Transition to Discipline";
+  if (id.startsWith("CSA")) return "Core Special Assessment";
+  if (id.startsWith("FSA")) return "Foundations Special Assessment";
+  if (id.startsWith("C")) return "Core of Discipline";
+  if (id.startsWith("F")) return "Foundations";
+  return "EPA";
 }
 
 function getLevelLabel(level: number): string {
@@ -146,6 +157,7 @@ function EpaCard({ epa, expanded, onToggle }: {
             <span style={{
               fontSize: 10, fontWeight: 700, color, fontFamily: "'Geist Mono', monospace",
               background: `${color}15`, padding: "1px 5px", borderRadius: 3,
+              flexShrink: 0,
             }}>
               {epa.epaId}
             </span>
@@ -208,49 +220,72 @@ function EpaCard({ epa, expanded, onToggle }: {
   );
 }
 
-// ── Main Dashboard Component ───────────────────────────────────────────────
+// ── Stage Legend Badges ───────────────────────────────────────────────────
+function StageLegend({ epaData }: { epaData: SpecialtyEpaData }) {
+  if (epaData.system !== "RCPSC") return null;
 
-interface EpaDashboardProps {
-  cases: CaseLog[];
-  specialty?: string;
-  trainingCountry?: string;
+  // Detect which stages are present in this dataset
+  const stageSet = new Set<string>();
+  for (const epa of epaData.epas) {
+    stageSet.add(getStageLabel(epa.id));
+  }
+
+  const stageOrder = [
+    "Transition to Discipline",
+    "Foundations",
+    "Foundations Special Assessment",
+    "Core of Discipline",
+    "Core Special Assessment",
+    "Transition to Practice",
+    "TTP Special Assessment",
+  ];
+
+  const stages = stageOrder.filter(s => stageSet.has(s));
+
+  return (
+    <div style={{ display: "flex", gap: 6, marginBottom: 8, flexWrap: "wrap" }}>
+      {stages.map((stage) => {
+        // Get color from a sample EPA in that stage
+        const sampleEpa = epaData.epas.find(e => getStageLabel(e.id) === stage);
+        const color = sampleEpa ? getStageColor(sampleEpa.id) : "#0ea5e9";
+        // Short label
+        const shortLabel = stage
+          .replace("Transition to Discipline", "TTD")
+          .replace("Foundations Special Assessment", "FSA")
+          .replace("Foundations", "Foundations")
+          .replace("Core Special Assessment", "CSA")
+          .replace("Core of Discipline", "Core")
+          .replace("TTP Special Assessment", "TTP SA")
+          .replace("Transition to Practice", "TTP");
+        return (
+          <span key={stage} style={{
+            fontSize: 9, fontWeight: 600, color,
+            background: `${color}15`, padding: "2px 6px", borderRadius: 3,
+            letterSpacing: ".5px", textTransform: "uppercase",
+          }}>
+            {shortLabel}
+          </span>
+        );
+      })}
+    </div>
+  );
 }
 
-export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboardProps) {
+// ── EPA Panel (reusable for both Surgical Foundations and Specialty) ──────
+function EpaPanel({
+  epaData,
+  dashboard,
+  cases,
+}: {
+  epaData: SpecialtyEpaData;
+  dashboard: EpaDashboardData | null;
+  cases: CaseLog[];
+}) {
   const [subTab, setSubTab] = useState("Overview");
   const [expandedEpa, setExpandedEpa] = useState<string | null>(null);
 
-  // Resolve EPA data based on specialty + country
-  const epaData: SpecialtyEpaData | undefined = useMemo(() => {
-    if (!specialty) return undefined;
-    return getSpecialtyEpaData(specialty, trainingCountry);
-  }, [specialty, trainingCountry]);
-
-  // Compute progress
-  const dashboard: EpaDashboardData | null = useMemo(() => {
-    if (!epaData || cases.length === 0) return null;
-    return computeEpaProgress(cases, epaData);
-  }, [cases, epaData]);
-
-  // No EPA data for this specialty
-  if (!epaData) {
-    return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: 200, color: "var(--text-3)", fontSize: 14, textAlign: "center", gap: 8,
-        padding: "48px 0",
-      }}>
-        <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
-        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>
-          EPA tracking coming soon for {specialty || "your specialty"}
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-3)", maxWidth: 300 }}>
-          Currently available for General Surgery ({trainingCountry === "CA" ? "Royal College CBD" : "ACGME"}).
-          More specialties being added.
-        </div>
-      </div>
-    );
-  }
+  const systemLabel = getSystemLabel(epaData.system);
+  const frameworkLabel = getMilestoneFramework(epaData.system);
 
   if (!dashboard || cases.length === 0) {
     return (
@@ -267,9 +302,6 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
     );
   }
 
-  const systemLabel = getSystemLabel(epaData.system);
-  const frameworkLabel = getMilestoneFramework(epaData.system);
-
   // Group milestones by domain
   const milestonesByDomain = dashboard.milestoneProgress.reduce((acc, m) => {
     if (!acc[m.domain]) acc[m.domain] = [];
@@ -277,15 +309,12 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
     return acc;
   }, {} as Record<string, MilestoneProgress[]>);
 
-  // Sort EPAs by stage for Royal College
   const sortedEpas = [...dashboard.epaProgress];
-
-  // EPA completion stats
   const completedEpas = dashboard.epaProgress.filter(e => e.percentComplete >= 100).length;
   const totalEpas = dashboard.epaProgress.length;
-  const avgCompletion = Math.round(
-    dashboard.epaProgress.reduce((s, e) => s + e.percentComplete, 0) / totalEpas
-  );
+  const avgCompletion = totalEpas > 0
+    ? Math.round(dashboard.epaProgress.reduce((s, e) => s + e.percentComplete, 0) / totalEpas)
+    : 0;
 
   return (
     <div>
@@ -373,7 +402,6 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
       {/* ── Overview Sub-tab ── */}
       {subTab === "Overview" && (
         <div>
-          {/* Top Strengths */}
           {dashboard.strengths.length > 0 && (
             <section style={{ marginBottom: 24 }}>
               <div style={{
@@ -410,7 +438,6 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
             </section>
           )}
 
-          {/* Milestone Overview */}
           <section style={{
             paddingTop: 20, borderTop: "1px solid var(--border)",
           }}>
@@ -435,25 +462,7 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
       {/* ── EPAs Sub-tab ── */}
       {subTab === "EPAs" && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {epaData.system === "RCPSC" && (
-            <div style={{
-              display: "flex", gap: 10, marginBottom: 8,
-            }}>
-              {[
-                { label: "Foundations", color: "#f59e0b", prefix: "FOD" },
-                { label: "Core", color: "#0ea5e9", prefix: "COD" },
-                { label: "Transition", color: "#10b981", prefix: "TTP" },
-              ].map(({ label, color }) => (
-                <span key={label} style={{
-                  fontSize: 9, fontWeight: 600, color,
-                  background: `${color}15`, padding: "2px 6px", borderRadius: 3,
-                  letterSpacing: ".5px", textTransform: "uppercase",
-                }}>
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
+          <StageLegend epaData={epaData} />
           {sortedEpas.map((epa) => (
             <EpaCard
               key={epa.epaId}
@@ -585,6 +594,139 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
               </div>
             </>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Main Dashboard Component ───────────────────────────────────────────────
+
+interface EpaDashboardProps {
+  cases: CaseLog[];
+  specialty?: string;
+  trainingCountry?: string;
+}
+
+export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboardProps) {
+  const isCanadian = trainingCountry === "CA";
+
+  // Top-level tab: "Surgical Foundations" vs specialty
+  const [topTab, setTopTab] = useState<"foundations" | "specialty">("specialty");
+
+  // Resolve EPA data for specialty
+  const specialtyEpaData: SpecialtyEpaData | undefined = useMemo(() => {
+    if (!specialty) return undefined;
+    return getSpecialtyEpaData(specialty, trainingCountry);
+  }, [specialty, trainingCountry]);
+
+  // Resolve EPA data for Surgical Foundations (only for Canadian residents)
+  const foundationsEpaData: SpecialtyEpaData | undefined = useMemo(() => {
+    if (!isCanadian) return undefined;
+    return getSpecialtyEpaData("surgical-foundations", "CA");
+  }, [isCanadian]);
+
+  // Compute progress for both
+  const specialtyDashboard: EpaDashboardData | null = useMemo(() => {
+    if (!specialtyEpaData || cases.length === 0) return null;
+    return computeEpaProgress(cases, specialtyEpaData);
+  }, [cases, specialtyEpaData]);
+
+  const foundationsDashboard: EpaDashboardData | null = useMemo(() => {
+    if (!foundationsEpaData || cases.length === 0) return null;
+    return computeEpaProgress(cases, foundationsEpaData);
+  }, [cases, foundationsEpaData]);
+
+  // Determine which panel is active
+  const activeEpaData = topTab === "foundations" ? foundationsEpaData : specialtyEpaData;
+  const activeDashboard = topTab === "foundations" ? foundationsDashboard : specialtyDashboard;
+
+  // No EPA data for this specialty at all
+  if (!specialtyEpaData && !foundationsEpaData) {
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+        minHeight: 200, color: "var(--text-3)", fontSize: 14, textAlign: "center", gap: 8,
+        padding: "48px 0",
+      }}>
+        <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>
+          EPA tracking coming soon for {specialty || "your specialty"}
+        </div>
+        <div style={{ fontSize: 12, color: "var(--text-3)", maxWidth: 300 }}>
+          Currently available for General Surgery and Urology ({isCanadian ? "Royal College CBD" : "ACGME"}).
+          More specialties being added.
+        </div>
+      </div>
+    );
+  }
+
+  const specialtyLabel = specialtyEpaData?.specialty || specialty || "Specialty";
+
+  return (
+    <div>
+      {/* ── Top-level Tab Toggle (Canadian residents only) ── */}
+      {isCanadian && foundationsEpaData && (
+        <div style={{
+          display: "flex", gap: 0, marginBottom: 20,
+          background: "var(--surface2)", borderRadius: 8,
+          padding: 3, border: "1px solid var(--border)",
+        }}>
+          <button
+            onClick={() => setTopTab("foundations")}
+            style={{
+              flex: 1, padding: "8px 12px",
+              background: topTab === "foundations" ? "var(--surface)" : "transparent",
+              border: topTab === "foundations" ? "1px solid var(--border-mid)" : "1px solid transparent",
+              borderRadius: 6, cursor: "pointer",
+              fontSize: 12, fontWeight: topTab === "foundations" ? 700 : 500,
+              color: topTab === "foundations" ? "var(--text)" : "var(--text-3)",
+              fontFamily: "'Geist', sans-serif",
+              transition: "all .15s",
+              boxShadow: topTab === "foundations" ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+            }}
+          >
+            <span style={{ marginRight: 6 }}>🏥</span>
+            Surgical Foundations
+          </button>
+          <button
+            onClick={() => setTopTab("specialty")}
+            style={{
+              flex: 1, padding: "8px 12px",
+              background: topTab === "specialty" ? "var(--surface)" : "transparent",
+              border: topTab === "specialty" ? "1px solid var(--border-mid)" : "1px solid transparent",
+              borderRadius: 6, cursor: "pointer",
+              fontSize: 12, fontWeight: topTab === "specialty" ? 700 : 500,
+              color: topTab === "specialty" ? "var(--text)" : "var(--text-3)",
+              fontFamily: "'Geist', sans-serif",
+              transition: "all .15s",
+              boxShadow: topTab === "specialty" ? "0 1px 3px rgba(0,0,0,.08)" : "none",
+            }}
+          >
+            <span style={{ marginRight: 6 }}>🔬</span>
+            {specialtyLabel}
+          </button>
+        </div>
+      )}
+
+      {/* ── Active Panel ── */}
+      {activeEpaData ? (
+        <EpaPanel
+          key={topTab}
+          epaData={activeEpaData}
+          dashboard={activeDashboard}
+          cases={cases}
+        />
+      ) : (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+          minHeight: 200, color: "var(--text-3)", fontSize: 14, textAlign: "center", gap: 8,
+          padding: "48px 0",
+        }}>
+          <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>
+            EPA tracking coming soon for {topTab === "foundations" ? "Surgical Foundations" : specialtyLabel}
+          </div>
         </div>
       )}
     </div>
