@@ -7,8 +7,36 @@
 // same so callers don't need to change.
 // ---------------------------------------------------------------------------
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+import { setDefaultResultOrder } from "node:dns";
+
+// The Netlify AI Gateway mints JWTs that are IP-locked to whatever egress IP
+// it saw when `netlify dev` requested the token. macOS's Happy Eyeballs can
+// then pick a different address family (IPv6 vs IPv4) for the outbound fetch
+// from Next.js, causing the gateway to return
+// `{"code":"mismatched_client_ip"}`. Forcing IPv4-first for DNS resolution
+// keeps all outbound HTTPS on the same family as `netlify dev` so the IPs
+// line up. This is a no-op when not going through the gateway.
+try {
+  setDefaultResultOrder("ipv4first");
+} catch {
+  // Older Node runtimes (< 18.17) don't have this function — safe to ignore.
+}
+
+const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
+
+/**
+ * Resolve the Messages endpoint. Honours `ANTHROPIC_BASE_URL` so the same
+ * code works through the Netlify AI Gateway (which injects a per-site base
+ * URL + JWT at `netlify dev` and on Netlify-hosted builds) as well as
+ * against `api.anthropic.com` directly when a raw `sk-ant-…` key is set.
+ */
+function resolveMessagesUrl(): string {
+  const base = (process.env.ANTHROPIC_BASE_URL ?? DEFAULT_ANTHROPIC_BASE_URL)
+    .trim()
+    .replace(/\/+$/, "");
+  return `${base}/v1/messages`;
+}
 
 /**
  * The model ID we target for dictation revision. Claude Opus 4.6 is the
@@ -53,6 +81,8 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     throw new LlmUnavailableError("ANTHROPIC_API_KEY not set");
   }
 
+  const url = resolveMessagesUrl();
+
   const body = {
     model: DICTATION_MODEL,
     max_tokens: opts.maxTokens ?? 4096,
@@ -61,9 +91,15 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     messages: [{ role: "user", content: opts.user }],
   };
 
+  // One-line breadcrumb — lets us tell at a glance whether we're hitting
+  // the Netlify AI Gateway or api.anthropic.com directly.
+  console.log(
+    `[dictation] callClaude → ${url} (base=${process.env.ANTHROPIC_BASE_URL ?? "default"})`,
+  );
+
   let response: Response;
   try {
-    response = await fetch(ANTHROPIC_API_URL, {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -74,14 +110,14 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     });
   } catch (err) {
     throw new LlmUnavailableError(
-      `Network error calling Claude: ${err instanceof Error ? err.message : String(err)}`,
+      `Network error calling Claude at ${url}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "<no body>");
     throw new LlmUnavailableError(
-      `Anthropic API returned ${response.status}: ${errText.slice(0, 500)}`,
+      `Claude returned ${response.status} from ${url}: ${errText.slice(0, 500)}`,
     );
   }
 

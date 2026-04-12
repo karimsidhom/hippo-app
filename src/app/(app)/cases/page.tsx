@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw } from "lucide-react";
+import Link from "next/link";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle } from "lucide-react";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
 // NOTE: import directly from the operative builder + learn module rather
@@ -234,14 +235,80 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [value, setValue] = useState(draft);
   const [editing, setEditing] = useState(false);
 
+  // Claude Opus 4.6 polish — server route holds the API key.
+  const [polishing, setPolishing] = useState(false);
+  const [polishError, setPolishError] = useState<string | null>(null);
+  // Snapshot of the pre-polish text so the user can revert if they don't
+  // like the rewrite. When null, the current value is the original draft.
+  const [prePolish, setPrePolish] = useState<string | null>(null);
+  // True once Claude actually returned a polished note (not the deterministic
+  // fallback). Drives the "AI-polished — verify before signing" banner.
+  const [polishedByClaude, setPolishedByClaude] = useState(false);
+  const [fallbackUsed, setFallbackUsed] = useState(false);
+
   // Reset the editor whenever the underlying case changes so a freshly-opened
   // sheet always starts on the newest draft.
   useEffect(() => {
     setValue(draft);
     setEditing(false);
+    setPrePolish(null);
+    setPolishedByClaude(false);
+    setFallbackUsed(false);
+    setPolishError(null);
   }, [draft]);
 
   const dirty = value !== draft;
+
+  const handlePolish = async () => {
+    if (polishing) return;
+    setPolishing(true);
+    setPolishError(null);
+    const snapshot = value;
+    try {
+      const res = await fetch("/api/dictation/revise", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          rough: value,
+          service: resolveServiceFromCase(c),
+          length: "full",
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? `Polish failed (${res.status})`);
+      }
+      const json = (await res.json()) as {
+        text: string;
+        engine: "claude-opus-4-6" | "deterministic-fallback";
+        warnings?: string[];
+      };
+      setPrePolish(snapshot);
+      setValue(json.text);
+      setPolishedByClaude(json.engine === "claude-opus-4-6");
+      setFallbackUsed(json.engine === "deterministic-fallback");
+      if (json.engine === "deterministic-fallback") {
+        setPolishError(
+          json.warnings?.[0] ?? "AI polish unavailable — showing style-adjusted draft.",
+        );
+      }
+    } catch (err) {
+      console.error("Polish failed", err);
+      setPolishError(err instanceof Error ? err.message : "Polish failed");
+    } finally {
+      setPolishing(false);
+    }
+  };
+
+  const handleUndoPolish = () => {
+    if (prePolish === null) return;
+    setValue(prePolish);
+    setPrePolish(null);
+    setPolishedByClaude(false);
+    setFallbackUsed(false);
+    setPolishError(null);
+  };
 
   const handleCopy = async () => {
     try {
@@ -272,6 +339,10 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
       });
       setSaved(true);
       setEditing(false);
+      // Polishing is "committed" once we learn from it — drop the revert snapshot.
+      setPrePolish(null);
+      setPolishedByClaude(false);
+      setFallbackUsed(false);
       setTimeout(() => setSaved(false), 2000);
     } catch (err) {
       console.error("Failed to save correction", err);
@@ -281,6 +352,10 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const handleRevert = () => {
     setValue(draft);
     setEditing(false);
+    setPrePolish(null);
+    setPolishedByClaude(false);
+    setFallbackUsed(false);
+    setPolishError(null);
   };
 
   return (
@@ -384,6 +459,49 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
                 </button>
               </>
             )}
+            {/* Polish (Claude Opus 4.6) */}
+            {prePolish !== null && polishedByClaude && !polishing ? (
+              <button
+                onClick={handleUndoPolish}
+                title="Revert to the pre-polish draft"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "6px 12px",
+                  background: "var(--glass-mid)",
+                  border: "1px solid var(--border-glass)",
+                  borderRadius: 6,
+                  color: "var(--muted)",
+                  fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                <RotateCcw size={12} /> Undo polish
+              </button>
+            ) : (
+              <button
+                onClick={handlePolish}
+                disabled={polishing || !value.trim()}
+                title="Polish with Claude Opus 4.6, pinned to your style profile"
+                style={{
+                  display: "flex", alignItems: "center", gap: 5,
+                  padding: "6px 12px",
+                  background: polishing
+                    ? "rgba(168,85,247,0.16)"
+                    : "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(59,130,246,0.14))",
+                  border: "1px solid rgba(168,85,247,0.35)",
+                  borderRadius: 6,
+                  color: polishing ? "var(--muted)" : "#c4b5fd",
+                  fontSize: 11, fontWeight: 600,
+                  cursor: polishing || !value.trim() ? "not-allowed" : "pointer",
+                  fontFamily: "inherit",
+                  opacity: polishing || !value.trim() ? 0.7 : 1,
+                  transition: "all .15s",
+                }}
+              >
+                <Sparkles size={12} />
+                {polishing ? "Polishing…" : "Polish"}
+              </button>
+            )}
+
             <button
               onClick={handleCopy}
               style={{
@@ -407,6 +525,63 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
             </button>
           </div>
         </div>
+
+        {/* AI polish banner */}
+        {polishedByClaude && prePolish !== null && (
+          <div style={{
+            padding: "8px 20px",
+            background: "linear-gradient(90deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
+            borderBottom: "1px solid rgba(168,85,247,0.25)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <Sparkles size={12} style={{ color: "#c4b5fd", flexShrink: 0 }} />
+            <div style={{ fontSize: 11, color: "#e9d5ff", flex: 1, lineHeight: 1.5 }}>
+              <strong style={{ color: "#f5f3ff" }}>AI-polished draft.</strong>{" "}
+              Review every line before signing — verify all facts, numbers, and findings match the case.
+            </div>
+          </div>
+        )}
+        {polishError && !polishedByClaude && (
+          <div style={{
+            padding: "8px 20px",
+            background: "rgba(239,68,68,0.08)",
+            borderBottom: "1px solid rgba(239,68,68,0.25)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <AlertTriangle size={12} style={{ color: "#f87171", flexShrink: 0 }} />
+            <div style={{ fontSize: 11, color: "#fecaca", flex: 1, lineHeight: 1.5 }}>
+              {polishError}
+            </div>
+            <button
+              onClick={() => setPolishError(null)}
+              style={{ background: "none", border: "none", padding: 2, cursor: "pointer", color: "#fecaca" }}
+            >
+              <X size={12} />
+            </button>
+          </div>
+        )}
+        {fallbackUsed && (
+          <div style={{
+            padding: "8px 20px",
+            background: "rgba(245,158,11,0.08)",
+            borderBottom: "1px solid rgba(245,158,11,0.25)",
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            flexShrink: 0,
+          }}>
+            <AlertTriangle size={12} style={{ color: "#fbbf24", flexShrink: 0 }} />
+            <div style={{ fontSize: 11, color: "#fde68a", flex: 1, lineHeight: 1.5 }}>
+              AI polish unavailable — applied your saved style rules locally instead.
+            </div>
+          </div>
+        )}
 
         {/* Body */}
         <div style={{
@@ -461,12 +636,33 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
           padding: "10px 20px",
           borderTop: "1px solid var(--border)",
           flexShrink: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
         }}>
-          <div style={{ fontSize: 11, color: "var(--text-3)", textAlign: "center" }}>
+          <div style={{ fontSize: 11, color: "var(--text-3)", flex: 1 }}>
             {editing
               ? "Edit freely. Save & Learn teaches the style profile from your changes."
               : "Copy and paste into your dictation system, or click Edit to refine and teach."}
           </div>
+          <Link
+            href="/settings/dictation"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              fontSize: 11,
+              color: "var(--muted)",
+              textDecoration: "none",
+              whiteSpace: "nowrap",
+              flexShrink: 0,
+            }}
+            title="Adjust dictation style preferences"
+          >
+            <Sliders size={11} />
+            Style
+          </Link>
         </div>
       </div>
     </div>

@@ -1,5 +1,6 @@
 import type { NoteType, ServiceKey, BuildResult, LengthLevel } from "./types";
 import { getStyleProfile } from "./style/store";
+import type { StyleProfile } from "./style/profile";
 import { applyStyleProfile } from "./style/apply";
 import { learnFromCorrection } from "./style/learn";
 import { getPlaybook } from "./services/playbooks";
@@ -26,6 +27,12 @@ export interface ReviseInput {
   rough: string;
   service: ServiceKey;
   length?: LengthLevel;
+  /**
+   * Optional StyleProfile override. Server routes should pass the
+   * DB-loaded profile so the prompt reflects the user's learned style;
+   * on the client we omit it and fall back to the in-memory store.
+   */
+  profile?: StyleProfile;
 }
 
 export interface ReviseResult extends BuildResult {
@@ -34,10 +41,15 @@ export interface ReviseResult extends BuildResult {
   length: LengthLevel;
   /** Which engine produced the text: LLM or the deterministic fallback. */
   engine: "claude-opus-4-6" | "deterministic-fallback";
+  /** Token usage when the LLM was reached — omitted for the fallback path. */
+  usage?: { input_tokens: number; output_tokens: number };
 }
 
-function buildSystemPrompt(service: ServiceKey, length: LengthLevel): string {
-  const profile = getStyleProfile();
+function buildSystemPrompt(
+  service: ServiceKey,
+  length: LengthLevel,
+  profile: StyleProfile,
+): string {
   const playbook = getPlaybook(service);
 
   const brevity =
@@ -105,11 +117,11 @@ ${rough}`;
 export async function reviseDictation(input: ReviseInput): Promise<ReviseResult> {
   const length: LengthLevel = input.length ?? "full";
   const service = input.service;
-  const profile = getStyleProfile();
+  const profile = input.profile ?? getStyleProfile();
 
   try {
     const result = await callClaude({
-      system: buildSystemPrompt(service, length),
+      system: buildSystemPrompt(service, length, profile),
       user: buildUserPrompt(input.rough, service, length),
       temperature: 0.2,
       maxTokens: length === "handover" ? 1024 : length === "concise" ? 2048 : 4096,
@@ -127,6 +139,7 @@ export async function reviseDictation(input: ReviseInput): Promise<ReviseResult>
       missing: [],
       warnings: [],
       engine: "claude-opus-4-6",
+      usage: result.usage,
     };
   } catch (err) {
     if (!(err instanceof LlmUnavailableError)) throw err;

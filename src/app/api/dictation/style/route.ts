@@ -6,6 +6,7 @@ import {
   type StyleProfile,
 } from "@/lib/dictation/style/profile";
 import { isStyleProfile, mergeProfiles } from "@/lib/dictation/style/serialize";
+import { loadOrCreateStyleProfile } from "@/lib/dictation/style/db";
 
 // ---------------------------------------------------------------------------
 // /api/dictation/style
@@ -25,27 +26,6 @@ import { isStyleProfile, mergeProfiles } from "@/lib/dictation/style/serialize";
 // DELETE — reset the profile to DEFAULT_STYLE_PROFILE.
 // ---------------------------------------------------------------------------
 
-async function loadOrCreate(userId: string): Promise<StyleProfile> {
-  const row = await db.userDictationStyle.findUnique({ where: { userId } });
-  if (row && isStyleProfile(row.profile)) {
-    return row.profile;
-  }
-  // Create a default row so subsequent reads hit the fast path.
-  const created = await db.userDictationStyle.upsert({
-    where: { userId },
-    create: {
-      userId,
-      profile: DEFAULT_STYLE_PROFILE as unknown as object,
-      schemaVersion: DEFAULT_STYLE_PROFILE.version,
-      correctionCount: 0,
-    },
-    update: {},
-  });
-  return isStyleProfile(created.profile)
-    ? created.profile
-    : DEFAULT_STYLE_PROFILE;
-}
-
 export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
@@ -53,7 +33,7 @@ export async function GET() {
   // Ensure the parent User row exists before we FK into it.
   await ensureDbUser(user);
 
-  const profile = await loadOrCreate(user.id);
+  const profile = await loadOrCreateStyleProfile(user.id);
   return NextResponse.json(profile);
 }
 
@@ -69,7 +49,7 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
-  const current = await loadOrCreate(user.id);
+  const current = await loadOrCreateStyleProfile(user.id);
   const next = mergeProfiles(current, patch);
 
   await db.userDictationStyle.update({
