@@ -30,9 +30,12 @@ import type { BriefResult, CaseBrief } from "@/lib/brief/types";
 interface BriefMeSheetProps {
   open: boolean;
   onClose: () => void;
+  /** Pre-fill the text input and optionally auto-submit. Used when coming
+   *  from a scheduled case card that already has procedure + attending. */
+  prefill?: string;
 }
 
-export function BriefMeSheet({ open, onClose }: BriefMeSheetProps) {
+export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BriefResult | null>(null);
@@ -40,16 +43,17 @@ export function BriefMeSheet({ open, onClose }: BriefMeSheetProps) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset all state whenever the sheet is opened, and focus the textarea
-  // so the user can start typing immediately.
+  // so the user can start typing immediately. If a prefill value was
+  // provided (e.g. from a scheduled case card), seed the input.
   useEffect(() => {
     if (!open) return;
-    setInput("");
+    setInput(prefill ?? "");
     setResult(null);
     setError(null);
     setLoading(false);
     // Next frame so the element is mounted before we focus it.
     requestAnimationFrame(() => textareaRef.current?.focus());
-  }, [open]);
+  }, [open, prefill]);
 
   // ESC to close.
   useEffect(() => {

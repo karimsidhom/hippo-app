@@ -3,6 +3,7 @@ import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { generateBrief } from "@/lib/brief/generate";
 import type { BriefCaseContext } from "@/lib/brief/types";
+import { parseStoredReflection } from "@/lib/debrief/types";
 
 // ---------------------------------------------------------------------------
 // POST /api/brief/generate
@@ -76,18 +77,42 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  const cases: BriefCaseContext[] = rows.map((r) => ({
-    procedureName: r.procedureName,
-    caseDate: r.caseDate.toISOString(),
-    role: r.role,
-    surgicalApproach: r.surgicalApproach,
-    operativeDurationMinutes: r.operativeDurationMinutes,
-    complicationCategory: r.complicationCategory,
-    outcomeCategory: r.outcomeCategory,
-    notes: r.notes,
-    reflection: r.reflection,
-    attendingLabel: r.attendingLabel,
-  }));
+  // Normalize each row's `reflection` column — structured debriefs are
+  // stored as JSON, legacy rows are freeform text. Prefer the structured
+  // fields: they make the Brief's "focus for this case" section dramatically
+  // more useful because Claude can latch onto the user's own phrasing of
+  // what they wanted to work on.
+  const cases: BriefCaseContext[] = rows.map((r) => {
+    const parsed = parseStoredReflection(r.reflection);
+    const reflectionForPrompt = parsed.structured
+      ? [
+          parsed.structured.wentWell
+            ? `went well: ${parsed.structured.wentWell}`
+            : null,
+          parsed.structured.doBetter
+            ? `do better: ${parsed.structured.doBetter}`
+            : null,
+          parsed.structured.workOn
+            ? `work on: ${parsed.structured.workOn}`
+            : null,
+        ]
+          .filter(Boolean)
+          .join(" | ")
+      : parsed.freeform;
+
+    return {
+      procedureName: r.procedureName,
+      caseDate: r.caseDate.toISOString(),
+      role: r.role,
+      surgicalApproach: r.surgicalApproach,
+      operativeDurationMinutes: r.operativeDurationMinutes,
+      complicationCategory: r.complicationCategory,
+      outcomeCategory: r.outcomeCategory,
+      notes: r.notes,
+      reflection: reflectionForPrompt,
+      attendingLabel: r.attendingLabel,
+    };
+  });
 
   const result = await generateBrief({ userInput, cases });
   return NextResponse.json(result);

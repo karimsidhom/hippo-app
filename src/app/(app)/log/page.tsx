@@ -12,7 +12,9 @@ import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES, DIFFICULTY_SCORES } from "@/lib/constants";
 import { getProceduresBySpecialty } from "@/lib/procedureLibrary";
 import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles } from "lucide-react";
+import { VoiceTextarea } from "@/components/VoiceTextarea";
+import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
 
 interface LogFormState {
   specialtySlug: string;
@@ -94,6 +96,54 @@ export default function LogCasePage() {
   const [notesValidation, setNotesValidation] = useState<{ safe: boolean; warnings: string[] }>({ safe: true, warnings: [] });
   const [tagInput, setTagInput] = useState("");
   const [patientAgeDisplay, setPatientAgeDisplay] = useState("");
+
+  // Voice case logging — dictate a quick description, Claude fills the form.
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceParsing, setVoiceParsing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceFilled, setVoiceFilled] = useState(false);
+
+  const handleVoiceParse = async () => {
+    const trimmed = voiceTranscript.trim();
+    if (!trimmed || voiceParsing) return;
+    setVoiceParsing(true);
+    setVoiceError(null);
+    try {
+      const res = await fetch("/api/voice-log", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ transcript: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? `Parse failed (${res.status})`);
+      }
+      const json = (await res.json()) as VoiceLogParseResult;
+      const f = json.fields;
+      const updates: Partial<LogFormState> = {};
+      if (f.procedureName) updates.procedureName = f.procedureName;
+      if (f.surgicalApproach) updates.surgicalApproach = f.surgicalApproach;
+      if (f.role) updates.role = f.role;
+      if (f.autonomyLevel) updates.autonomyLevel = f.autonomyLevel;
+      if (f.attendingLabel) updates.attendingLabel = f.attendingLabel;
+      if (f.outcomeCategory) updates.outcomeCategory = f.outcomeCategory;
+      if (f.complicationCategory) updates.complicationCategory = f.complicationCategory;
+      if (f.notes) updates.notes = f.notes;
+      if (f.reflection) updates.reflection = f.reflection;
+      if (f.caseDate) updates.caseDate = new Date(f.caseDate);
+      updateForm(updates);
+      setVoiceFilled(true);
+      if (json.warnings?.length) {
+        setVoiceError(json.warnings[0]);
+      }
+    } catch (err) {
+      console.error("Voice log parse failed", err);
+      setVoiceError(err instanceof Error ? err.message : "Parse failed");
+    } finally {
+      setVoiceParsing(false);
+    }
+  };
 
   const specialtyProcedures = getProceduresBySpecialty(form.specialtySlug || "urology");
 
@@ -236,6 +286,106 @@ export default function LogCasePage() {
         {/* ── Step 1: Essentials ── */}
         {step === 0 && (
           <div className="space-y-5 animate-slide-up">
+            {/* Voice dictation — fill the form by talking */}
+            <div
+              style={{
+                padding: "14px 16px",
+                background: voiceFilled
+                  ? "rgba(16,185,129,0.06)"
+                  : "linear-gradient(135deg, rgba(168,85,247,0.06), rgba(59,130,246,0.06))",
+                border: `1px solid ${
+                  voiceFilled
+                    ? "rgba(16,185,129,0.25)"
+                    : "rgba(168,85,247,0.2)"
+                }`,
+                borderRadius: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 10,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: voiceFilled ? "var(--success)" : "#c4b5fd",
+                }}
+              >
+                {voiceFilled ? (
+                  <><Check size={13} /> Form filled from voice</>
+                ) : (
+                  <><Mic size={13} /> Quick log — dictate your case</>
+                )}
+              </div>
+              <VoiceTextarea
+                value={voiceTranscript}
+                onChange={setVoiceTranscript}
+                placeholder='e.g. "Did a lap chole today with Dr. Chen, robotic, I was console surgeon, 90 minutes, uncomplicated"'
+                disabled={voiceParsing}
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    handleVoiceParse();
+                  }
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 10,
+                  gap: 12,
+                }}
+              >
+                <div style={{ fontSize: 10, color: "var(--text-3)" }}>
+                  ⌘↵ to fill form · review below before submitting
+                </div>
+                <button
+                  onClick={handleVoiceParse}
+                  disabled={voiceParsing || !voiceTranscript.trim()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "6px 14px",
+                    background: voiceParsing
+                      ? "rgba(168,85,247,0.16)"
+                      : "linear-gradient(135deg, rgba(168,85,247,0.16), rgba(59,130,246,0.16))",
+                    border: "1px solid rgba(168,85,247,0.35)",
+                    borderRadius: 6,
+                    color: voiceParsing ? "var(--muted)" : "#c4b5fd",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor:
+                      voiceParsing || !voiceTranscript.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    fontFamily: "inherit",
+                    opacity: !voiceTranscript.trim() && !voiceParsing ? 0.5 : 1,
+                  }}
+                >
+                  <Sparkles size={11} />
+                  {voiceParsing ? "Parsing…" : "Fill form"}
+                </button>
+              </div>
+              {voiceError && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 10,
+                    color: "#fca5a5",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {voiceError}
+                </div>
+              )}
+            </div>
+
             <div>
               <h2 className="text-lg font-semibold text-[#f1f5f9] mb-4">Basic Information</h2>
             </div>
