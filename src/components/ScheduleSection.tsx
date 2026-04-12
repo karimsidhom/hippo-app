@@ -9,7 +9,10 @@ import {
   Sparkles,
   MessageSquare,
   Trash2,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
+import { VoiceTextarea } from "@/components/VoiceTextarea";
 
 // ---------------------------------------------------------------------------
 // ScheduleSection
@@ -79,8 +82,6 @@ export function ScheduleSection({ onBrief, onDebrief }: ScheduleSectionProps) {
     }).catch(() => {});
   };
 
-  // Don't render anything while loading or if there are no items and the
-  // add form is closed — keep the dashboard clean.
   if (loading) return null;
   if (items.length === 0 && !showAdd) {
     return (
@@ -107,25 +108,29 @@ export function ScheduleSection({ onBrief, onDebrief }: ScheduleSectionProps) {
           >
             <Calendar size={11} /> This Week
           </div>
-          <button
-            onClick={() => setShowAdd(true)}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 4,
-              fontSize: 11,
-              color: "var(--text-3)",
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              padding: 0,
-            }}
-          >
-            <Plus size={11} /> Add case
-          </button>
         </div>
-        {showAdd && <AddForm onAdded={load} onClose={() => setShowAdd(false)} />}
+        <button
+          onClick={() => setShowAdd(true)}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 8,
+            width: "100%",
+            padding: "16px",
+            background: "var(--glass-lo)",
+            border: "1px dashed var(--border-mid)",
+            borderRadius: 10,
+            color: "var(--text-3)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            fontSize: 12,
+            fontWeight: 500,
+            transition: "border-color .15s, color .15s",
+          }}
+        >
+          <Plus size={14} /> Add your OR cases for the week
+        </button>
       </section>
     );
   }
@@ -369,14 +374,64 @@ function AddForm({
   onAdded: () => void;
   onClose: () => void;
 }) {
+  const [dictation, setDictation] = useState("");
+  const [parsing, setParsing] = useState(false);
+
+  // Manual fields — populated by voice parse or typed directly.
   const [procedureName, setProcedureName] = useState("");
   const [attendingLabel, setAttendingLabel] = useState("");
   const [date, setDate] = useState(
     () => new Date(Date.now() + 86400_000).toISOString().slice(0, 10),
   );
   const [time, setTime] = useState("07:00");
+  const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const handleVoiceParse = async () => {
+    const trimmed = dictation.trim();
+    if (!trimmed || parsing) return;
+    setParsing(true);
+    setError(null);
+    try {
+      // Reuse the voice-log parser — it extracts procedure, attending, date.
+      const res = await fetch("/api/voice-log", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ transcript: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? `Parse failed (${res.status})`);
+      }
+      const json = (await res.json()) as {
+        fields: {
+          procedureName?: string;
+          attendingLabel?: string;
+          caseDate?: string;
+        };
+      };
+      const f = json.fields;
+      if (f.procedureName) setProcedureName(f.procedureName);
+      if (f.attendingLabel) setAttendingLabel(f.attendingLabel);
+      if (f.caseDate) {
+        const d = new Date(f.caseDate);
+        if (!Number.isNaN(d.getTime())) {
+          setDate(d.toISOString().slice(0, 10));
+          const h = String(d.getHours()).padStart(2, "0");
+          const m = String(d.getMinutes()).padStart(2, "0");
+          if (h !== "00" || m !== "00") setTime(`${h}:${m}`);
+        }
+      }
+      setShowManual(true);
+    } catch (err) {
+      console.error("Schedule voice parse failed", err);
+      setError(err instanceof Error ? err.message : "Parse failed");
+    } finally {
+      setParsing(false);
+    }
+  };
 
   const handleSave = async () => {
     const name = procedureName.trim();
@@ -423,112 +478,193 @@ function AddForm({
         gap: 10,
       }}
     >
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          type="text"
-          value={procedureName}
-          onChange={(e) => setProcedureName(e.target.value)}
-          placeholder="Procedure name"
-          autoFocus
-          style={{
-            flex: 2,
-            fontSize: 13,
-            color: "var(--text)",
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 8px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
-        <input
-          type="text"
-          value={attendingLabel}
-          onChange={(e) => setAttendingLabel(e.target.value)}
-          placeholder="Attending (optional)"
-          style={{
-            flex: 1,
-            fontSize: 13,
-            color: "var(--text)",
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 8px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
+      {/* Voice / text input */}
+      <VoiceTextarea
+        value={dictation}
+        onChange={setDictation}
+        placeholder='e.g. "lap chole tomorrow 7am with Dr. Chen"'
+        disabled={parsing || saving}
+        rows={2}
+        autoFocus
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+            e.preventDefault();
+            handleVoiceParse();
+          }
+        }}
+      />
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          gap: 8,
+        }}
+      >
+        <div style={{ fontSize: 10, color: "var(--text-3)" }}>
+          ⌘↵ to parse
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={handleVoiceParse}
+            disabled={parsing || !dictation.trim()}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "6px 12px",
+              background: parsing
+                ? "rgba(168,85,247,0.16)"
+                : "linear-gradient(135deg, rgba(168,85,247,0.16), rgba(59,130,246,0.16))",
+              border: "1px solid rgba(168,85,247,0.35)",
+              borderRadius: 6,
+              color: parsing ? "var(--muted)" : "#c4b5fd",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor:
+                parsing || !dictation.trim() ? "not-allowed" : "pointer",
+              fontFamily: "inherit",
+              opacity: !dictation.trim() && !parsing ? 0.5 : 1,
+            }}
+          >
+            <Sparkles size={11} />
+            {parsing ? "Parsing…" : "Parse & fill"}
+          </button>
+          <button
+            onClick={() => setShowManual(!showManual)}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 4,
+              padding: "6px 10px",
+              background: "var(--glass-mid)",
+              border: "1px solid var(--border-glass)",
+              borderRadius: 6,
+              color: "var(--text-3)",
+              fontSize: 11,
+              fontWeight: 500,
+              cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            {showManual ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+            Manual
+          </button>
+          <button
+            onClick={onClose}
+            style={{
+              width: 28,
+              height: 28,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              background: "none",
+              border: "none",
+              cursor: "pointer",
+              color: "var(--text-3)",
+            }}
+          >
+            <X size={14} />
+          </button>
+        </div>
       </div>
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <input
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          style={{
-            flex: 1,
-            fontSize: 13,
-            color: "var(--text)",
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 8px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
-        <input
-          type="time"
-          value={time}
-          onChange={(e) => setTime(e.target.value)}
-          style={{
-            width: 100,
-            fontSize: 13,
-            color: "var(--text)",
-            background: "var(--surface2)",
-            border: "1px solid var(--border)",
-            borderRadius: 6,
-            padding: "6px 8px",
-            outline: "none",
-            fontFamily: "inherit",
-          }}
-        />
-        <button
-          onClick={handleSave}
-          disabled={saving || !procedureName.trim()}
-          style={{
-            padding: "6px 14px",
-            background: "rgba(16,185,129,0.14)",
-            border: "1px solid rgba(16,185,129,0.35)",
-            borderRadius: 6,
-            color: "var(--success)",
-            fontSize: 12,
-            fontWeight: 600,
-            cursor:
-              saving || !procedureName.trim() ? "not-allowed" : "pointer",
-            fontFamily: "inherit",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {saving ? "…" : "Add"}
-        </button>
-        <button
-          onClick={onClose}
-          style={{
-            width: 24,
-            height: 24,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "none",
-            border: "none",
-            cursor: "pointer",
-            color: "var(--text-3)",
-          }}
-        >
-          <X size={14} />
-        </button>
-      </div>
+
+      {/* Manual fields — always shown after voice parse, toggleable otherwise */}
+      {showManual && (
+        <>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input
+              type="text"
+              value={procedureName}
+              onChange={(e) => setProcedureName(e.target.value)}
+              placeholder="Procedure name *"
+              style={{
+                flex: 2,
+                fontSize: 13,
+                color: "var(--text)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+            <input
+              type="text"
+              value={attendingLabel}
+              onChange={(e) => setAttendingLabel(e.target.value)}
+              placeholder="Attending"
+              style={{
+                flex: 1,
+                fontSize: 13,
+                color: "var(--text)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+          </div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              style={{
+                flex: 1,
+                fontSize: 13,
+                color: "var(--text)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+            <input
+              type="time"
+              value={time}
+              onChange={(e) => setTime(e.target.value)}
+              style={{
+                width: 100,
+                fontSize: 13,
+                color: "var(--text)",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 6,
+                padding: "6px 8px",
+                outline: "none",
+                fontFamily: "inherit",
+              }}
+            />
+            <button
+              onClick={handleSave}
+              disabled={saving || !procedureName.trim()}
+              style={{
+                padding: "6px 14px",
+                background: "rgba(16,185,129,0.14)",
+                border: "1px solid rgba(16,185,129,0.35)",
+                borderRadius: 6,
+                color: "var(--success)",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor:
+                  saving || !procedureName.trim() ? "not-allowed" : "pointer",
+                fontFamily: "inherit",
+                whiteSpace: "nowrap",
+              }}
+            >
+              {saving ? "…" : "Add"}
+            </button>
+          </div>
+        </>
+      )}
+
       {error && (
         <div style={{ fontSize: 11, color: "#fca5a5" }}>{error}</div>
       )}
