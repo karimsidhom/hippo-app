@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
@@ -61,27 +61,59 @@ export default function DashboardPage() {
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
 
       {/* ── Identity + Primary Metric ─────────────────────────────────── */}
-      <div style={{ marginBottom: 36 }}>
-        <div style={{
-          fontSize: 11,
-          color: "var(--text-3)",
-          marginBottom: 8,
-          letterSpacing: ".04em",
-          fontFamily: "'Geist', sans-serif",
-        }}>
-          {profile?.specialty}
-          {profile?.trainingYearLabel && ` \u00b7 ${profile.trainingYearLabel}`}
+      <div style={{
+        marginBottom: 36,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 12,
+      }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontSize: 11,
+            color: "var(--text-3)",
+            marginBottom: 8,
+            letterSpacing: ".04em",
+            fontFamily: "'Geist', sans-serif",
+          }}>
+            {profile?.specialty}
+            {profile?.trainingYearLabel && ` \u00b7 ${profile.trainingYearLabel}`}
+          </div>
+          <div style={{
+            fontSize: 32,
+            fontWeight: 800,
+            color: "var(--text)",
+            letterSpacing: "-1.5px",
+            lineHeight: 1,
+            fontFamily: "'Geist', sans-serif",
+          }}>
+            Dr. {firstName}
+          </div>
         </div>
-        <div style={{
-          fontSize: 32,
-          fontWeight: 800,
-          color: "var(--text)",
-          letterSpacing: "-1.5px",
-          lineHeight: 1,
-          fontFamily: "'Geist', sans-serif",
-        }}>
-          Dr. {firstName}
-        </div>
+
+        {/* Quick access to Settings — mirrors the typographic scale of the
+            rest of the dashboard (subtle, square, border-only). */}
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          title="Settings"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--surface2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-2)",
+            textDecoration: "none",
+            flexShrink: 0,
+            transition: "background .15s, color .15s, border-color .15s",
+          }}
+        >
+          <Settings size={16} strokeWidth={1.75} />
+        </Link>
       </div>
 
       {/* ── Principle ─────────────────────────────────────────────────── */}
