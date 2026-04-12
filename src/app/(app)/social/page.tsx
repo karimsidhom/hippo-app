@@ -3,7 +3,10 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { Search, UserPlus, Users, UserCheck, ChevronRight } from "lucide-react";
+import {
+  Search, UserPlus, Users, UserCheck, ChevronRight,
+  Share2, MessageSquare, Link as LinkIcon, Check, Copy,
+} from "lucide-react";
 
 interface DiscoverUser {
   id: string;
@@ -29,12 +32,12 @@ interface FollowUser {
   } | null;
 }
 
-const TABS = ["Discover", "Following", "Followers"];
+type Tab = "Discover" | "Following" | "Followers" | "Invite";
 
 export default function SocialPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState("Discover");
+  const [activeTab, setActiveTab] = useState<Tab>("Discover");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
 
@@ -48,13 +51,21 @@ export default function SocialPage() {
   const [followingLoading, setFollowingLoading] = useState(false);
   const [followersLoading, setFollowersLoading] = useState(false);
 
+  // Invite state
+  const [copied, setCopied] = useState(false);
+
+  // The invite link
+  const inviteLink = typeof window !== "undefined"
+    ? `${window.location.origin}/signup?ref=${user?.id || ""}`
+    : "";
+
   // Debounce search
   useEffect(() => {
     const t = setTimeout(() => setSearchDebounced(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery]);
 
-  // Fetch discover results
+  // Fetch discover — runs on mount and when search changes
   const fetchDiscover = useCallback(async () => {
     setDiscoverLoading(true);
     try {
@@ -89,17 +100,15 @@ export default function SocialPage() {
     setFollowersLoading(false);
   }, [user?.id]);
 
+  // Load counts on mount (for stats strip)
+  useEffect(() => {
+    fetchFollowing();
+    fetchFollowers();
+  }, [fetchFollowing, fetchFollowers]);
+
   useEffect(() => {
     if (activeTab === "Discover") fetchDiscover();
   }, [activeTab, fetchDiscover]);
-
-  useEffect(() => {
-    if (activeTab === "Following") fetchFollowing();
-  }, [activeTab, fetchFollowing]);
-
-  useEffect(() => {
-    if (activeTab === "Followers") fetchFollowers();
-  }, [activeTab, fetchFollowers]);
 
   // Follow/unfollow handler
   const handleFollow = async (targetId: string, currentlyFollowing: boolean) => {
@@ -110,7 +119,6 @@ export default function SocialPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ targetUserId: targetId }),
       });
-      // Update local state
       setDiscoverUsers((prev) =>
         prev.map((u) =>
           u.id === targetId
@@ -118,7 +126,6 @@ export default function SocialPage() {
             : u
         )
       );
-      // Also refresh following list if on that tab
       if (activeTab === "Following") fetchFollowing();
     } catch { /* ignore */ }
   };
@@ -128,6 +135,43 @@ export default function SocialPage() {
     return name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   };
 
+  // Invite helpers
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
+
+  const handleShareNative = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Join me on Hippo",
+          text: "Track your surgical training, share clinical pearls, and connect with colleagues.",
+          url: inviteLink,
+        });
+      } catch { /* user cancelled */ }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleInviteViaSMS = () => {
+    const message = encodeURIComponent(
+      `Hey! I'm using Hippo to track my surgical training and connect with colleagues. Join me: ${inviteLink}`
+    );
+    window.open(`sms:?&body=${message}`, "_self");
+  };
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "Discover", label: "Discover" },
+    { key: "Following", label: "Following" },
+    { key: "Followers", label: "Followers" },
+    { key: "Invite", label: "Invite" },
+  ];
+
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
       {/* Header */}
@@ -136,7 +180,7 @@ export default function SocialPage() {
           Community
         </span>
         <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
-          Discover and follow surgical colleagues
+          Find colleagues, share knowledge, grow together
         </div>
       </div>
 
@@ -145,49 +189,57 @@ export default function SocialPage() {
         display: "grid", gridTemplateColumns: "1fr 1fr",
         gap: 8, marginBottom: 20,
       }}>
-        <div style={{
-          background: "var(--surface)", border: "1px solid var(--border)",
-          borderRadius: 10, padding: "12px 14px", textAlign: "center",
-        }}>
+        <button
+          onClick={() => setActiveTab("Following")}
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 14px", textAlign: "center",
+            cursor: "pointer", transition: "border-color .15s",
+          }}
+        >
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
             {following.length || 0}
           </div>
           <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
             Following
           </div>
-        </div>
-        <div style={{
-          background: "var(--surface)", border: "1px solid var(--border)",
-          borderRadius: 10, padding: "12px 14px", textAlign: "center",
-        }}>
+        </button>
+        <button
+          onClick={() => setActiveTab("Followers")}
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 14px", textAlign: "center",
+            cursor: "pointer", transition: "border-color .15s",
+          }}
+        >
           <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
             {followers.length || 0}
           </div>
           <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
             Followers
           </div>
-        </div>
+        </button>
       </div>
 
       {/* Tabs */}
       <div style={{
         display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16, gap: 0,
       }}>
-        {TABS.map((tab) => (
+        {TABS.map(({ key, label }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
+            key={key}
+            onClick={() => setActiveTab(key)}
             style={{
               flex: 1, padding: "10px 0",
               background: "none", border: "none",
-              borderBottom: activeTab === tab ? "2px solid var(--primary)" : "2px solid transparent",
-              color: activeTab === tab ? "var(--text)" : "var(--text-3)",
-              fontSize: 12, fontWeight: activeTab === tab ? 600 : 500,
+              borderBottom: activeTab === key ? "2px solid var(--primary)" : "2px solid transparent",
+              color: activeTab === key ? "var(--text)" : "var(--text-3)",
+              fontSize: 12, fontWeight: activeTab === key ? 600 : 500,
               cursor: "pointer", fontFamily: "'Geist', sans-serif",
               transition: "all .15s",
             }}
           >
-            {tab}
+            {label}
           </button>
         ))}
       </div>
@@ -217,10 +269,27 @@ export default function SocialPage() {
             </div>
           ) : discoverUsers.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40 }}>
-              <Users size={24} color="var(--text-3)" style={{ marginBottom: 8, margin: "0 auto 8px" }} />
-              <div style={{ fontSize: 13, color: "var(--text-3)" }}>
-                {searchDebounced ? "No users found" : "No public profiles yet"}
+              <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                {searchDebounced ? "No users found" : "No colleagues here yet"}
               </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16, lineHeight: 1.5 }}>
+                {searchDebounced
+                  ? "Try a different search or invite them to join."
+                  : "Be the first to build your network. Invite colleagues to join Hippo."}
+              </div>
+              <button
+                onClick={() => setActiveTab("Invite")}
+                style={{
+                  padding: "10px 20px", background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <Share2 size={14} />
+                Invite colleagues
+              </button>
             </div>
           ) : (
             discoverUsers.map((u) => (
@@ -264,11 +333,9 @@ export default function SocialPage() {
                     {u.name || "Anonymous"}
                   </div>
                   <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
-                    {[u.trainingYearLabel, u.specialty, u.institution].filter(Boolean).join(" \u00b7 ")}
+                    {[u.trainingYearLabel, u.specialty, u.institution].filter(Boolean).join(" · ")}
                   </div>
-                  <div style={{
-                    display: "flex", gap: 8, marginTop: 3,
-                  }}>
+                  <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
                     <span style={{ fontSize: 10, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
                       {u.caseCount} cases
                     </span>
@@ -312,17 +379,35 @@ export default function SocialPage() {
           ) : following.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40 }}>
               <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
-              <div style={{ fontSize: 13, color: "var(--text-3)", marginBottom: 8 }}>Not following anyone yet</div>
-              <button
-                onClick={() => setActiveTab("Discover")}
-                style={{
-                  padding: "8px 16px", background: "var(--primary)", color: "#fff",
-                  border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
-                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
-                }}
-              >
-                Discover colleagues
-              </button>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                Not following anyone yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Discover colleagues or invite friends to get started.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  onClick={() => setActiveTab("Discover")}
+                  style={{
+                    padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                    border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  }}
+                >
+                  Discover
+                </button>
+                <button
+                  onClick={() => setActiveTab("Invite")}
+                  style={{
+                    padding: "8px 16px", background: "none", color: "var(--text-2)",
+                    border: "1px solid var(--border-mid)", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  <Share2 size={12} /> Invite
+                </button>
+              </div>
             </div>
           ) : (
             following.map((u) => (
@@ -340,13 +425,185 @@ export default function SocialPage() {
           ) : followers.length === 0 ? (
             <div style={{ textAlign: "center", padding: 40 }}>
               <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
-              <div style={{ fontSize: 13, color: "var(--text-3)" }}>No followers yet</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                No followers yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Share your profile link with colleagues to grow your network.
+              </div>
+              <button
+                onClick={() => setActiveTab("Invite")}
+                style={{
+                  padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}
+              >
+                <Share2 size={12} /> Invite colleagues
+              </button>
             </div>
           ) : (
             followers.map((u) => (
               <UserRow key={u.id} user={u} router={router} />
             ))
           )}
+        </div>
+      )}
+
+      {/* ═══ Invite Tab ═══ */}
+      {activeTab === "Invite" && (
+        <div>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 12px",
+            }}>
+              <Share2 size={24} color="#fff" />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
+              Grow your network
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5 }}>
+              Invite colleagues to join Hippo. Track cases together, share clinical pearls, and build your surgical community.
+            </div>
+          </div>
+
+          {/* Invite actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Text message invite */}
+            <button
+              onClick={handleInviteViaSMS}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, #34C759, #30D158)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <MessageSquare size={18} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  Invite via Text
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Send an invite link to a colleague via iMessage or SMS
+                </div>
+              </div>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </button>
+
+            {/* Share link (native share or copy) */}
+            <button
+              onClick={handleShareNative}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, var(--primary), #818CF8)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Share2 size={18} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  Share invite link
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Share via any app — WhatsApp, email, Slack, and more
+                </div>
+              </div>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </button>
+
+            {/* Copy link */}
+            <button
+              onClick={handleCopyLink}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, var(--text-2), var(--text-3))",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                {copied ? <Check size={18} color="#fff" /> : <Copy size={18} color="#fff" />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  {copied ? "Copied!" : "Copy invite link"}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Copy the link and paste it anywhere
+                </div>
+              </div>
+              {!copied && <ChevronRight size={16} color="var(--text-3)" />}
+            </button>
+          </div>
+
+          {/* Invite link preview */}
+          <div style={{
+            marginTop: 20, padding: "10px 14px",
+            background: "var(--surface2)", border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginBottom: 6 }}>
+              Your invite link
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <LinkIcon size={12} color="var(--text-3)" style={{ flexShrink: 0 }} />
+              <div style={{
+                fontSize: 11, color: "var(--text-2)",
+                fontFamily: "'Geist Mono', monospace",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                flex: 1,
+              }}>
+                {inviteLink}
+              </div>
+            </div>
+          </div>
+
+          {/* Future: contact sync hint */}
+          <div style={{
+            marginTop: 20, padding: "16px",
+            background: "var(--surface)", border: "1px dashed var(--border-mid)",
+            borderRadius: 12, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>
+              Contact sync coming soon
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5 }}>
+              We&apos;re building a way to sync your phone contacts to automatically find colleagues already on Hippo. Stay tuned.
+            </div>
+          </div>
         </div>
       )}
     </div>
@@ -391,7 +648,7 @@ function UserRow({ user, router }: { user: FollowUser; router: ReturnType<typeof
           {user.name || "Anonymous"}
         </div>
         <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
-          {[user.profile?.trainingYearLabel, user.profile?.specialty, user.profile?.institution].filter(Boolean).join(" \u00b7 ")}
+          {[user.profile?.trainingYearLabel, user.profile?.specialty, user.profile?.institution].filter(Boolean).join(" · ")}
         </div>
       </div>
       <ChevronRight size={14} color="var(--text-3)" />

@@ -87,22 +87,46 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <button
-          onClick={() => { logout(); router.replace("/login"); }}
-          title="Log out"
-          style={{
-            background: "none",
-            border: "none",
-            padding: 6,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            color: "var(--muted)",
-            transition: "color .15s",
-          }}
-        >
-          <LogOut size={13} />
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <button
+            onClick={() => setQuickAddOpen(true)}
+            style={{
+              background: "var(--primary)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 5,
+              padding: "6px 12px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              gap: 3,
+              fontFamily: "'Geist', sans-serif",
+              letterSpacing: ".01em",
+              transition: "all .15s cubic-bezier(.16,1,.3,1)",
+            }}
+          >
+            <Plus size={12} strokeWidth={2.5} />
+            Log
+          </button>
+          <button
+            onClick={() => { logout(); router.replace("/login"); }}
+            title="Log out"
+            style={{
+              background: "none",
+              border: "none",
+              padding: 6,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              color: "var(--muted)",
+              transition: "color .15s",
+            }}
+          >
+            <LogOut size={13} />
+          </button>
+        </div>
       </header>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
