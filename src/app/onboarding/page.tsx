@@ -6,7 +6,7 @@ import { useUser } from "@/hooks/useUser";
 import { SPECIALTIES, USER_ROLE_TYPES, PGY_YEARS } from "@/lib/constants";
 import { Shield, Activity, Users, Trophy, ChevronRight, ChevronLeft, Check } from "lucide-react";
 
-const TOTAL_STEPS = 9;
+const TOTAL_STEPS = 10;
 
 export default function OnboardingPage() {
   const router = useRouter();
@@ -16,6 +16,7 @@ export default function OnboardingPage() {
 
   const [form, setForm] = useState({
     roleType: "RESIDENT",
+    trainingCountry: "",
     specialty: "",
     pgyYear: 3,
     institution: "",
@@ -37,6 +38,7 @@ export default function OnboardingPage() {
       ...(profileData as Parameters<typeof updateProfile>[0]),
       onboardingCompleted: true,
       trainingYearLabel: `PGY-${form.pgyYear}`,
+      trainingCountry: form.trainingCountry || undefined,
     });
     setSaving(false);
     router.push("/log");
@@ -188,8 +190,45 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 5: Specialty */}
+        {/* Step 5: Training Country */}
         {step === 5 && (
+          <div className="space-y-6 animate-slide-up">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-[#f1f5f9]">Training Country</h2>
+              <p className="text-[#94a3b8] mt-1">This determines your EPA framework and milestones</p>
+            </div>
+            <div className="space-y-3">
+              {[
+                { value: "US", label: "United States", desc: "ACGME milestones & EPAs", flag: "🇺🇸" },
+                { value: "CA", label: "Canada", desc: "Royal College CBD & CanMEDS", flag: "🇨🇦" },
+              ].map((country) => (
+                <button
+                  key={country.value}
+                  onClick={() => update({ trainingCountry: country.value })}
+                  className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
+                    form.trainingCountry === country.value
+                      ? "bg-[#1a1a2e] border-[#2563eb]"
+                      : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
+                  }`}
+                >
+                  <span className="text-3xl">{country.flag}</span>
+                  <div>
+                    <p className={`font-semibold ${form.trainingCountry === country.value ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>
+                      {country.label}
+                    </p>
+                    <p className="text-sm text-[#64748b] mt-0.5">{country.desc}</p>
+                  </div>
+                  <div className={`ml-auto w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all ${
+                    form.trainingCountry === country.value ? "border-[#2563eb] bg-[#2563eb]" : "border-[#64748b]"
+                  }`} />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Step 6: Specialty */}
+        {step === 6 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Specialty</h2>
@@ -216,8 +255,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 6: PGY Level */}
-        {step === 6 && (
+        {/* Step 7: PGY Level */}
+        {step === 7 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Training Year</h2>
@@ -246,8 +285,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 7: Institution */}
-        {step === 7 && (
+        {/* Step 8: Institution */}
+        {step === 8 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Institution</h2>
@@ -278,8 +317,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 8: Privacy Prefs */}
-        {step === 8 && (
+        {/* Step 9: Privacy Prefs */}
+        {step === 9 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Privacy Settings</h2>
@@ -309,8 +348,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 9: First Case Prompt */}
-        {step === 9 && (
+        {/* Step 10: First Case Prompt */}
+        {step === 10 && (
           <div className="text-center space-y-6 animate-bounce-in">
             <div className="text-6xl">🎉</div>
             <div>

@@ -27,6 +27,7 @@ export interface Profile {
   subspecialty: string | null;
   institution: string | null;
   city: string | null;
+  trainingCountry: string | null;
   pgyYear: number | null;
   trainingYearLabel: string | null;
   publicProfile: boolean;

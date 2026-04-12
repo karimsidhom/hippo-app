@@ -19,14 +19,17 @@ import {
   getAutonomyProgression,
   getSpecialtyBreakdown,
 } from "@/lib/stats";
+import { EpaDashboard } from "@/components/epa/EpaDashboard";
+import { useUser } from "@/hooks/useUser";
 
-const CHART_TABS = ["Overview", "Learning Curve", "Volume", "Role Progression", "Approaches", "OR Time Trend"];
+const CHART_TABS = ["Overview", "EPAs & Milestones", "Learning Curve", "Volume", "Role Progression", "Approaches", "OR Time Trend"];
 
 const APPROACH_COLORS = ["#0EA5E9", "#10B981", "#F59E0B", "#64748B", "#38BDF8", "#06b6d4", "#0B8A8A"];
 
 export default function AnalyticsPage() {
   const { cases } = useCases();
   const { stats } = useStats(cases);
+  const { profile } = useUser();
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProcedure, setSelectedProcedure] = useState("");
 
@@ -156,6 +159,15 @@ export default function AnalyticsPage() {
             />
           </section>
         </div>
+      )}
+
+      {/* ── EPAs & Milestones ── */}
+      {activeTab === "EPAs & Milestones" && (
+        <EpaDashboard
+          cases={cases}
+          specialty={profile?.specialty ?? undefined}
+          trainingCountry={profile?.trainingCountry ?? undefined}
+        />
       )}
 
       {/* ── Learning Curve ── */}

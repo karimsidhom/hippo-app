@@ -146,6 +146,7 @@ model Profile {
   subspecialty                  String?
   institution                   String?
   city                          String?
+  trainingCountry               String?      // "US" | "CA" — determines ACGME vs Royal College EPAs
   pgyYear                       Int?
   trainingYearLabel             String?
   publicProfile                 Boolean      @default(false)
