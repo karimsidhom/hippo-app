@@ -110,6 +110,12 @@ model User {
   feedEvents      FeedEvent[]
   favoriteQuotes  UserFavoriteQuote[]
   quoteHistory    UserQuoteHistory[]
+  following       Follow[]             @relation("Following")
+  followers       Follow[]             @relation("Followers")
+  portfolioCases  PortfolioCase[]
+  pearls          Pearl[]
+  pearlLikes      PearlLike[]
+  pearlSaves      PearlSave[]
 
   @@map("users")
 }
@@ -217,6 +223,8 @@ model CaseLog {
   caseDate                DateTime
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
+
+  portfolioCase   PortfolioCase?
 
   @@index([userId])
   @@index([userId, caseDate(sort: Desc)])
@@ -373,4 +381,98 @@ model ScheduledCase {
 
   @@index([userId, scheduledAt(sort: Asc)])
   @@map("scheduled_cases")
+}
+
+// ─── Follow System ───────────────────────────────────────────────────────────
+// Asymmetric follow (like Twitter/Instagram). Users can follow others to see
+// their public profile, portfolio, and pearls.
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+// ─── Portfolio Cases ─────────────────────────────────────────────────────────
+// A curated public selection from a user's private case log. Contains only
+// PHIA-safe fields — user writes a separate public title and description.
+
+model PortfolioCase {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseLogId    String   @unique
+  caseLog      CaseLog  @relation(fields: [caseLogId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  isFeatured   Boolean  @default(false)
+  isMilestone  Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, displayOrder])
+  @@map("portfolio_cases")
+}
+
+// ─── Pearls ──────────────────────────────────────────────────────────────────
+// De-identified educational snippets. All text is PHIA-scrubbed on save.
+// Never linked to a specific patient — only references procedure type.
+
+model Pearl {
+  id            String      @id @default(cuid())
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  procedureName String
+  category      String?
+  title         String
+  content       String
+  tags          String[]    @default([])
+  likeCount     Int         @default(0)
+  saveCount     Int         @default(0)
+  isPublished   Boolean     @default(true)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  likes         PearlLike[]
+  saves         PearlSave[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([procedureName])
+  @@map("pearls")
+}
+
+model PearlLike {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([userId])
+  @@map("pearl_likes")
+}
+
+model PearlSave {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([userId])
+  @@map("pearl_saves")
 }
