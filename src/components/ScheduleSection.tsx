@@ -375,27 +375,29 @@ function AddForm({
   onClose: () => void;
 }) {
   const [dictation, setDictation] = useState("");
-  const [parsing, setParsing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [success, setSuccess] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Manual fields — populated by voice parse or typed directly.
+  // Manual single-case fallback
+  const [showManual, setShowManual] = useState(false);
   const [procedureName, setProcedureName] = useState("");
   const [attendingLabel, setAttendingLabel] = useState("");
   const [date, setDate] = useState(
     () => new Date(Date.now() + 86400_000).toISOString().slice(0, 10),
   );
   const [time, setTime] = useState("07:00");
-  const [showManual, setShowManual] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
-  const handleVoiceParse = async () => {
+  // ---- Bulk auto-schedule (primary flow) ----
+  const handleAutoSchedule = async () => {
     const trimmed = dictation.trim();
-    if (!trimmed || parsing) return;
-    setParsing(true);
+    if (!trimmed || busy) return;
+    setBusy(true);
     setError(null);
+    setSuccess(null);
     try {
-      // Reuse the voice-log parser — it extracts procedure, attending, date.
-      const res = await fetch("/api/voice-log", {
+      const res = await fetch("/api/schedule/bulk", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -403,36 +405,26 @@ function AddForm({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? `Parse failed (${res.status})`);
+        throw new Error(
+          (err as { error?: string })?.error ?? `Failed (${res.status})`,
+        );
       }
-      const json = (await res.json()) as {
-        fields: {
-          procedureName?: string;
-          attendingLabel?: string;
-          caseDate?: string;
-        };
-      };
-      const f = json.fields;
-      if (f.procedureName) setProcedureName(f.procedureName);
-      if (f.attendingLabel) setAttendingLabel(f.attendingLabel);
-      if (f.caseDate) {
-        const d = new Date(f.caseDate);
-        if (!Number.isNaN(d.getTime())) {
-          setDate(d.toISOString().slice(0, 10));
-          const h = String(d.getHours()).padStart(2, "0");
-          const m = String(d.getMinutes()).padStart(2, "0");
-          if (h !== "00" || m !== "00") setTime(`${h}:${m}`);
-        }
-      }
-      setShowManual(true);
+      const json = (await res.json()) as { count: number };
+      setSuccess(
+        `Added ${json.count} case${json.count === 1 ? "" : "s"} to your schedule`,
+      );
+      setDictation("");
+      // Brief flash then close
+      setTimeout(() => onAdded(), 1200);
     } catch (err) {
-      console.error("Schedule voice parse failed", err);
-      setError(err instanceof Error ? err.message : "Parse failed");
+      console.error("Bulk schedule failed", err);
+      setError(err instanceof Error ? err.message : "Failed to add cases");
     } finally {
-      setParsing(false);
+      setBusy(false);
     }
   };
 
+  // ---- Manual single-case save ----
   const handleSave = async () => {
     const name = procedureName.trim();
     if (!name) {
@@ -455,7 +447,9 @@ function AddForm({
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err?.error ?? `Save failed (${res.status})`);
+        throw new Error(
+          (err as { error?: string })?.error ?? `Save failed (${res.status})`,
+        );
       }
       onAdded();
     } catch (err) {
@@ -478,18 +472,18 @@ function AddForm({
         gap: 10,
       }}
     >
-      {/* Voice / text input */}
+      {/* Voice / text input — dictate all your cases at once */}
       <VoiceTextarea
         value={dictation}
         onChange={setDictation}
-        placeholder='e.g. "lap chole tomorrow 7am with Dr. Chen"'
-        disabled={parsing || saving}
+        placeholder='e.g. "PCNL Monday 7am, robot prostatectomy Friday with Dr. Naks, lap chole Wednesday"'
+        disabled={busy || saving}
         rows={2}
         autoFocus
         onKeyDown={(e) => {
           if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
             e.preventDefault();
-            handleVoiceParse();
+            handleAutoSchedule();
           }
         }}
       />
@@ -503,33 +497,32 @@ function AddForm({
         }}
       >
         <div style={{ fontSize: 10, color: "var(--text-3)" }}>
-          ⌘↵ to parse
+          ⌘↵ to add · dictate multiple cases at once
         </div>
         <div style={{ display: "flex", gap: 6 }}>
           <button
-            onClick={handleVoiceParse}
-            disabled={parsing || !dictation.trim()}
+            onClick={handleAutoSchedule}
+            disabled={busy || !dictation.trim()}
             style={{
               display: "flex",
               alignItems: "center",
               gap: 5,
               padding: "6px 12px",
-              background: parsing
-                ? "rgba(168,85,247,0.16)"
-                : "linear-gradient(135deg, rgba(168,85,247,0.16), rgba(59,130,246,0.16))",
-              border: "1px solid rgba(168,85,247,0.35)",
+              background: busy
+                ? "rgba(16,185,129,0.10)"
+                : "linear-gradient(135deg, rgba(16,185,129,0.16), rgba(59,130,246,0.16))",
+              border: `1px solid ${busy ? "rgba(16,185,129,0.25)" : "rgba(16,185,129,0.4)"}`,
               borderRadius: 6,
-              color: parsing ? "var(--muted)" : "#c4b5fd",
+              color: busy ? "var(--muted)" : "var(--success)",
               fontSize: 11,
               fontWeight: 600,
-              cursor:
-                parsing || !dictation.trim() ? "not-allowed" : "pointer",
+              cursor: busy || !dictation.trim() ? "not-allowed" : "pointer",
               fontFamily: "inherit",
-              opacity: !dictation.trim() && !parsing ? 0.5 : 1,
+              opacity: !dictation.trim() && !busy ? 0.5 : 1,
             }}
           >
             <Sparkles size={11} />
-            {parsing ? "Parsing…" : "Parse & fill"}
+            {busy ? "Scheduling…" : "Schedule cases"}
           </button>
           <button
             onClick={() => setShowManual(!showManual)}
@@ -570,9 +563,20 @@ function AddForm({
         </div>
       </div>
 
-      {/* Manual fields — always shown after voice parse, toggleable otherwise */}
+      {/* Manual single-case form — fallback for adding one at a time */}
       {showManual && (
         <>
+          <div
+            style={{
+              fontSize: 10,
+              color: "var(--text-3)",
+              borderTop: "1px solid var(--border)",
+              paddingTop: 8,
+              marginTop: 2,
+            }}
+          >
+            Or add a single case manually:
+          </div>
           <div style={{ display: "flex", gap: 8 }}>
             <input
               type="text"
@@ -663,6 +667,24 @@ function AddForm({
             </button>
           </div>
         </>
+      )}
+
+      {success && (
+        <div
+          style={{
+            fontSize: 12,
+            color: "var(--success)",
+            fontWeight: 600,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "6px 10px",
+            background: "rgba(16,185,129,0.08)",
+            borderRadius: 6,
+          }}
+        >
+          {success}
+        </div>
       )}
 
       {error && (
