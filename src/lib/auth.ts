@@ -20,11 +20,11 @@ export interface AuthSession {
   expiresAt: string; // ISO date
 }
 
-const ACCOUNTS_KEY = 'surgitrack_accounts';
-const SESSION_KEY  = 'surgitrack_session';
-const PROFILE_PREFIX   = 'surgitrack_profile_';
-const CASES_PREFIX     = 'surgitrack_cases_';
-const MILESTONES_PREFIX = 'surgitrack_milestones_';
+const ACCOUNTS_KEY = 'hippo_accounts';
+const SESSION_KEY  = 'hippo_session';
+const PROFILE_PREFIX   = 'hippo_profile_';
+const CASES_PREFIX     = 'hippo_cases_';
+const MILESTONES_PREFIX = 'hippo_milestones_';
 
 // ── Simple hash (demo-grade). Replace with Supabase Auth in production. ────
 function hashPassword(pw: string): string {
