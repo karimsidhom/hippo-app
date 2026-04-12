@@ -36,6 +36,9 @@ export default function ProfilePage() {
   const [followerCount, setFollowerCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
 
+  // Profile image
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+
   const [editForm, setEditForm] = useState({
     name: user?.name || "",
     bio: (profile?.bio as string) || "",
@@ -56,6 +59,7 @@ export default function ProfilePage() {
         const data = await res.json();
         setFollowerCount(data.followerCount || 0);
         setFollowingCount(data.followingCount || 0);
+        setProfileImage(data.image || null);
       }
     } catch { /* ignore */ }
   }, [user?.id]);
@@ -201,11 +205,32 @@ export default function ProfilePage() {
     } catch { /* ignore */ }
   };
 
+  // Photo upload handler
+  const handlePhotoUpload = async (file: File) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    try {
+      const res = await fetch("/api/profile/photo", {
+        method: "POST",
+        body: formData,
+      });
+      if (res.ok) {
+        const { image } = await res.json();
+        setProfileImage(image);
+      } else {
+        const { error } = await res.json().catch(() => ({ error: "Upload failed" }));
+        alert(error || "Failed to upload photo");
+      }
+    } catch {
+      alert("Failed to upload photo. Please try again.");
+    }
+  };
+
   // Build profile object for header
   const profileData: PublicProfile = {
     id: user?.id || "",
     name: user?.name || null,
-    image: null,
+    image: profileImage,
     profile: profile ? {
       roleType: profile.roleType,
       specialty: profile.specialty,
@@ -241,6 +266,7 @@ export default function ProfilePage() {
       <ProfileHeader
         profile={profileData}
         onEdit={() => setEditing(!editing)}
+        onPhotoUpload={handlePhotoUpload}
       />
 
       {/* Edit Form */}

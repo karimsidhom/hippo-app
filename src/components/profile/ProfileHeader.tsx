@@ -1,5 +1,7 @@
 "use client";
 
+import { useRef, useState } from "react";
+import { Camera } from "lucide-react";
 import type { PublicProfile } from "@/lib/types";
 
 interface Props {
@@ -8,14 +10,30 @@ interface Props {
   onFollowToggle?: () => void;
   onShowFollowers?: () => void;
   onShowFollowing?: () => void;
+  onPhotoUpload?: (file: File) => Promise<void>;
 }
 
-export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers, onShowFollowing }: Props) {
+export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers, onShowFollowing, onPhotoUpload }: Props) {
   const initials = profile.name
     ? profile.name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
     : "DR";
 
   const p = profile.profile;
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !onPhotoUpload) return;
+    setUploading(true);
+    try {
+      await onPhotoUpload(file);
+    } finally {
+      setUploading(false);
+      // Reset input so same file can be re-selected
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   return (
     <div style={{ marginBottom: 20 }}>
@@ -40,7 +58,42 @@ export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers
               {initials}
             </div>
           )}
-          {/* Photo upload — coming in a future update */}
+          {/* Photo upload button — only on own profile */}
+          {profile.isOwnProfile && onPhotoUpload && (
+            <>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/jpeg,image/png,image/webp"
+                onChange={handleFileChange}
+                style={{ display: "none" }}
+              />
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                disabled={uploading}
+                style={{
+                  position: "absolute", bottom: -4, right: -4,
+                  width: 24, height: 24, borderRadius: 8,
+                  background: "var(--surface2)", border: "1.5px solid var(--border-mid)",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  cursor: uploading ? "wait" : "pointer",
+                  transition: "all .15s",
+                  opacity: uploading ? 0.5 : 1,
+                }}
+                title="Change photo"
+              >
+                {uploading ? (
+                  <div style={{
+                    width: 10, height: 10, border: "1.5px solid var(--text-3)",
+                    borderTopColor: "transparent", borderRadius: "50%",
+                    animation: "spin .6s linear infinite",
+                  }} />
+                ) : (
+                  <Camera size={12} color="var(--text-2)" />
+                )}
+              </button>
+            </>
+          )}
         </div>
 
         {/* Name + meta */}

@@ -230,18 +230,30 @@ export default function SocialPage() {
                 borderBottom: "1px solid var(--border)",
               }}>
                 {/* Avatar */}
-                <div
-                  onClick={() => router.push(`/profile/${u.id}`)}
-                  style={{
-                    width: 40, height: 40, borderRadius: 10, flexShrink: 0,
-                    background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 12, fontWeight: 700, color: "#fff",
-                    fontFamily: "'Geist', sans-serif", cursor: "pointer",
-                  }}
-                >
-                  {getInitials(u.name)}
-                </div>
+                {u.image ? (
+                  <img
+                    src={u.image}
+                    alt=""
+                    onClick={() => router.push(`/profile/${u.id}`)}
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      objectFit: "cover", cursor: "pointer",
+                    }}
+                  />
+                ) : (
+                  <div
+                    onClick={() => router.push(`/profile/${u.id}`)}
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 12, fontWeight: 700, color: "#fff",
+                      fontFamily: "'Geist', sans-serif", cursor: "pointer",
+                    }}
+                  >
+                    {getInitials(u.name)}
+                  </div>
+                )}
 
                 {/* Info */}
                 <div
@@ -357,15 +369,23 @@ function UserRow({ user, router }: { user: FollowUser; router: ReturnType<typeof
         cursor: "pointer",
       }}
     >
-      <div style={{
-        width: 36, height: 36, borderRadius: 10, flexShrink: 0,
-        background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
-        display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 11, fontWeight: 700, color: "#fff",
-        fontFamily: "'Geist', sans-serif",
-      }}>
-        {initials}
-      </div>
+      {user.image ? (
+        <img
+          src={user.image}
+          alt=""
+          style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 700, color: "#fff",
+          fontFamily: "'Geist', sans-serif",
+        }}>
+          {initials}
+        </div>
+      )}
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
           {user.name || "Anonymous"}
