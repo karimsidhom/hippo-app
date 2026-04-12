@@ -3,6 +3,9 @@ import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
 
+// All pages require runtime auth — never prerender statically
+export const dynamic = "force-dynamic";
+
 export const metadata: Metadata = {
   title: {
     default: "Hippo — Strava for Surgeons",
