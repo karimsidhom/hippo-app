@@ -13,7 +13,7 @@
 // ── Gemini config ────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
-const GEMINI_MODEL = "gemini-2.5-flash-preview-04-17";
+const GEMINI_MODEL = "gemini-2.5-flash";
 
 // ── Anthropic config (kept for future Pro tier) ──────────────────────────────
 
