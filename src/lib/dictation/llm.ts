@@ -1,31 +1,32 @@
 // ---------------------------------------------------------------------------
-// Minimal Anthropic Messages API client.
+// LLM abstraction layer — supports Google Gemini (free) and Anthropic Claude.
 //
-// Server-side only — do not import this from client components. Reads the
-// API key from ANTHROPIC_API_KEY. Designed to be a thin wrapper; if we later
-// switch to the @anthropic-ai/sdk package, the function signature stays the
-// same so callers don't need to change.
+// Server-side only — do not import this from client components.
+//
+// Priority order:
+//   1. GOOGLE_AI_API_KEY  → Gemini 2.5 Flash (free tier, generous limits)
+//   2. ANTHROPIC_API_KEY  → Claude Opus (premium, for future Pro tier)
+//   3. Neither set        → throws LlmUnavailableError, callers fall back
+//                           to deterministic pipelines.
 // ---------------------------------------------------------------------------
 
-const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
+// ── Gemini config ────────────────────────────────────────────────────────────
+
+const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+const GEMINI_MODEL = "gemini-2.5-flash-preview-05-20";
+
+// ── Anthropic config (kept for future Pro tier) ──────────────────────────────
+
+const ANTHROPIC_BASE_URL_DEFAULT = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
+const ANTHROPIC_MODEL = "claude-opus-4-6";
 
-/**
- * Resolve the Messages endpoint. Supports both direct Anthropic API
- * and proxy setups via ANTHROPIC_BASE_URL environment variable.
- */
-function resolveMessagesUrl(): string {
-  const base = (process.env.ANTHROPIC_BASE_URL ?? DEFAULT_ANTHROPIC_BASE_URL)
-    .trim()
-    .replace(/\/+$/, "");
-  return `${base}/v1/messages`;
-}
+// ── Public exports ───────────────────────────────────────────────────────────
 
-/**
- * The model ID we target. Claude Opus 4.6 is the strongest model in the
- * family — worth the latency/cost for clinical text.
- */
-export const DICTATION_MODEL = "claude-opus-4-6";
+/** Exported for callers that reference it — now reflects whichever model is active. */
+export const DICTATION_MODEL = process.env.GOOGLE_AI_API_KEY
+  ? GEMINI_MODEL
+  : ANTHROPIC_MODEL;
 
 export interface LlmCallOptions {
   system: string;
@@ -43,8 +44,8 @@ export interface LlmCallResult {
 }
 
 /**
- * Thrown when the LLM call fails or the API key is missing. Callers should
- * catch this and fall back to the deterministic pipeline.
+ * Thrown when the LLM call fails or no API key is configured.
+ * Callers should catch this and fall back to the deterministic pipeline.
  */
 export class LlmUnavailableError extends Error {
   constructor(message: string) {
@@ -53,28 +54,96 @@ export class LlmUnavailableError extends Error {
   }
 }
 
-/**
- * Call Claude Opus 4.6 with a system + user prompt and return the text
- * response. Throws LlmUnavailableError if the API key is missing or the call
- * fails — callers are expected to handle the fallback.
- */
-export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) {
-    throw new LlmUnavailableError("ANTHROPIC_API_KEY not set");
-  }
+// ── Gemini implementation ────────────────────────────────────────────────────
 
-  const url = resolveMessagesUrl();
+async function callGemini(opts: LlmCallOptions): Promise<LlmCallResult> {
+  const apiKey = process.env.GOOGLE_AI_API_KEY!;
+  const url = `${GEMINI_BASE_URL}/models/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
 
   const body = {
-    model: DICTATION_MODEL,
+    system_instruction: {
+      parts: [{ text: opts.system }],
+    },
+    contents: [
+      { role: "user", parts: [{ text: opts.user }] },
+    ],
+    generationConfig: {
+      temperature: opts.temperature ?? 0.2,
+      maxOutputTokens: opts.maxTokens ?? 4096,
+    },
+  };
+
+  console.log(`[llm] callGemini → ${GEMINI_MODEL}`);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new LlmUnavailableError(
+      `Network error calling Gemini: ${err instanceof Error ? err.message : String(err)}`,
+    );
+  }
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "<no body>");
+    throw new LlmUnavailableError(
+      `Gemini returned ${response.status}: ${errText.slice(0, 500)}`,
+    );
+  }
+
+  const json = (await response.json()) as {
+    candidates?: Array<{
+      content?: { parts?: Array<{ text?: string }> };
+    }>;
+    usageMetadata?: {
+      promptTokenCount?: number;
+      candidatesTokenCount?: number;
+    };
+  };
+
+  const text = (json.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+
+  if (!text) {
+    throw new LlmUnavailableError("Empty response from Gemini");
+  }
+
+  return {
+    text,
+    model: GEMINI_MODEL,
+    usage: json.usageMetadata
+      ? {
+          input_tokens: json.usageMetadata.promptTokenCount ?? 0,
+          output_tokens: json.usageMetadata.candidatesTokenCount ?? 0,
+        }
+      : undefined,
+  };
+}
+
+// ── Anthropic implementation ─────────────────────────────────────────────────
+
+async function callAnthropic(opts: LlmCallOptions): Promise<LlmCallResult> {
+  const apiKey = process.env.ANTHROPIC_API_KEY!;
+  const base = (process.env.ANTHROPIC_BASE_URL ?? ANTHROPIC_BASE_URL_DEFAULT)
+    .trim()
+    .replace(/\/+$/, "");
+  const url = `${base}/v1/messages`;
+
+  const body = {
+    model: ANTHROPIC_MODEL,
     max_tokens: opts.maxTokens ?? 4096,
     temperature: opts.temperature ?? 0.2,
     system: opts.system,
     messages: [{ role: "user", content: opts.user }],
   };
 
-  console.log(`[llm] callClaude → ${url}`);
+  console.log(`[llm] callAnthropic → ${url}`);
 
   let response: Response;
   try {
@@ -89,14 +158,14 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     });
   } catch (err) {
     throw new LlmUnavailableError(
-      `Network error calling Claude at ${url}: ${err instanceof Error ? err.message : String(err)}`,
+      `Network error calling Claude: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "<no body>");
     throw new LlmUnavailableError(
-      `Claude returned ${response.status} from ${url}: ${errText.slice(0, 500)}`,
+      `Claude returned ${response.status}: ${errText.slice(0, 500)}`,
     );
   }
 
@@ -117,4 +186,25 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
   }
 
   return { text, model: json.model, usage: json.usage };
+}
+
+// ── Public entry point ───────────────────────────────────────────────────────
+
+/**
+ * Call the configured LLM with a system + user prompt.
+ * Tries Gemini first (free), falls back to Anthropic if configured.
+ * Throws LlmUnavailableError if neither key is set or the call fails.
+ */
+export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
+  if (process.env.GOOGLE_AI_API_KEY) {
+    return callGemini(opts);
+  }
+
+  if (process.env.ANTHROPIC_API_KEY) {
+    return callAnthropic(opts);
+  }
+
+  throw new LlmUnavailableError(
+    "No LLM API key configured. Set GOOGLE_AI_API_KEY (free) or ANTHROPIC_API_KEY.",
+  );
 }
