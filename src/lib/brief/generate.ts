@@ -200,7 +200,7 @@ export async function generateBrief(
       system: SYSTEM_PROMPT,
       user: buildUserPrompt(input.userInput, input.cases),
       temperature: 0.3,
-      maxTokens: 2048,
+      maxTokens: 4096,
     });
 
     const cleaned = stripCodeFence(result.text);

@@ -70,6 +70,7 @@ async function callGemini(opts: LlmCallOptions): Promise<LlmCallResult> {
     generationConfig: {
       temperature: opts.temperature ?? 0.2,
       maxOutputTokens: opts.maxTokens ?? 4096,
+      responseMimeType: "application/json",
     },
   };
 
@@ -98,6 +99,7 @@ async function callGemini(opts: LlmCallOptions): Promise<LlmCallResult> {
   const json = (await response.json()) as {
     candidates?: Array<{
       content?: { parts?: Array<{ text?: string }> };
+      finishReason?: string;
     }>;
     usageMetadata?: {
       promptTokenCount?: number;
@@ -105,13 +107,21 @@ async function callGemini(opts: LlmCallOptions): Promise<LlmCallResult> {
     };
   };
 
-  const text = (json.candidates?.[0]?.content?.parts ?? [])
+  const candidate = json.candidates?.[0];
+  const text = (candidate?.content?.parts ?? [])
     .map((p) => p.text ?? "")
     .join("")
     .trim();
 
   if (!text) {
     throw new LlmUnavailableError("Empty response from Gemini");
+  }
+
+  // Detect truncated responses — Gemini returns MAX_TOKENS when it runs out
+  if (candidate?.finishReason === "MAX_TOKENS") {
+    throw new LlmUnavailableError(
+      "Gemini response was truncated (hit token limit). Try a shorter input.",
+    );
   }
 
   return {
