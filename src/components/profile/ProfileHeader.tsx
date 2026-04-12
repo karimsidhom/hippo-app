@@ -1,6 +1,5 @@
 "use client";
 
-import { Camera } from "lucide-react";
 import type { PublicProfile } from "@/lib/types";
 
 interface Props {
@@ -41,18 +40,7 @@ export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers
               {initials}
             </div>
           )}
-          {profile.isOwnProfile && (
-            <div style={{
-              position: "absolute", bottom: -3, right: -3,
-              width: 22, height: 22, background: "var(--surface2)",
-              border: "1px solid var(--border-mid)",
-              borderRadius: "50%",
-              display: "flex", alignItems: "center", justifyContent: "center",
-              cursor: "pointer",
-            }}>
-              <Camera size={10} color="var(--text-2)" />
-            </div>
-          )}
+          {/* Photo upload — coming in a future update */}
         </div>
 
         {/* Name + meta */}
