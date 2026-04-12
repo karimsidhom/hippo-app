@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { HippoMark } from "@/components/HippoMark";
 import { useAuth } from "@/context/AuthContext";
@@ -11,14 +11,6 @@ import {
   hydrateStyleProfile,
   flushStyleProfileWrites,
 } from "@/lib/dictation/style/store";
-
-const NAV = [
-  { href: "/dashboard", label: "Home",    icon: LayoutDashboard },
-  { href: "/cases",     label: "Cases",   icon: ClipboardList },
-  { href: "/log",       label: "Log",     icon: Plus, isAction: true },
-  { href: "/analytics", label: "Stats",   icon: BarChart2 },
-  { href: "/profile",   label: "Profile", icon: User },
-];
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -95,46 +87,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </span>
         </Link>
 
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button
-            onClick={() => setQuickAddOpen(true)}
-            style={{
-              background: "var(--primary)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 5,
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              fontFamily: "'Geist', sans-serif",
-              letterSpacing: ".01em",
-              transition: "all .15s cubic-bezier(.16,1,.3,1)",
-            }}
-          >
-            <Plus size={12} strokeWidth={2.5} />
-            Log
-          </button>
-          <button
-            onClick={() => { logout(); router.replace("/login"); }}
-            title="Log out"
-            style={{
-              background: "none",
-              border: "none",
-              padding: 6,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              color: "var(--muted)",
-              transition: "color .15s",
-            }}
-          >
-            <LogOut size={13} />
-          </button>
-        </div>
+        <button
+          onClick={() => { logout(); router.replace("/login"); }}
+          title="Log out"
+          style={{
+            background: "none",
+            border: "none",
+            padding: 6,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            color: "var(--muted)",
+            transition: "color .15s",
+          }}
+        >
+          <LogOut size={13} />
+        </button>
       </header>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
@@ -156,88 +124,147 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         maxWidth: 640,
         display: "flex",
         justifyContent: "space-around",
+        alignItems: "flex-end",
         padding: "0 0 max(4px, env(safe-area-inset-bottom))",
         zIndex: 50,
         background: "var(--bg)",
         borderTop: "1px solid var(--border)",
       }}>
-        {NAV.map(({ href, label, icon: Icon, isAction }) => {
-          const active = pathname === href;
+        {/* ── Home ── */}
+        <NavTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
 
-          if (isAction) {
-            return (
+        {/* ── Stats ── */}
+        <NavTab href="/analytics" label="Stats" icon={BarChart2} active={pathname === "/analytics"} />
+
+        {/* ── Cases (center anchor with integrated +) ── */}
+        {(() => {
+          const casesActive = pathname === "/cases";
+          return (
+            <div style={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              position: "relative",
+              marginTop: -12,
+            }}>
+              {/* + button — elevated, attached to Cases */}
               <button
-                key={href}
                 onClick={() => setQuickAddOpen(true)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 12,
+                  background: "var(--primary)",
+                  border: "3px solid var(--bg)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  cursor: "pointer",
+                  transition: "transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s",
+                  boxShadow: "0 2px 8px rgba(99,102,241,.25)",
+                }}
+                onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.92)"; }}
+                onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
+              >
+                <Plus size={17} color="#fff" strokeWidth={2.5} />
+              </button>
+              {/* Cases label/icon below */}
+              <Link
+                href="/cases"
                 style={{
                   display: "flex",
                   flexDirection: "column",
                   alignItems: "center",
-                  gap: 2,
-                  padding: "8px 16px 4px",
-                  background: "none",
-                  border: "none",
-                  cursor: "pointer",
-                  fontFamily: "'Geist', sans-serif",
-                  color: "var(--primary)",
+                  gap: 1,
+                  paddingTop: 2,
+                  paddingBottom: 4,
+                  textDecoration: "none",
+                  color: casesActive ? "var(--text)" : "var(--muted)",
+                  transition: "color .15s",
+                  position: "relative",
                 }}
               >
-                <div style={{
-                  width: 32,
-                  height: 32,
-                  background: "var(--primary)",
-                  borderRadius: 7,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                }}>
-                  <Plus size={15} color="#fff" strokeWidth={2.5} />
-                </div>
-              </button>
-            );
-          }
-
-          return (
-            <Link
-              key={href}
-              href={href}
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                gap: 2,
-                padding: "8px 16px 4px",
-                color: active ? "var(--text)" : "var(--muted)",
-                textDecoration: "none",
-                fontSize: 9,
-                fontWeight: 500,
-                transition: "color .15s",
-                letterSpacing: ".06em",
-                textTransform: "uppercase",
-                position: "relative",
-                fontFamily: "'Geist', sans-serif",
-              }}
-            >
-              {active && (
-                <div style={{
-                  position: "absolute",
-                  top: 0,
-                  left: "50%",
-                  transform: "translateX(-50%)",
-                  width: 16,
-                  height: 1.5,
-                  borderRadius: 1,
-                  background: "var(--primary)",
-                }} />
-              )}
-              <Icon size={17} strokeWidth={active ? 2 : 1.5} />
-              <span>{label}</span>
-            </Link>
+                {casesActive && (
+                  <div style={{
+                    position: "absolute",
+                    top: -2,
+                    left: "50%",
+                    transform: "translateX(-50%)",
+                    width: 16,
+                    height: 1.5,
+                    borderRadius: 1,
+                    background: "var(--primary)",
+                  }} />
+                )}
+                <ClipboardList size={15} strokeWidth={casesActive ? 2 : 1.5} />
+                <span style={{
+                  fontSize: 9,
+                  fontWeight: 500,
+                  letterSpacing: ".06em",
+                  textTransform: "uppercase",
+                  fontFamily: "'Geist', sans-serif",
+                }}>Cases</span>
+              </Link>
+            </div>
           );
-        })}
+        })()}
+
+        {/* ── Profile ── */}
+        <NavTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />
+
+        {/* ── Community ── */}
+        <NavTab href="/social" label="Community" icon={Users} active={pathname === "/social"} />
       </nav>
 
       <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </div>
+  );
+}
+
+/** Reusable bottom-nav tab */
+function NavTab({
+  href, label, icon: Icon, active,
+}: {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  active: boolean;
+}) {
+  return (
+    <Link
+      href={href}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+        padding: "8px 12px 4px",
+        color: active ? "var(--text)" : "var(--muted)",
+        textDecoration: "none",
+        fontSize: 9,
+        fontWeight: 500,
+        transition: "color .15s",
+        letterSpacing: ".06em",
+        textTransform: "uppercase",
+        position: "relative",
+        fontFamily: "'Geist', sans-serif",
+      }}
+    >
+      {active && (
+        <div style={{
+          position: "absolute",
+          top: 0,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 16,
+          height: 1.5,
+          borderRadius: 1,
+          background: "var(--primary)",
+        }} />
+      )}
+      <Icon size={17} strokeWidth={active ? 2 : 1.5} />
+      <span>{label}</span>
+    </Link>
   );
 }
