@@ -322,3 +322,79 @@ export interface ToastMessage {
   description?: string;
   duration?: number;
 }
+
+// ── Social Profile Types ─────────────────────────────────────────────────────
+
+export type PearlCategory = "Anatomy Tip" | "Technical Pearl" | "Pitfall" | "Decision Point" | "Equipment" | "Post-Op" | "Other";
+
+export interface Pearl {
+  id: string;
+  authorId: string;
+  procedureName: string;
+  category: PearlCategory | string | null;
+  title: string;
+  content: string;
+  tags: string[];
+  likeCount: number;
+  saveCount: number;
+  isPublished: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+    profile?: { specialty: string | null; trainingYearLabel: string | null } | null;
+  };
+  liked?: boolean;
+  saved?: boolean;
+}
+
+export interface PortfolioCase {
+  id: string;
+  userId: string;
+  caseLogId: string;
+  title: string;
+  description: string | null;
+  isFeatured: boolean;
+  isMilestone: boolean;
+  displayOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+  caseLog?: {
+    procedureName: string;
+    surgicalApproach: SurgicalApproach;
+    autonomyLevel: AutonomyLevel;
+    operativeDurationMinutes: number | null;
+    outcomeCategory: OutcomeCategory;
+    caseDate: Date;
+  };
+}
+
+export interface PublicProfile {
+  id: string;
+  name: string | null;
+  image: string | null;
+  profile: {
+    roleType: UserRoleType;
+    specialty: string | null;
+    subspecialty: string | null;
+    institution: string | null;
+    city: string | null;
+    pgyYear: number | null;
+    trainingYearLabel: string | null;
+    bio: string | null;
+    publicProfile: boolean;
+  } | null;
+  stats: {
+    totalCases: number;
+    streak: number;
+    avgORMinutes: number;
+    independentRate: number;
+    topProcedures: Array<{ name: string; count: number }>;
+  };
+  followerCount: number;
+  followingCount: number;
+  isFollowing: boolean;
+  isOwnProfile: boolean;
+}

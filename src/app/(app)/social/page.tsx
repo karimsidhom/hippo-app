@@ -1,235 +1,657 @@
 "use client";
 
-import { useState } from "react";
-import { FriendCard } from "@/components/social/FriendCard";
-import { FeedCard } from "@/components/social/FeedCard";
-import { CompareModal } from "@/components/social/CompareModal";
-import { EmptyState } from "@/components/shared/EmptyState";
-import { mockFriends, mockFeedEvents } from "@/data/mockData";
-import { Globe } from "lucide-react";
-import { UserPlus, Users, Activity, Search, Bell } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { useRouter } from "next/navigation";
+import { useAuth } from "@/context/AuthContext";
+import {
+  Search, UserPlus, Users, UserCheck, ChevronRight,
+  Share2, MessageSquare, Link as LinkIcon, Check, Copy,
+} from "lucide-react";
 
-const TABS = ["Feed", "Friends", "Requests"];
+interface DiscoverUser {
+  id: string;
+  name: string | null;
+  image: string | null;
+  specialty: string | null;
+  institution: string | null;
+  trainingYearLabel: string | null;
+  city: string | null;
+  followerCount: number;
+  caseCount: number;
+  isFollowing: boolean;
+}
+
+interface FollowUser {
+  id: string;
+  name: string | null;
+  image: string | null;
+  profile?: {
+    specialty: string | null;
+    trainingYearLabel: string | null;
+    institution: string | null;
+  } | null;
+}
+
+type Tab = "Discover" | "Following" | "Followers" | "Invite";
 
 export default function SocialPage() {
-  const [activeTab, setActiveTab] = useState("Feed");
+  const { user } = useAuth();
+  const router = useRouter();
+  const [activeTab, setActiveTab] = useState<Tab>("Discover");
   const [searchQuery, setSearchQuery] = useState("");
-  const [compareModalOpen, setCompareModalOpen] = useState(false);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const [selectedFriend, setSelectedFriend] = useState<any | null>(null);
-  const [addRequestSent, setAddRequestSent] = useState<string[]>([]);
+  const [searchDebounced, setSearchDebounced] = useState("");
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const filteredFriends = (mockFriends as any[]).filter(
-    (f) =>
-      !searchQuery ||
-      f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (f.specialty || "").toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (f.institution || "").toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Discover state
+  const [discoverUsers, setDiscoverUsers] = useState<DiscoverUser[]>([]);
+  const [discoverLoading, setDiscoverLoading] = useState(false);
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const handleCompare = (friend: any) => {
-    setSelectedFriend(friend);
-    setCompareModalOpen(true);
+  // Following/Followers state
+  const [following, setFollowing] = useState<FollowUser[]>([]);
+  const [followers, setFollowers] = useState<FollowUser[]>([]);
+  const [followingLoading, setFollowingLoading] = useState(false);
+  const [followersLoading, setFollowersLoading] = useState(false);
+
+  // Invite state
+  const [copied, setCopied] = useState(false);
+
+  // The invite link
+  const inviteLink = typeof window !== "undefined"
+    ? `${window.location.origin}/signup?ref=${user?.id || ""}`
+    : "";
+
+  // Debounce search
+  useEffect(() => {
+    const t = setTimeout(() => setSearchDebounced(searchQuery), 300);
+    return () => clearTimeout(t);
+  }, [searchQuery]);
+
+  // Fetch discover — runs on mount and when search changes
+  const fetchDiscover = useCallback(async () => {
+    setDiscoverLoading(true);
+    try {
+      const params = new URLSearchParams();
+      if (searchDebounced) params.set("q", searchDebounced);
+      params.set("limit", "30");
+      const res = await fetch(`/api/social/discover?${params}`);
+      if (res.ok) setDiscoverUsers(await res.json());
+    } catch { /* ignore */ }
+    setDiscoverLoading(false);
+  }, [searchDebounced]);
+
+  // Fetch following
+  const fetchFollowing = useCallback(async () => {
+    if (!user?.id) return;
+    setFollowingLoading(true);
+    try {
+      const res = await fetch(`/api/social/following?userId=${user.id}`);
+      if (res.ok) setFollowing(await res.json());
+    } catch { /* ignore */ }
+    setFollowingLoading(false);
+  }, [user?.id]);
+
+  // Fetch followers
+  const fetchFollowers = useCallback(async () => {
+    if (!user?.id) return;
+    setFollowersLoading(true);
+    try {
+      const res = await fetch(`/api/social/followers?userId=${user.id}`);
+      if (res.ok) setFollowers(await res.json());
+    } catch { /* ignore */ }
+    setFollowersLoading(false);
+  }, [user?.id]);
+
+  // Load counts on mount (for stats strip)
+  useEffect(() => {
+    fetchFollowing();
+    fetchFollowers();
+  }, [fetchFollowing, fetchFollowers]);
+
+  useEffect(() => {
+    if (activeTab === "Discover") fetchDiscover();
+  }, [activeTab, fetchDiscover]);
+
+  // Follow/unfollow handler
+  const handleFollow = async (targetId: string, currentlyFollowing: boolean) => {
+    const method = currentlyFollowing ? "DELETE" : "POST";
+    try {
+      await fetch("/api/social/follow", {
+        method,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ targetUserId: targetId }),
+      });
+      setDiscoverUsers((prev) =>
+        prev.map((u) =>
+          u.id === targetId
+            ? { ...u, isFollowing: !currentlyFollowing, followerCount: u.followerCount + (currentlyFollowing ? -1 : 1) }
+            : u
+        )
+      );
+      if (activeTab === "Following") fetchFollowing();
+    } catch { /* ignore */ }
   };
 
-  const handleAddFriend = (userId: string) => {
-    setAddRequestSent((prev) => [...prev, userId]);
+  const getInitials = (name: string | null) => {
+    if (!name) return "??";
+    return name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase();
   };
+
+  // Invite helpers
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(inviteLink);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* fallback */ }
+  };
+
+  const handleShareNative = async () => {
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: "Join me on Hippo",
+          text: "Track your surgical training, share clinical pearls, and connect with colleagues.",
+          url: inviteLink,
+        });
+      } catch { /* user cancelled */ }
+    } else {
+      handleCopyLink();
+    }
+  };
+
+  const handleInviteViaSMS = () => {
+    const message = encodeURIComponent(
+      `Hey! I'm using Hippo to track my surgical training and connect with colleagues. Join me: ${inviteLink}`
+    );
+    window.open(`sms:?&body=${message}`, "_self");
+  };
+
+  const TABS: { key: Tab; label: string }[] = [
+    { key: "Discover", label: "Discover" },
+    { key: "Following", label: "Following" },
+    { key: "Followers", label: "Followers" },
+    { key: "Invite", label: "Invite" },
+  ];
 
   return (
-    <div className="space-y-5 animate-fade-in">
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-[#f1f5f9]">Social</h1>
-          <p className="text-[#94a3b8] text-sm mt-0.5">
-            Connect with colleagues and share milestones
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <button className="relative p-2.5 bg-[#16161f] border border-[#1e2130] rounded-lg text-[#94a3b8] hover:text-[#f1f5f9] transition-colors">
-            <Bell className="w-4 h-4" />
-            <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#ef4444] rounded-full text-white text-xs flex items-center justify-center">
-              2
-            </span>
-          </button>
+      <div style={{ marginBottom: 20 }}>
+        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.4px" }}>
+          Community
+        </span>
+        <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+          Find colleagues, share knowledge, grow together
         </div>
       </div>
 
-      {/* Stats Row */}
-      <div className="grid grid-cols-3 gap-3">
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-3 text-center">
-          <p className="text-xl font-bold text-[#f1f5f9]">{mockFriends.length}</p>
-          <p className="text-xs text-[#64748b] mt-0.5">Friends</p>
-        </div>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-3 text-center">
-          <p className="text-xl font-bold text-[#f1f5f9]">{mockFeedEvents.length}</p>
-          <p className="text-xs text-[#64748b] mt-0.5">Feed Events</p>
-        </div>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-3 text-center">
-          <p className="text-xl font-bold text-[#f59e0b]">2</p>
-          <p className="text-xs text-[#64748b] mt-0.5">Pending</p>
-        </div>
+      {/* Stats strip */}
+      <div style={{
+        display: "grid", gridTemplateColumns: "1fr 1fr",
+        gap: 8, marginBottom: 20,
+      }}>
+        <button
+          onClick={() => setActiveTab("Following")}
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 14px", textAlign: "center",
+            cursor: "pointer", transition: "border-color .15s",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+            {following.length || 0}
+          </div>
+          <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
+            Following
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("Followers")}
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 14px", textAlign: "center",
+            cursor: "pointer", transition: "border-color .15s",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+            {followers.length || 0}
+          </div>
+          <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
+            Followers
+          </div>
+        </button>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[#1e2130]">
-        {TABS.map((tab) => (
+      <div style={{
+        display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16, gap: 0,
+      }}>
+        {TABS.map(({ key, label }) => (
           <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-all duration-150 ${
-              activeTab === tab
-                ? "border-[#2563eb] text-[#f1f5f9]"
-                : "border-transparent text-[#64748b] hover:text-[#94a3b8]"
-            }`}
+            key={key}
+            onClick={() => setActiveTab(key)}
+            style={{
+              flex: 1, padding: "10px 0",
+              background: "none", border: "none",
+              borderBottom: activeTab === key ? "2px solid var(--primary)" : "2px solid transparent",
+              color: activeTab === key ? "var(--text)" : "var(--text-3)",
+              fontSize: 12, fontWeight: activeTab === key ? 600 : 500,
+              cursor: "pointer", fontFamily: "'Geist', sans-serif",
+              transition: "all .15s",
+            }}
           >
-            {tab}
-            {tab === "Requests" && (
-              <span className="ml-1.5 w-4 h-4 bg-[#ef4444] rounded-full text-white text-xs inline-flex items-center justify-center">
-                2
-              </span>
-            )}
+            {label}
           </button>
         ))}
       </div>
 
-      {/* Feed Tab */}
-      {activeTab === "Feed" && (
-        <div className="space-y-3">
-          {mockFeedEvents.length > 0 ? (
-            mockFeedEvents.map((event) => (
-              <FeedCard key={event.id} event={event} />
-            ))
-          ) : (
-            <EmptyState
-              icon={Globe}
-              title="No feed events yet"
-              description="Add friends to see their updates here"
-            />
-          )}
-        </div>
-      )}
-
-      {/* Friends Tab */}
-      {activeTab === "Friends" && (
-        <div className="space-y-4">
-          {/* Search */}
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#64748b]" />
+      {/* ═══ Discover Tab ═══ */}
+      {activeTab === "Discover" && (
+        <div>
+          {/* Search bar */}
+          <div style={{ position: "relative", marginBottom: 16 }}>
+            <Search size={14} style={{
+              position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)",
+              color: "var(--text-3)",
+            }} />
             <input
               type="text"
-              placeholder="Search colleagues..."
+              placeholder="Search by name, specialty, institution..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] placeholder-[#64748b] rounded-lg pl-10 pr-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              className="st-input"
+              style={{ paddingLeft: 34, marginBottom: 0 }}
             />
           </div>
 
-          {filteredFriends.length > 0 ? (
-            <div className="space-y-3">
-              {filteredFriends.map((friend) => (
-                <FriendCard
-                  key={friend.userId}
-                  friend={friend}
-                  onCompare={() => handleCompare(friend)}
-                />
-              ))}
+          {discoverLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>
+              Searching...
+            </div>
+          ) : discoverUsers.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                {searchDebounced ? "No users found" : "No colleagues here yet"}
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16, lineHeight: 1.5 }}>
+                {searchDebounced
+                  ? "Try a different search or invite them to join."
+                  : "Be the first to build your network. Invite colleagues to join Hippo."}
+              </div>
+              <button
+                onClick={() => setActiveTab("Invite")}
+                style={{
+                  padding: "10px 20px", background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                }}
+              >
+                <Share2 size={14} />
+                Invite colleagues
+              </button>
             </div>
           ) : (
-            <EmptyState
-              icon={Users}
-              title="No friends found"
-              description="Add colleagues to see their stats"
-            />
-          )}
-
-          {/* Suggested connections */}
-          <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-4">
-            <h3 className="text-sm font-semibold text-[#f1f5f9] mb-3">Suggested Colleagues</h3>
-            <div className="space-y-3">
-              {[
-                { id: "s1", name: "Dr. M. Okonkwo", spec: "Urology · PGY-2 · Sunnybrook" },
-                { id: "s2", name: "Dr. P. Patel", spec: "General Surgery · PGY-5 · St. Michael's" },
-                { id: "s3", name: "Dr. L. Nguyen", spec: "Urology · Fellow · Sick Kids" },
-              ].map((s) => (
-                <div key={s.id} className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#6366f1] to-[#8b5cf6] flex items-center justify-center">
-                      <span className="text-white text-xs font-semibold">
-                        {s.name.split(" ")[1][0]}{s.name.split(" ")[2][0]}
-                      </span>
-                    </div>
-                    <div>
-                      <p className="text-sm font-medium text-[#f1f5f9]">{s.name}</p>
-                      <p className="text-xs text-[#64748b]">{s.spec}</p>
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => handleAddFriend(s.id)}
-                    disabled={addRequestSent.includes(s.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                      addRequestSent.includes(s.id)
-                        ? "bg-[#16161f] text-[#64748b] cursor-not-allowed"
-                        : "bg-[#1a1a2e] border border-[#2563eb]/40 text-[#3b82f6] hover:bg-[#2563eb] hover:text-white"
-                    }`}
+            discoverUsers.map((u) => (
+              <div key={u.id} style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 0",
+                borderBottom: "1px solid var(--border)",
+              }}>
+                {/* Avatar */}
+                {u.image ? (
+                  <img
+                    src={u.image}
+                    alt=""
+                    onClick={() => router.push(`/profile/${u.id}`)}
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      objectFit: "cover", cursor: "pointer",
+                    }}
+                  />
+                ) : (
+                  <div
+                    onClick={() => router.push(`/profile/${u.id}`)}
+                    style={{
+                      width: 40, height: 40, borderRadius: 10, flexShrink: 0,
+                      background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 12, fontWeight: 700, color: "#fff",
+                      fontFamily: "'Geist', sans-serif", cursor: "pointer",
+                    }}
                   >
-                    <UserPlus className="w-3 h-3" />
-                    {addRequestSent.includes(s.id) ? "Sent" : "Add"}
-                  </button>
+                    {getInitials(u.name)}
+                  </div>
+                )}
+
+                {/* Info */}
+                <div
+                  style={{ flex: 1, minWidth: 0, cursor: "pointer" }}
+                  onClick={() => router.push(`/profile/${u.id}`)}
+                >
+                  <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                    {u.name || "Anonymous"}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
+                    {[u.trainingYearLabel, u.specialty, u.institution].filter(Boolean).join(" · ")}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 3 }}>
+                    <span style={{ fontSize: 10, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
+                      {u.caseCount} cases
+                    </span>
+                    <span style={{ fontSize: 10, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
+                      {u.followerCount} followers
+                    </span>
+                  </div>
                 </div>
-              ))}
+
+                {/* Follow button */}
+                <button
+                  onClick={() => handleFollow(u.id, u.isFollowing)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: 4,
+                    padding: "6px 12px",
+                    background: u.isFollowing ? "none" : "var(--primary)",
+                    border: u.isFollowing ? "1px solid var(--border-mid)" : "1px solid var(--primary)",
+                    color: u.isFollowing ? "var(--text-3)" : "#fff",
+                    borderRadius: 8, fontSize: 11, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                    transition: "all .15s", flexShrink: 0,
+                  }}
+                >
+                  {u.isFollowing ? (
+                    <><UserCheck size={12} /> Following</>
+                  ) : (
+                    <><UserPlus size={12} /> Follow</>
+                  )}
+                </button>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ═══ Following Tab ═══ */}
+      {activeTab === "Following" && (
+        <div>
+          {followingLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>Loading...</div>
+          ) : following.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                Not following anyone yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Discover colleagues or invite friends to get started.
+              </div>
+              <div style={{ display: "flex", gap: 8, justifyContent: "center" }}>
+                <button
+                  onClick={() => setActiveTab("Discover")}
+                  style={{
+                    padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                    border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  }}
+                >
+                  Discover
+                </button>
+                <button
+                  onClick={() => setActiveTab("Invite")}
+                  style={{
+                    padding: "8px 16px", background: "none", color: "var(--text-2)",
+                    border: "1px solid var(--border-mid)", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                    display: "flex", alignItems: "center", gap: 4,
+                  }}
+                >
+                  <Share2 size={12} /> Invite
+                </button>
+              </div>
+            </div>
+          ) : (
+            following.map((u) => (
+              <UserRow key={u.id} user={u} router={router} />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ═══ Followers Tab ═══ */}
+      {activeTab === "Followers" && (
+        <div>
+          {followersLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>Loading...</div>
+          ) : followers.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                No followers yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Share your profile link with colleagues to grow your network.
+              </div>
+              <button
+                onClick={() => setActiveTab("Invite")}
+                style={{
+                  padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  display: "inline-flex", alignItems: "center", gap: 4,
+                }}
+              >
+                <Share2 size={12} /> Invite colleagues
+              </button>
+            </div>
+          ) : (
+            followers.map((u) => (
+              <UserRow key={u.id} user={u} router={router} />
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ═══ Invite Tab ═══ */}
+      {activeTab === "Invite" && (
+        <div>
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            <div style={{
+              width: 56, height: 56, borderRadius: 16,
+              background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              margin: "0 auto 12px",
+            }}>
+              <Share2 size={24} color="#fff" />
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", marginBottom: 4 }}>
+              Grow your network
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5 }}>
+              Invite colleagues to join Hippo. Track cases together, share clinical pearls, and build your surgical community.
+            </div>
+          </div>
+
+          {/* Invite actions */}
+          <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+            {/* Text message invite */}
+            <button
+              onClick={handleInviteViaSMS}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, #34C759, #30D158)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <MessageSquare size={18} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  Invite via Text
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Send an invite link to a colleague via iMessage or SMS
+                </div>
+              </div>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </button>
+
+            {/* Share link (native share or copy) */}
+            <button
+              onClick={handleShareNative}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, var(--primary), #818CF8)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                <Share2 size={18} color="#fff" />
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  Share invite link
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Share via any app — WhatsApp, email, Slack, and more
+                </div>
+              </div>
+              <ChevronRight size={16} color="var(--text-3)" />
+            </button>
+
+            {/* Copy link */}
+            <button
+              onClick={handleCopyLink}
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "14px 16px",
+                background: "var(--surface)", border: "1px solid var(--border)",
+                borderRadius: 12, cursor: "pointer",
+                transition: "border-color .15s",
+                width: "100%", textAlign: "left",
+              }}
+            >
+              <div style={{
+                width: 40, height: 40, borderRadius: 10,
+                background: "linear-gradient(135deg, var(--text-2), var(--text-3))",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                flexShrink: 0,
+              }}>
+                {copied ? <Check size={18} color="#fff" /> : <Copy size={18} color="#fff" />}
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
+                  {copied ? "Copied!" : "Copy invite link"}
+                </div>
+                <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                  Copy the link and paste it anywhere
+                </div>
+              </div>
+              {!copied && <ChevronRight size={16} color="var(--text-3)" />}
+            </button>
+          </div>
+
+          {/* Invite link preview */}
+          <div style={{
+            marginTop: 20, padding: "10px 14px",
+            background: "var(--surface2)", border: "1px solid var(--border)",
+            borderRadius: 8,
+          }}>
+            <div style={{ fontSize: 9, fontWeight: 600, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginBottom: 6 }}>
+              Your invite link
+            </div>
+            <div style={{
+              display: "flex", alignItems: "center", gap: 8,
+            }}>
+              <LinkIcon size={12} color="var(--text-3)" style={{ flexShrink: 0 }} />
+              <div style={{
+                fontSize: 11, color: "var(--text-2)",
+                fontFamily: "'Geist Mono', monospace",
+                overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                flex: 1,
+              }}>
+                {inviteLink}
+              </div>
+            </div>
+          </div>
+
+          {/* Future: contact sync hint */}
+          <div style={{
+            marginTop: 20, padding: "16px",
+            background: "var(--surface)", border: "1px dashed var(--border-mid)",
+            borderRadius: 12, textAlign: "center",
+          }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>
+              Contact sync coming soon
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5 }}>
+              We&apos;re building a way to sync your phone contacts to automatically find colleagues already on Hippo. Stay tuned.
             </div>
           </div>
         </div>
       )}
+    </div>
+  );
+}
 
-      {/* Requests Tab */}
-      {activeTab === "Requests" && (
-        <div className="space-y-3">
-          {[
-            { id: "r1", name: "Dr. T. Liu", spec: "Urology · PGY-3 · Toronto General", sentAt: "2 days ago" },
-            { id: "r2", name: "Dr. A. Sharma", spec: "General Surgery · PGY-4 · St. Joe's", sentAt: "5 days ago" },
-          ].map((req) => (
-            <div key={req.id} className="bg-[#111118] border border-[#1e2130] rounded-xl p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#f59e0b] to-[#ef4444] flex items-center justify-center">
-                    <span className="text-white text-sm font-semibold">
-                      {req.name.split(" ")[1][0]}{req.name.split(" ")[2][0]}
-                    </span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-[#f1f5f9]">{req.name}</p>
-                    <p className="text-xs text-[#64748b] mt-0.5">{req.spec}</p>
-                    <p className="text-xs text-[#64748b] mt-0.5">Sent {req.sentAt}</p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <button className="px-3 py-1.5 bg-[#10b981] hover:bg-[#059669] text-white text-xs font-medium rounded-lg transition-colors">
-                    Accept
-                  </button>
-                  <button className="px-3 py-1.5 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] hover:text-[#f1f5f9] text-xs font-medium rounded-lg transition-colors">
-                    Decline
-                  </button>
-                </div>
-              </div>
-            </div>
-          ))}
+/** Reusable row for following/followers lists */
+function UserRow({ user, router }: { user: FollowUser; router: ReturnType<typeof useRouter> }) {
+  const initials = user.name
+    ? user.name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
+
+  return (
+    <div
+      onClick={() => router.push(`/profile/${user.id}`)}
+      style={{
+        display: "flex", alignItems: "center", gap: 12,
+        padding: "12px 0",
+        borderBottom: "1px solid var(--border)",
+        cursor: "pointer",
+      }}
+    >
+      {user.image ? (
+        <img
+          src={user.image}
+          alt=""
+          style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0, objectFit: "cover" }}
+        />
+      ) : (
+        <div style={{
+          width: 36, height: 36, borderRadius: 10, flexShrink: 0,
+          background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          fontSize: 11, fontWeight: 700, color: "#fff",
+          fontFamily: "'Geist', sans-serif",
+        }}>
+          {initials}
         </div>
       )}
-
-      {/* Compare Modal */}
-      {compareModalOpen && selectedFriend && (
-        <CompareModal
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          currentUser={{ initials: "ME", name: "You", totalCases: 0, thisMonth: 0, firstSurgeonRate: 0, avgDuration: 0 } as any}
-          friend={selectedFriend}
-          onClose={() => setCompareModalOpen(false)}
-        />
-      )}
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+          {user.name || "Anonymous"}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
+          {[user.profile?.trainingYearLabel, user.profile?.specialty, user.profile?.institution].filter(Boolean).join(" · ")}
+        </div>
+      </div>
+      <ChevronRight size={14} color="var(--text-3)" />
     </div>
   );
 }
