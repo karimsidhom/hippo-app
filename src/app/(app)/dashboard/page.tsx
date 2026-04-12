@@ -1,7 +1,8 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
@@ -12,6 +13,7 @@ import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
 import { BADGE_KEYS } from "@/lib/constants";
 import { TodaysPrinciple } from "@/components/TodaysPrinciple";
+import { BriefMeSheet } from "@/components/BriefMeSheet";
 
 function approachColor(approach: string): string {
   const m: Record<string, string> = {
@@ -27,6 +29,10 @@ export default function DashboardPage() {
   const { cases } = useCases();
   const { milestones } = useMilestones();
   const now = new Date();
+
+  // Pre-Op Brief sheet — triggered from the "Brief me" CTA below the
+  // metric row. Closed by default; the sheet handles its own state.
+  const [briefOpen, setBriefOpen] = useState(false);
 
   const thisMonth = cases.filter(c => {
     const d = new Date(c.caseDate);
@@ -198,6 +204,71 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* ── Pre-Op Brief CTA ──────────────────────────────────────────────
+          Single-tap entry point for the "Brief me for tomorrow" flow. Kept
+          as a full-width row so it reads as an action, not a tile, and
+          matches the dashboard's border-only aesthetic. */}
+      <button
+        onClick={() => setBriefOpen(true)}
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 12,
+          width: "100%",
+          padding: "14px 16px",
+          marginBottom: 28,
+          background:
+            "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
+          border: "1px solid rgba(168,85,247,0.28)",
+          borderRadius: 10,
+          color: "var(--text)",
+          cursor: "pointer",
+          fontFamily: "inherit",
+          textAlign: "left",
+          transition: "background .15s, border-color .15s",
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+          <div
+            style={{
+              width: 32,
+              height: 32,
+              borderRadius: 8,
+              background: "rgba(168,85,247,0.16)",
+              border: "1px solid rgba(168,85,247,0.35)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              flexShrink: 0,
+            }}
+          >
+            <Sparkles size={14} style={{ color: "#c4b5fd" }} />
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+              Brief me for tomorrow
+            </div>
+            <div
+              style={{
+                fontSize: 11,
+                color: "var(--text-3)",
+                marginTop: 2,
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              Personalized prep from your case history
+            </div>
+          </div>
+        </div>
+        <ChevronRight
+          size={14}
+          style={{ color: "var(--text-3)", flexShrink: 0 }}
+        />
+      </button>
 
       {/* ── Activity ──────────────────────────────────────────────────── */}
       <section style={{ marginBottom: 28 }}>
@@ -394,6 +465,9 @@ export default function DashboardPage() {
           })}
         </section>
       )}
+
+      {/* Pre-Op Brief sheet — rendered at the end so it overlays everything. */}
+      <BriefMeSheet open={briefOpen} onClose={() => setBriefOpen(false)} />
     </div>
   );
 }
