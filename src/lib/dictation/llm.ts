@@ -1,5 +1,5 @@
 // ---------------------------------------------------------------------------
-// Minimal Anthropic Messages API client for the revision engine.
+// Minimal Anthropic Messages API client.
 //
 // Server-side only — do not import this from client components. Reads the
 // API key from ANTHROPIC_API_KEY. Designed to be a thin wrapper; if we later
@@ -7,29 +7,12 @@
 // same so callers don't need to change.
 // ---------------------------------------------------------------------------
 
-import { setDefaultResultOrder } from "node:dns";
-
-// The Netlify AI Gateway mints JWTs that are IP-locked to whatever egress IP
-// it saw when `netlify dev` requested the token. macOS's Happy Eyeballs can
-// then pick a different address family (IPv6 vs IPv4) for the outbound fetch
-// from Next.js, causing the gateway to return
-// `{"code":"mismatched_client_ip"}`. Forcing IPv4-first for DNS resolution
-// keeps all outbound HTTPS on the same family as `netlify dev` so the IPs
-// line up. This is a no-op when not going through the gateway.
-try {
-  setDefaultResultOrder("ipv4first");
-} catch {
-  // Older Node runtimes (< 18.17) don't have this function — safe to ignore.
-}
-
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
 /**
- * Resolve the Messages endpoint. Honours `ANTHROPIC_BASE_URL` so the same
- * code works through the Netlify AI Gateway (which injects a per-site base
- * URL + JWT at `netlify dev` and on Netlify-hosted builds) as well as
- * against `api.anthropic.com` directly when a raw `sk-ant-…` key is set.
+ * Resolve the Messages endpoint. Supports both direct Anthropic API
+ * and proxy setups via ANTHROPIC_BASE_URL environment variable.
  */
 function resolveMessagesUrl(): string {
   const base = (process.env.ANTHROPIC_BASE_URL ?? DEFAULT_ANTHROPIC_BASE_URL)
@@ -39,8 +22,8 @@ function resolveMessagesUrl(): string {
 }
 
 /**
- * The model ID we target for dictation revision. Claude Opus 4.6 is the
- * strongest model in the family — worth the latency/cost for clinical text.
+ * The model ID we target. Claude Opus 4.6 is the strongest model in the
+ * family — worth the latency/cost for clinical text.
  */
 export const DICTATION_MODEL = "claude-opus-4-6";
 
@@ -91,11 +74,7 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     messages: [{ role: "user", content: opts.user }],
   };
 
-  // One-line breadcrumb — lets us tell at a glance whether we're hitting
-  // the Netlify AI Gateway or api.anthropic.com directly.
-  console.log(
-    `[dictation] callClaude → ${url} (base=${process.env.ANTHROPIC_BASE_URL ?? "default"})`,
-  );
+  console.log(`[llm] callClaude → ${url}`);
 
   let response: Response;
   try {
