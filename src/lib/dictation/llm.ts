@@ -66,6 +66,8 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     throw new LlmUnavailableError("ANTHROPIC_API_KEY not set");
   }
 
+  const url = resolveMessagesUrl();
+
   const body = {
     model: DICTATION_MODEL,
     max_tokens: opts.maxTokens ?? 4096,
@@ -74,9 +76,15 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     messages: [{ role: "user", content: opts.user }],
   };
 
+  // One-line breadcrumb — lets us tell at a glance whether we're hitting
+  // the Netlify AI Gateway or api.anthropic.com directly.
+  console.log(
+    `[dictation] callClaude → ${url} (base=${process.env.ANTHROPIC_BASE_URL ?? "default"})`,
+  );
+
   let response: Response;
   try {
-    response = await fetch(resolveMessagesUrl(), {
+    response = await fetch(url, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -87,14 +95,14 @@ export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
     });
   } catch (err) {
     throw new LlmUnavailableError(
-      `Network error calling Claude: ${err instanceof Error ? err.message : String(err)}`,
+      `Network error calling Claude at ${url}: ${err instanceof Error ? err.message : String(err)}`,
     );
   }
 
   if (!response.ok) {
     const errText = await response.text().catch(() => "<no body>");
     throw new LlmUnavailableError(
-      `Anthropic API returned ${response.status}: ${errText.slice(0, 500)}`,
+      `Claude returned ${response.status} from ${url}: ${errText.slice(0, 500)}`,
     );
   }
 
