@@ -54,10 +54,12 @@ export default function SocialPage() {
   // Invite state
   const [copied, setCopied] = useState(false);
 
-  // The invite link
-  const inviteLink = typeof window !== "undefined"
-    ? `${window.location.origin}/signup?ref=${user?.id || ""}`
-    : "";
+  // The invite link — use NEXT_PUBLIC_APP_URL for clean production URLs,
+  // fall back to window.location.origin for dev/preview
+  const appBase = process.env.NEXT_PUBLIC_APP_URL && process.env.NEXT_PUBLIC_APP_URL !== "http://localhost:3000"
+    ? process.env.NEXT_PUBLIC_APP_URL
+    : typeof window !== "undefined" ? window.location.origin : "";
+  const inviteLink = `${appBase}/signup?ref=${user?.id || ""}`;
 
   // Debounce search
   useEffect(() => {
@@ -148,8 +150,8 @@ export default function SocialPage() {
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "Join me on Hippo",
-          text: "Track your surgical training, share clinical pearls, and connect with colleagues.",
+          title: "Hippo — Surgical Training Tracker",
+          text: "I've been using Hippo to track my cases and connect with other surgical residents. Sign up and follow me!",
           url: inviteLink,
         });
       } catch { /* user cancelled */ }
@@ -160,7 +162,7 @@ export default function SocialPage() {
 
   const handleInviteViaSMS = () => {
     const message = encodeURIComponent(
-      `Hey! I'm using Hippo to track my surgical training and connect with colleagues. Join me: ${inviteLink}`
+      `Hey! I've been using this app called Hippo to track my surgical cases, share clinical pearls, and connect with other residents. You should check it out — sign up here: ${inviteLink}`
     );
     window.open(`sms:?&body=${message}`, "_self");
   };
