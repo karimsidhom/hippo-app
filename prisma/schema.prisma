@@ -100,6 +100,7 @@ model User {
   profile         Profile?
   dictationStyle  UserDictationStyle?
   caseLogs        CaseLog[]
+  scheduledCases  ScheduledCase[]
   milestones      Milestone[]
   personalRecords PersonalRecord[]
   sentFriendReqs  FriendRequest[]      @relation("SentRequests")
@@ -345,4 +346,31 @@ model UserQuoteHistory {
   @@index([userId])
   @@index([shownAt(sort: Desc)])
   @@map("user_quote_history")
+}
+
+// ─── Scheduled Cases ─────────────────────────────────────────────────────────
+// An upcoming OR case that the resident has entered ahead of time.
+// Drives the Pre-Op Brief → Post-Op Debrief lifecycle:
+//   upcoming → brief → done → debrief → linked to CaseLog.
+// Lightweight — only the info needed for a brief. The real data goes
+// into CaseLog once the case is done and debriefed.
+
+model ScheduledCase {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procedureName  String
+  attendingLabel String?
+  scheduledAt    DateTime
+  /// "upcoming" | "done" | "cancelled"
+  status         String   @default("upcoming")
+  notes          String?
+  /// Set when the resident debriefs and a CaseLog is created from this
+  /// scheduled case. Null while still upcoming/cancelled.
+  caseLogId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, scheduledAt(sort: Asc)])
+  @@map("scheduled_cases")
 }

@@ -14,6 +14,8 @@ import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
 import { BADGE_KEYS } from "@/lib/constants";
 import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
+import { ScheduleSection } from "@/components/ScheduleSection";
+import { DebriefSheet } from "@/components/DebriefSheet";
 
 function approachColor(approach: string): string {
   const m: Record<string, string> = {
@@ -33,6 +35,14 @@ export default function DashboardPage() {
   // Pre-Op Brief sheet — triggered from the "Brief me" CTA below the
   // metric row. Closed by default; the sheet handles its own state.
   const [briefOpen, setBriefOpen] = useState(false);
+  const [briefPrefill, setBriefPrefill] = useState<string | undefined>();
+
+  // Debrief sheet — triggered from schedule cards whose time has passed.
+  const [debriefCase, setDebriefCase] = useState<{
+    id: string;
+    procedureName: string;
+    caseDate: string;
+  } | null>(null);
 
   const thisMonth = cases.filter(c => {
     const d = new Date(c.caseDate);
@@ -210,7 +220,10 @@ export default function DashboardPage() {
           as a full-width row so it reads as an action, not a tile, and
           matches the dashboard's border-only aesthetic. */}
       <button
-        onClick={() => setBriefOpen(true)}
+        onClick={() => {
+          setBriefPrefill(undefined);
+          setBriefOpen(true);
+        }}
         style={{
           display: "flex",
           alignItems: "center",
@@ -269,6 +282,27 @@ export default function DashboardPage() {
           style={{ color: "var(--text-3)", flexShrink: 0 }}
         />
       </button>
+
+      {/* ── This Week (scheduled cases) ──────────────────────────────── */}
+      <ScheduleSection
+        onBrief={(procedure, attending, when) => {
+          const parts = [procedure];
+          if (when) parts.push(when);
+          if (attending) parts.push(`with ${attending}`);
+          setBriefPrefill(parts.join(" "));
+          setBriefOpen(true);
+        }}
+        onDebrief={(sc) => {
+          // ScheduledCase doesn't have a CaseLog yet — create a placeholder
+          // that DebriefSheet can use. The actual CaseLog creation happens
+          // elsewhere; for now we just want to be able to open the sheet.
+          setDebriefCase({
+            id: sc.caseLogId ?? sc.id,
+            procedureName: sc.procedureName,
+            caseDate: sc.scheduledAt,
+          });
+        }}
+      />
 
       {/* ── Activity ──────────────────────────────────────────────────── */}
       <section style={{ marginBottom: 28 }}>
@@ -467,7 +501,18 @@ export default function DashboardPage() {
       )}
 
       {/* Pre-Op Brief sheet — rendered at the end so it overlays everything. */}
-      <BriefMeSheet open={briefOpen} onClose={() => setBriefOpen(false)} />
+      <BriefMeSheet
+        open={briefOpen}
+        onClose={() => setBriefOpen(false)}
+        prefill={briefPrefill}
+      />
+
+      {/* Post-Op Debrief sheet — triggered from scheduled case cards. */}
+      <DebriefSheet
+        open={debriefCase !== null}
+        caseLog={debriefCase}
+        onClose={() => setDebriefCase(null)}
+      />
     </div>
   );
 }
