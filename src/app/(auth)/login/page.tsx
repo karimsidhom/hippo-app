@@ -1,24 +1,23 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Login — Opening Experience
+   Login — Opening Experience v2
 
-   Phase 1 "splash":  Full-screen overlay with animated PrecisionMark.
-                      Arcs trace, H assembles, wordmark fades in.
-   Phase 2 "fading":  Splash cross-dissolves (0.6s) to reveal login form.
-                      Content fades in simultaneously.
-   Phase 3 "done":    Splash unmounted. Form fully interactive.
+   The Hippo mark is the hero. The animation builds atmosphere AROUND it:
+   teal glow blooms, fine contour rings trace, then the mark emerges with
+   refined scale + fade. Wordmark and tagline follow. Cross-dissolve to
+   the login form.
 
-   On repeat visits (same session): splash skipped, form appears directly.
-   With prefers-reduced-motion: everything immediately visible, static.
-   On auth success: form does subtle upward exit before redirect.
+   Phase 1 "splash":  Full-screen overlay — glow, rings, mark entrance.
+   Phase 2 "fading":  Cross-dissolve to login form.
+   Phase 3 "done":    Splash unmounted, form interactive.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
-import { PrecisionMark } from "@/components/PrecisionMark";
+import { HippoMark } from "@/components/HippoMark";
 
 const TEAL = "#0EA5E9";
 const EASE = "cubic-bezier(.16,1,.3,1)";
@@ -40,7 +39,7 @@ function usePrefersReducedMotion(): boolean {
 function useFirstVisit(): boolean {
   const [first, setFirst] = useState(false);
   useEffect(() => {
-    const key = "hippo-splash-seen";
+    const key = "hippo-splash-v2";
     if (!sessionStorage.getItem(key)) {
       sessionStorage.setItem(key, "1");
       setFirst(true);
@@ -79,6 +78,95 @@ function inputStyle(focused: boolean): React.CSSProperties {
   };
 }
 
+// ── Contour rings SVG (surrounds the mark) ────────────────────────────────
+
+function ContourRings({ animate }: { animate: boolean }) {
+  // Ring circumferences
+  const r1 = 52, c1 = 2 * Math.PI * r1; // inner ring
+  const r2 = 68, c2 = 2 * Math.PI * r2; // outer ring
+
+  const v1 = c1 * 0.7; // 252° arc
+  const v2 = c2 * 0.55; // 198° arc
+
+  return (
+    <svg
+      width="180"
+      height="180"
+      viewBox="0 0 180 180"
+      fill="none"
+      style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
+    >
+      <defs>
+        <radialGradient id="splash-glow" cx="50%" cy="50%" r="45%">
+          <stop offset="0%" stopColor={TEAL} stopOpacity="0.1" />
+          <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
+        </radialGradient>
+      </defs>
+
+      {/* Ambient glow */}
+      <circle
+        cx="90" cy="90" r="75"
+        fill="url(#splash-glow)"
+        style={animate ? {
+          opacity: 0,
+          animation: `oe-fadeIn 1s ${EASE} 0.2s forwards`,
+        } : {}}
+      />
+
+      {/* Inner ring — 252° arc */}
+      <circle
+        cx="90" cy="90" r={r1}
+        stroke={TEAL}
+        strokeOpacity="0.12"
+        strokeWidth="0.75"
+        strokeLinecap="round"
+        strokeDasharray={`${v1} ${c1 - v1}`}
+        transform="rotate(-90 90 90)"
+        style={animate ? {
+          strokeDashoffset: v1,
+          animation: `oe-draw 1.2s ${EASE} 0.3s forwards`,
+        } : { strokeDashoffset: 0 }}
+      />
+
+      {/* Outer ring — 198° arc */}
+      <circle
+        cx="90" cy="90" r={r2}
+        stroke={TEAL}
+        strokeOpacity="0.08"
+        strokeWidth="0.5"
+        strokeLinecap="round"
+        strokeDasharray={`${v2} ${c2 - v2}`}
+        transform="rotate(60 90 90)"
+        style={animate ? {
+          strokeDashoffset: v2,
+          animation: `oe-draw 1s ${EASE} 0.5s forwards`,
+        } : { strokeDashoffset: 0 }}
+      />
+
+      {/* Four subtle tick marks */}
+      {[
+        { x1: 90, y1: 14, x2: 90, y2: 20 },
+        { x1: 166, y1: 90, x2: 160, y2: 90 },
+        { x1: 90, y1: 166, x2: 90, y2: 160 },
+        { x1: 14, y1: 90, x2: 20, y2: 90 },
+      ].map((t, i) => (
+        <line
+          key={i}
+          x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
+          stroke={TEAL}
+          strokeOpacity="0.1"
+          strokeWidth="0.5"
+          strokeLinecap="round"
+          style={animate ? {
+            opacity: 0,
+            animation: `oe-fadeIn 0.3s ${EASE} ${0.8 + i * 0.05}s forwards`,
+          } : {}}
+        />
+      ))}
+    </svg>
+  );
+}
+
 // ── Component ─────────────────────────────────────────────────────────────
 
 type SplashPhase = "splash" | "fading" | "done";
@@ -88,7 +176,6 @@ export default function LoginPage() {
   const reducedMotion = usePrefersReducedMotion();
   const firstVisit = useFirstVisit();
 
-  // Form state
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
@@ -97,24 +184,19 @@ export default function LoginPage() {
   const [focused, setFocused] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
 
-  // Splash state
   const [splashPhase, setSplashPhase] = useState<SplashPhase>("done");
 
-  // Determine initial splash phase after hydration
   useEffect(() => {
-    if (reducedMotion) return; // stay "done"
+    if (reducedMotion) return;
     if (firstVisit) setSplashPhase("splash");
   }, [firstVisit, reducedMotion]);
 
-  // Phase transitions
   useEffect(() => {
     if (splashPhase === "splash") {
-      // TUNABLE: splash duration before fade starts — 1900ms
-      const t = setTimeout(() => setSplashPhase("fading"), 1900);
+      const t = setTimeout(() => setSplashPhase("fading"), 2200);
       return () => clearTimeout(t);
     }
     if (splashPhase === "fading") {
-      // TUNABLE: fade duration — 700ms
       const t = setTimeout(() => setSplashPhase("done"), 700);
       return () => clearTimeout(t);
     }
@@ -123,19 +205,11 @@ export default function LoginPage() {
   const showSplash = splashPhase !== "done";
   const showContent = splashPhase !== "splash";
 
-  // ── Form handler ──────────────────────────────────────────────────────
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError("");
-    if (!email.trim()) {
-      setError("Please enter your email.");
-      return;
-    }
-    if (!password) {
-      setError("Please enter your password.");
-      return;
-    }
+    if (!email.trim()) { setError("Please enter your email."); return; }
+    if (!password) { setError("Please enter your password."); return; }
     setLoading(true);
     const result = await login(email.trim(), password);
     if (result.ok) {
@@ -146,16 +220,12 @@ export default function LoginPage() {
     }
   }
 
-  // ── Button interaction state ──────────────────────────────────────────
-
   const [btnHover, setBtnHover] = useState(false);
   const [btnActive, setBtnActive] = useState(false);
 
-  // ── Render ────────────────────────────────────────────────────────────
-
   return (
     <>
-      {/* ═══ SPLASH OVERLAY ═══════════════════════════════════════════════ */}
+      {/* ═══ SPLASH OVERLAY ═══════════════════════════════════════════ */}
       {showSplash && (
         <div
           className="oe-motion"
@@ -168,163 +238,148 @@ export default function LoginPage() {
             alignItems: "center",
             justifyContent: "center",
             background: "#060d13",
-            animation:
-              splashPhase === "fading"
-                ? `oe-splashExit 0.7s ease-out forwards`
-                : undefined,
+            animation: splashPhase === "fading"
+              ? `oe-splashExit 0.7s ease-out forwards`
+              : undefined,
             pointerEvents: splashPhase === "fading" ? "none" : "auto",
           }}
         >
-          {/* Glow behind mark — TUNABLE: size 480, opacity 0.06 */}
-          <div
-            style={{
+          {/* Large background glow */}
+          <div style={{
+            position: "absolute",
+            top: "50%",
+            left: "50%",
+            width: 500,
+            height: 500,
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(14,165,233,0.05) 0%, rgba(14,165,233,0.02) 40%, transparent 70%)",
+            animation: `oe-glowBloom 1.4s ${EASE} 0.1s both`,
+            transformOrigin: "center",
+          }} />
+
+          {/* Mark + rings composition */}
+          <div style={{ position: "relative", width: 180, height: 180 }}>
+            {/* Contour rings (behind the mark) */}
+            <ContourRings animate />
+
+            {/* Hippo mark — the hero */}
+            <div style={{
               position: "absolute",
               top: "50%",
               left: "50%",
-              width: 480,
-              height: 480,
-              borderRadius: "50%",
-              background:
-                "radial-gradient(circle, rgba(14,165,233,0.06) 0%, transparent 65%)",
-              animation: `oe-glowBloom 1.2s ${EASE} 0.4s both`,
-              transformOrigin: "center",
-            }}
-          />
-
-          {/* Animated mark */}
-          <div style={{ position: "relative" }}>
-            <PrecisionMark size={160} animate />
+              transform: "translate(-50%, -50%)",
+              animation: `oe-markEntrance 0.8s ${EASE} 0.6s both`,
+            }}>
+              <HippoMark size={64} />
+            </div>
           </div>
 
-          {/* Wordmark — TUNABLE: delay 1.0s */}
-          <h1
-            style={{
-              fontSize: 32,
-              fontWeight: 700,
-              color: "#E2E8F0",
-              letterSpacing: "-0.8px",
-              margin: "24px 0 0",
-              animation: `oe-fadeInUp 0.5s ${EASE} 1.0s both`,
-            }}
-          >
+          {/* Wordmark */}
+          <h1 style={{
+            fontSize: 34,
+            fontWeight: 700,
+            color: "#E2E8F0",
+            letterSpacing: "-0.8px",
+            margin: "20px 0 0",
+            animation: `oe-fadeInUp 0.5s ${EASE} 1.1s both`,
+          }}>
             Hippo
           </h1>
 
-          {/* Tagline — TUNABLE: delay 1.3s */}
-          <p
-            style={{
-              fontSize: 14,
-              color: TEAL,
-              letterSpacing: "0.03em",
-              margin: "8px 0 0",
-              opacity: 0.7,
-              animation: `oe-fadeInUp 0.4s ${EASE} 1.3s both`,
-            }}
-          >
-            Precision in practice
+          {/* Tagline */}
+          <p style={{
+            fontSize: 14,
+            color: TEAL,
+            letterSpacing: "0.04em",
+            margin: "8px 0 0",
+            opacity: 0.6,
+            animation: `oe-fadeInUp 0.4s ${EASE} 1.4s both`,
+          }}>
+            Track mastery. Share growth.
           </p>
         </div>
       )}
 
-      {/* ═══ LOGIN CONTENT ════════════════════════════════════════════════ */}
+      {/* ═══ LOGIN CONTENT ════════════════════════════════════════════ */}
       {showContent && (
-        <div
-          style={{
-            width: "100%",
-            maxWidth: 400,
-            animation: authSuccess
-              ? `oe-exitUp 0.4s ${EASE} forwards`
-              : `oe-fadeInUp 0.6s ${EASE} 0.1s both`,
-          }}
-        >
-          {/* ── Logo section ──────────────────────────────────────────── */}
+        <div style={{
+          width: "100%",
+          maxWidth: 400,
+          animation: authSuccess
+            ? `oe-exitUp 0.4s ${EASE} forwards`
+            : `oe-fadeInUp 0.6s ${EASE} 0.1s both`,
+        }}>
+          {/* Logo */}
           <div style={{ textAlign: "center", marginBottom: 32 }}>
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 12,
-                marginBottom: 8,
-              }}
-            >
-              <PrecisionMark size={40} />
-              <span
-                style={{
-                  fontSize: 26,
-                  fontWeight: 700,
-                  color: "#E2E8F0",
-                  letterSpacing: "-0.6px",
-                }}
-              >
+            <div style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 12,
+              marginBottom: 8,
+            }}>
+              <HippoMark size={44} />
+              <span style={{
+                fontSize: 28,
+                fontWeight: 700,
+                color: "#E2E8F0",
+                letterSpacing: "-0.6px",
+              }}>
                 Hippo
               </span>
             </div>
-            <p
-              style={{
-                fontSize: 13,
-                color: TEAL,
-                margin: 0,
-                opacity: 0.6,
-                letterSpacing: "0.02em",
-              }}
-            >
-              Precision in practice
+            <p style={{
+              fontSize: 13,
+              color: TEAL,
+              margin: 0,
+              opacity: 0.6,
+              letterSpacing: "0.02em",
+              fontStyle: "italic",
+            }}>
+              Track mastery. Share growth.
             </p>
           </div>
 
-          {/* ── Scalpel divider ────────────────────────────────────────── */}
-          <div
-            style={{
-              width: 48,
-              height: 1,
-              background: `linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent)`,
-              margin: "0 auto 28px",
-            }}
-          />
+          {/* Divider */}
+          <div style={{
+            width: 48,
+            height: 1,
+            background: `linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent)`,
+            margin: "0 auto 28px",
+          }} />
 
-          {/* ── Glass form container ───────────────────────────────────── */}
-          <div
-            style={{
-              background: "rgba(14,165,233,0.015)",
-              border: "1px solid rgba(255,255,255,0.04)",
-              borderRadius: 20,
-              padding: "28px 24px",
-              position: "relative",
-              overflow: "hidden",
-            }}
-          >
+          {/* Glass form */}
+          <div style={{
+            background: "rgba(14,165,233,0.015)",
+            border: "1px solid rgba(255,255,255,0.04)",
+            borderRadius: 20,
+            padding: "28px 24px",
+            position: "relative",
+            overflow: "hidden",
+          }}>
             {/* Top edge highlight */}
-            <div
-              style={{
-                position: "absolute",
-                top: 0,
-                left: "15%",
-                right: "15%",
-                height: 1,
-                background:
-                  "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)",
-              }}
-            />
+            <div style={{
+              position: "absolute",
+              top: 0, left: "15%", right: "15%",
+              height: 1,
+              background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)",
+            }} />
 
             <form onSubmit={handleSubmit}>
               {error && (
-                <div
-                  style={{
-                    background: "rgba(239,68,68,0.08)",
-                    border: "1px solid rgba(239,68,68,0.2)",
-                    borderRadius: 10,
-                    padding: "10px 14px",
-                    fontSize: 13,
-                    color: "#fca5a5",
-                    marginBottom: 16,
-                    animation: `oe-fadeInUp 0.3s ${EASE} both`,
-                  }}
-                >
+                <div style={{
+                  background: "rgba(239,68,68,0.08)",
+                  border: "1px solid rgba(239,68,68,0.2)",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  fontSize: 13,
+                  color: "#fca5a5",
+                  marginBottom: 16,
+                  animation: `oe-fadeInUp 0.3s ${EASE} both`,
+                }}>
                   {error}
                 </div>
               )}
 
-              {/* Email */}
               <label style={labelStyle}>Email</label>
               <input
                 type="email"
@@ -337,7 +392,6 @@ export default function LoginPage() {
                 style={inputStyle(focused === "email")}
               />
 
-              {/* Password */}
               <label style={labelStyle}>Password</label>
               <div style={{ position: "relative" }}>
                 <input
@@ -374,16 +428,12 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* Submit — TUNABLE: gradient, shadow, active scale */}
               <button
                 type="submit"
                 disabled={loading}
                 className="oe-btn-shimmer"
                 onMouseEnter={() => setBtnHover(true)}
-                onMouseLeave={() => {
-                  setBtnHover(false);
-                  setBtnActive(false);
-                }}
+                onMouseLeave={() => { setBtnHover(false); setBtnActive(false); }}
                 onMouseDown={() => setBtnActive(true)}
                 onMouseUp={() => setBtnActive(false)}
                 style={{
@@ -399,10 +449,9 @@ export default function LoginPage() {
                   fontFamily: "inherit",
                   opacity: loading ? 0.6 : 1,
                   transition: `opacity 0.15s, transform 0.12s ${EASE}, box-shadow 0.2s`,
-                  boxShadow:
-                    btnHover && !loading
-                      ? "0 4px 32px -4px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.1)"
-                      : "0 4px 24px -4px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
+                  boxShadow: btnHover && !loading
+                    ? "0 4px 32px -4px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.1)"
+                    : "0 4px 24px -4px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
                   transform: btnActive ? "scale(0.98)" : "scale(1)",
                   letterSpacing: "0.01em",
                 }}
@@ -412,24 +461,14 @@ export default function LoginPage() {
             </form>
           </div>
 
-          {/* ── Footer link ────────────────────────────────────────────── */}
-          <p
-            style={{
-              textAlign: "center",
-              fontSize: 14,
-              color: "rgba(255,255,255,0.3)",
-              marginTop: 24,
-            }}
-          >
+          <p style={{
+            textAlign: "center",
+            fontSize: 14,
+            color: "rgba(255,255,255,0.3)",
+            marginTop: 24,
+          }}>
             Don&apos;t have an account?{" "}
-            <Link
-              href="/signup"
-              style={{
-                color: TEAL,
-                textDecoration: "none",
-                fontWeight: 500,
-              }}
-            >
+            <Link href="/signup" style={{ color: TEAL, textDecoration: "none", fontWeight: 500 }}>
               Create one
             </Link>
           </p>

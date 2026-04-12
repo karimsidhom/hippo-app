@@ -1,7 +1,7 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Signup — same visual treatment as login (PrecisionMark, glass form,
+   Signup — same visual treatment as login (HippoMark, glass form,
    depth background) but without the splash animation.
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -9,7 +9,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff, Check } from "lucide-react";
-import { PrecisionMark } from "@/components/PrecisionMark";
+import { HippoMark } from "@/components/HippoMark";
 
 const TEAL = "#0EA5E9";
 const EASE = "cubic-bezier(.16,1,.3,1)";
@@ -113,7 +113,7 @@ export default function SignupPage() {
             marginBottom: 8,
           }}
         >
-          <PrecisionMark size={40} />
+          <HippoMark size={44} />
           <span
             style={{
               fontSize: 26,

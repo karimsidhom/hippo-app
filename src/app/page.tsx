@@ -3,14 +3,14 @@
 /* ═══════════════════════════════════════════════════════════════════════════
    Root Page — Auth router + loading state
 
-   Shows a refined loading state with the PrecisionMark while determining
+   Shows a refined loading state with the HippoMark while determining
    where to send the user (login / onboarding / dashboard).
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
-import { PrecisionMark } from "@/components/PrecisionMark";
+import { HippoMark } from "@/components/HippoMark";
 
 export default function RootPage() {
   const router = useRouter();
@@ -42,7 +42,7 @@ export default function RootPage() {
       }}
     >
       <div style={{ animation: "oe-fadeIn 0.4s cubic-bezier(.16,1,.3,1) both" }}>
-        <PrecisionMark size={64} />
+        <HippoMark size={64} />
       </div>
 
       <div style={{ textAlign: "center" }}>
