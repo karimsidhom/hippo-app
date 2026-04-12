@@ -2,7 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare } from "lucide-react";
+import { DebriefSheet } from "@/components/DebriefSheet";
+import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
 // NOTE: import directly from the operative builder + learn module rather
@@ -670,7 +672,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
 }
 
 export default function CasesPage() {
-  const { cases, deleteCase } = useCases();
+  const { cases, deleteCase, updateCase } = useCases();
   const [search, setSearch]         = useState("");
   const [filterOpen, setFilterOpen] = useState(false);
   const [approach, setApproach]     = useState("All");
@@ -678,6 +680,7 @@ export default function CasesPage() {
   const [year, setYear]             = useState("All");
   const [expanded, setExpanded]     = useState<CaseLog | null>(null);
   const [dictation, setDictation]   = useState<CaseLog | null>(null);
+  const [debrief, setDebrief]       = useState<CaseLog | null>(null);
   const [exporting, setExporting]   = useState(false);
 
   const years = useMemo(() => {
@@ -837,6 +840,48 @@ export default function CasesPage() {
                 <div className="case-date">
                   {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
                 </div>
+                {/* Debrief button — filled purple when this case already
+                    has a structured debrief logged, otherwise muted outline. */}
+                {(() => {
+                  const hasDebrief =
+                    parseStoredReflection(c.reflection).structured !== null;
+                  return (
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setDebrief(c); }}
+                      title={hasDebrief ? "Edit debrief" : "Add debrief"}
+                      style={{
+                        background: hasDebrief
+                          ? "rgba(168,85,247,0.14)"
+                          : "var(--glass)",
+                        border: `1px solid ${hasDebrief ? "rgba(168,85,247,0.4)" : "var(--border-mid)"}`,
+                        borderRadius: 5,
+                        width: 26,
+                        height: 26,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        cursor: "pointer",
+                        color: hasDebrief ? "#c4b5fd" : "var(--text-3)",
+                        transition: "all .15s",
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={e => {
+                        if (!hasDebrief) {
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-glass)";
+                          (e.currentTarget as HTMLButtonElement).style.color = "#c4b5fd";
+                        }
+                      }}
+                      onMouseLeave={e => {
+                        if (!hasDebrief) {
+                          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
+                          (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
+                        }
+                      }}
+                    >
+                      <MessageSquare size={12} />
+                    </button>
+                  );
+                })()}
                 {/* Dictation button */}
                 <button
                   onClick={(e) => { e.stopPropagation(); setDictation(c); }}
@@ -897,6 +942,21 @@ export default function CasesPage() {
           onClose={() => setDictation(null)}
         />
       )}
+
+      {/* Debrief sheet — closed when `debrief` is null. The sheet reads the
+          case's reflection on open, so new debriefs and edits of existing
+          ones share the same component. On save, mirror the new reflection
+          into the cached CaseLog so the row's icon updates immediately. */}
+      <DebriefSheet
+        open={debrief !== null}
+        caseLog={debrief}
+        onClose={() => setDebrief(null)}
+        onSaved={(saved) => {
+          if (debrief) {
+            updateCase(debrief.id, { reflection: JSON.stringify(saved) });
+          }
+        }}
+      />
     </div>
   );
 }
