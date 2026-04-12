@@ -7,6 +7,21 @@
 // same so callers don't need to change.
 // ---------------------------------------------------------------------------
 
+import { setDefaultResultOrder } from "node:dns";
+
+// The Netlify AI Gateway mints JWTs that are IP-locked to whatever egress IP
+// it saw when `netlify dev` requested the token. macOS's Happy Eyeballs can
+// then pick a different address family (IPv6 vs IPv4) for the outbound fetch
+// from Next.js, causing the gateway to return
+// `{"code":"mismatched_client_ip"}`. Forcing IPv4-first for DNS resolution
+// keeps all outbound HTTPS on the same family as `netlify dev` so the IPs
+// line up. This is a no-op when not going through the gateway.
+try {
+  setDefaultResultOrder("ipv4first");
+} catch {
+  // Older Node runtimes (< 18.17) don't have this function — safe to ignore.
+}
+
 const DEFAULT_ANTHROPIC_BASE_URL = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
 
