@@ -81,88 +81,83 @@ function inputStyle(focused: boolean): React.CSSProperties {
 // ── Contour rings SVG (surrounds the mark) ────────────────────────────────
 
 function ContourRings({ animate }: { animate: boolean }) {
-  // Ring circumferences
-  const r1 = 52, c1 = 2 * Math.PI * r1; // inner ring
-  const r2 = 68, c2 = 2 * Math.PI * r2; // outer ring
+  const r1 = 58, c1 = 2 * Math.PI * r1;
+  const r2 = 76, c2 = 2 * Math.PI * r2;
+  const r3 = 92, c3 = 2 * Math.PI * r3;
 
-  const v1 = c1 * 0.7; // 252° arc
-  const v2 = c2 * 0.55; // 198° arc
+  const v1 = c1 * 0.7;
+  const v2 = c2 * 0.5;
+  const v3 = c3 * 0.35;
 
   return (
     <svg
-      width="180"
-      height="180"
-      viewBox="0 0 180 180"
+      width="200"
+      height="200"
+      viewBox="0 0 200 200"
       fill="none"
       style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
     >
       <defs>
         <radialGradient id="splash-glow" cx="50%" cy="50%" r="45%">
-          <stop offset="0%" stopColor={TEAL} stopOpacity="0.1" />
+          <stop offset="0%" stopColor={TEAL} stopOpacity="0.12" />
           <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
         </radialGradient>
       </defs>
 
-      {/* Ambient glow */}
+      {/* Ambient glow behind rings */}
       <circle
-        cx="90" cy="90" r="75"
+        cx="100" cy="100" r="85"
         fill="url(#splash-glow)"
         style={animate ? {
           opacity: 0,
-          animation: `oe-fadeIn 1s ${EASE} 0.2s forwards`,
+          animation: `oe-fadeIn 1.4s ease-out 0.1s forwards`,
         } : {}}
       />
 
-      {/* Inner ring — 252° arc */}
+      {/* Inner ring — tight around the mark */}
       <circle
-        cx="90" cy="90" r={r1}
+        cx="100" cy="100" r={r1}
         stroke={TEAL}
-        strokeOpacity="0.12"
-        strokeWidth="0.75"
+        strokeOpacity="0.15"
+        strokeWidth="0.8"
         strokeLinecap="round"
         strokeDasharray={`${v1} ${c1 - v1}`}
-        transform="rotate(-90 90 90)"
+        transform="rotate(-90 100 100)"
         style={animate ? {
           strokeDashoffset: v1,
-          animation: `oe-draw 1.2s ${EASE} 0.3s forwards`,
+          animation: `oe-draw 1.4s ease-out 0.2s forwards`,
         } : { strokeDashoffset: 0 }}
       />
 
-      {/* Outer ring — 198° arc */}
+      {/* Middle ring */}
       <circle
-        cx="90" cy="90" r={r2}
+        cx="100" cy="100" r={r2}
         stroke={TEAL}
         strokeOpacity="0.08"
-        strokeWidth="0.5"
+        strokeWidth="0.6"
         strokeLinecap="round"
         strokeDasharray={`${v2} ${c2 - v2}`}
-        transform="rotate(60 90 90)"
+        transform="rotate(45 100 100)"
         style={animate ? {
           strokeDashoffset: v2,
-          animation: `oe-draw 1s ${EASE} 0.5s forwards`,
+          animation: `oe-draw 1.6s ease-out 0.4s forwards`,
         } : { strokeDashoffset: 0 }}
       />
 
-      {/* Four subtle tick marks */}
-      {[
-        { x1: 90, y1: 14, x2: 90, y2: 20 },
-        { x1: 166, y1: 90, x2: 160, y2: 90 },
-        { x1: 90, y1: 166, x2: 90, y2: 160 },
-        { x1: 14, y1: 90, x2: 20, y2: 90 },
-      ].map((t, i) => (
-        <line
-          key={i}
-          x1={t.x1} y1={t.y1} x2={t.x2} y2={t.y2}
-          stroke={TEAL}
-          strokeOpacity="0.1"
-          strokeWidth="0.5"
-          strokeLinecap="round"
-          style={animate ? {
-            opacity: 0,
-            animation: `oe-fadeIn 0.3s ${EASE} ${0.8 + i * 0.05}s forwards`,
-          } : {}}
-        />
-      ))}
+      {/* Outer ring — widest, most subtle */}
+      <circle
+        cx="100" cy="100" r={r3}
+        stroke={TEAL}
+        strokeOpacity="0.05"
+        strokeWidth="0.4"
+        strokeLinecap="round"
+        strokeDasharray={`${v3} ${c3 - v3}`}
+        transform="rotate(160 100 100)"
+        style={animate ? {
+          strokeDashoffset: v3,
+          animation: `oe-draw 1.8s ease-out 0.6s forwards`,
+        } : { strokeDashoffset: 0 }}
+      />
     </svg>
   );
 }
@@ -193,11 +188,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (splashPhase === "splash") {
-      const t = setTimeout(() => setSplashPhase("fading"), 2200);
+      const t = setTimeout(() => setSplashPhase("fading"), 2400);
       return () => clearTimeout(t);
     }
     if (splashPhase === "fading") {
-      const t = setTimeout(() => setSplashPhase("done"), 700);
+      const t = setTimeout(() => setSplashPhase("done"), 900);
       return () => clearTimeout(t);
     }
   }, [splashPhase]);
@@ -239,7 +234,7 @@ export default function LoginPage() {
             justifyContent: "center",
             background: "#060d13",
             animation: splashPhase === "fading"
-              ? `oe-splashExit 0.7s ease-out forwards`
+              ? `oe-splashExit 0.9s ease-out forwards`
               : undefined,
             pointerEvents: splashPhase === "fading" ? "none" : "auto",
           }}
@@ -249,39 +244,38 @@ export default function LoginPage() {
             position: "absolute",
             top: "50%",
             left: "50%",
-            width: 500,
-            height: 500,
+            width: 600,
+            height: 600,
             borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(14,165,233,0.05) 0%, rgba(14,165,233,0.02) 40%, transparent 70%)",
-            animation: `oe-glowBloom 1.4s ${EASE} 0.1s both`,
-            transformOrigin: "center",
+            background: "radial-gradient(circle, rgba(14,165,233,0.06) 0%, rgba(14,165,233,0.02) 40%, transparent 70%)",
+            animation: `oe-glowBloom 1.8s ${EASE} 0s both`,
           }} />
 
           {/* Mark + rings composition */}
-          <div style={{ position: "relative", width: 180, height: 180 }}>
+          <div style={{ position: "relative", width: 200, height: 200 }}>
             {/* Contour rings (behind the mark) */}
             <ContourRings animate />
 
-            {/* Hippo mark — the hero */}
+            {/* Hippo mark — the hero, big and visible */}
             <div style={{
               position: "absolute",
               top: "50%",
               left: "50%",
               transform: "translate(-50%, -50%)",
-              animation: `oe-markEntrance 0.8s ${EASE} 0.6s both`,
+              animation: `oe-markEntrance 1s ${EASE} 0.3s both`,
             }}>
-              <HippoMark size={64} />
+              <HippoMark size={80} />
             </div>
           </div>
 
           {/* Wordmark */}
           <h1 style={{
-            fontSize: 34,
+            fontSize: 36,
             fontWeight: 700,
             color: "#E2E8F0",
             letterSpacing: "-0.8px",
-            margin: "20px 0 0",
-            animation: `oe-fadeInUp 0.5s ${EASE} 1.1s both`,
+            margin: "24px 0 0",
+            animation: `oe-fadeInUp 0.6s ${EASE} 0.9s both`,
           }}>
             Hippo
           </h1>
@@ -293,7 +287,7 @@ export default function LoginPage() {
             letterSpacing: "0.04em",
             margin: "8px 0 0",
             opacity: 0.6,
-            animation: `oe-fadeInUp 0.4s ${EASE} 1.4s both`,
+            animation: `oe-fadeInUp 0.5s ${EASE} 1.2s both`,
           }}>
             Track mastery. Share growth.
           </p>
