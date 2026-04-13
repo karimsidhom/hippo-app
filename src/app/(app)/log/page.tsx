@@ -212,84 +212,56 @@ export default function LogCasePage() {
 
   const doSubmit = async () => {
     setSubmitting(true);
+
+    const caseInput = {
+      userId: user?.id ?? '',
+      specialtyId: form.specialtySlug ?? null,
+      specialtyName: form.specialtyName,
+      procedureDefinitionId: null,
+      procedureName: form.procedureName,
+      procedureCategory: form.procedureCategory ?? null,
+      surgicalApproach: form.surgicalApproach as SurgicalApproach,
+      role: form.role,
+      autonomyLevel: form.autonomyLevel as AutonomyLevel,
+      difficultyScore: form.difficultyScore || 3,
+      operativeDurationMinutes: null,
+      consoleTimeMinutes: form.consoleTimeMinutes ?? null,
+      dockingTimeMinutes: form.dockingTimeMinutes ?? null,
+      attendingLabel: form.attendingLabel || null,
+      institutionSite: form.institutionSite || null,
+      patientAgeBin: (form.patientAgeBin ?? 'UNKNOWN') as AgeBin,
+      diagnosisCategory: form.diagnosisCategory || null,
+      outcomeCategory: (form.outcomeCategory ?? 'UNCOMPLICATED') as OutcomeCategory,
+      complicationCategory: (form.complicationCategory ?? 'NONE') as ComplicationCategory,
+      conversionOccurred: form.conversionOccurred ?? false,
+      notes: form.notes ?? null,
+      tags: form.tags ?? [],
+      reflection: form.reflection ?? null,
+      isPublic: form.isPublic ?? false,
+      benchmarkOptIn: form.benchmarkOptIn ?? true,
+      caseDate: form.caseDate || new Date(),
+    };
+
+    // Step 1: Save the case
+    let realCaseId: string | null = null;
     try {
-      const caseInput = {
-        userId: user?.id ?? '',
-        specialtyId: form.specialtySlug ?? null,
-        specialtyName: form.specialtyName,
-        procedureDefinitionId: null,
-        procedureName: form.procedureName,
-        procedureCategory: form.procedureCategory ?? null,
-        surgicalApproach: form.surgicalApproach as SurgicalApproach,
-        role: form.role,
-        autonomyLevel: form.autonomyLevel as AutonomyLevel,
-        difficultyScore: form.difficultyScore || 3,
-        operativeDurationMinutes: null,
-        consoleTimeMinutes: form.consoleTimeMinutes ?? null,
-        dockingTimeMinutes: form.dockingTimeMinutes ?? null,
-        attendingLabel: form.attendingLabel || null,
-        institutionSite: form.institutionSite || null,
-        patientAgeBin: (form.patientAgeBin ?? 'UNKNOWN') as AgeBin,
-        diagnosisCategory: form.diagnosisCategory || null,
-        outcomeCategory: (form.outcomeCategory ?? 'UNCOMPLICATED') as OutcomeCategory,
-        complicationCategory: (form.complicationCategory ?? 'NONE') as ComplicationCategory,
-        conversionOccurred: form.conversionOccurred ?? false,
-        notes: form.notes ?? null,
-        tags: form.tags ?? [],
-        reflection: form.reflection ?? null,
-        isPublic: form.isPublic ?? false,
-        benchmarkOptIn: form.benchmarkOptIn ?? true,
-        caseDate: form.caseDate || new Date(),
-      };
-
-      // Use addCaseAsync to await the server response and get the real DB id
       const newCase = await addCaseAsync(caseInput);
-
-      if (!newCase || newCase.id.startsWith('tmp_')) {
-        // Server save failed — still got optimistic case with temp ID.
-        // Can't fetch EPA suggestions without a real DB id.
-        console.error('[doSubmit] Case save failed or returned temp ID — skipping EPA suggestions');
-        router.push("/cases");
-        return;
+      if (newCase && !newCase.id.startsWith('tmp_')) {
+        realCaseId = newCase.id;
+        setSavedCaseId(newCase.id);
       }
-
-      // Store the real server ID so it's available for EPA suggestions later
-      setSavedCaseId(newCase.id);
-
-      // Start fetching EPA suggestions RIGHT AWAY in the background
-      // so they're ready by the time the user dismisses milestones
-      startEpaSuggestionFetch(newCase.id);
-
-      let newMilestones: Milestone[] = [];
-      let newPRs: PersonalRecord[] = [];
-      try {
-        const allCasesWithNew = [...cases, newCase];
-        newMilestones = checkMilestones(user?.id || "u1", newCase, allCasesWithNew, milestones);
-        newPRs = checkPersonalRecords(user?.id || "u1", newCase, allCasesWithNew, personalRecords);
-
-        for (const m of newMilestones) {
-          // eslint-disable-next-line @typescript-eslint/no-unused-vars
-          const { id: _id, ...rest } = m;
-          addMilestone(rest);
-        }
-      } catch (milestoneErr) {
-        console.error('[doSubmit] Milestone check failed:', milestoneErr);
-      }
-
-      if (newMilestones.length > 0 || newPRs.length > 0) {
-        // Show celebration — EPA suggestions already loading in background.
-        // When user dismisses celebration, showEpaSuggestions will kick in.
-        setCelebration({ milestones: newMilestones, prs: newPRs });
-      } else {
-        // No milestones — show EPA suggestions immediately (already loading)
-        setShowEpaSuggestions(true);
-      }
-    } catch (err) {
-      console.error('[doSubmit] Unexpected error:', err);
-      router.push("/cases");
-    } finally {
-      setSubmitting(false);
+    } catch (e) {
+      console.error('[doSubmit] addCaseAsync threw:', e);
     }
+
+    setSubmitting(false);
+
+    // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID
+    // (the AI suggest will 404 but the modal still shows)
+    if (realCaseId) {
+      startEpaSuggestionFetch(realCaseId);
+    }
+    setShowEpaSuggestions(true);
   };
 
   /**
