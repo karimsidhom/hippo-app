@@ -1,11 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
 import { useUser } from "@/hooks/useUser";
 import { CelebrationModal } from "@/components/shared/CelebrationModal";
 import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
+import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
+import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES } from "@/lib/constants";
 import { validateNotes } from "@/lib/phia";
@@ -14,6 +17,7 @@ import type { Procedure } from "@/lib/procedureLibrary";
 import type {
   SurgicalApproach, AutonomyLevel, OutcomeCategory,
   ComplicationCategory, AgeBin, Milestone, PersonalRecord,
+  EpaSuggestion, EpaObservationInput,
 } from "@/lib/types";
 import { X, Check } from "lucide-react";
 
@@ -34,9 +38,9 @@ function ageToAgeBin(age: number): AgeBin {
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
-  const { cases, addCase } = useCases();
+  const { cases, addCaseAsync } = useCases();
   const { milestones, personalRecords, addMilestone } = useMilestones();
-  const { user } = useUser();
+  const { user, profile } = useUser();
 
   const [specialtySlug, setSpecialtySlug] = useState("urology");
   const [procedureName, setProcedureName] = useState("");
@@ -62,6 +66,22 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     prs: PersonalRecord[];
   } | null>(null);
 
+  // ── EPA suggestion flow state ──
+  const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
+  const [epaSuggestionsLoading, setEpaSuggestionsLoading] = useState(false);
+  const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
+  const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
+  const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
+  const [savedProcedureName, setSavedProcedureName] = useState("");
+  const [savedAttending, setSavedAttending] = useState("");
+  const [savedCaseDate, setSavedCaseDate] = useState<Date>(new Date());
+
+  // Portal root for rendering EPA modals above everything
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalRoot(document.getElementById("portal-root"));
+  }, []);
+
   const procedures = getProceduresBySpecialty(specialtySlug);
 
   const handleProcedureChange = (name: string, proc: Procedure) => {
@@ -75,12 +95,17 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     if (!procedureName) return;
     setSubmitting(true);
 
+    // Save info for EPA form prefill before resetting
+    setSavedProcedureName(procedureName);
+    setSavedAttending(attendingLabel.trim());
+    setSavedCaseDate(caseDate ? new Date(caseDate) : new Date());
+
     try {
       const ageBin: AgeBin = patientAge
         ? ageToAgeBin(parseInt(patientAge))
         : "UNKNOWN";
 
-      const newCase = addCase({
+      const newCase = await addCaseAsync({
         userId: user?.id ?? "",
         specialtyId: specialtySlug,
         specialtyName: SPECIALTIES.find((s) => s.slug === specialtySlug)?.name,
@@ -110,6 +135,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
       });
 
       if (newCase) {
+        // Check milestones (non-blocking)
         const allCasesWithNew = [...cases, newCase];
         const newMilestones = checkMilestones(user?.id || "u1", newCase, allCasesWithNew, milestones);
         const newPRs = checkPersonalRecords(user?.id || "u1", newCase, allCasesWithNew, personalRecords);
@@ -119,16 +145,112 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
           addMilestone(rest);
         }
 
-        if (newMilestones.length > 0 || newPRs.length > 0) {
-          setCelebration({ milestones: newMilestones, prs: newPRs });
-        } else {
-          onClose();
-          resetForm();
+        // Get real case ID for EPA suggestions
+        const realCaseId = newCase.id.startsWith('tmp_') ? null : newCase.id;
+        if (realCaseId) {
+          setSavedCaseId(realCaseId);
         }
+
+        setSubmitting(false);
+
+        // ALWAYS show EPA suggestions — this is the critical flow
+        setShowEpaSuggestions(true);
+        setEpaSuggestionsLoading(true);
+
+        if (realCaseId) {
+          // Fetch AI suggestions in the background
+          try {
+            const res = await fetch("/api/epa/ai-suggest", {
+              method: "POST",
+              credentials: "include",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ caseLogId: realCaseId }),
+            });
+            if (res.ok) {
+              const json = await res.json();
+              setEpaSuggestions(json.suggestions ?? []);
+            } else {
+              console.error('[QuickAdd EPA] API error:', res.status);
+            }
+          } catch (err) {
+            console.error('[QuickAdd EPA] Fetch error:', err);
+          }
+        }
+        setEpaSuggestionsLoading(false);
       }
-    } finally {
+    } catch (e) {
+      console.error('[QuickAdd] Submit error:', e);
       setSubmitting(false);
+      // Still show EPA suggestions even on error
+      setShowEpaSuggestions(true);
+      setEpaSuggestionsLoading(false);
     }
+  };
+
+  /** Handle user selecting an EPA suggestion */
+  const handleEpaSelect = (suggestion: EpaSuggestion) => {
+    setSelectedEpaSuggestion(suggestion);
+    setShowEpaSuggestions(false);
+  };
+
+  /** Handle skipping EPA suggestions */
+  const handleEpaSkip = () => {
+    setShowEpaSuggestions(false);
+    setSelectedEpaSuggestion(null);
+    onClose();
+    resetForm();
+  };
+
+  /** Handle EPA observation form submission */
+  const handleEpaObservationSubmit = async (data: EpaObservationInput) => {
+    try {
+      const createRes = await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      if (!createRes.ok) throw new Error("Failed to create observation");
+      const observation = await createRes.json();
+
+      // Submit the observation
+      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+        method: "POST",
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("EPA observation submit failed:", err);
+    }
+    setSelectedEpaSuggestion(null);
+    onClose();
+    resetForm();
+  };
+
+  /** Handle EPA observation save as draft */
+  const handleEpaObservationDraft = async (data: EpaObservationInput) => {
+    try {
+      await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+    } catch (err) {
+      console.error("EPA observation draft save failed:", err);
+    }
+    setSelectedEpaSuggestion(null);
+    onClose();
+    resetForm();
   };
 
   const resetForm = () => {
@@ -150,10 +272,94 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     setNotes("");
     setReflection("");
     setNotesValidation({ safe: true, warnings: [] });
+    // Reset EPA state
+    setEpaSuggestions([]);
+    setEpaSuggestionsLoading(false);
+    setShowEpaSuggestions(false);
+    setSelectedEpaSuggestion(null);
+    setSavedCaseId(null);
+    setSavedProcedureName("");
+    setSavedAttending("");
+    setSavedCaseDate(new Date());
   };
 
-  if (!open) return null;
+  if (!open && !showEpaSuggestions && !selectedEpaSuggestion) return null;
 
+  // ── EPA Suggestion Sheet (rendered via portal, above everything) ──
+  if (showEpaSuggestions && portalRoot) {
+    return createPortal(
+      <EpaSuggestionSheet
+        suggestions={epaSuggestions}
+        onSelect={handleEpaSelect}
+        onSkip={handleEpaSkip}
+        loading={epaSuggestionsLoading}
+      />,
+      portalRoot,
+    );
+  }
+
+  // ── EPA Observation Form (rendered via portal) ──
+  if (selectedEpaSuggestion && portalRoot) {
+    const userSpecialtySlug = (() => {
+      if (!profile?.specialty) return specialtySlug;
+      const found = SPECIALTIES.find(s => s.name === profile.specialty || s.slug === profile.specialty);
+      return found?.slug ?? specialtySlug;
+    })();
+
+    return createPortal(
+      <div style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1002,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        {/* Backdrop */}
+        <div
+          onClick={() => { setSelectedEpaSuggestion(null); onClose(); resetForm(); }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+        />
+        {/* Form container */}
+        <div style={{
+          position: "relative",
+          zIndex: 1,
+          width: "95vw",
+          maxWidth: 720,
+          maxHeight: "90vh",
+          overflowY: "auto",
+          borderRadius: 16,
+          background: "#0f1825",
+          border: "1px solid rgba(255,255,255,0.08)",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+        }}>
+          <EpaObservationForm
+            epaId={selectedEpaSuggestion.epaId}
+            epaTitle={selectedEpaSuggestion.epaTitle}
+            specialtySlug={userSpecialtySlug}
+            trainingSystem="RCPSC"
+            prefillData={{
+              caseLogId: savedCaseId || "",
+              caseDate: savedCaseDate,
+              procedureName: savedProcedureName,
+              attendingLabel: savedAttending || undefined,
+            }}
+            onSubmit={handleEpaObservationSubmit}
+            onCancel={() => { setSelectedEpaSuggestion(null); onClose(); resetForm(); }}
+            onSaveDraft={handleEpaObservationDraft}
+          />
+        </div>
+      </div>,
+      portalRoot,
+    );
+  }
+
+  // ── Celebration modal (without blocking EPA) ──
   if (celebration) {
     return (
       <CelebrationModal
@@ -167,6 +373,8 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
       />
     );
   }
+
+  if (!open) return null;
 
   return (
     <div style={{ position: "fixed", inset: 0, zIndex: 100, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>

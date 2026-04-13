@@ -257,11 +257,18 @@ export default function LogCasePage() {
     setSubmitting(false);
 
     // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID
-    // (the AI suggest will 404 but the modal still shows)
     if (realCaseId) {
       startEpaSuggestionFetch(realCaseId);
+    } else {
+      // Even without a real case ID, show the modal with empty suggestions
+      setEpaSuggestionsLoading(false);
     }
+
+    // Force the EPA suggestion modal open — this MUST run no matter what
     setShowEpaSuggestions(true);
+
+    // Scroll to top so the fixed modal is visible
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   /**
