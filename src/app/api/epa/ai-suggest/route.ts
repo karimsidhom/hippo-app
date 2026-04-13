@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { getSpecialtyEpaData } from '@/lib/epa/data';
+import { suggestEpasForCase } from '@/lib/epa/suggest';
 
 const AiSuggestSchema = z.object({
   caseLogId: z.string().min(1),
@@ -153,6 +154,7 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
+            signal: AbortSignal.timeout(8000),
             body: JSON.stringify({
               contents: [
                 {
@@ -229,9 +231,25 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
         },
       }));
     } catch (aiErr) {
-      console.error('[ai-suggest] Gemini call failed, returning empty suggestions:', aiErr);
-      suggestions = [];
-      aiNote = 'AI suggestion engine is temporarily unavailable. Please try again later or use the standard suggestion endpoint.';
+      console.error('[ai-suggest] Gemini call failed, falling back to scoring engine:', aiErr);
+
+      // Fallback: use the deterministic scoring engine
+      try {
+        const fallbackSuggestions = suggestEpasForCase(
+          caseLog as never,
+          epaData,
+          observationCounts,
+        );
+        suggestions = fallbackSuggestions.map((s) => ({
+          ...s,
+          matchReasons: [...s.matchReasons, '(AI unavailable — matched by keyword scoring)'],
+        }));
+        aiNote = 'AI suggestion engine is temporarily unavailable. Showing keyword-based matches.';
+      } catch (fallbackErr) {
+        console.error('[ai-suggest] Scoring fallback also failed:', fallbackErr);
+        suggestions = [];
+        aiNote = 'Suggestion engine is temporarily unavailable. Please try again later.';
+      }
     }
 
     return NextResponse.json({

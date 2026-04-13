@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
@@ -107,6 +108,12 @@ export default function LogCasePage() {
   const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
   const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
   const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
+
+  // Portal root for rendering modals outside the scrollable content
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalRoot(document.getElementById("portal-root"));
+  }, []);
 
   // Voice case logging — dictate a quick description, Claude fills the form.
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -1083,83 +1090,88 @@ export default function LogCasePage() {
         </div>
       </div>
 
-      {/* Celebration Modal */}
-      {celebration && (
-        <CelebrationModal
-          milestones={celebration.milestones}
-          prs={celebration.prs}
-          onClose={() => {
-            setCelebration(null);
-            // EPA suggestions were already fetched in the background — just show them
-            setShowEpaSuggestions(true);
-          }}
-        />
-      )}
-
-      {/* EPA Suggestion Sheet */}
-      {showEpaSuggestions && (
-        <EpaSuggestionSheet
-          suggestions={epaSuggestions}
-          onSelect={handleEpaSelect}
-          onSkip={handleEpaSkip}
-          loading={epaSuggestionsLoading}
-        />
-      )}
-
-      {/* EPA Observation Form Modal */}
-      {selectedEpaSuggestion && (
+      {/* ── Portalled Modals (rendered outside scrollable content) ── */}
+      {portalRoot && createPortal(
         <>
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0, 0, 0, 0.7)",
-              backdropFilter: "blur(4px)",
-              zIndex: 1002,
-            }}
-            onClick={() => {
-              setSelectedEpaSuggestion(null);
-              router.push("/cases");
-            }}
-          />
-          <div
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 1003,
-              maxWidth: 720,
-              width: "94vw",
-              maxHeight: "90vh",
-              overflowY: "auto",
-              background: "#0f1825",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 16,
-              padding: "28px 28px 24px",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
-            }}
-          >
-            <EpaObservationForm
-              epaId={selectedEpaSuggestion.epaId}
-              epaTitle={selectedEpaSuggestion.epaTitle}
-              specialtySlug={form.specialtySlug}
-              trainingSystem={profile?.trainingCountry === "CA" ? "RCPSC" : "ACGME"}
-              prefillData={savedCaseId ? {
-                caseLogId: savedCaseId,
-                caseDate: form.caseDate,
-                procedureName: form.procedureName,
-                attendingLabel: form.attendingLabel || undefined,
-              } : undefined}
-              onSubmit={handleEpaObservationSubmit}
-              onCancel={() => {
-                setSelectedEpaSuggestion(null);
-                router.push("/cases");
+          {/* Celebration Modal */}
+          {celebration && (
+            <CelebrationModal
+              milestones={celebration.milestones}
+              prs={celebration.prs}
+              onClose={() => {
+                setCelebration(null);
+                setShowEpaSuggestions(true);
               }}
-              onSaveDraft={handleEpaObservationDraft}
             />
-          </div>
-        </>
+          )}
+
+          {/* EPA Suggestion Sheet */}
+          {showEpaSuggestions && (
+            <EpaSuggestionSheet
+              suggestions={epaSuggestions}
+              onSelect={handleEpaSelect}
+              onSkip={handleEpaSkip}
+              loading={epaSuggestionsLoading}
+            />
+          )}
+
+          {/* EPA Observation Form Modal */}
+          {selectedEpaSuggestion && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0, 0, 0, 0.7)",
+                  backdropFilter: "blur(4px)",
+                  zIndex: 1002,
+                }}
+                onClick={() => {
+                  setSelectedEpaSuggestion(null);
+                  router.push("/cases");
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1003,
+                  maxWidth: 720,
+                  width: "94vw",
+                  maxHeight: "90vh",
+                  overflowY: "auto",
+                  background: "#0f1825",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 16,
+                  padding: "28px 28px 24px",
+                  boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+                }}
+              >
+                <EpaObservationForm
+                  epaId={selectedEpaSuggestion.epaId}
+                  epaTitle={selectedEpaSuggestion.epaTitle}
+                  specialtySlug={form.specialtySlug}
+                  trainingSystem={profile?.trainingCountry === "CA" ? "RCPSC" : "ACGME"}
+                  prefillData={savedCaseId ? {
+                    caseLogId: savedCaseId,
+                    caseDate: form.caseDate,
+                    procedureName: form.procedureName,
+                    attendingLabel: form.attendingLabel || undefined,
+                  } : undefined}
+                  onSubmit={handleEpaObservationSubmit}
+                  onCancel={() => {
+                    setSelectedEpaSuggestion(null);
+                    router.push("/cases");
+                  }}
+                  onSaveDraft={handleEpaObservationDraft}
+                />
+              </div>
+            </>
+          )}
+        </>,
+        portalRoot,
       )}
     </div>
   );
