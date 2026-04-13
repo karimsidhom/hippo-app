@@ -54,9 +54,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Count existing observations per EPA to feed into gap scoring
+    // Use lowercased specialty to match the slug stored on observations
+    const specialtySlug = profile.specialty.toLowerCase();
     const existingObs = await db.epaObservation.groupBy({
       by: ['epaId'],
-      where: { userId: user.id, specialtySlug: profile.specialty },
+      where: { userId: user.id, specialtySlug },
       _count: { epaId: true },
     });
 

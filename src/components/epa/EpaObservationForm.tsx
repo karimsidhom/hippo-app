@@ -62,18 +62,19 @@ function getStageLabel(epaId: string): string {
 
 // ── Shared styles ──
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "9px 12px", background: "var(--bg-2)",
-  border: "1px solid var(--border-mid)", borderRadius: 8, color: "var(--text-1)",
-  fontSize: 13, outline: "none", transition: "border-color .15s", boxSizing: "border-box",
+  width: "100%", padding: "10px 12px", background: "var(--bg-3)",
+  border: "1px solid var(--border-mid)", borderRadius: 8, color: "var(--text)",
+  fontSize: 14, outline: "none", transition: "border-color .15s", boxSizing: "border-box",
 };
 const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 5,
+  display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-1)", marginBottom: 6,
 };
 const sectionStyle: React.CSSProperties = {
-  background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 18,
+  background: "var(--bg-3)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 20,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 14, fontWeight: 700, color: "var(--text-1)", margin: "0 0 14px",
+  fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px",
+  letterSpacing: "-0.01em",
 };
 
 function formatDateForInput(date: Date): string {
@@ -134,6 +135,9 @@ export function EpaObservationForm({
   const [professionalismConcern, setProfessionalismConcern] = useState(false);
   const [concernDetails, setConcernDetails] = useState("");
 
+  // Send via Hippo toggle
+  const [sendViaHippo, setSendViaHippo] = useState(false);
+
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
@@ -176,6 +180,7 @@ export function EpaObservationForm({
       safetyConcern,
       professionalismConcern,
       concernDetails: concernDetails || undefined,
+      sendViaHippo: sendViaHippo || undefined,
     };
   }
 
@@ -213,14 +218,14 @@ export function EpaObservationForm({
             {stageLabel}
           </span>
         </div>
-        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-1)", lineHeight: 1.4, marginBottom: 8 }}>
+        <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", lineHeight: 1.4, marginBottom: 8 }}>
           {epaTitle}
         </div>
 
         {/* Key features */}
         {epaDefinition?.keyFeatures && epaDefinition.keyFeatures.length > 0 && (
-          <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 8 }}>
-            <strong style={{ color: "var(--text-2)" }}>Key Features:</strong>
+          <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5, marginBottom: 8 }}>
+            <strong style={{ color: "var(--text-1)" }}>Key Features:</strong>
             <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
               {epaDefinition.keyFeatures.map((f, i) => <li key={i}>{f}</li>)}
             </ul>
@@ -229,8 +234,8 @@ export function EpaObservationForm({
 
         {/* Collection requirements */}
         {epaDefinition && (
-          <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5 }}>
-            Collect <strong style={{ color: "var(--text-2)" }}>{epaDefinition.targetCaseCount}</strong> observations of achievement
+          <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5 }}>
+            Collect <strong style={{ color: "var(--text-1)" }}>{epaDefinition.targetCaseCount}</strong> observations of achievement
             {epaDefinition.complexityRequirements && epaDefinition.complexityRequirements.length > 0 && (
               <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                 {epaDefinition.complexityRequirements.map((r, i) => <li key={i}>{r}</li>)}
@@ -296,7 +301,7 @@ export function EpaObservationForm({
             <label style={labelStyle}>Assessor Email</label>
             <input type="email" value={assessorEmail} onChange={(e) => setAssessorEmail(e.target.value)}
               placeholder="jane.smith@hospital.edu" style={inputStyle} />
-            <p style={{ fontSize: 11, color: "var(--text-3)", margin: "3px 0 0" }}>
+            <p style={{ fontSize: 12, color: "var(--text-2)", margin: "4px 0 0" }}>
               Enter email to send for electronic sign-off
             </p>
           </div>
@@ -332,19 +337,19 @@ export function EpaObservationForm({
           {/* Column headers */}
           <div style={{
             display: "grid",
-            gridTemplateColumns: "1fr repeat(6, 48px)",
+            gridTemplateColumns: "1fr repeat(6, 52px)",
             gap: 0,
-            fontSize: 9,
-            fontWeight: 600,
-            color: "var(--text-3)",
+            fontSize: 10,
+            fontWeight: 700,
+            color: "var(--text-1)",
             textAlign: "center",
-            padding: "0 0 8px",
-            borderBottom: "1px solid var(--border-mid)",
+            padding: "6px 0 10px",
+            borderBottom: "2px solid var(--border-mid)",
             marginBottom: 2,
           }}>
-            <div />
+            <div style={{ textAlign: "left", fontSize: 11, color: "var(--text-2)" }}>Criterion</div>
             {ENTRUSTMENT_OPTIONS.map((opt) => (
-              <div key={opt.value} style={{ lineHeight: 1.3, padding: "0 2px" }}>
+              <div key={opt.value} style={{ lineHeight: 1.3, padding: "0 2px", color: opt.color }}>
                 {opt.value === 0 ? "Not observed" : opt.label}
               </div>
             ))}
@@ -356,15 +361,16 @@ export function EpaObservationForm({
               {/* Rating row */}
               <div style={{
                 display: "grid",
-                gridTemplateColumns: "1fr repeat(6, 48px)",
+                gridTemplateColumns: "1fr repeat(6, 52px)",
                 gap: 0,
                 alignItems: "center",
-                padding: "10px 0",
-                borderBottom: "1px solid var(--border)",
-                background: idx % 2 === 0 ? "transparent" : "var(--bg-3)",
+                padding: "12px 6px",
+                borderBottom: "1px solid var(--border-mid)",
+                background: idx % 2 === 0 ? "transparent" : "rgba(255,255,255,0.03)",
+                borderRadius: 6,
               }}>
                 <div style={{
-                  fontSize: 12, fontWeight: 500, color: "var(--text-1)",
+                  fontSize: 13, fontWeight: 600, color: "var(--text)",
                   lineHeight: 1.4, paddingRight: 12,
                 }}>
                   {cr.label}
@@ -401,9 +407,9 @@ export function EpaObservationForm({
                   onChange={(e) => updateCriterionComment(idx, e.target.value)}
                   placeholder="Comment"
                   style={{
-                    width: "100%", padding: "6px 10px",
-                    background: "var(--bg-3)", border: "1px solid var(--border)",
-                    borderRadius: 6, color: "var(--text-2)", fontSize: 12,
+                    width: "100%", padding: "7px 10px",
+                    background: "var(--surface2)", border: "1px solid var(--border-mid)",
+                    borderRadius: 6, color: "var(--text-1)", fontSize: 12,
                     outline: "none", fontStyle: "italic",
                   }}
                 />
@@ -454,8 +460,8 @@ export function EpaObservationForm({
                       {selected && <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }} />}
                     </div>
                     <div style={{
-                      fontSize: 10, fontWeight: selected ? 700 : 500,
-                      color: selected ? opt.color : "var(--text-3)",
+                      fontSize: 11, fontWeight: selected ? 700 : 500,
+                      color: selected ? opt.color : "var(--text-2)",
                       textAlign: "center", lineHeight: 1.3,
                     }}>
                       {opt.label}
@@ -575,9 +581,9 @@ export function EpaObservationForm({
       <div style={{
         ...sectionStyle,
         borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "var(--border-mid)",
-        background: (safetyConcern || professionalismConcern) ? "#ef444406" : "var(--bg-2)",
+        background: (safetyConcern || professionalismConcern) ? "#ef444408" : "var(--bg-3)",
       }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-2)", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)", marginBottom: 10 }}>
           Flags
         </div>
         <div style={{ display: "flex", gap: 16, marginBottom: (safetyConcern || professionalismConcern) ? 10 : 0 }}>

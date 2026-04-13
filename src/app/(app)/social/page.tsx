@@ -110,7 +110,9 @@ export default function SocialPage() {
 
   useEffect(() => {
     if (activeTab === "Discover") fetchDiscover();
-  }, [activeTab, fetchDiscover]);
+    if (activeTab === "Following") fetchFollowing();
+    if (activeTab === "Followers") fetchFollowers();
+  }, [activeTab, fetchDiscover, fetchFollowing, fetchFollowers]);
 
   // Follow/unfollow handler
   const handleFollow = async (targetId: string, currentlyFollowing: boolean) => {
@@ -128,7 +130,9 @@ export default function SocialPage() {
             : u
         )
       );
-      if (activeTab === "Following") fetchFollowing();
+      // Always refresh following/followers after a follow/unfollow action
+      fetchFollowing();
+      fetchFollowers();
     } catch { /* ignore */ }
   };
 

@@ -22,6 +22,7 @@ interface LogFormState {
   specialtySlug: string;
   specialtyName: string;
   procedureName: string;
+  procedureCategory: string | null;
   surgicalApproach: string;
   role: string;
   autonomyLevel: string;
@@ -74,6 +75,7 @@ export default function LogCasePage() {
     specialtySlug: userSpecialtySlug,
     specialtyName: userSpecialtyName,
     procedureName: "",
+    procedureCategory: null,
     surgicalApproach: "ROBOTIC",
     role: "First Surgeon",
     autonomyLevel: "SUPERVISOR_PRESENT",
@@ -210,7 +212,7 @@ export default function LogCasePage() {
         specialtyName: form.specialtyName,
         procedureDefinitionId: null,
         procedureName: form.procedureName,
-        procedureCategory: null,
+        procedureCategory: form.procedureCategory ?? null,
         surgicalApproach: form.surgicalApproach as SurgicalApproach,
         role: form.role,
         autonomyLevel: form.autonomyLevel as AutonomyLevel,
@@ -236,27 +238,43 @@ export default function LogCasePage() {
       // Use addCaseAsync to await the server response and get the real DB id
       const newCase = await addCaseAsync(caseInput);
 
-      if (newCase) {
+      if (!newCase || newCase.id.startsWith('tmp_')) {
+        // Server save failed — still got optimistic case with temp ID.
+        // Can't fetch EPA suggestions without a real DB id.
+        console.error('[doSubmit] Case save failed or returned temp ID — skipping EPA suggestions');
+        router.push("/cases");
+        return;
+      }
+
+      // Store the real server ID so it's available for EPA suggestions later
+      setSavedCaseId(newCase.id);
+
+      let newMilestones: Milestone[] = [];
+      let newPRs: PersonalRecord[] = [];
+      try {
         const allCasesWithNew = [...cases, newCase];
-        const newMilestones = checkMilestones(user?.id || "u1", newCase, allCasesWithNew, milestones);
-        const newPRs = checkPersonalRecords(user?.id || "u1", newCase, allCasesWithNew, personalRecords);
+        newMilestones = checkMilestones(user?.id || "u1", newCase, allCasesWithNew, milestones);
+        newPRs = checkPersonalRecords(user?.id || "u1", newCase, allCasesWithNew, personalRecords);
 
         for (const m of newMilestones) {
           // eslint-disable-next-line @typescript-eslint/no-unused-vars
           const { id: _id, ...rest } = m;
           addMilestone(rest);
         }
-
-        // Store the real server ID so it's available for EPA suggestions later
-        setSavedCaseId(newCase.id);
-
-        if (newMilestones.length > 0 || newPRs.length > 0) {
-          setCelebration({ milestones: newMilestones, prs: newPRs });
-        } else {
-          // Try to fetch EPA suggestions for this case
-          fetchEpaSuggestions(newCase.id);
-        }
+      } catch (milestoneErr) {
+        console.error('[doSubmit] Milestone check failed:', milestoneErr);
+        // Continue to EPA suggestions even if milestone check fails
       }
+
+      if (newMilestones.length > 0 || newPRs.length > 0) {
+        setCelebration({ milestones: newMilestones, prs: newPRs });
+      } else {
+        // Try to fetch EPA suggestions for this case
+        fetchEpaSuggestions(newCase.id);
+      }
+    } catch (err) {
+      console.error('[doSubmit] Unexpected error:', err);
+      router.push("/cases");
     } finally {
       setSubmitting(false);
     }
@@ -548,6 +566,7 @@ export default function LogCasePage() {
                   const approach = (rawApproach.toUpperCase().replace(/ /g, '_') || 'OPEN') as SurgicalApproach;
                   updateForm({
                     procedureName: name,
+                    procedureCategory: proc.category || null,
                     surgicalApproach: approach,
                     difficultyScore: proc.complexityTier + 1,
                   });

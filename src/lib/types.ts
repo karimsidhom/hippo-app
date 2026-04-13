@@ -496,6 +496,7 @@ export interface EpaObservationInput {
   safetyConcern?: boolean;
   professionalismConcern?: boolean;
   concernDetails?: string;
+  sendViaHippo?: boolean;
 }
 
 export interface EpaSuggestion {
