@@ -8,13 +8,10 @@ import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { LineChart } from "@/components/charts/LineChart";
-import { StackedBarChart } from "@/components/charts/StackedBarChart";
 import {
   getLearningCurveData,
   getWeeklyHeatmapData,
   getMonthlyVolume,
-  getRoleProgression,
-  getApproachDistribution,
   getOperativeTimeTrend,
   getAutonomyProgression,
   getSpecialtyBreakdown,
@@ -22,9 +19,8 @@ import {
 import { EpaDashboard } from "@/components/epa/EpaDashboard";
 import { useUser } from "@/hooks/useUser";
 
-const CHART_TABS = ["Overview", "EPAs & Milestones", "Learning Curve", "Volume", "Role Progression", "Approaches", "OR Time Trend"];
+const CHART_TABS = ["Overview", "EPAs & Milestones", "Learning Curve", "Volume", "OR Time Trend"];
 
-const APPROACH_COLORS = ["#0EA5E9", "#10B981", "#F59E0B", "#64748B", "#38BDF8", "#06b6d4", "#0B8A8A"];
 
 export default function AnalyticsPage() {
   const { cases } = useCases();
@@ -43,8 +39,6 @@ export default function AnalyticsPage() {
   const learningCurveData = getLearningCurveData(cases, activeProcedure);
   const heatmapData = getWeeklyHeatmapData(cases);
   const monthlyVolume = getMonthlyVolume(cases);
-  const roleProgression = getRoleProgression(cases);
-  const approachDistribution = getApproachDistribution(cases);
   const autonomyProgression = getAutonomyProgression(cases);
   const specialtyBreakdown = getSpecialtyBreakdown(cases);
 
@@ -321,114 +315,6 @@ export default function AnalyticsPage() {
               horizontal
             />
           </section>
-        </div>
-      )}
-
-      {/* ── Role Progression ── */}
-      {activeTab === "Role Progression" && (
-        <div>
-          <section style={{ marginBottom: 28 }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4,
-            }}>Autonomy Level Over Time</div>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14 }}>Monthly breakdown</div>
-            <StackedBarChart
-              data={roleProgression as unknown as Record<string, string | number>[]}
-              keys={["OBSERVER", "ASSISTANT", "SUPERVISOR_PRESENT", "INDEPENDENT", "TEACHING"]}
-              colors={["#64748b", "#94a3b8", "#f59e0b", "#10B981", "#0EA5E9"]}
-              labels={["Observer", "Assistant", "Supervisor Present", "Independent", "Teaching"]}
-              height={260}
-            />
-          </section>
-
-          <div style={{
-            display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20,
-            paddingTop: 24, borderTop: "1px solid var(--border)",
-          }}>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-              }}>Distribution</div>
-              <DonutChart
-                data={[
-                  { label: "Observer", value: stats?.byAutonomy?.OBSERVER || 0, color: "#64748b" },
-                  { label: "Assistant", value: stats?.byAutonomy?.ASSISTANT || 0, color: "#94a3b8" },
-                  { label: "Supervisor", value: stats?.byAutonomy?.SUPERVISOR_PRESENT || 0, color: "#f59e0b" },
-                  { label: "Independent", value: stats?.byAutonomy?.INDEPENDENT || 0, color: "#10B981" },
-                  { label: "Teaching", value: stats?.byAutonomy?.TEACHING || 0, color: "#0EA5E9" },
-                ].filter(d => d.value > 0)}
-                height={180}
-              />
-            </section>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-              }}>Independence Rate</div>
-              <LineChart
-                data={autonomyProgression.map(d => ({ label: d.month, value: d.independentRate }))}
-                color="#10B981"
-                height={180}
-                yMin={0}
-                yMax={100}
-                formatY={v => `${Math.round(v)}%`}
-              />
-            </section>
-          </div>
-        </div>
-      )}
-
-      {/* ── Approaches ── */}
-      {activeTab === "Approaches" && (
-        <div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-              }}>Approach Mix</div>
-              <DonutChart
-                data={approachDistribution.map((a, i) => ({
-                  label: a.approach,
-                  value: a.count,
-                  color: APPROACH_COLORS[i % APPROACH_COLORS.length],
-                }))}
-                height={200}
-              />
-            </section>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-              }}>By Approach</div>
-              {approachDistribution.map((a, i) => (
-                <div key={a.approach} style={{ marginBottom: 10 }}>
-                  <div style={{
-                    display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4,
-                  }}>
-                    <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text)" }}>{a.approach}</span>
-                    <span style={{
-                      fontSize: 12, color: "var(--text-2)",
-                      fontFamily: "'Geist Mono', monospace",
-                    }}>{a.count}</span>
-                  </div>
-                  <div style={{
-                    height: 2, background: "var(--border-mid)", borderRadius: 1,
-                    overflow: "hidden",
-                  }}>
-                    <div style={{
-                      height: "100%", borderRadius: 1,
-                      width: `${a.percentage}%`,
-                      background: APPROACH_COLORS[i % APPROACH_COLORS.length],
-                      transition: "width .5s cubic-bezier(.16,1,.3,1)",
-                    }} />
-                  </div>
-                </div>
-              ))}
-            </section>
-          </div>
         </div>
       )}
 

@@ -399,3 +399,75 @@ export interface PublicProfile {
   isFollowing: boolean;
   isOwnProfile: boolean;
 }
+
+// ── EPA Observation Types ───────────────────────────────────────────────────
+
+export type EpaAchievementLevel = "NOT_ACHIEVED" | "ACHIEVED";
+export type EpaObservationStatus = "DRAFT" | "SUBMITTED" | "PENDING_REVIEW" | "SIGNED" | "RETURNED";
+
+export interface CriterionRating {
+  criterionId: string;
+  label: string;
+  met: boolean;
+  comment?: string;
+}
+
+export interface EpaObservation {
+  id: string;
+  userId: string;
+  caseLogId: string | null;
+  epaId: string;
+  epaTitle: string;
+  specialtySlug: string;
+  trainingSystem: string;
+  observationDate: Date;
+  setting: string | null;
+  complexity: string | null;
+  assessorName: string;
+  assessorRole: string | null;
+  assessorEmail: string | null;
+  achievement: EpaAchievementLevel;
+  observationNotes: string | null;
+  strengthsNotes: string | null;
+  improvementNotes: string | null;
+  criteriaRatings: CriterionRating[] | null;
+  status: EpaObservationStatus;
+  signedAt: Date | null;
+  signedByName: string | null;
+  returnedReason: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  caseLog?: {
+    procedureName: string;
+    caseDate: Date;
+    surgicalApproach: SurgicalApproach;
+  };
+}
+
+export interface EpaObservationInput {
+  caseLogId?: string;
+  epaId: string;
+  epaTitle: string;
+  specialtySlug: string;
+  trainingSystem: string;
+  observationDate: Date;
+  setting?: string;
+  complexity?: string;
+  assessorName: string;
+  assessorRole?: string;
+  assessorEmail?: string;
+  achievement?: EpaAchievementLevel;
+  observationNotes?: string;
+  strengthsNotes?: string;
+  improvementNotes?: string;
+  criteriaRatings?: CriterionRating[];
+}
+
+export interface EpaSuggestion {
+  epaId: string;
+  epaTitle: string;
+  confidence: "high" | "medium" | "low";
+  score: number;
+  matchReasons: string[];
+  currentProgress: { observations: number; targetCount: number };
+}

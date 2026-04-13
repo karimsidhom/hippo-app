@@ -1,14 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import type { CaseLog } from "@/lib/types";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import type { CaseLog, EpaObservation, EpaObservationInput } from "@/lib/types";
 import { getSpecialtyEpaData, getSystemLabel, getMilestoneFramework } from "@/lib/epa/data";
 import type { SpecialtyEpaData } from "@/lib/epa/data";
 import { computeEpaProgress } from "@/lib/epa/mapper";
 import type { EpaProgress, MilestoneProgress, EpaDashboardData } from "@/lib/epa/mapper";
+import { EpaObservationCard } from "./EpaObservationCard";
+import { EpaObservationForm } from "./EpaObservationForm";
 
 // ── Sub-tabs within EPA Dashboard ──────────────────────────────────────────
-const EPA_TABS = ["Overview", "EPAs", "Milestones", "Gaps"];
+const EPA_TABS = ["Overview", "EPAs", "Milestones", "Gaps", "Observations"];
 
 // ── Colors ─────────────────────────────────────────────────────────────────
 const LEVEL_COLORS = ["#64748b", "#f59e0b", "#0ea5e9", "#10b981", "#8b5cf6"];
@@ -124,8 +126,9 @@ function MilestoneRadar({ milestones }: { milestones: MilestoneProgress[] }) {
 }
 
 // ── EPA Card ───────────────────────────────────────────────────────────────
-function EpaCard({ epa, expanded, onToggle }: {
+function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa }: {
   epa: EpaProgress; expanded: boolean; onToggle: () => void;
+  observationCount?: number; onLogEpa?: () => void;
 }) {
   const color = getStageColor(epa.epaId);
   return (
@@ -174,6 +177,14 @@ function EpaCard({ epa, expanded, onToggle }: {
             <span style={{ fontSize: 11, color: "var(--text-3)" }}>
               {epa.totalCases}/{epa.targetCases} cases
             </span>
+            {observationCount !== undefined && (
+              <span style={{
+                fontSize: 10, fontWeight: 600, color: "#10b981",
+                background: "#10b98115", padding: "1px 6px", borderRadius: 3,
+              }}>
+                {observationCount}/{epa.targetCases} observed
+              </span>
+            )}
             <LevelDots level={epa.estimatedLevel} />
             <span style={{
               fontSize: 10, color: "var(--text-3)",
@@ -214,6 +225,27 @@ function EpaCard({ epa, expanded, onToggle }: {
               {epa.estimatedLevel} — {getLevelLabel(epa.estimatedLevel)}
             </strong>
           </div>
+          {onLogEpa && (
+            <button
+              onClick={(e) => { e.stopPropagation(); onLogEpa(); }}
+              style={{
+                marginTop: 10,
+                padding: "7px 16px",
+                borderRadius: 6,
+                border: "none",
+                background: "var(--accent)",
+                color: "#fff",
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: "pointer",
+                transition: "opacity .15s",
+              }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "0.85"; }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.opacity = "1"; }}
+            >
+              Log EPA Observation
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -276,10 +308,16 @@ function EpaPanel({
   epaData,
   dashboard,
   cases,
+  observations,
+  observationCounts,
+  onLogEpa,
 }: {
   epaData: SpecialtyEpaData;
   dashboard: EpaDashboardData | null;
   cases: CaseLog[];
+  observations: EpaObservation[];
+  observationCounts: Record<string, number>;
+  onLogEpa: (epaId: string, epaTitle: string) => void;
 }) {
   const [subTab, setSubTab] = useState("Overview");
   const [expandedEpa, setExpandedEpa] = useState<string | null>(null);
@@ -469,6 +507,8 @@ function EpaPanel({
               epa={epa}
               expanded={expandedEpa === epa.epaId}
               onToggle={() => setExpandedEpa(expandedEpa === epa.epaId ? null : epa.epaId)}
+              observationCount={observationCounts[epa.epaId] ?? 0}
+              onLogEpa={() => onLogEpa(epa.epaId, epa.title)}
             />
           ))}
         </div>
@@ -596,6 +636,85 @@ function EpaPanel({
           )}
         </div>
       )}
+
+      {/* ── Observations Sub-tab ── */}
+      {subTab === "Observations" && (
+        <div>
+          {observations.length === 0 ? (
+            <div style={{
+              textAlign: "center", padding: "40px 0",
+              color: "var(--text-3)", fontSize: 13,
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>No observations yet</div>
+              <div style={{ fontSize: 12, marginTop: 4 }}>
+                Log a case and link it to an EPA, or click &ldquo;Log EPA Observation&rdquo; on an EPA card
+              </div>
+            </div>
+          ) : (
+            <>
+              {/* Signed */}
+              {observations.filter(o => o.status === "SIGNED").length > 0 && (
+                <section style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                  }}>Signed</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {observations.filter(o => o.status === "SIGNED").map((obs) => (
+                      <EpaObservationCard key={obs.id} observation={obs} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Pending Review */}
+              {observations.filter(o => o.status === "PENDING_REVIEW" || o.status === "SUBMITTED").length > 0 && (
+                <section style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                  }}>Pending Review</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {observations.filter(o => o.status === "PENDING_REVIEW" || o.status === "SUBMITTED").map((obs) => (
+                      <EpaObservationCard key={obs.id} observation={obs} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Drafts */}
+              {observations.filter(o => o.status === "DRAFT").length > 0 && (
+                <section style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                  }}>Drafts</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {observations.filter(o => o.status === "DRAFT").map((obs) => (
+                      <EpaObservationCard key={obs.id} observation={obs} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {/* Returned */}
+              {observations.filter(o => o.status === "RETURNED").length > 0 && (
+                <section style={{ marginBottom: 24 }}>
+                  <div style={{
+                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                  }}>Returned</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                    {observations.filter(o => o.status === "RETURNED").map((obs) => (
+                      <EpaObservationCard key={obs.id} observation={obs} />
+                    ))}
+                  </div>
+                </section>
+              )}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -613,6 +732,97 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
 
   // Top-level tab: "Surgical Foundations" vs specialty
   const [topTab, setTopTab] = useState<"foundations" | "specialty">("specialty");
+
+  // Observations state
+  const [observations, setObservations] = useState<EpaObservation[]>([]);
+  const [observationsLoaded, setObservationsLoaded] = useState(false);
+
+  // EPA form modal state
+  const [epaFormModal, setEpaFormModal] = useState<{ epaId: string; epaTitle: string } | null>(null);
+
+  // Fetch observations
+  const loadObservations = useCallback(async () => {
+    try {
+      const res = await fetch("/api/epa/observations", { credentials: "include" });
+      if (res.ok) {
+        const data = await res.json();
+        setObservations(data);
+      }
+    } catch {
+      // silently fail
+    } finally {
+      setObservationsLoaded(true);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!observationsLoaded) {
+      loadObservations();
+    }
+  }, [observationsLoaded, loadObservations]);
+
+  // Compute signed observation counts per EPA
+  const observationCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const obs of observations) {
+      if (obs.status === "SIGNED" || obs.status === "SUBMITTED" || obs.status === "PENDING_REVIEW") {
+        counts[obs.epaId] = (counts[obs.epaId] || 0) + 1;
+      }
+    }
+    return counts;
+  }, [observations]);
+
+  const handleLogEpa = (epaId: string, epaTitle: string) => {
+    setEpaFormModal({ epaId, epaTitle });
+  };
+
+  const handleEpaFormSubmit = async (data: EpaObservationInput) => {
+    try {
+      const createRes = await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      if (!createRes.ok) throw new Error("Failed to create observation");
+      const observation = await createRes.json();
+
+      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      setEpaFormModal(null);
+      loadObservations();
+    } catch (err) {
+      console.error("EPA observation submit failed:", err);
+    }
+  };
+
+  const handleEpaFormDraft = async (data: EpaObservationInput) => {
+    try {
+      await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      setEpaFormModal(null);
+      loadObservations();
+    } catch (err) {
+      console.error("EPA observation draft failed:", err);
+    }
+  };
 
   // Resolve EPA data for specialty
   const specialtyEpaData: SpecialtyEpaData | undefined = useMemo(() => {
@@ -716,6 +926,9 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
           epaData={activeEpaData}
           dashboard={activeDashboard}
           cases={cases}
+          observations={observations}
+          observationCounts={observationCounts}
+          onLogEpa={handleLogEpa}
         />
       ) : (
         <div style={{
@@ -728,6 +941,49 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
             EPA tracking coming soon for {topTab === "foundations" ? "Surgical Foundations" : specialtyLabel}
           </div>
         </div>
+      )}
+
+      {/* ── EPA Observation Form Modal ── */}
+      {epaFormModal && (
+        <>
+          <div
+            onClick={() => setEpaFormModal(null)}
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(4px)",
+              zIndex: 1002,
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 1003,
+              maxWidth: 640,
+              width: "90vw",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              background: "var(--bg-1)",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 16,
+              padding: 24,
+            }}
+          >
+            <EpaObservationForm
+              epaId={epaFormModal.epaId}
+              epaTitle={epaFormModal.epaTitle}
+              specialtySlug={specialty || ""}
+              trainingSystem={isCanadian ? "RCPSC" : "ACGME"}
+              onSubmit={handleEpaFormSubmit}
+              onCancel={() => setEpaFormModal(null)}
+              onSaveDraft={handleEpaFormDraft}
+            />
+          </div>
+        </>
       )}
     </div>
   );

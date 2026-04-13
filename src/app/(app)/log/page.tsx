@@ -11,10 +11,12 @@ import { validateNotes } from "@/lib/phia";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES, DIFFICULTY_SCORES } from "@/lib/constants";
 import { getProceduresBySpecialty } from "@/lib/procedureLibrary";
-import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord } from "@/lib/types";
+import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord, EpaSuggestion, EpaObservationInput } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles } from "lucide-react";
 import { VoiceTextarea } from "@/components/VoiceTextarea";
 import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
+import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
+import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
 
 interface LogFormState {
   specialtySlug: string;
@@ -96,6 +98,13 @@ export default function LogCasePage() {
   const [notesValidation, setNotesValidation] = useState<{ safe: boolean; warnings: string[] }>({ safe: true, warnings: [] });
   const [tagInput, setTagInput] = useState("");
   const [patientAgeDisplay, setPatientAgeDisplay] = useState("");
+
+  // EPA suggestion flow state
+  const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
+  const [epaSuggestionsLoading, setEpaSuggestionsLoading] = useState(false);
+  const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
+  const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
+  const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
 
   // Voice case logging — dictate a quick description, Claude fills the form.
   const [voiceTranscript, setVoiceTranscript] = useState("");
@@ -238,12 +247,114 @@ export default function LogCasePage() {
         if (newMilestones.length > 0 || newPRs.length > 0) {
           setCelebration({ milestones: newMilestones, prs: newPRs });
         } else {
-          router.push("/cases");
+          // Try to fetch EPA suggestions for this case
+          fetchEpaSuggestions(newCase.id);
         }
       }
     } finally {
       setSubmitting(false);
     }
+  };
+
+  /** Fetch EPA suggestions after case is saved */
+  const fetchEpaSuggestions = async (caseLogId: string) => {
+    setEpaSuggestionsLoading(true);
+    setShowEpaSuggestions(true);
+    setSavedCaseId(caseLogId);
+    try {
+      const res = await fetch("/api/epa/suggest", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ caseLogId }),
+      });
+      if (!res.ok) {
+        // Suggestion failed — just navigate away
+        setShowEpaSuggestions(false);
+        router.push("/cases");
+        return;
+      }
+      const json = await res.json();
+      const suggestions: EpaSuggestion[] = json.suggestions ?? [];
+      if (suggestions.length === 0) {
+        setShowEpaSuggestions(false);
+        router.push("/cases");
+        return;
+      }
+      setEpaSuggestions(suggestions);
+    } catch {
+      setShowEpaSuggestions(false);
+      router.push("/cases");
+    } finally {
+      setEpaSuggestionsLoading(false);
+    }
+  };
+
+  /** Handle user selecting an EPA suggestion */
+  const handleEpaSelect = (suggestion: EpaSuggestion) => {
+    setSelectedEpaSuggestion(suggestion);
+    setShowEpaSuggestions(false);
+  };
+
+  /** Handle skipping EPA suggestions */
+  const handleEpaSkip = () => {
+    setShowEpaSuggestions(false);
+    setSelectedEpaSuggestion(null);
+    router.push("/cases");
+  };
+
+  /** Handle EPA observation form submission */
+  const handleEpaObservationSubmit = async (data: EpaObservationInput) => {
+    try {
+      // Create the observation
+      const createRes = await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      if (!createRes.ok) throw new Error("Failed to create observation");
+      const observation = await createRes.json();
+
+      // Submit the observation
+      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      setSelectedEpaSuggestion(null);
+      router.push("/cases");
+    } catch (err) {
+      console.error("EPA observation submit failed:", err);
+      setSelectedEpaSuggestion(null);
+      router.push("/cases");
+    }
+  };
+
+  /** Handle EPA observation save as draft */
+  const handleEpaObservationDraft = async (data: EpaObservationInput) => {
+    try {
+      await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+    } catch (err) {
+      console.error("EPA observation draft save failed:", err);
+    }
+    setSelectedEpaSuggestion(null);
+    router.push("/cases");
   };
 
   return (
@@ -952,10 +1063,80 @@ export default function LogCasePage() {
           milestones={celebration.milestones}
           prs={celebration.prs}
           onClose={() => {
+            const caseId = cases[0]?.id;
             setCelebration(null);
-            router.push("/cases");
+            if (caseId) {
+              fetchEpaSuggestions(caseId);
+            } else {
+              router.push("/cases");
+            }
           }}
         />
+      )}
+
+      {/* EPA Suggestion Sheet */}
+      {showEpaSuggestions && (
+        <EpaSuggestionSheet
+          suggestions={epaSuggestions}
+          onSelect={handleEpaSelect}
+          onSkip={handleEpaSkip}
+          loading={epaSuggestionsLoading}
+        />
+      )}
+
+      {/* EPA Observation Form Modal */}
+      {selectedEpaSuggestion && (
+        <>
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0, 0, 0, 0.7)",
+              backdropFilter: "blur(4px)",
+              zIndex: 1002,
+            }}
+            onClick={() => {
+              setSelectedEpaSuggestion(null);
+              router.push("/cases");
+            }}
+          />
+          <div
+            style={{
+              position: "fixed",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%)",
+              zIndex: 1003,
+              maxWidth: 640,
+              width: "90vw",
+              maxHeight: "85vh",
+              overflowY: "auto",
+              background: "var(--bg-1)",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 16,
+              padding: 24,
+            }}
+          >
+            <EpaObservationForm
+              epaId={selectedEpaSuggestion.epaId}
+              epaTitle={selectedEpaSuggestion.epaTitle}
+              specialtySlug={form.specialtySlug}
+              trainingSystem={profile?.trainingCountry === "CA" ? "RCPSC" : "ACGME"}
+              prefillData={savedCaseId ? {
+                caseLogId: savedCaseId,
+                caseDate: form.caseDate,
+                procedureName: form.procedureName,
+                attendingLabel: form.attendingLabel || undefined,
+              } : undefined}
+              onSubmit={handleEpaObservationSubmit}
+              onCancel={() => {
+                setSelectedEpaSuggestion(null);
+                router.push("/cases");
+              }}
+              onSaveDraft={handleEpaObservationDraft}
+            />
+          </div>
+        </>
       )}
     </div>
   );

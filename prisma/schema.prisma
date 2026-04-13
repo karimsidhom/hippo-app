@@ -84,6 +84,19 @@ enum FriendRequestStatus {
   REJECTED
 }
 
+enum EpaAchievementLevel {
+  NOT_ACHIEVED
+  ACHIEVED
+}
+
+enum EpaObservationStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  SIGNED
+  RETURNED
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // User.id is explicitly set to the Supabase auth UUID on registration.
@@ -116,6 +129,7 @@ model User {
   pearls          Pearl[]
   pearlLikes      PearlLike[]
   pearlSaves      PearlSave[]
+  epaObservations  EpaObservation[]
 
   @@map("users")
 }
@@ -226,6 +240,7 @@ model CaseLog {
   updatedAt               DateTime             @updatedAt
 
   portfolioCase   PortfolioCase?
+  epaObservations EpaObservation[]
 
   @@index([userId])
   @@index([userId, caseDate(sort: Desc)])
@@ -476,4 +491,66 @@ model PearlSave {
   @@unique([pearlId, userId])
   @@index([userId])
   @@map("pearl_saves")
+}
+
+// ─── EPA Observations ────────────────────────────────────────────────────────
+
+model EpaObservation {
+  id                String                @id @default(cuid())
+  userId            String
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseLogId         String?
+  caseLog           CaseLog?              @relation(fields: [caseLogId], references: [id], onDelete: SetNull)
+
+  epaId             String                // e.g. "C1", "F2"
+  epaTitle          String                // denormalized for display
+  specialtySlug     String
+  trainingSystem    String                // "ACGME" or "RCPSC"
+
+  observationDate   DateTime
+  setting           String?               // "OR", "Clinic", "Simulation", "Ward"
+  complexity        String?               // "Low", "Moderate", "High"
+  assessorName      String
+  assessorRole      String?
+  assessorEmail     String?
+
+  achievement       EpaAchievementLevel   @default(NOT_ACHIEVED)
+  observationNotes  String?
+  strengthsNotes    String?
+  improvementNotes  String?
+  criteriaRatings   Json?
+
+  status            EpaObservationStatus  @default(DRAFT)
+  signedAt          DateTime?
+  signedByName      String?
+  returnedReason    String?
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  notifications     AttendingNotification[]
+
+  @@index([userId])
+  @@index([userId, epaId])
+  @@index([userId, status])
+  @@index([caseLogId])
+  @@map("epa_observations")
+}
+
+model AttendingNotification {
+  id                String   @id @default(cuid())
+  epaObservationId  String
+  epaObservation    EpaObservation @relation(fields: [epaObservationId], references: [id], onDelete: Cascade)
+
+  recipientEmail    String
+  recipientName     String
+  accessToken       String   @unique @default(cuid())
+
+  sentAt            DateTime @default(now())
+  viewedAt          DateTime?
+  respondedAt       DateTime?
+
+  @@index([accessToken])
+  @@index([epaObservationId])
+  @@map("attending_notifications")
 }
