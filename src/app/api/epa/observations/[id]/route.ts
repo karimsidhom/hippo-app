@@ -16,15 +16,24 @@ const ObservationUpdateSchema = z.object({
   assessorRole:     z.string().nullable().optional(),
   assessorEmail:    z.string().email().nullable().optional(),
   achievement:      z.enum(['NOT_ACHIEVED', 'ACHIEVED']).optional(),
+  entrustmentScore: z.number().int().min(1).max(5).nullable().optional(),
+  canmedsRatings:   z.array(z.object({
+    roleId:    z.string(),
+    roleTitle: z.string(),
+    rating:    z.number().int().min(1).max(5).nullable(),
+  })).nullable().optional(),
   observationNotes: z.string().nullable().optional(),
   strengthsNotes:   z.string().nullable().optional(),
   improvementNotes: z.string().nullable().optional(),
   criteriaRatings:  z.array(z.object({
-    criterionId: z.string(),
-    label:       z.string(),
-    met:         z.boolean(),
-    comment:     z.string().optional(),
+    criterionId:       z.string(),
+    label:             z.string(),
+    entrustmentRating: z.number().int().min(0).max(5).nullable(),
+    comment:           z.string().optional(),
   })).nullable().optional(),
+  safetyConcern:          z.boolean().optional(),
+  professionalismConcern: z.boolean().optional(),
+  concernDetails:         z.string().nullable().optional(),
 }).strict();
 
 type RouteContext = { params: Promise<{ id: string }> };
@@ -108,10 +117,15 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
     if (data.assessorRole !== undefined) updateData.assessorRole = data.assessorRole;
     if (data.assessorEmail !== undefined) updateData.assessorEmail = data.assessorEmail;
     if (data.achievement !== undefined) updateData.achievement = data.achievement;
+    if (data.entrustmentScore !== undefined) updateData.entrustmentScore = data.entrustmentScore;
+    if (data.canmedsRatings !== undefined) updateData.canmedsRatings = data.canmedsRatings;
     if (data.observationNotes !== undefined) updateData.observationNotes = data.observationNotes;
     if (data.strengthsNotes !== undefined) updateData.strengthsNotes = data.strengthsNotes;
     if (data.improvementNotes !== undefined) updateData.improvementNotes = data.improvementNotes;
     if (data.criteriaRatings !== undefined) updateData.criteriaRatings = data.criteriaRatings;
+    if (data.safetyConcern !== undefined) updateData.safetyConcern = data.safetyConcern;
+    if (data.professionalismConcern !== undefined) updateData.professionalismConcern = data.professionalismConcern;
+    if (data.concernDetails !== undefined) updateData.concernDetails = data.concernDetails;
 
     // If editing a RETURNED observation, reset status back to DRAFT
     if (existing.status === 'RETURNED') {

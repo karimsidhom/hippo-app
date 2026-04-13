@@ -408,8 +408,33 @@ export type EpaObservationStatus = "DRAFT" | "SUBMITTED" | "PENDING_REVIEW" | "S
 export interface CriterionRating {
   criterionId: string;
   label: string;
-  met: boolean;
+  /** Entrustment rating for this criterion: 0=Not observed, 1-5=O-score */
+  entrustmentRating: number | null;
   comment?: string;
+}
+
+// Royal College O-Score / Entrustment Scale
+export type EntrustmentScore = 1 | 2 | 3 | 4 | 5;
+
+export const ENTRUSTMENT_LABELS: Record<number, { short: string; long: string }> = {
+  0: { short: "Not observed", long: "Not observed" },
+  1: { short: "I had to do", long: "I had to do" },
+  2: { short: "I had to talk them through", long: "I had to talk them through" },
+  3: { short: "I had to prompt them from time to time", long: "I had to prompt them from time to time" },
+  4: { short: "I needed to be there in the room just in case", long: "I needed to be there in the room just in case" },
+  5: { short: "I did not need to be there", long: "I did not need to be there" },
+};
+
+export interface CanmedsRating {
+  roleId: string;
+  roleTitle: string;
+  rating: number | null; // 1-5 or null if not rated
+}
+
+export interface SafetyConcernData {
+  safetyConcern: boolean;
+  professionalismConcern: boolean;
+  concernDetails?: string;
 }
 
 export interface EpaObservation {
@@ -427,10 +452,15 @@ export interface EpaObservation {
   assessorRole: string | null;
   assessorEmail: string | null;
   achievement: EpaAchievementLevel;
+  entrustmentScore: number | null;
+  canmedsRatings: CanmedsRating[] | null;
   observationNotes: string | null;
   strengthsNotes: string | null;
   improvementNotes: string | null;
   criteriaRatings: CriterionRating[] | null;
+  safetyConcern: boolean;
+  professionalismConcern: boolean;
+  concernDetails: string | null;
   status: EpaObservationStatus;
   signedAt: Date | null;
   signedByName: string | null;
@@ -457,10 +487,15 @@ export interface EpaObservationInput {
   assessorRole?: string;
   assessorEmail?: string;
   achievement?: EpaAchievementLevel;
+  entrustmentScore?: number;
+  canmedsRatings?: CanmedsRating[];
   observationNotes?: string;
   strengthsNotes?: string;
   improvementNotes?: string;
   criteriaRatings?: CriterionRating[];
+  safetyConcern?: boolean;
+  professionalismConcern?: boolean;
+  concernDetails?: string;
 }
 
 export interface EpaSuggestion {

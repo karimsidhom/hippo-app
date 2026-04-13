@@ -14,6 +14,14 @@ export interface EpaDefinition {
   relatedProcedures: string[];
   relatedMilestones: string[];
   targetCaseCount: number;
+  /** EPA-specific observable criteria / milestones — each gets its own O-score rating */
+  observationCriteria?: string[];
+  /** Key features / assessment plan notes shown at top of form */
+  keyFeatures?: string[];
+  /** Technique options for this EPA (e.g. "standard electrocautery", "laser") */
+  techniqueOptions?: string[];
+  /** Minimum complexity requirements */
+  complexityRequirements?: string[];
 }
 
 export interface MilestoneLevelDescription {
@@ -1466,6 +1474,14 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["rigid cystoscopy", "bladder examination", "urethral examination", "biopsy", "sterile technique", "patient positioning"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 5,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Manipulate endoscope appropriately, achieving stabilization, orientation and direction",
+      "Perform a systematic examination of the lower urinary tract",
+      "Identify and document pathological findings",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "F6",
@@ -1474,6 +1490,15 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["flexible cystoscopy", "local anesthesia", "bladder examination", "ureteral orifice identification", "biopsy", "documentation"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Administer appropriate local anesthesia",
+      "Manipulate endoscope appropriately, achieving stabilization, orientation and direction",
+      "Perform a systematic examination of the lower urinary tract",
+      "Identify and document pathological findings",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "F7",
@@ -1482,6 +1507,14 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["midline incision", "fascial closure", "skin closure", "hemostasis", "tissue handling", "suturing"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 3,
+    observationCriteria: [
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Handle tissue appropriately with respect to tissue vitality",
+      "Demonstrate appropriate use of instruments and suture",
+      "Achieve hemostasis effectively",
+      "Close fascia using appropriate technique",
+      "Close skin using appropriate technique",
+    ],
   },
   {
     id: "F8",
@@ -1530,6 +1563,18 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["TURBT", "cystoscopy", "electrocautery", "tumor resection", "bladder mapping", "specimen handling", "hemostasis"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Manipulate endoscope appropriately, achieving stabilization, orientation and direction",
+      "Identify and map tumour(s) systematically",
+      "Resect tumour to appropriate depth including detrusor muscle sampling",
+      "Respect tissue vitality when handling tissue and instruments",
+      "Achieve hemostasis effectively using electrocautery",
+      "Handle specimens appropriately for pathological analysis",
+      "Determine that procedure is complete, hemostasis achieved",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "C6",
@@ -1538,6 +1583,18 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["TURP", "resectoscope", "electrocautery", "prostatic resection", "hemostasis", "continuous irrigation", "catheter management"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Manipulate endoscope appropriately, achieving stabilization, orientation and direction",
+      "Respect tissue vitality when handling tissue and instruments",
+      "Demonstrate intraoperative judgment, fluidity of movement, forward progression",
+      "Resect and fulgurate tissue safely",
+      "Determine that procedure is complete, hemostasis achieved",
+      "Implement an appropriate and safe exit strategy",
+    ],
+    techniqueOptions: ["Standard electrocautery", "Alternative electrocautery", "Laser"],
+    complexityRequirements: ["At least 3 high complexity", "At least 3 standard electrocautery", "At least 2 different assessors"],
   },
   {
     id: "C7",
@@ -1546,6 +1603,15 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["direct vision internal urethrotomy", "bladder neck incision", "urethral dilation", "cystoscopy", "cold knife incision", "stent placement"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 3,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Identify the location and extent of stenosis",
+      "Select and execute appropriate treatment technique",
+      "Respect tissue vitality when handling tissue and instruments",
+      "Determine that procedure is complete",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "C8",
@@ -1554,6 +1620,18 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["rigid ureteroscopy", "laser lithotripsy", "stone extraction", "ureteral stent placement", "guidewire management", "fluoroscopy"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Manipulate endoscope appropriately, achieving stabilization, orientation and direction",
+      "Manage guidewire and safety wire appropriately",
+      "Navigate ureter safely with appropriate technique",
+      "Apply lithotripsy energy safely and effectively",
+      "Extract stone fragments efficiently",
+      "Determine that procedure is complete",
+      "Place ureteral stent using appropriate technique",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "C9",
@@ -1562,6 +1640,19 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["flexible ureteroscopy", "nephroscopy", "laser lithotripsy", "basket extraction", "ureteral access sheath", "stent placement", "fluoroscopy"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Assemble and optimize endoscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Place ureteral access sheath safely",
+      "Manipulate flexible endoscope appropriately, achieving navigation to target",
+      "Apply lithotripsy energy safely and effectively",
+      "Extract stone fragments using basket or other devices",
+      "Respect tissue vitality when handling tissue and instruments",
+      "Navigate calyceal system systematically",
+      "Determine that procedure is complete",
+      "Place ureteral stent using appropriate technique",
+      "Implement an appropriate and safe exit strategy",
+    ],
   },
   {
     id: "C10",
@@ -1570,6 +1661,18 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["percutaneous access", "nephroscopy", "lithotripsy", "nephrostomy tube placement", "fluoroscopy", "ultrasound guidance", "stone extraction"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 5,
+    observationCriteria: [
+      "Obtain percutaneous access safely using appropriate imaging guidance",
+      "Dilate tract and place access sheath appropriately",
+      "Assemble and optimize nephroscope function",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Manipulate nephroscope appropriately within the collecting system",
+      "Apply lithotripsy energy safely and effectively",
+      "Extract stone fragments efficiently",
+      "Achieve hemostasis effectively",
+      "Place nephrostomy tube using appropriate technique",
+      "Determine that procedure is complete",
+    ],
   },
   {
     id: "C11",
@@ -1578,6 +1681,17 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["laparoscopic nephrectomy", "robot-assisted partial nephrectomy", "port placement", "renal hilum dissection", "renorrhaphy", "specimen extraction"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 3,
+    observationCriteria: [
+      "Position patient and establish access/port placement",
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Dissect and mobilize the kidney appropriately",
+      "Identify and manage the renal hilum safely",
+      "Handle tissue appropriately with respect to tissue vitality",
+      "Demonstrate intraoperative judgment, fluidity of movement, forward progression",
+      "Achieve hemostasis effectively",
+      "Extract specimen safely",
+      "Determine that procedure is complete",
+    ],
   },
   {
     id: "C12",
@@ -1586,6 +1700,16 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["retroperitoneal dissection", "lymph node dissection", "adrenalectomy", "open nephrectomy", "ureteral reimplantation", "vascular control", "bowel management"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 10,
+    observationCriteria: [
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Gain appropriate surgical access/exposure",
+      "Handle tissue appropriately with respect to tissue vitality",
+      "Demonstrate intraoperative judgment, fluidity of movement, forward progression",
+      "Identify and protect critical structures",
+      "Achieve hemostasis effectively",
+      "Perform reconstruction or anastomosis with appropriate technique",
+      "Close incision appropriately",
+    ],
   },
   {
     id: "C13",
@@ -1594,6 +1718,17 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["radical prostatectomy", "radical cystectomy", "urinary diversion", "pelvic lymph node dissection", "pelvic reconstruction", "anti-incontinence procedures", "robotic pelvic surgery"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 12,
+    observationCriteria: [
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Gain appropriate surgical access/exposure",
+      "Handle tissue appropriately with respect to tissue vitality",
+      "Demonstrate intraoperative judgment, fluidity of movement, forward progression",
+      "Identify and protect critical neurovascular structures",
+      "Perform lymph node dissection with appropriate technique",
+      "Achieve hemostasis effectively",
+      "Perform reconstruction or anastomosis with appropriate technique",
+      "Determine that procedure is complete",
+    ],
   },
   {
     id: "C14",
@@ -1602,6 +1737,14 @@ const RCPSC_UROLOGY_EPAS: EpaDefinition[] = [
     relatedProcedures: ["circumcision", "hydrocelectomy", "vasectomy", "orchiectomy", "penile prosthesis", "scrotal exploration", "varicocelectomy", "spermatocelectomy"],
     relatedMilestones: ["ME", "COM"],
     targetCaseCount: 15,
+    observationCriteria: [
+      "Apply knowledge of anatomy, key landmarks and the surgical procedure",
+      "Handle tissue appropriately with respect to tissue vitality",
+      "Demonstrate intraoperative judgment, fluidity of movement, forward progression",
+      "Achieve hemostasis effectively",
+      "Perform closure with appropriate technique",
+      "Determine that procedure is complete",
+    ],
   },
   {
     id: "C15",

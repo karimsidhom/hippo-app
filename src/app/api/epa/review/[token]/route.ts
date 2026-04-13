@@ -64,6 +64,19 @@ const ReviewActionSchema = z.object({
   action:         z.enum(['sign', 'return']),
   signedByName:   z.string().optional(),
   returnedReason: z.string().optional(),
+  // Attending can provide/override the entrustment score and achievement
+  entrustmentScore: z.number().int().min(1).max(5).optional(),
+  achievement:      z.enum(['NOT_ACHIEVED', 'ACHIEVED']).optional(),
+  canmedsRatings:   z.array(z.object({
+    roleId:    z.string(),
+    roleTitle: z.string(),
+    rating:    z.number().int().min(1).max(5).nullable(),
+  })).optional(),
+  strengthsNotes:   z.string().optional(),
+  improvementNotes: z.string().optional(),
+  safetyConcern:          z.boolean().optional(),
+  professionalismConcern: z.boolean().optional(),
+  concernDetails:         z.string().optional(),
 });
 
 /**
@@ -103,17 +116,29 @@ export async function POST(req: NextRequest, context: RouteContext) {
     }
 
     const body = await req.json();
-    const { action, signedByName, returnedReason } = ReviewActionSchema.parse(body);
+    const data = ReviewActionSchema.parse(body);
 
-    if (action === 'sign') {
+    if (data.action === 'sign') {
+      // Build update data with attending's grading
+      const signData: Record<string, unknown> = {
+        status:       'SIGNED',
+        signedAt:     new Date(),
+        signedByName: data.signedByName ?? notification.recipientName,
+      };
+      // Attending can set/override grading fields
+      if (data.entrustmentScore !== undefined) signData.entrustmentScore = data.entrustmentScore;
+      if (data.achievement !== undefined) signData.achievement = data.achievement;
+      if (data.canmedsRatings !== undefined) signData.canmedsRatings = data.canmedsRatings;
+      if (data.strengthsNotes !== undefined) signData.strengthsNotes = data.strengthsNotes;
+      if (data.improvementNotes !== undefined) signData.improvementNotes = data.improvementNotes;
+      if (data.safetyConcern !== undefined) signData.safetyConcern = data.safetyConcern;
+      if (data.professionalismConcern !== undefined) signData.professionalismConcern = data.professionalismConcern;
+      if (data.concernDetails !== undefined) signData.concernDetails = data.concernDetails;
+
       const [updated] = await db.$transaction([
         db.epaObservation.update({
           where: { id: observation.id },
-          data: {
-            status:       'SIGNED',
-            signedAt:     new Date(),
-            signedByName: signedByName ?? notification.recipientName,
-          },
+          data: signData,
         }),
         db.attendingNotification.update({
           where: { id: notification.id },
@@ -130,7 +155,7 @@ export async function POST(req: NextRequest, context: RouteContext) {
         where: { id: observation.id },
         data: {
           status:         'RETURNED',
-          returnedReason: returnedReason ?? null,
+          returnedReason: data.returnedReason ?? null,
         },
       }),
       db.attendingNotification.update({

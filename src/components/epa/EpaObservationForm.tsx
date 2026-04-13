@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
-import type { EpaObservationInput, EpaAchievementLevel } from "@/lib/types";
+import { useState, useMemo } from "react";
+import type { EpaObservationInput, EpaAchievementLevel, CriterionRating } from "@/lib/types";
+import { getSpecialtyEpaData } from "@/lib/epa/data";
+import type { EpaDefinition } from "@/lib/epa/data";
 
 interface EpaObservationFormProps {
   epaId: string;
@@ -19,9 +21,26 @@ interface EpaObservationFormProps {
   onSaveDraft: (data: EpaObservationInput) => Promise<void>;
 }
 
-const SETTINGS = ["OR", "Clinic", "Ward", "Simulation", "Other"];
-const COMPLEXITIES = ["Low", "Moderate", "High"];
-const ASSESSOR_ROLES = ["Staff Surgeon", "Fellow", "Senior Resident"];
+const BASIS_OF_ASSESSMENT = [
+  "Direct observation",
+  "Case review",
+  "Simulation",
+  "Multi-source feedback",
+  "Chart-stimulated recall",
+  "Other",
+];
+const ASSESSOR_ROLES = ["Staff Physician", "Fellow", "Senior Resident", "Other Health Professional"];
+const COMPLEXITIES = ["Low", "Normal", "High"];
+
+// Entrustment scale matching Entrada / Royal College standard
+const ENTRUSTMENT_OPTIONS = [
+  { value: 0, label: "Not observed", short: "N/O", color: "#94a3b8" },
+  { value: 1, label: "I had to do", short: "1", color: "#ef4444" },
+  { value: 2, label: "I had to talk them through", short: "2", color: "#f97316" },
+  { value: 3, label: "I had to prompt them from time to time", short: "3", color: "#eab308" },
+  { value: 4, label: "I needed to be there in the room just in case", short: "4", color: "#22c55e" },
+  { value: 5, label: "I did not need to be there", short: "5", color: "#10b981" },
+];
 
 function getStageColor(epaId: string): string {
   const id = epaId.toUpperCase();
@@ -32,98 +51,131 @@ function getStageColor(epaId: string): string {
   return "#0ea5e9";
 }
 
-// ── Shared input styles ──────────────────────────────────────────────────────
+function getStageLabel(epaId: string): string {
+  const id = epaId.toUpperCase();
+  if (id.startsWith("TTP")) return "Transition to Practice";
+  if (id.startsWith("TD")) return "Transition to Discipline";
+  if (id.startsWith("C")) return "Core of Discipline";
+  if (id.startsWith("F")) return "Foundations";
+  return "EPA";
+}
+
+// ── Shared styles ──
 const inputStyle: React.CSSProperties = {
-  width: "100%",
-  padding: "9px 12px",
-  background: "var(--bg-2)",
-  border: "1px solid var(--border-mid)",
-  borderRadius: 8,
-  color: "var(--text-1)",
-  fontSize: 13,
-  outline: "none",
-  transition: "border-color .15s",
-  boxSizing: "border-box",
+  width: "100%", padding: "9px 12px", background: "var(--bg-2)",
+  border: "1px solid var(--border-mid)", borderRadius: 8, color: "var(--text-1)",
+  fontSize: 13, outline: "none", transition: "border-color .15s", boxSizing: "border-box",
 };
-
 const labelStyle: React.CSSProperties = {
-  display: "block",
-  fontSize: 12,
-  fontWeight: 600,
-  color: "var(--text-2)",
-  marginBottom: 5,
+  display: "block", fontSize: 12, fontWeight: 600, color: "var(--text-2)", marginBottom: 5,
 };
-
 const sectionStyle: React.CSSProperties = {
-  background: "var(--bg-2)",
-  border: "1px solid var(--border-mid)",
-  borderRadius: 12,
-  padding: 18,
+  background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 18,
 };
-
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 14,
-  fontWeight: 700,
-  color: "var(--text-1)",
-  margin: "0 0 14px",
+  fontSize: 14, fontWeight: 700, color: "var(--text-1)", margin: "0 0 14px",
 };
 
 function formatDateForInput(date: Date): string {
   const d = new Date(date);
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export function EpaObservationForm({
-  epaId,
-  epaTitle,
-  specialtySlug,
-  trainingSystem,
-  prefillData,
-  onSubmit,
-  onCancel,
-  onSaveDraft,
+  epaId, epaTitle, specialtySlug, trainingSystem,
+  prefillData, onSubmit, onCancel, onSaveDraft,
 }: EpaObservationFormProps) {
   const stageColor = getStageColor(epaId);
+  const stageLabel = getStageLabel(epaId);
+  const isRCPSC = trainingSystem === "RCPSC";
 
+  // Load EPA data
+  const epaDefinition = useMemo(() => {
+    const data = getSpecialtyEpaData(specialtySlug, isRCPSC ? "CA" : "US");
+    return data?.epas.find((e) => e.id === epaId);
+  }, [specialtySlug, isRCPSC, epaId]);
+
+  const observationCriteria = epaDefinition?.observationCriteria || [];
+  const techniqueOptions = epaDefinition?.techniqueOptions || [];
+
+  // ── Form state ──
   const [observationDate, setObservationDate] = useState(
-    prefillData?.caseDate
-      ? formatDateForInput(prefillData.caseDate)
-      : formatDateForInput(new Date())
+    prefillData?.caseDate ? formatDateForInput(prefillData.caseDate) : formatDateForInput(new Date())
   );
-  const [setting, setSetting] = useState("OR");
-  const [complexity, setComplexity] = useState("Moderate");
-  const [assessorName, setAssessorName] = useState(
-    prefillData?.attendingLabel ?? ""
-  );
-  const [assessorRole, setAssessorRole] = useState("Staff Surgeon");
+  const [assessorRole, setAssessorRole] = useState("Staff Physician");
+  const [assessorName, setAssessorName] = useState(prefillData?.attendingLabel ?? "");
   const [assessorEmail, setAssessorEmail] = useState("");
+  const [basisOfAssessment, setBasisOfAssessment] = useState("Direct observation");
+  const [complexity, setComplexity] = useState("Normal");
+  const [technique, setTechnique] = useState(techniqueOptions[0] || "");
+
+  // Per-criterion entrustment ratings (Entrada-style)
+  const [criteriaRatings, setCriteriaRatings] = useState<CriterionRating[]>(
+    () => observationCriteria.map((label, i) => ({
+      criterionId: `${epaId}-C${i + 1}`,
+      label,
+      entrustmentRating: null,
+      comment: "",
+    }))
+  );
+
+  // Overall O-Score
+  const [overallEntrustment, setOverallEntrustment] = useState<number | null>(null);
   const [achievement, setAchievement] = useState<EpaAchievementLevel | "">("");
-  const [observationNotes, setObservationNotes] = useState("");
-  const [strengthsNotes, setStrengthsNotes] = useState("");
-  const [improvementNotes, setImprovementNotes] = useState("");
+
+  // Narrative feedback — "Continue, Change, Consider" format
+  const [commentsOptional, setCommentsOptional] = useState("");
+  const [continueNotes, setContinueNotes] = useState("");
+  const [changeNotes, setChangeNotes] = useState("");
+  const [considerNotes, setConsiderNotes] = useState("");
+
+  // Safety flags
+  const [safetyConcern, setSafetyConcern] = useState(false);
+  const [professionalismConcern, setProfessionalismConcern] = useState(false);
+  const [concernDetails, setConcernDetails] = useState("");
+
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
 
+  function updateCriterionRating(index: number, rating: number | null) {
+    setCriteriaRatings((prev) =>
+      prev.map((cr, i) => (i === index ? { ...cr, entrustmentRating: rating } : cr))
+    );
+  }
+
+  function updateCriterionComment(index: number, comment: string) {
+    setCriteriaRatings((prev) =>
+      prev.map((cr, i) => (i === index ? { ...cr, comment } : cr))
+    );
+  }
+
+  function handleOverallEntrustment(score: number) {
+    setOverallEntrustment(score);
+    setAchievement(score >= 4 ? "ACHIEVED" : "NOT_ACHIEVED");
+  }
+
   function buildInput(): EpaObservationInput {
+    // Build strengths/improvement from continue/change/consider
+    const strengthsNotes = continueNotes || undefined;
+    const improvementNotes = [changeNotes, considerNotes].filter(Boolean).join("\n") || undefined;
+
     return {
       caseLogId: prefillData?.caseLogId,
-      epaId,
-      epaTitle,
-      specialtySlug,
-      trainingSystem,
+      epaId, epaTitle, specialtySlug, trainingSystem,
       observationDate: new Date(observationDate),
-      setting,
+      setting: basisOfAssessment,
       complexity,
-      assessorName,
-      assessorRole,
+      assessorName, assessorRole,
       assessorEmail: assessorEmail || undefined,
       achievement: achievement || undefined,
-      observationNotes: observationNotes || undefined,
-      strengthsNotes: strengthsNotes || undefined,
-      improvementNotes: improvementNotes || undefined,
+      entrustmentScore: overallEntrustment ?? undefined,
+      observationNotes: commentsOptional || undefined,
+      strengthsNotes,
+      improvementNotes,
+      criteriaRatings: criteriaRatings.length > 0 ? criteriaRatings : undefined,
+      safetyConcern,
+      professionalismConcern,
+      concernDetails: concernDetails || undefined,
     };
   }
 
@@ -131,399 +183,461 @@ export function EpaObservationForm({
     e.preventDefault();
     if (!assessorName.trim()) return;
     setSubmitting(true);
-    try {
-      await onSubmit(buildInput());
-    } finally {
-      setSubmitting(false);
-    }
+    try { await onSubmit(buildInput()); }
+    finally { setSubmitting(false); }
   }
 
   async function handleSaveDraft() {
     setSavingDraft(true);
-    try {
-      await onSaveDraft(buildInput());
-    } finally {
-      setSavingDraft(false);
-    }
+    try { await onSaveDraft(buildInput()); }
+    finally { setSavingDraft(false); }
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      style={{
-        display: "flex",
-        flexDirection: "column",
-        gap: 20,
-        maxWidth: 600,
-      }}
-    >
-      {/* ── Section 1: Observation Details ──────────────────────────────── */}
-      <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Observation Details</h3>
+    <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 16, maxWidth: 700 }}>
 
-        {/* EPA badge + title (read-only) */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            marginBottom: 16,
-            padding: "10px 12px",
-            background: "var(--bg-3)",
-            borderRadius: 8,
-          }}
-        >
-          <span
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: stageColor,
-              fontFamily: "'Geist Mono', monospace",
-              background: `${stageColor}15`,
-              padding: "2px 7px",
-              borderRadius: 4,
-              flexShrink: 0,
-            }}
-          >
+      {/* ── EPA Header ──────────────────────────────────────────────── */}
+      <div style={{
+        padding: "16px 18px", background: `${stageColor}06`,
+        border: `1px solid ${stageColor}20`, borderRadius: 12,
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
+          <span style={{
+            fontSize: 14, fontWeight: 700, color: stageColor,
+            fontFamily: "'Geist Mono', monospace",
+            background: `${stageColor}15`, padding: "3px 10px", borderRadius: 6,
+          }}>
             {epaId}
           </span>
-          <span
-            style={{
-              fontSize: 13,
-              fontWeight: 600,
-              color: "var(--text-1)",
-            }}
-          >
-            {epaTitle}
+          <span style={{ fontSize: 9, fontWeight: 600, color: stageColor, textTransform: "uppercase", letterSpacing: ".5px", opacity: 0.7 }}>
+            {stageLabel}
           </span>
         </div>
-
-        {/* Date */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Date</label>
-          <input
-            type="date"
-            value={observationDate}
-            onChange={(e) => setObservationDate(e.target.value)}
-            style={{
-              ...inputStyle,
-              colorScheme: "dark",
-            }}
-          />
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-1)", lineHeight: 1.4, marginBottom: 8 }}>
+          {epaTitle}
         </div>
 
-        {/* Setting */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Setting</label>
-          <select
-            value={setting}
-            onChange={(e) => setSetting(e.target.value)}
-            style={inputStyle}
-          >
-            {SETTINGS.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Key features */}
+        {epaDefinition?.keyFeatures && epaDefinition.keyFeatures.length > 0 && (
+          <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 8 }}>
+            <strong style={{ color: "var(--text-2)" }}>Key Features:</strong>
+            <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+              {epaDefinition.keyFeatures.map((f, i) => <li key={i}>{f}</li>)}
+            </ul>
+          </div>
+        )}
 
-        {/* Complexity */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Complexity</label>
-          <select
-            value={complexity}
-            onChange={(e) => setComplexity(e.target.value)}
-            style={inputStyle}
-          >
-            {COMPLEXITIES.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Collection requirements */}
+        {epaDefinition && (
+          <div style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.5 }}>
+            Collect <strong style={{ color: "var(--text-2)" }}>{epaDefinition.targetCaseCount}</strong> observations of achievement
+            {epaDefinition.complexityRequirements && epaDefinition.complexityRequirements.length > 0 && (
+              <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
+                {epaDefinition.complexityRequirements.map((r, i) => <li key={i}>{r}</li>)}
+              </ul>
+            )}
+          </div>
+        )}
+      </div>
 
-        {/* Linked case (if prefillData) */}
-        {prefillData && (
+      {/* ── Assessment Context ──────────────────────────────────────── */}
+      <div style={sectionStyle}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          {/* Assessor's Role */}
           <div>
+            <label style={labelStyle}>Assessor&apos;s Role</label>
+            <select value={assessorRole} onChange={(e) => setAssessorRole(e.target.value)} style={inputStyle}>
+              {ASSESSOR_ROLES.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+
+          {/* Assessor Name */}
+          <div>
+            <label style={labelStyle}>Assessor Name *</label>
+            <input type="text" value={assessorName} onChange={(e) => setAssessorName(e.target.value)}
+              placeholder="Dr. Jane Smith" style={inputStyle} required />
+          </div>
+
+          {/* Basis of Assessment */}
+          <div>
+            <label style={labelStyle}>Basis of Assessment</label>
+            <select value={basisOfAssessment} onChange={(e) => setBasisOfAssessment(e.target.value)} style={inputStyle}>
+              {BASIS_OF_ASSESSMENT.map((b) => <option key={b} value={b}>{b}</option>)}
+            </select>
+          </div>
+
+          {/* Case Complexity */}
+          <div>
+            <label style={labelStyle}>Case Complexity</label>
+            <select value={complexity} onChange={(e) => setComplexity(e.target.value)} style={inputStyle}>
+              {COMPLEXITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          {/* Technique (if applicable) */}
+          {techniqueOptions.length > 0 && (
+            <div>
+              <label style={labelStyle}>Technique</label>
+              <select value={technique} onChange={(e) => setTechnique(e.target.value)} style={inputStyle}>
+                {techniqueOptions.map((t) => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          )}
+
+          {/* Date */}
+          <div>
+            <label style={labelStyle}>Date</label>
+            <input type="date" value={observationDate} onChange={(e) => setObservationDate(e.target.value)}
+              style={{ ...inputStyle, colorScheme: "dark" }} />
+          </div>
+
+          {/* Assessor Email */}
+          <div style={{ gridColumn: "1 / -1" }}>
+            <label style={labelStyle}>Assessor Email</label>
+            <input type="email" value={assessorEmail} onChange={(e) => setAssessorEmail(e.target.value)}
+              placeholder="jane.smith@hospital.edu" style={inputStyle} />
+            <p style={{ fontSize: 11, color: "var(--text-3)", margin: "3px 0 0" }}>
+              Enter email to send for electronic sign-off
+            </p>
+          </div>
+        </div>
+
+        {/* Linked case */}
+        {prefillData && (
+          <div style={{ marginTop: 14 }}>
             <label style={labelStyle}>Linked Case</label>
-            <div
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 10,
-                padding: "10px 12px",
-                background: "var(--bg-3)",
-                borderRadius: 8,
-                border: "1px solid var(--border-mid)",
-              }}
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="var(--text-3)"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
+            <div style={{
+              display: "flex", alignItems: "center", gap: 10,
+              padding: "10px 12px", background: "var(--bg-3)",
+              borderRadius: 8, border: "1px solid var(--border-mid)",
+            }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
               </svg>
               <div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: "var(--text-1)",
-                  }}
-                >
-                  {prefillData.procedureName}
-                </div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-                  {new Date(prefillData.caseDate).toLocaleDateString()}
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>{prefillData.procedureName}</div>
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>{new Date(prefillData.caseDate).toLocaleDateString()}</div>
               </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* ── Section 2: Assessor ────────────────────────────────────────── */}
-      <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Assessor</h3>
+      {/* ── CanMEDS Milestones / Per-Criterion Entrustment Ratings ── */}
+      {isRCPSC && criteriaRatings.length > 0 && (
+        <div style={sectionStyle}>
+          <h3 style={sectionTitleStyle}>CanMEDS Milestones</h3>
 
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Assessor Name</label>
-          <input
-            type="text"
-            value={assessorName}
-            onChange={(e) => setAssessorName(e.target.value)}
-            placeholder="Dr. Jane Smith"
-            style={inputStyle}
-            required
-          />
-        </div>
-
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Assessor Role</label>
-          <select
-            value={assessorRole}
-            onChange={(e) => setAssessorRole(e.target.value)}
-            style={inputStyle}
-          >
-            {ASSESSOR_ROLES.map((r) => (
-              <option key={r} value={r}>
-                {r}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label style={labelStyle}>Assessor Email</label>
-          <input
-            type="email"
-            value={assessorEmail}
-            onChange={(e) => setAssessorEmail(e.target.value)}
-            placeholder="jane.smith@hospital.edu"
-            style={inputStyle}
-          />
-          <p
-            style={{
-              fontSize: 11,
-              color: "var(--text-3)",
-              margin: "4px 0 0",
-            }}
-          >
-            Optional — enter to send for electronic sign-off
-          </p>
-        </div>
-      </div>
-
-      {/* ── Section 3: Assessment ──────────────────────────────────────── */}
-      <div style={sectionStyle}>
-        <h3 style={sectionTitleStyle}>Assessment</h3>
-
-        {/* Achievement toggle buttons */}
-        <div style={{ marginBottom: 16 }}>
-          <label style={labelStyle}>Achievement</label>
-          <div style={{ display: "flex", gap: 8 }}>
-            <button
-              type="button"
-              onClick={() => setAchievement("NOT_ACHIEVED")}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                borderRadius: 8,
-                border:
-                  achievement === "NOT_ACHIEVED"
-                    ? "2px solid #64748b"
-                    : "1px solid var(--border-mid)",
-                background:
-                  achievement === "NOT_ACHIEVED"
-                    ? "#64748b15"
-                    : "var(--bg-3)",
-                color:
-                  achievement === "NOT_ACHIEVED"
-                    ? "#94a3b8"
-                    : "var(--text-3)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all .15s",
-              }}
-            >
-              Not Yet Achieved
-            </button>
-            <button
-              type="button"
-              onClick={() => setAchievement("ACHIEVED")}
-              style={{
-                flex: 1,
-                padding: "10px 0",
-                borderRadius: 8,
-                border:
-                  achievement === "ACHIEVED"
-                    ? "2px solid #10b981"
-                    : "1px solid var(--border-mid)",
-                background:
-                  achievement === "ACHIEVED" ? "#10b98115" : "var(--bg-3)",
-                color:
-                  achievement === "ACHIEVED" ? "#10b981" : "var(--text-3)",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                transition: "all .15s",
-              }}
-            >
-              Achieved
-            </button>
-          </div>
-        </div>
-
-        {/* Observation Notes */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Observation Notes</label>
-          <textarea
-            value={observationNotes}
-            onChange={(e) => setObservationNotes(e.target.value)}
-            placeholder="Describe what was observed..."
-            rows={3}
-            style={{
-              ...inputStyle,
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
-          />
-        </div>
-
-        {/* Strengths */}
-        <div style={{ marginBottom: 14 }}>
-          <label style={labelStyle}>Strengths</label>
-          <textarea
-            value={strengthsNotes}
-            onChange={(e) => setStrengthsNotes(e.target.value)}
-            placeholder="Areas of strong performance..."
-            rows={2}
-            style={{
-              ...inputStyle,
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
-          />
-        </div>
-
-        {/* Areas for Improvement */}
-        <div>
-          <label style={labelStyle}>Areas for Improvement</label>
-          <textarea
-            value={improvementNotes}
-            onChange={(e) => setImprovementNotes(e.target.value)}
-            placeholder="Opportunities for growth..."
-            rows={2}
-            style={{
-              ...inputStyle,
-              resize: "vertical",
-              fontFamily: "inherit",
-            }}
-          />
-        </div>
-      </div>
-
-      {/* ── Footer ─────────────────────────────────────────────────────── */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 10,
-          paddingTop: 4,
-        }}
-      >
-        <button
-          type="button"
-          onClick={handleSaveDraft}
-          disabled={savingDraft}
-          style={{
-            padding: "10px 20px",
-            borderRadius: 8,
-            border: "1px solid var(--border-mid)",
-            background: "transparent",
-            color: "var(--text-2)",
-            fontSize: 13,
+          {/* Column headers */}
+          <div style={{
+            display: "grid",
+            gridTemplateColumns: "1fr repeat(6, 48px)",
+            gap: 0,
+            fontSize: 9,
             fontWeight: 600,
-            cursor: savingDraft ? "not-allowed" : "pointer",
-            opacity: savingDraft ? 0.6 : 1,
+            color: "var(--text-3)",
+            textAlign: "center",
+            padding: "0 0 8px",
+            borderBottom: "1px solid var(--border-mid)",
+            marginBottom: 2,
+          }}>
+            <div />
+            {ENTRUSTMENT_OPTIONS.map((opt) => (
+              <div key={opt.value} style={{ lineHeight: 1.3, padding: "0 2px" }}>
+                {opt.value === 0 ? "Not observed" : opt.label}
+              </div>
+            ))}
+          </div>
+
+          {/* Criteria rows */}
+          {criteriaRatings.map((cr, idx) => (
+            <div key={cr.criterionId}>
+              {/* Rating row */}
+              <div style={{
+                display: "grid",
+                gridTemplateColumns: "1fr repeat(6, 48px)",
+                gap: 0,
+                alignItems: "center",
+                padding: "10px 0",
+                borderBottom: "1px solid var(--border)",
+                background: idx % 2 === 0 ? "transparent" : "var(--bg-3)",
+              }}>
+                <div style={{
+                  fontSize: 12, fontWeight: 500, color: "var(--text-1)",
+                  lineHeight: 1.4, paddingRight: 12,
+                }}>
+                  {cr.label}
+                </div>
+                {ENTRUSTMENT_OPTIONS.map((opt) => {
+                  const selected = cr.entrustmentRating === opt.value;
+                  return (
+                    <div key={opt.value} style={{ display: "flex", justifyContent: "center" }}>
+                      <button
+                        type="button"
+                        onClick={() => updateCriterionRating(idx, selected ? null : opt.value)}
+                        style={{
+                          width: 22, height: 22, borderRadius: "50%",
+                          border: selected ? `2px solid ${opt.color}` : "2px solid var(--border-mid)",
+                          background: selected ? opt.color : "transparent",
+                          cursor: "pointer", transition: "all .12s",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                        }}
+                      >
+                        {selected && (
+                          <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#fff" }} />
+                        )}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Comment field per criterion */}
+              <div style={{ padding: "6px 0 4px" }}>
+                <input
+                  type="text"
+                  value={cr.comment || ""}
+                  onChange={(e) => updateCriterionComment(idx, e.target.value)}
+                  placeholder="Comment"
+                  style={{
+                    width: "100%", padding: "6px 10px",
+                    background: "var(--bg-3)", border: "1px solid var(--border)",
+                    borderRadius: 6, color: "var(--text-2)", fontSize: 12,
+                    outline: "none", fontStyle: "italic",
+                  }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* ── Overall Entrustment / O-Score ────────────────────────────── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>
+          {isRCPSC
+            ? "Please rate the resident\u2019s overall performance on this EPA based on the milestones above."
+            : "Assessment"}
+        </h3>
+
+        {isRCPSC ? (
+          <>
+            {/* Horizontal O-Score selection matching Entrada layout */}
+            <div style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(5, 1fr)",
+              gap: 6,
+              marginBottom: 16,
+            }}>
+              {ENTRUSTMENT_OPTIONS.filter((o) => o.value >= 1).map((opt) => {
+                const selected = overallEntrustment === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => handleOverallEntrustment(opt.value)}
+                    style={{
+                      display: "flex", flexDirection: "column", alignItems: "center", gap: 6,
+                      padding: "14px 6px", borderRadius: 10,
+                      border: selected ? `2px solid ${opt.color}` : "1px solid var(--border-mid)",
+                      background: selected ? `${opt.color}10` : "var(--bg-3)",
+                      cursor: "pointer", transition: "all .15s",
+                    }}
+                  >
+                    <div style={{
+                      width: 28, height: 28, borderRadius: "50%",
+                      background: selected ? opt.color : "var(--bg-2)",
+                      border: selected ? "none" : "2px solid var(--border-mid)",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      {selected && <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }} />}
+                    </div>
+                    <div style={{
+                      fontSize: 10, fontWeight: selected ? 700 : 500,
+                      color: selected ? opt.color : "var(--text-3)",
+                      textAlign: "center", lineHeight: 1.3,
+                    }}>
+                      {opt.label}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Derived achievement */}
+            {overallEntrustment !== null && (
+              <div style={{
+                padding: "8px 12px", borderRadius: 8, marginBottom: 14,
+                background: achievement === "ACHIEVED" ? "#10b98110" : "#64748b10",
+                border: `1px solid ${achievement === "ACHIEVED" ? "#10b98130" : "#64748b30"}`,
+                display: "flex", alignItems: "center", gap: 8,
+              }}>
+                <div style={{
+                  width: 8, height: 8, borderRadius: "50%",
+                  background: achievement === "ACHIEVED" ? "#10b981" : "#64748b",
+                }} />
+                <span style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: achievement === "ACHIEVED" ? "#10b981" : "#94a3b8",
+                }}>
+                  {achievement === "ACHIEVED"
+                    ? "Achieved \u2014 Entrustment criteria met (O-Score \u2265 4)"
+                    : "Not Yet Achieved \u2014 Further development needed (O-Score < 4)"}
+                </span>
+              </div>
+            )}
+          </>
+        ) : (
+          /* ACGME simple achieved/not achieved */
+          <div style={{ display: "flex", gap: 8, marginBottom: 16 }}>
+            {(["NOT_ACHIEVED", "ACHIEVED"] as const).map((val) => {
+              const isAch = val === "ACHIEVED";
+              const sel = achievement === val;
+              return (
+                <button key={val} type="button" onClick={() => setAchievement(val)}
+                  style={{
+                    flex: 1, padding: "10px 0", borderRadius: 8,
+                    border: sel ? `2px solid ${isAch ? "#10b981" : "#64748b"}` : "1px solid var(--border-mid)",
+                    background: sel ? (isAch ? "#10b98115" : "#64748b15") : "var(--bg-3)",
+                    color: sel ? (isAch ? "#10b981" : "#94a3b8") : "var(--text-3)",
+                    fontSize: 13, fontWeight: 600, cursor: "pointer", transition: "all .15s",
+                  }}
+                >
+                  {isAch ? "Achieved" : "Not Yet Achieved"}
+                </button>
+              );
+            })}
+          </div>
+        )}
+
+        {/* Comments (optional) */}
+        <div>
+          <label style={labelStyle}>Comments (optional)</label>
+          <textarea
+            value={commentsOptional}
+            onChange={(e) => setCommentsOptional(e.target.value)}
+            placeholder="Additional comments on overall performance..."
+            rows={3}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+          />
+        </div>
+      </div>
+
+      {/* ── Continue, Change, Consider ──────────────────────────────── */}
+      <div style={sectionStyle}>
+        <h3 style={sectionTitleStyle}>Continue, Change, Consider</h3>
+
+        {/* Continue */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ ...labelStyle, color: "#10b981" }}>
+            Continue — What should the resident keep doing?
+          </label>
+          <textarea
+            value={continueNotes}
+            onChange={(e) => setContinueNotes(e.target.value)}
+            placeholder="Strengths and behaviours to continue..."
+            rows={2}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+          />
+        </div>
+
+        {/* Change */}
+        <div style={{ marginBottom: 14 }}>
+          <label style={{ ...labelStyle, color: "#f59e0b" }}>
+            Change — What should the resident do differently?
+          </label>
+          <textarea
+            value={changeNotes}
+            onChange={(e) => setChangeNotes(e.target.value)}
+            placeholder="Areas for specific change or improvement..."
+            rows={2}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+          />
+        </div>
+
+        {/* Consider */}
+        <div>
+          <label style={{ ...labelStyle, color: "#0ea5e9" }}>
+            Consider — What should the resident think about?
+          </label>
+          <textarea
+            value={considerNotes}
+            onChange={(e) => setConsiderNotes(e.target.value)}
+            placeholder="Things to reflect on or explore further..."
+            rows={2}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+          />
+        </div>
+      </div>
+
+      {/* ── Safety / Professionalism Flags ──────────────────────────── */}
+      <div style={{
+        ...sectionStyle,
+        borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "var(--border-mid)",
+        background: (safetyConcern || professionalismConcern) ? "#ef444406" : "var(--bg-2)",
+      }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--text-2)", marginBottom: 10 }}>
+          Flags
+        </div>
+        <div style={{ display: "flex", gap: 16, marginBottom: (safetyConcern || professionalismConcern) ? 10 : 0 }}>
+          <label style={{
+            display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12,
+            color: safetyConcern ? "#ef4444" : "var(--text-3)", fontWeight: safetyConcern ? 600 : 400,
+          }}>
+            <input type="checkbox" checked={safetyConcern} onChange={(e) => setSafetyConcern(e.target.checked)}
+              style={{ accentColor: "#ef4444" }} />
+            Patient Safety Concern
+          </label>
+          <label style={{
+            display: "flex", alignItems: "center", gap: 6, cursor: "pointer", fontSize: 12,
+            color: professionalismConcern ? "#ef4444" : "var(--text-3)", fontWeight: professionalismConcern ? 600 : 400,
+          }}>
+            <input type="checkbox" checked={professionalismConcern} onChange={(e) => setProfessionalismConcern(e.target.checked)}
+              style={{ accentColor: "#ef4444" }} />
+            Professionalism Concern
+          </label>
+        </div>
+        {(safetyConcern || professionalismConcern) && (
+          <textarea
+            value={concernDetails} onChange={(e) => setConcernDetails(e.target.value)}
+            placeholder="Please describe the concern..."
+            rows={2}
+            style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", borderColor: "#ef444440" }}
+          />
+        )}
+      </div>
+
+      {/* ── Footer ─────────────────────────────────────────────────── */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, paddingTop: 4 }}>
+        <button type="button" onClick={handleSaveDraft} disabled={savingDraft}
+          style={{
+            padding: "10px 20px", borderRadius: 8, border: "1px solid var(--border-mid)",
+            background: "transparent", color: "var(--text-2)", fontSize: 13, fontWeight: 600,
+            cursor: savingDraft ? "not-allowed" : "pointer", opacity: savingDraft ? 0.6 : 1,
             transition: "all .15s",
-          }}
-        >
+          }}>
           {savingDraft ? "Saving..." : "Save Draft"}
         </button>
 
-        <button
-          type="submit"
-          disabled={submitting || !assessorName.trim()}
+        <button type="submit" disabled={submitting || !assessorName.trim()}
           style={{
-            padding: "10px 24px",
-            borderRadius: 8,
-            border: "none",
-            background: "var(--accent)",
-            color: "#fff",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor:
-              submitting || !assessorName.trim() ? "not-allowed" : "pointer",
-            opacity: submitting || !assessorName.trim() ? 0.6 : 1,
-            transition: "all .15s",
-          }}
-        >
-          {submitting ? "Submitting..." : "Submit"}
+            padding: "10px 24px", borderRadius: 8, border: "none",
+            background: stageColor, color: "#fff", fontSize: 13, fontWeight: 600,
+            cursor: (submitting || !assessorName.trim()) ? "not-allowed" : "pointer",
+            opacity: (submitting || !assessorName.trim()) ? 0.6 : 1, transition: "all .15s",
+          }}>
+          {submitting ? "Submitting..." : assessorEmail ? "Submit & Send for Sign-off" : "Submit Observation"}
         </button>
 
-        <button
-          type="button"
-          onClick={onCancel}
+        <button type="button" onClick={onCancel}
           style={{
-            marginLeft: "auto",
-            padding: "10px 16px",
-            background: "transparent",
-            border: "none",
-            color: "var(--text-3)",
-            fontSize: 13,
-            cursor: "pointer",
+            marginLeft: "auto", padding: "10px 16px", background: "transparent",
+            border: "none", color: "var(--text-3)", fontSize: 13, cursor: "pointer",
             transition: "color .15s",
           }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--text-1)";
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.color =
-              "var(--text-3)";
-          }}
-        >
+          onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-1)"; }}
+          onMouseLeave={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)"; }}>
           Cancel
         </button>
       </div>

@@ -37,6 +37,22 @@ function getStatusStyle(status: EpaObservationStatus): {
   }
 }
 
+const ENTRUSTMENT_COLORS: Record<number, string> = {
+  1: "#ef4444",
+  2: "#f97316",
+  3: "#eab308",
+  4: "#22c55e",
+  5: "#10b981",
+};
+
+const ENTRUSTMENT_SHORT: Record<number, string> = {
+  1: "Had to do",
+  2: "Talk through",
+  3: "Prompted",
+  4: "Just in case",
+  5: "Independent",
+};
+
 export function EpaObservationCard({
   observation,
   onClick,
@@ -48,6 +64,7 @@ export function EpaObservationCard({
     undefined,
     { month: "short", day: "numeric", year: "numeric" }
   );
+  const oScore = observation.entrustmentScore;
 
   return (
     <div
@@ -70,101 +87,88 @@ export function EpaObservationCard({
       }}
     >
       {/* Top row: EPA badge + title + status */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 8,
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
-            color: stageColor,
+            fontSize: 10, fontWeight: 700, color: stageColor,
             fontFamily: "'Geist Mono', monospace",
-            background: `${stageColor}15`,
-            padding: "2px 6px",
-            borderRadius: 4,
-            flexShrink: 0,
+            background: `${stageColor}15`, padding: "2px 6px", borderRadius: 4, flexShrink: 0,
           }}
         >
           {observation.epaId}
         </span>
         <span
           style={{
-            flex: 1,
-            fontSize: 13,
-            fontWeight: 600,
-            color: "var(--text-1)",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
+            flex: 1, fontSize: 13, fontWeight: 600, color: "var(--text-1)",
+            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
           }}
         >
           {observation.epaTitle}
         </span>
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 600,
-            color: statusStyle.color,
-            background: statusStyle.bg,
-            padding: "2px 7px",
-            borderRadius: 4,
-            flexShrink: 0,
+            fontSize: 10, fontWeight: 600, color: statusStyle.color,
+            background: statusStyle.bg, padding: "2px 7px", borderRadius: 4, flexShrink: 0,
           }}
         >
           {statusStyle.label}
         </span>
       </div>
 
-      {/* Bottom row: date, assessor, achievement */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 12,
-          marginTop: 10,
-        }}
-      >
-        {/* Date */}
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--text-3)",
-          }}
-        >
-          {dateStr}
-        </span>
-
-        {/* Assessor */}
-        <span
-          style={{
-            fontSize: 11,
-            color: "var(--text-2)",
-          }}
-        >
-          {observation.assessorName}
-        </span>
-
-        {/* Spacer */}
+      {/* Bottom row: date, assessor, O-score, achievement */}
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>{dateStr}</span>
+        <span style={{ fontSize: 11, color: "var(--text-2)" }}>{observation.assessorName}</span>
         <div style={{ flex: 1 }} />
+
+        {/* O-Score badge (Royal College) */}
+        {oScore != null && oScore >= 1 && oScore <= 5 && (
+          <span
+            style={{
+              fontSize: 10, fontWeight: 700,
+              color: ENTRUSTMENT_COLORS[oScore],
+              background: `${ENTRUSTMENT_COLORS[oScore]}15`,
+              padding: "2px 7px", borderRadius: 4,
+              fontFamily: "'Geist Mono', monospace",
+            }}
+            title={ENTRUSTMENT_SHORT[oScore]}
+          >
+            O-{oScore}
+          </span>
+        )}
 
         {/* Achievement badge */}
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 600,
+            fontSize: 10, fontWeight: 600,
             color: achieved ? "#10b981" : "#94a3b8",
             background: achieved ? "#10b98115" : "#64748b15",
-            padding: "2px 7px",
-            borderRadius: 4,
+            padding: "2px 7px", borderRadius: 4,
           }}
         >
           {achieved ? "Achieved" : "Not Yet"}
         </span>
       </div>
+
+      {/* Safety concern flag */}
+      {(observation.safetyConcern || observation.professionalismConcern) && (
+        <div
+          style={{
+            marginTop: 8, display: "flex", alignItems: "center", gap: 6,
+            padding: "4px 8px", borderRadius: 6,
+            background: "#ef444410", border: "1px solid #ef444420",
+          }}
+        >
+          <span style={{ fontSize: 12 }}>&#9888;</span>
+          <span style={{ fontSize: 10, color: "#ef4444", fontWeight: 600 }}>
+            {observation.safetyConcern && observation.professionalismConcern
+              ? "Safety & Professionalism Concern"
+              : observation.safetyConcern
+                ? "Safety Concern"
+                : "Professionalism Concern"}
+          </span>
+        </div>
+      )}
     </div>
   );
 }
