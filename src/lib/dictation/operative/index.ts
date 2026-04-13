@@ -22,6 +22,8 @@ import { cardiothoracicBody, cardiothoracicFindings, cardiothoracicTopMatter } f
 import { genericProcedureBody, genericFindings, genericTopMatter } from "./generic";
 import { getStyleProfile } from "../style/store";
 import { applyStyleProfile } from "../style/apply";
+import { resolveBillingKeys, buildDictationBillingSection } from "../billing";
+import type { DictationContext } from "../billing";
 
 // Re-export so `import { TopMatter } from "@/lib/dictation/operative"` keeps
 // working for any consumer that was relying on it being here.
@@ -439,6 +441,20 @@ export function buildOperativeNote(
     lines.push("");
     lines.push("--- TRAINEE REFLECTION ---");
     lines.push(c.reflection);
+  }
+
+  // ── Manitoba Billing Codes (appended when applicable) ──
+  const billingKeys = resolveBillingKeys(c.procedureName || "");
+  if (billingKeys.length > 0) {
+    const billingCtx: DictationContext = {
+      procedureKey: billingKeys[0],
+      totalCaseMinutes: c.operativeDurationMinutes ?? undefined,
+      laterality: undefined,
+    };
+    const billingSection = buildDictationBillingSection(billingKeys, billingCtx);
+    if (billingSection) {
+      lines.push(billingSection);
+    }
   }
 
   lines.push("");

@@ -13,6 +13,7 @@ import { CaseLog } from "@/lib/types";
 // Going direct keeps the client graph small and avoids hydration surprises.
 import { generateDictation, resolveServiceFromCase } from "@/lib/dictation/operative";
 import { applyUserCorrection } from "@/lib/dictation/style/learn";
+import { BillingOverlayPanel } from "@/components/dictation/BillingOverlayPanel";
 
 const APPROACHES = ["All", "Open", "Laparoscopic", "Robotic", "Endoscopic", "Percutaneous"];
 const ROLES = ["All", "Observer", "Assistant", "First Assistant", "Primary Surgeon", "Console Surgeon"];
@@ -584,6 +585,9 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
             </div>
           </div>
         )}
+
+        {/* Manitoba Billing Overlay */}
+        <BillingOverlayPanel caseLog={c} />
 
         {/* Body */}
         <div style={{
