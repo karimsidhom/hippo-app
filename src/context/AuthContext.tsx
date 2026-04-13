@@ -36,6 +36,7 @@ interface AuthContextValue {
   // Cases
   cases:      CaseLog[];
   addCase:    (c: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>) => CaseLog;
+  addCaseAsync: (c: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>) => Promise<CaseLog>;
   updateCase: (id: string, updates: Partial<CaseLog>) => void;
   deleteCase: (id: string) => void;
   // Milestones
@@ -280,6 +281,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return optimistic;
   }, []);
 
+  /** Async version of addCase — awaits the server response so the returned
+   *  CaseLog has the real server-generated ID instead of a temp one.  */
+  const addCaseAsync = useCallback(async (
+    input: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<CaseLog> => {
+    const tempId = 'tmp_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const optimistic: CaseLog = {
+      ...input,
+      id:        tempId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setCases(prev => [optimistic, ...prev]);
+
+    try {
+      const res = await fetch('/api/cases', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          ...input,
+          caseDate: input.caseDate instanceof Date
+            ? input.caseDate.toISOString()
+            : input.caseDate,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Case creation failed (${res.status})`);
+
+      const serverCase = await res.json();
+      const deserialized = deserializeCase(serverCase);
+      setCases(prev =>
+        prev.map(c => c.id === tempId ? deserialized : c),
+      );
+      return deserialized;
+    } catch (e) {
+      console.error('[AuthContext] addCaseAsync error:', e);
+      return optimistic;
+    }
+  }, []);
+
   const updateCase = useCallback((id: string, updates: Partial<CaseLog>) => {
     setCases(prev =>
       prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c),
@@ -362,7 +404,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     user, loading,
     register, login, logout,
     profile, updateProfile, onboardingDone,
-    cases, addCase, updateCase, deleteCase,
+    cases, addCase, addCaseAsync, updateCase, deleteCase,
     milestones, addMilestone,
     deleteAccount,
   };

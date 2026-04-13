@@ -26,7 +26,7 @@ function getWeekStart(): Date {
 }
 
 export function useCases(filters: CaseFilters = {}) {
-  const { cases, addCase, updateCase, deleteCase } = useAuth();
+  const { cases, addCase, addCaseAsync, updateCase, deleteCase } = useAuth();
   const { isFree } = useSubscription();
 
   const weekStart    = getWeekStart();
@@ -86,6 +86,7 @@ export function useCases(filters: CaseFilters = {}) {
     filteredCases,
     recentCases,
     addCase,
+    addCaseAsync,
     updateCase,
     deleteCase,
     duplicateCase,

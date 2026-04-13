@@ -52,7 +52,7 @@ const STEPS = [
 
 export default function LogCasePage() {
   const router = useRouter();
-  const { cases, addCase } = useCases();
+  const { cases, addCase, addCaseAsync } = useCases();
   const { milestones, personalRecords, addMilestone } = useMilestones();
   const { user, profile } = useUser();
 
@@ -204,7 +204,7 @@ export default function LogCasePage() {
   const doSubmit = async () => {
     setSubmitting(true);
     try {
-      const newCase = addCase({
+      const caseInput = {
         userId: user?.id ?? '',
         specialtyId: form.specialtySlug ?? null,
         specialtyName: form.specialtyName,
@@ -231,7 +231,10 @@ export default function LogCasePage() {
         isPublic: form.isPublic ?? false,
         benchmarkOptIn: form.benchmarkOptIn ?? true,
         caseDate: form.caseDate || new Date(),
-      });
+      };
+
+      // Use addCaseAsync to await the server response and get the real DB id
+      const newCase = await addCaseAsync(caseInput);
 
       if (newCase) {
         const allCasesWithNew = [...cases, newCase];
@@ -243,6 +246,9 @@ export default function LogCasePage() {
           const { id: _id, ...rest } = m;
           addMilestone(rest);
         }
+
+        // Store the real server ID so it's available for EPA suggestions later
+        setSavedCaseId(newCase.id);
 
         if (newMilestones.length > 0 || newPRs.length > 0) {
           setCelebration({ milestones: newMilestones, prs: newPRs });
@@ -1063,10 +1069,9 @@ export default function LogCasePage() {
           milestones={celebration.milestones}
           prs={celebration.prs}
           onClose={() => {
-            const caseId = cases[0]?.id;
             setCelebration(null);
-            if (caseId) {
-              fetchEpaSuggestions(caseId);
+            if (savedCaseId) {
+              fetchEpaSuggestions(savedCaseId);
             } else {
               router.push("/cases");
             }
