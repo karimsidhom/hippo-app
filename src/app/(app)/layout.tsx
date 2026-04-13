@@ -59,8 +59,24 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
+      {/* Responsive breakpoint styles */}
+      <style>{`
+        .app-header { max-width: 640px; }
+        .app-main { max-width: 640px; padding: 20px 20px 88px; }
+        .app-nav { max-width: 640px; }
+        @media (min-width: 768px) {
+          .app-header { max-width: 960px; }
+          .app-main { max-width: 960px; padding: 24px 32px 88px; }
+          .app-nav { max-width: 960px; }
+        }
+        @media (min-width: 1200px) {
+          .app-header { max-width: 1120px; }
+          .app-main { max-width: 1120px; padding: 28px 40px 88px; }
+          .app-nav { max-width: 1120px; }
+        }
+      `}</style>
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header style={{
+      <header className="app-header" style={{
         padding: "0 20px",
         height: 48,
         display: "flex",
@@ -69,7 +85,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        maxWidth: 640,
         margin: "0 auto",
         background: "var(--bg)",
         borderBottom: "1px solid var(--border)",
@@ -130,22 +145,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </header>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <main style={{
-        maxWidth: 640,
+      <main className="app-main" style={{
         margin: "0 auto",
-        padding: "20px 20px 88px",
       }}>
         {children}
       </main>
 
       {/* ── Bottom Nav ─────────────────────────────────────────────────── */}
-      <nav style={{
+      <nav className="app-nav" style={{
         position: "fixed",
         bottom: 0,
         left: "50%",
         transform: "translateX(-50%)",
         width: "100%",
-        maxWidth: 640,
         display: "flex",
         justifyContent: "space-around",
         alignItems: "flex-end",

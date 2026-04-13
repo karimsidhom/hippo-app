@@ -1,0 +1,251 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { requireAuth } from '@/lib/api-auth';
+import { db } from '@/lib/db';
+import { getSpecialtyEpaData } from '@/lib/epa/data';
+
+const AiSuggestSchema = z.object({
+  caseLogId: z.string().min(1),
+});
+
+interface GeminiSuggestion {
+  epaId: string;
+  epaTitle: string;
+  confidence: 'high' | 'medium' | 'low';
+  score: number;
+  matchReasons: string[];
+}
+
+interface EpaSuggestion extends GeminiSuggestion {
+  currentProgress: { observations: number; targetCount: number };
+}
+
+/**
+ * POST /api/epa/ai-suggest
+ * Uses Google Gemini 2.5 Flash to analyze a logged surgical case
+ * and suggest which EPAs it best fits.
+ */
+export async function POST(req: NextRequest) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
+  try {
+    const body = await req.json();
+    const { caseLogId } = AiSuggestSchema.parse(body);
+
+    // Fetch the case log (must belong to user)
+    const caseLog = await db.caseLog.findFirst({
+      where: { id: caseLogId, userId: user.id },
+    });
+
+    if (!caseLog) {
+      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    }
+
+    // Get the user's profile for specialty and training country
+    const profile = await db.profile.findUnique({
+      where: { userId: user.id },
+    });
+
+    // Use profile specialty, or fall back to the case log's specialty slug
+    const specialty = profile?.specialty || caseLog.specialtyId || '';
+    if (!specialty) {
+      return NextResponse.json(
+        { error: 'Profile specialty not set. Please complete onboarding first.' },
+        { status: 400 },
+      );
+    }
+
+    // Load EPA data for the user's specialty
+    const trainingCountry = profile?.trainingCountry ?? undefined;
+    const epaData = getSpecialtyEpaData(specialty, trainingCountry);
+
+    if (!epaData) {
+      return NextResponse.json(
+        { error: 'No EPA data available for your specialty' },
+        { status: 404 },
+      );
+    }
+
+    // Count existing observations per EPA for this user
+    const specialtySlug = specialty.toLowerCase();
+    const existingObs = await db.epaObservation.groupBy({
+      by: ['epaId'],
+      where: { userId: user.id, specialtySlug },
+      _count: { epaId: true },
+    });
+
+    const observationCounts: Record<string, number> = {};
+    for (const row of existingObs) {
+      observationCounts[row.epaId] = row._count.epaId;
+    }
+
+    // Build EPA reference data for the prompt
+    const epaReference = epaData.epas.map((epa) => ({
+      id: epa.id,
+      title: epa.title,
+      description: epa.description,
+      relatedProcedures: epa.relatedProcedures,
+      currentObservations: observationCounts[epa.id] ?? 0,
+      targetCount: epa.targetCaseCount,
+    }));
+
+    // Build the prompt
+    const prompt = `You are a surgical education expert helping a ${specialty} resident track their Entrustable Professional Activities (EPAs).
+
+Given the following surgical case details, determine which EPAs from the resident's specialty best match this case.
+
+CASE DETAILS:
+- Procedure Name: ${caseLog.procedureName}
+- Procedure Category: ${caseLog.procedureCategory ?? 'N/A'}
+- Surgical Approach: ${caseLog.surgicalApproach ?? 'N/A'}
+- Role: ${caseLog.role ?? 'N/A'}
+- Autonomy Level: ${caseLog.autonomyLevel ?? 'N/A'}
+- Difficulty Score: ${caseLog.difficultyScore ?? 'N/A'}
+- Diagnosis Category: ${caseLog.diagnosisCategory ?? 'N/A'}
+- Attending: ${caseLog.attendingLabel ?? 'N/A'}
+- Outcome: ${caseLog.outcomeCategory ?? 'N/A'}
+- Notes: ${caseLog.notes ?? 'N/A'}
+
+AVAILABLE EPAs FOR ${specialty.toUpperCase()} (${epaData.system} system):
+${JSON.stringify(epaReference, null, 2)}
+
+INSTRUCTIONS:
+1. Select the top 3-5 EPAs that best match this surgical case.
+2. For each selected EPA, explain why it matches and rate your confidence.
+3. The score should be 0-100 indicating match strength.
+4. Prioritize EPAs where the resident has fewer observations relative to the target (gap analysis).
+5. Consider the procedure name, approach, role, autonomy level, and diagnosis when matching.
+
+Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in this exact format:
+{
+  "suggestions": [
+    {
+      "epaId": "F1",
+      "epaTitle": "...",
+      "confidence": "high",
+      "score": 85,
+      "matchReasons": ["reason 1", "reason 2"]
+    }
+  ]
+}`;
+
+    // Call Gemini 2.5 Flash API
+    const apiKey = process.env.GOOGLE_AI_API_KEY;
+    if (!apiKey) {
+      return NextResponse.json(
+        { error: 'Google AI API key not configured' },
+        { status: 500 },
+      );
+    }
+
+    let suggestions: EpaSuggestion[] = [];
+    let aiNote: string | undefined;
+
+    try {
+      // Try models in order with fallbacks for availability/rate limits
+      const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+      let geminiData: Record<string, unknown> | null = null;
+
+      for (const model of models) {
+        const geminiRes = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              contents: [
+                {
+                  parts: [{ text: prompt }],
+                },
+              ],
+              generationConfig: {
+                temperature: 0.3,
+                maxOutputTokens: 2048,
+              },
+            }),
+          },
+        );
+
+        if (geminiRes.ok) {
+          geminiData = await geminiRes.json();
+          console.log(`[ai-suggest] Success with model: ${model}`);
+          break;
+        }
+
+        const errText = await geminiRes.text();
+        console.error(`[ai-suggest] ${model} error:`, geminiRes.status, errText);
+
+        // Only retry on 503 (overloaded) or 429 (rate limit)
+        if (geminiRes.status !== 503 && geminiRes.status !== 429) {
+          throw new Error(`Gemini API returned ${geminiRes.status}`);
+        }
+      }
+
+      if (!geminiData) {
+        throw new Error('All Gemini models unavailable');
+      }
+
+      // Extract the text content from Gemini's response
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const gd = geminiData as any;
+      const rawText: string | undefined =
+        gd?.candidates?.[0]?.content?.parts?.[0]?.text;
+
+      if (!rawText) {
+        throw new Error('No text in Gemini response');
+      }
+
+      // Strip markdown code fences if Gemini included them despite instructions
+      const cleaned = rawText
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/i, '')
+        .trim();
+
+      const parsed = JSON.parse(cleaned) as {
+        suggestions: GeminiSuggestion[];
+      };
+
+      if (!Array.isArray(parsed.suggestions)) {
+        throw new Error('Invalid suggestions format from Gemini');
+      }
+
+      // Build a lookup for EPA target counts
+      const epaTargetMap: Record<string, number> = {};
+      for (const epa of epaData.epas) {
+        epaTargetMap[epa.id] = epa.targetCaseCount;
+      }
+
+      // Merge in currentProgress data
+      suggestions = parsed.suggestions.map((s) => ({
+        epaId: s.epaId,
+        epaTitle: s.epaTitle,
+        confidence: s.confidence,
+        score: s.score,
+        matchReasons: s.matchReasons,
+        currentProgress: {
+          observations: observationCounts[s.epaId] ?? 0,
+          targetCount: epaTargetMap[s.epaId] ?? 0,
+        },
+      }));
+    } catch (aiErr) {
+      console.error('[ai-suggest] Gemini call failed, returning empty suggestions:', aiErr);
+      suggestions = [];
+      aiNote = 'AI suggestion engine is temporarily unavailable. Please try again later or use the standard suggestion endpoint.';
+    }
+
+    return NextResponse.json({
+      suggestions,
+      ...(aiNote ? { note: aiNote } : {}),
+    });
+  } catch (err) {
+    if (err instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: err.errors[0]?.message ?? 'Invalid input' },
+        { status: 400 },
+      );
+    }
+    console.error('[POST /api/epa/ai-suggest]', err);
+    return NextResponse.json({ error: 'Failed to generate AI suggestions' }, { status: 500 });
+  }
+}

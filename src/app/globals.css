@@ -41,6 +41,14 @@
   --primary-dim:  rgba(14,165,233,0.05);
   --primary-glow: rgba(14,165,233,0.10);
 
+  /* Surface levels (used by EPA form and modals) */
+  --bg-1:         #0e1520;
+  --bg-2:         #141c28;
+  --bg-3:         #1a2332;
+
+  /* Text hierarchy aliases */
+  --text-1:       #E2E8F0;
+
   /* Signal */
   --success:      #10B981;
   --danger:       #EF4444;

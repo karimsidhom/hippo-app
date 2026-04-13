@@ -286,7 +286,7 @@ export default function LogCasePage() {
     setShowEpaSuggestions(true);
     setSavedCaseId(caseLogId);
     try {
-      const res = await fetch("/api/epa/suggest", {
+      const res = await fetch("/api/epa/ai-suggest", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -1131,14 +1131,15 @@ export default function LogCasePage() {
               left: "50%",
               transform: "translate(-50%, -50%)",
               zIndex: 1003,
-              maxWidth: 640,
-              width: "90vw",
-              maxHeight: "85vh",
+              maxWidth: 720,
+              width: "94vw",
+              maxHeight: "90vh",
               overflowY: "auto",
-              background: "var(--bg-1)",
-              border: "1px solid var(--border-mid)",
+              background: "#0f1825",
+              border: "1px solid rgba(255,255,255,0.08)",
               borderRadius: 16,
-              padding: 24,
+              padding: "28px 28px 24px",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
             }}
           >
             <EpaObservationForm

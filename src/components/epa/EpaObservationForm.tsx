@@ -62,18 +62,18 @@ function getStageLabel(epaId: string): string {
 
 // ── Shared styles ──
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", background: "var(--bg-3)",
-  border: "1px solid var(--border-mid)", borderRadius: 8, color: "var(--text)",
+  width: "100%", padding: "10px 12px", background: "#0c1219",
+  border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: "#e2e8f0",
   fontSize: 14, outline: "none", transition: "border-color .15s", boxSizing: "border-box",
 };
 const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-1)", marginBottom: 6,
+  display: "block", fontSize: 13, fontWeight: 600, color: "#cbd5e1", marginBottom: 6,
 };
 const sectionStyle: React.CSSProperties = {
-  background: "var(--bg-3)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 20,
+  background: "#141e2c", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16, fontWeight: 700, color: "var(--text)", margin: "0 0 16px",
+  fontSize: 16, fontWeight: 700, color: "#f1f5f9", margin: "0 0 16px",
   letterSpacing: "-0.01em",
 };
 
@@ -224,8 +224,8 @@ export function EpaObservationForm({
 
         {/* Key features */}
         {epaDefinition?.keyFeatures && epaDefinition.keyFeatures.length > 0 && (
-          <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5, marginBottom: 8 }}>
-            <strong style={{ color: "var(--text-1)" }}>Key Features:</strong>
+          <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5, marginBottom: 8 }}>
+            <strong style={{ color: "#cbd5e1" }}>Key Features:</strong>
             <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
               {epaDefinition.keyFeatures.map((f, i) => <li key={i}>{f}</li>)}
             </ul>
@@ -234,8 +234,8 @@ export function EpaObservationForm({
 
         {/* Collection requirements */}
         {epaDefinition && (
-          <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5 }}>
-            Collect <strong style={{ color: "var(--text-1)" }}>{epaDefinition.targetCaseCount}</strong> observations of achievement
+          <div style={{ fontSize: 12, color: "#94a3b8", lineHeight: 1.5 }}>
+            Collect <strong style={{ color: "#cbd5e1" }}>{epaDefinition.targetCaseCount}</strong> observations of achievement
             {epaDefinition.complexityRequirements && epaDefinition.complexityRequirements.length > 0 && (
               <ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
                 {epaDefinition.complexityRequirements.map((r, i) => <li key={i}>{r}</li>)}
@@ -301,7 +301,7 @@ export function EpaObservationForm({
             <label style={labelStyle}>Assessor Email</label>
             <input type="email" value={assessorEmail} onChange={(e) => setAssessorEmail(e.target.value)}
               placeholder="jane.smith@hospital.edu" style={inputStyle} />
-            <p style={{ fontSize: 12, color: "var(--text-2)", margin: "4px 0 0" }}>
+            <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>
               Enter email to send for electronic sign-off
             </p>
           </div>
@@ -313,7 +313,7 @@ export function EpaObservationForm({
             <label style={labelStyle}>Linked Case</label>
             <div style={{
               display: "flex", alignItems: "center", gap: 10,
-              padding: "10px 12px", background: "var(--bg-3)",
+              padding: "10px 12px", background: "#0c1219",
               borderRadius: 8, border: "1px solid var(--border-mid)",
             }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -321,8 +321,8 @@ export function EpaObservationForm({
                 <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
               </svg>
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>{prefillData.procedureName}</div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>{new Date(prefillData.caseDate).toLocaleDateString()}</div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "#cbd5e1" }}>{prefillData.procedureName}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(prefillData.caseDate).toLocaleDateString()}</div>
               </div>
             </div>
           </div>
@@ -341,13 +341,13 @@ export function EpaObservationForm({
             gap: 0,
             fontSize: 10,
             fontWeight: 700,
-            color: "var(--text-1)",
+            color: "#cbd5e1",
             textAlign: "center",
             padding: "6px 0 10px",
             borderBottom: "2px solid var(--border-mid)",
             marginBottom: 2,
           }}>
-            <div style={{ textAlign: "left", fontSize: 11, color: "var(--text-2)" }}>Criterion</div>
+            <div style={{ textAlign: "left", fontSize: 11, color: "#94a3b8" }}>Criterion</div>
             {ENTRUSTMENT_OPTIONS.map((opt) => (
               <div key={opt.value} style={{ lineHeight: 1.3, padding: "0 2px", color: opt.color }}>
                 {opt.value === 0 ? "Not observed" : opt.label}
@@ -408,8 +408,8 @@ export function EpaObservationForm({
                   placeholder="Comment"
                   style={{
                     width: "100%", padding: "7px 10px",
-                    background: "var(--surface2)", border: "1px solid var(--border-mid)",
-                    borderRadius: 6, color: "var(--text-1)", fontSize: 12,
+                    background: "#0c1219", border: "1px solid rgba(255,255,255,0.10)",
+                    borderRadius: 6, color: "#cbd5e1", fontSize: 12,
                     outline: "none", fontStyle: "italic",
                   }}
                 />
@@ -453,7 +453,7 @@ export function EpaObservationForm({
                   >
                     <div style={{
                       width: 28, height: 28, borderRadius: "50%",
-                      background: selected ? opt.color : "var(--bg-2)",
+                      background: selected ? opt.color : "#111a25",
                       border: selected ? "none" : "2px solid var(--border-mid)",
                       display: "flex", alignItems: "center", justifyContent: "center",
                     }}>
@@ -580,10 +580,10 @@ export function EpaObservationForm({
       {/* ── Safety / Professionalism Flags ──────────────────────────── */}
       <div style={{
         ...sectionStyle,
-        borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "var(--border-mid)",
+        borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "rgba(255,255,255,0.08)",
         background: (safetyConcern || professionalismConcern) ? "#ef444408" : "var(--bg-3)",
       }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 700, color: "#cbd5e1", marginBottom: 10 }}>
           Flags
         </div>
         <div style={{ display: "flex", gap: 16, marginBottom: (safetyConcern || professionalismConcern) ? 10 : 0 }}>
@@ -619,7 +619,7 @@ export function EpaObservationForm({
         <button type="button" onClick={handleSaveDraft} disabled={savingDraft}
           style={{
             padding: "10px 20px", borderRadius: 8, border: "1px solid var(--border-mid)",
-            background: "transparent", color: "var(--text-2)", fontSize: 13, fontWeight: 600,
+            background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600,
             cursor: savingDraft ? "not-allowed" : "pointer", opacity: savingDraft ? 0.6 : 1,
             transition: "all .15s",
           }}>
@@ -639,7 +639,7 @@ export function EpaObservationForm({
         <button type="button" onClick={onCancel}
           style={{
             marginLeft: "auto", padding: "10px 16px", background: "transparent",
-            border: "none", color: "var(--text-3)", fontSize: 13, cursor: "pointer",
+            border: "none", color: "#94a3b8", fontSize: 13, cursor: "pointer",
             transition: "color .15s",
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-1)"; }}

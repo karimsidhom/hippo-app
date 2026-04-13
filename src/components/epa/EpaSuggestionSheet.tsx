@@ -34,7 +34,7 @@ function SkeletonCard() {
   return (
     <div
       style={{
-        background: "var(--bg-2)",
+        background: "var(--bg-2, #141c28)",
         border: "1px solid var(--border-mid)",
         borderRadius: 10,
         padding: 14,
@@ -49,7 +49,7 @@ function SkeletonCard() {
             width: 40,
             height: 20,
             borderRadius: 4,
-            background: "var(--bg-3)",
+            background: "var(--bg-3, #1a2332)",
             animation: "pulse 1.5s ease-in-out infinite",
           }}
         />
@@ -58,7 +58,7 @@ function SkeletonCard() {
             flex: 1,
             height: 14,
             borderRadius: 4,
-            background: "var(--bg-3)",
+            background: "var(--bg-3, #1a2332)",
             animation: "pulse 1.5s ease-in-out infinite",
           }}
         />
@@ -69,7 +69,7 @@ function SkeletonCard() {
             width: 60,
             height: 18,
             borderRadius: 4,
-            background: "var(--bg-3)",
+            background: "var(--bg-3, #1a2332)",
             animation: "pulse 1.5s ease-in-out infinite",
           }}
         />
@@ -78,7 +78,7 @@ function SkeletonCard() {
             width: 80,
             height: 18,
             borderRadius: 4,
-            background: "var(--bg-3)",
+            background: "var(--bg-3, #1a2332)",
             animation: "pulse 1.5s ease-in-out infinite",
           }}
         />
@@ -87,7 +87,7 @@ function SkeletonCard() {
         style={{
           height: 6,
           borderRadius: 3,
-          background: "var(--bg-3)",
+          background: "var(--bg-3, #1a2332)",
           animation: "pulse 1.5s ease-in-out infinite",
         }}
       />
@@ -109,9 +109,9 @@ export function EpaSuggestionSheet({
           0%, 100% { opacity: 1; }
           50% { opacity: 0.4; }
         }
-        @keyframes slideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
+        @keyframes modalIn {
+          from { opacity: 0; transform: translate(-50%, -48%) scale(0.97); }
+          to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         }
         @keyframes fadeIn {
           from { opacity: 0; }
@@ -132,49 +132,33 @@ export function EpaSuggestionSheet({
         }}
       />
 
-      {/* Sheet */}
+      {/* Centered Modal */}
       <div
         style={{
           position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
+          top: "50%",
+          left: "50%",
+          transform: "translate(-50%, -50%)",
           zIndex: 1001,
-          background: "var(--bg-1)",
-          borderTop: "1px solid var(--border-mid)",
-          borderRadius: "16px 16px 0 0",
-          maxHeight: "80vh",
+          background: "var(--bg-1, #0e1520)",
+          border: "1px solid var(--border-mid)",
+          borderRadius: 16,
+          maxHeight: "85vh",
+          width: "90vw",
+          maxWidth: 520,
           display: "flex",
           flexDirection: "column",
-          animation: "slideUp .3s cubic-bezier(.16,1,.3,1)",
+          animation: "modalIn .25s cubic-bezier(.16,1,.3,1)",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.05)",
         }}
       >
-        {/* Handle */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "center",
-            paddingTop: 10,
-            paddingBottom: 4,
-          }}
-        >
-          <div
-            style={{
-              width: 36,
-              height: 4,
-              borderRadius: 2,
-              background: "var(--border-mid)",
-            }}
-          />
-        </div>
-
         {/* Header */}
-        <div style={{ padding: "8px 20px 16px" }}>
+        <div style={{ padding: "20px 24px 16px" }}>
           <h2
             style={{
               fontSize: 18,
               fontWeight: 700,
-              color: "var(--text-1)",
+              color: "var(--text-1, #E2E8F0)",
               margin: 0,
             }}
           >
@@ -183,11 +167,11 @@ export function EpaSuggestionSheet({
           <p
             style={{
               fontSize: 13,
-              color: "var(--text-3)",
+              color: "var(--text-3, #475569)",
               margin: "4px 0 0",
             }}
           >
-            This case may count toward these EPAs
+            {loading ? "AI is analyzing your case..." : "This case may count toward these EPAs"}
           </p>
         </div>
 
@@ -196,7 +180,7 @@ export function EpaSuggestionSheet({
           style={{
             flex: 1,
             overflowY: "auto",
-            padding: "0 20px 12px",
+            padding: "0 24px 12px",
             display: "flex",
             flexDirection: "column",
             gap: 10,
@@ -204,7 +188,21 @@ export function EpaSuggestionSheet({
         >
           {loading ? (
             <>
-              <SkeletonCard />
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "center",
+                gap: 10, padding: "20px 0 12px",
+              }}>
+                <div style={{
+                  width: 18, height: 18, borderRadius: "50%",
+                  border: "2px solid rgba(255,255,255,0.1)",
+                  borderTop: "2px solid #0ea5e9",
+                  animation: "spin .7s linear infinite",
+                }} />
+                <span style={{ fontSize: 13, color: "#94a3b8" }}>
+                  Gemini is reading your case...
+                </span>
+              </div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
               <SkeletonCard />
               <SkeletonCard />
             </>
@@ -213,7 +211,7 @@ export function EpaSuggestionSheet({
               style={{
                 padding: 24,
                 textAlign: "center",
-                color: "var(--text-3)",
+                color: "var(--text-3, #475569)",
                 fontSize: 13,
               }}
             >
@@ -236,7 +234,7 @@ export function EpaSuggestionSheet({
                   key={suggestion.epaId}
                   onClick={() => onSelect(suggestion)}
                   style={{
-                    background: "var(--bg-2)",
+                    background: "var(--bg-2, #141c28)",
                     border: "1px solid var(--border-mid)",
                     borderRadius: 10,
                     padding: 14,
@@ -279,7 +277,7 @@ export function EpaSuggestionSheet({
                         flex: 1,
                         fontSize: 13,
                         fontWeight: 600,
-                        color: "var(--text-1)",
+                        color: "var(--text-1, #E2E8F0)",
                         overflow: "hidden",
                         textOverflow: "ellipsis",
                         whiteSpace: "nowrap",
@@ -316,8 +314,8 @@ export function EpaSuggestionSheet({
                         key={i}
                         style={{
                           fontSize: 10,
-                          color: "var(--text-3)",
-                          background: "var(--bg-3)",
+                          color: "var(--text-3, #475569)",
+                          background: "var(--bg-3, #1a2332)",
                           padding: "2px 6px",
                           borderRadius: 3,
                         }}
@@ -359,7 +357,7 @@ export function EpaSuggestionSheet({
                     <span
                       style={{
                         fontSize: 11,
-                        color: "var(--text-3)",
+                        color: "var(--text-3, #475569)",
                         fontFamily: "'Geist Mono', monospace",
                         flexShrink: 0,
                       }}
@@ -377,7 +375,7 @@ export function EpaSuggestionSheet({
         {/* Footer */}
         <div
           style={{
-            padding: "12px 20px 20px",
+            padding: "12px 24px 20px",
             borderTop: "1px solid var(--border-mid)",
           }}
         >
@@ -389,7 +387,7 @@ export function EpaSuggestionSheet({
               background: "transparent",
               border: "1px solid var(--border-mid)",
               borderRadius: 8,
-              color: "var(--text-2)",
+              color: "var(--text-2, #64748B)",
               fontSize: 13,
               fontWeight: 600,
               cursor: "pointer",
@@ -397,7 +395,7 @@ export function EpaSuggestionSheet({
             }}
             onMouseEnter={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background =
-                "var(--bg-2)";
+                "var(--bg-2, #141c28)";
             }}
             onMouseLeave={(e) => {
               (e.currentTarget as HTMLButtonElement).style.background =
