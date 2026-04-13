@@ -487,6 +487,747 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     ],
   },
 
+  // ── Additional Urology procedures ───────────────────────────────────────
+  turp: {
+    procedureKey: "turp",
+    displayName: "Transurethral Resection of Prostate (TURP)",
+    province: "MB",
+    codes: [
+      { code: "5761", label: "Transurethral resection of prostate", fee: "497.60" },
+    ],
+    prompts: [
+      {
+        id: "mb-turp-weight",
+        label: "Resected tissue weight",
+        text: "Document estimated weight of resected tissue and whether it was sent to pathology.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-turp-hemostasis",
+        label: "Hemostasis documentation",
+        text: "Document adequacy of hemostasis and irrigation fluid used (glycine, saline). Note catheter type and irrigation.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  holep: {
+    procedureKey: "holep",
+    displayName: "Holmium Laser Enucleation of Prostate (HoLEP)",
+    province: "MB",
+    codes: [
+      { code: "5761", label: "Transurethral prostate surgery (laser)", fee: "497.60" },
+    ],
+    prompts: [
+      {
+        id: "mb-holep-technique",
+        label: "Laser technique",
+        text: "Document laser settings, enucleation technique, and morcellation details. State tissue weight.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  nephroureterectomy: {
+    procedureKey: "nephroureterectomy",
+    displayName: "Nephroureterectomy",
+    province: "MB",
+    codes: [
+      { code: "5730", label: "Nephrectomy, radical", fee: "866.25" },
+      { code: "5734", label: "Ureterectomy (with bladder cuff)", fee: "433.10" },
+    ],
+    prompts: [
+      {
+        id: "mb-nux-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right) explicitly.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-nux-cuff",
+        label: "Bladder cuff excision",
+        text: "Document bladder cuff excision technique (open, endoscopic, laparoscopic). State how the distal ureter and cuff were managed.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-nux-approach",
+        label: "Approach",
+        text: "Document approach for each portion (laparoscopic nephrectomy + open cuff vs. fully laparoscopic/robotic).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "Nephrectomy and ureterectomy may be billed as separate tariffs if documented as distinct procedures.",
+    ],
+  },
+
+  radical_cystectomy: {
+    procedureKey: "radical_cystectomy",
+    displayName: "Radical Cystectomy with Urinary Diversion",
+    province: "MB",
+    codes: [
+      { code: "5775", label: "Radical cystectomy", fee: "1385.60" },
+      { code: "5776", label: "Urinary diversion (ileal conduit/neobladder)", fee: "692.80" },
+    ],
+    prompts: [
+      {
+        id: "mb-rc-diversion",
+        label: "Diversion type",
+        text: "Document type of urinary diversion (ileal conduit, neobladder, continent cutaneous). Include bowel segment used and anastomosis details.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-rc-lymph",
+        label: "Lymph node dissection",
+        text: "Document extent of pelvic lymph node dissection (standard vs. extended) and laterality.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "Cystectomy and diversion are separate tariffs — document each as distinct procedure.",
+    ],
+  },
+
+  pcnl: {
+    procedureKey: "pcnl",
+    displayName: "Percutaneous Nephrolithotomy (PCNL)",
+    province: "MB",
+    codes: [
+      { code: "5740", label: "Percutaneous nephrolithotomy", fee: "693.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-pcnl-access",
+        label: "Access documentation",
+        text: "Document puncture site, number of access tracts, and fluoroscopy/ultrasound guidance used.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-pcnl-stone",
+        label: "Stone details",
+        text: "Document stone size, location, burden, and stone-free status post-procedure. Note lithotripsy modality (ultrasonic, laser, pneumatic).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-pcnl-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  stent_placement: {
+    procedureKey: "stent_placement",
+    displayName: "Ureteral Stent Placement",
+    province: "MB",
+    codes: [
+      { code: "5788", label: "Ureteral stent insertion", fee: "131.20" },
+    ],
+    prompts: [
+      {
+        id: "mb-stent-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right/bilateral).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-stent-details",
+        label: "Stent details",
+        text: "Document stent size (French), length, and type. Note planned removal date.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-stent-indication",
+        label: "Indication",
+        text: "Document indication for stent placement (obstruction, post-URS, post-lithotripsy, etc.).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "If placed as add-on to ureteroscopy, document as separate procedure.",
+    ],
+  },
+
+  stent_removal: {
+    procedureKey: "stent_removal",
+    displayName: "Ureteral Stent Removal",
+    province: "MB",
+    codes: [
+      { code: "5789", label: "Ureteral stent removal", fee: "65.60" },
+    ],
+    prompts: [
+      {
+        id: "mb-stentrem-laterality",
+        label: "Laterality",
+        text: "Document laterality and confirm stent removed in its entirety.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  orchiectomy: {
+    procedureKey: "orchiectomy",
+    displayName: "Orchiectomy (Radical or Simple)",
+    province: "MB",
+    codes: [
+      { code: "5820", label: "Orchiectomy, radical (inguinal)", fee: "347.50" },
+      { code: "5821", label: "Orchiectomy, simple (scrotal)", fee: "195.80" },
+    ],
+    prompts: [
+      {
+        id: "mb-orch-approach",
+        label: "Approach",
+        text: "Document approach: inguinal (radical) vs. scrotal (simple). For testicular cancer, inguinal approach is standard.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-orch-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-orch-cord",
+        label: "Cord management",
+        text: "Document level of cord ligation (high inguinal for radical). Note if prosthesis placed.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  hydrocelectomy: {
+    procedureKey: "hydrocelectomy",
+    displayName: "Hydrocelectomy",
+    province: "MB",
+    codes: [
+      { code: "5822", label: "Hydrocelectomy", fee: "195.80" },
+    ],
+    prompts: [
+      {
+        id: "mb-hydro-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-hydro-technique",
+        label: "Technique",
+        text: "Document technique (Lord's plication, Jaboulay, excision and eversion).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  vasectomy: {
+    procedureKey: "vasectomy",
+    displayName: "Vasectomy",
+    province: "MB",
+    codes: [
+      { code: "5840", label: "Vasectomy, bilateral", fee: "173.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-vas-bilateral",
+        label: "Bilateral confirmation",
+        text: "Confirm bilateral procedure. Document technique (no-scalpel, conventional) and fascial interposition/mucosal fulguration if used.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  varicocelectomy: {
+    procedureKey: "varicocelectomy",
+    displayName: "Varicocelectomy",
+    province: "MB",
+    codes: [
+      { code: "5832", label: "Varicocelectomy", fee: "347.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-varico-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right). State approach (subinguinal microsurgical, inguinal, laparoscopic).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  orchiopexy: {
+    procedureKey: "orchiopexy",
+    displayName: "Orchiopexy",
+    province: "MB",
+    codes: [
+      { code: "5824", label: "Orchiopexy, inguinal", fee: "347.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-orchiopexy-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right). Describe location of testis preoperatively (inguinal canal, abdominal, etc.).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-orchiopexy-fixation",
+        label: "Fixation",
+        text: "Document dartos pouch creation and testicular fixation technique.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  prostate_biopsy: {
+    procedureKey: "prostate_biopsy",
+    displayName: "Prostate Biopsy (TRUS/Transperineal)",
+    province: "MB",
+    codes: [
+      { code: "5766", label: "Prostate biopsy, transrectal ultrasound-guided", fee: "130.90" },
+    ],
+    prompts: [
+      {
+        id: "mb-prosbx-cores",
+        label: "Core documentation",
+        text: "Document number of cores obtained and sites sampled. If MRI-fusion, document targeted sites.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  pyeloplasty: {
+    procedureKey: "pyeloplasty",
+    displayName: "Pyeloplasty",
+    province: "MB",
+    codes: [
+      { code: "5735", label: "Pyeloplasty", fee: "693.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-pyelo-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-pyelo-technique",
+        label: "Technique",
+        text: "Document technique (Anderson-Hynes dismembered, Fenger, Y-V plasty). Note approach (open, laparoscopic, robotic). Document stent placement if applicable.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  urethroplasty: {
+    procedureKey: "urethroplasty",
+    displayName: "Urethroplasty",
+    province: "MB",
+    codes: [
+      { code: "5808", label: "Urethroplasty", fee: "520.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-urethro-technique",
+        label: "Technique",
+        text: "Document type of repair (excision and primary anastomosis, buccal mucosal graft, penile flap). State stricture length and location.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  adrenalectomy: {
+    procedureKey: "adrenalectomy",
+    displayName: "Adrenalectomy",
+    province: "MB",
+    codes: [
+      { code: "5710", label: "Adrenalectomy", fee: "693.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-adrenal-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right). State approach (laparoscopic transperitoneal, retroperitoneal, open).",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-adrenal-indication",
+        label: "Indication",
+        text: "Document indication (pheochromocytoma, Conn's, Cushing's, incidentaloma, metastasis). Note tumor size.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  penile_prosthesis: {
+    procedureKey: "penile_prosthesis",
+    displayName: "Penile Prosthesis Implantation",
+    province: "MB",
+    codes: [
+      { code: "5850", label: "Penile prosthesis implantation", fee: "520.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-ipp-type",
+        label: "Prosthesis type",
+        text: "Document prosthesis type (inflatable 3-piece, malleable) and model. State cylinder sizing.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  sacral_neuromodulation: {
+    procedureKey: "sacral_neuromodulation",
+    displayName: "Sacral Neuromodulation (InterStim)",
+    province: "MB",
+    codes: [
+      { code: "5860", label: "Sacral nerve stimulator implantation", fee: "433.10" },
+    ],
+    prompts: [
+      {
+        id: "mb-snm-stage",
+        label: "Stage documentation",
+        text: "Document if this is Stage 1 (lead placement/trial) or Stage 2 (IPG implantation). State lead placement site (S3 foramen).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [
+      "Stage 1 and Stage 2 are billed separately.",
+    ],
+  },
+
+  mid_urethral_sling: {
+    procedureKey: "mid_urethral_sling",
+    displayName: "Mid-Urethral Sling (TVT/TOT)",
+    province: "MB",
+    codes: [
+      { code: "5810", label: "Female urethral sling procedure", fee: "347.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-sling-type",
+        label: "Sling type",
+        text: "Document type of sling (retropubic/TVT vs. transobturator/TOT). State cystoscopy performed to confirm no perforation.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  artificial_urinary_sphincter: {
+    procedureKey: "artificial_urinary_sphincter",
+    displayName: "Artificial Urinary Sphincter (AUS)",
+    province: "MB",
+    codes: [
+      { code: "5812", label: "Artificial urinary sphincter implantation", fee: "520.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-aus-components",
+        label: "Component documentation",
+        text: "Document cuff size and location, pump placement, and reservoir placement. State device model.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  eswl: {
+    procedureKey: "eswl",
+    displayName: "Extracorporeal Shock Wave Lithotripsy (ESWL)",
+    province: "MB",
+    codes: [
+      { code: "5790", label: "Extracorporeal shock wave lithotripsy", fee: "347.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-eswl-stone",
+        label: "Stone details",
+        text: "Document stone size, location, and number of shocks delivered. State imaging modality used for targeting (fluoroscopy/ultrasound).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-eswl-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  bladder_biopsy: {
+    procedureKey: "bladder_biopsy",
+    displayName: "Bladder Biopsy (Cystoscopic)",
+    province: "MB",
+    codes: [
+      { code: "5771", label: "Cystoscopy with biopsy", fee: "151.65" },
+    ],
+    prompts: [
+      {
+        id: "mb-bxbladder-sites",
+        label: "Biopsy documentation",
+        text: "Document number and location of biopsies. Note whether cold cup or electrocautery biopsy.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  spc_placement: {
+    procedureKey: "spc_placement",
+    displayName: "Suprapubic Catheter Placement",
+    province: "MB",
+    codes: [
+      { code: "5778", label: "Suprapubic cystostomy", fee: "173.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-spc-technique",
+        label: "Technique",
+        text: "Document technique (percutaneous vs. open) and imaging guidance used. State catheter type and size.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  hypospadias_repair: {
+    procedureKey: "hypospadias_repair",
+    displayName: "Hypospadias Repair",
+    province: "MB",
+    codes: [
+      { code: "5802", label: "Hypospadias repair, single-stage", fee: "520.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-hypospadias-type",
+        label: "Repair type",
+        text: "Document type of hypospadias (distal, mid-shaft, proximal, penoscrotal) and repair technique (TIP/Snodgrass, Mathieu, two-stage).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  // ── Additional General Surgery ──────────────────────────────────────────
+  fundoplication: {
+    procedureKey: "fundoplication",
+    displayName: "Fundoplication (Nissen/Toupet)",
+    province: "MB",
+    codes: [
+      { code: "4380", label: "Fundoplication, laparoscopic", fee: "623.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-fundo-type",
+        label: "Wrap type",
+        text: "Document type of fundoplication (Nissen 360 vs. Toupet 270 vs. Dor). State degree of hiatal repair and crural closure.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  gastrectomy: {
+    procedureKey: "gastrectomy",
+    displayName: "Gastrectomy",
+    province: "MB",
+    codes: [
+      { code: "4330", label: "Gastrectomy, partial", fee: "749.25" },
+      { code: "4335", label: "Gastrectomy, total", fee: "1039.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-gastrect-extent",
+        label: "Resection extent",
+        text: "Document extent (subtotal, total, sleeve) and reconstruction type (Billroth I/II, Roux-en-Y).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  bariatric: {
+    procedureKey: "bariatric",
+    displayName: "Bariatric Surgery (Sleeve/Bypass)",
+    province: "MB",
+    codes: [
+      { code: "4336", label: "Sleeve gastrectomy, laparoscopic", fee: "623.25" },
+      { code: "4337", label: "Roux-en-Y gastric bypass, laparoscopic", fee: "866.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-bariatric-bmi",
+        label: "BMI documentation",
+        text: "Document preoperative BMI, comorbidities, and multidisciplinary team assessment.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-bariatric-technique",
+        label: "Technical details",
+        text: "Document bougie size (sleeve), limb lengths (bypass), staple line reinforcement, and leak test.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  splenectomy: {
+    procedureKey: "splenectomy",
+    displayName: "Splenectomy",
+    province: "MB",
+    codes: [
+      { code: "4370", label: "Splenectomy", fee: "623.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-spleen-indication",
+        label: "Indication",
+        text: "Document indication (ITP, trauma, malignancy, etc.) and approach (open vs. laparoscopic). Note specimen weight.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  whipple: {
+    procedureKey: "whipple",
+    displayName: "Pancreaticoduodenectomy (Whipple)",
+    province: "MB",
+    codes: [
+      { code: "4390", label: "Pancreaticoduodenectomy", fee: "1732.50" },
+    ],
+    prompts: [
+      {
+        id: "mb-whipple-margins",
+        label: "Margin documentation",
+        text: "Document margin status (uncinate, SMA margin, bile duct margin). State vascular involvement/resection if applicable.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-whipple-reconstruction",
+        label: "Reconstruction",
+        text: "Document pancreatic anastomosis type (pancreaticojejunostomy vs. pancreaticogastrostomy), hepaticojejunostomy, and gastrojejunostomy.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  mastectomy: {
+    procedureKey: "mastectomy",
+    displayName: "Mastectomy",
+    province: "MB",
+    codes: [
+      { code: "4100", label: "Mastectomy, simple/total", fee: "520.50" },
+      { code: "4101", label: "Mastectomy, modified radical", fee: "623.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-mast-laterality",
+        label: "Laterality",
+        text: "Document laterality (left/right). If bilateral, document each side separately.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-mast-sentinel",
+        label: "Sentinel lymph node biopsy",
+        text: "If SLNB performed, document technique (blue dye, radiocolloid), number of nodes, and frozen section result.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "Sentinel lymph node biopsy may be billed separately.",
+    ],
+  },
+
+  thyroidectomy: {
+    procedureKey: "thyroidectomy",
+    displayName: "Thyroidectomy",
+    province: "MB",
+    codes: [
+      { code: "4050", label: "Thyroidectomy, total", fee: "623.25" },
+      { code: "4051", label: "Thyroid lobectomy", fee: "433.10" },
+    ],
+    prompts: [
+      {
+        id: "mb-thyroid-nerves",
+        label: "Nerve identification",
+        text: "Document identification and preservation of recurrent laryngeal nerve(s) and external branch of superior laryngeal nerve.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-thyroid-parathyroid",
+        label: "Parathyroid preservation",
+        text: "Document identification and preservation of parathyroid glands. Note if any autotransplanted.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
   // ── Scaffold for future procedures ────────────────────────────────────────
   open_lysis_example_primary: {
     procedureKey: "open_lysis_example_primary",
@@ -505,22 +1246,103 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
 // ── Procedure name → billing key resolver ───────────────────────────────────
 
 const PROCEDURE_NAME_PATTERNS: [RegExp, string][] = [
+  // ── Urology ──
   [/\bturbt\b/i, "turbt"],
   [/\btransurethral.+bladder\b/i, "turbt"],
+  [/\bbladder\s+tum(ou)?r\s+resect/i, "turbt"],
+  [/\bturp\b/i, "turp"],
+  [/\btransurethral.+prostate\b/i, "turp"],
+  [/\bholep\b/i, "holep"],
+  [/\bholmium.+enucleation/i, "holep"],
+  [/\bpvp\b/i, "turp"],
+  [/\bgreenlight/i, "turp"],
   [/\bcystoscop/i, "cystoscopy"],
+  [/\bbladder\s+scope/i, "cystoscopy"],
+  [/\bbladder\s+biops/i, "bladder_biopsy"],
   [/\bradical\s+prostatectom/i, "radical_prostatectomy"],
+  [/\bralp\b/i, "radical_prostatectomy"],
+  [/\brarp\b/i, "radical_prostatectomy"],
+  [/\bnephroureterectom/i, "nephroureterectomy"],
+  [/\bnux\b/i, "nephroureterectomy"],
+  [/\bupper\s+tract\s+tcc/i, "nephroureterectomy"],
   [/\bnephrectom/i, "nephrectomy"],
+  [/\bradical\s+cystectom/i, "radical_cystectomy"],
+  [/\brarc\b/i, "radical_cystectomy"],
+  [/\bileal\s+conduit/i, "radical_cystectomy"],
+  [/\bneobladder/i, "radical_cystectomy"],
+  [/\bpcnl\b/i, "pcnl"],
+  [/\bpercutaneous\s+nephro/i, "pcnl"],
   [/\bureteroscop/i, "ureteroscopy"],
-  [/\blithotrips/i, "ureteroscopy"],
+  [/\burs\b/i, "ureteroscopy"],
+  [/\blaser\s+lithotrips/i, "ureteroscopy"],
+  [/\beswl\b/i, "eswl"],
+  [/\bshock\s+wave\s+lithotrips/i, "eswl"],
+  [/\bstent\s+place/i, "stent_placement"],
+  [/\bstent\s+insert/i, "stent_placement"],
+  [/\bjj\s+stent/i, "stent_placement"],
+  [/\bdouble\s+j\s+stent/i, "stent_placement"],
+  [/\bureteral\s+stent\b(?!\s*remov)/i, "stent_placement"],
+  [/\bstent\s+remov/i, "stent_removal"],
   [/\bcircumcis/i, "circumcision"],
+  [/\borchiectom/i, "orchiectomy"],
+  [/\btestis\s+removal/i, "orchiectomy"],
+  [/\bhydrocelectom/i, "hydrocelectomy"],
+  [/\bhydrocele\s+repair/i, "hydrocelectomy"],
+  [/\bvasectom/i, "vasectomy"],
+  [/\bvaricocelectom/i, "varicocelectomy"],
+  [/\bvaricocele\s+repair/i, "varicocelectomy"],
+  [/\borchiopexy/i, "orchiopexy"],
+  [/\borchidopexy/i, "orchiopexy"],
+  [/\bundescended\s+test/i, "orchiopexy"],
+  [/\bprostate\s+biops/i, "prostate_biopsy"],
+  [/\btrus\s+biops/i, "prostate_biopsy"],
+  [/\bfusion\s+biops/i, "prostate_biopsy"],
+  [/\btransperineal.*biops/i, "prostate_biopsy"],
+  [/\bpyeloplast/i, "pyeloplasty"],
+  [/\burethroplast/i, "urethroplasty"],
+  [/\bstricture\s+repair/i, "urethroplasty"],
+  [/\badrenalectom/i, "adrenalectomy"],
+  [/\bpenile\s+prosthes/i, "penile_prosthesis"],
+  [/\bipp\b/i, "penile_prosthesis"],
+  [/\bsacral\s+neuromod/i, "sacral_neuromodulation"],
+  [/\binterstim/i, "sacral_neuromodulation"],
+  [/\bsnm\b/i, "sacral_neuromodulation"],
+  [/\bmid.?urethral\s+sling/i, "mid_urethral_sling"],
+  [/\btvt\b/i, "mid_urethral_sling"],
+  [/\btot\b/i, "mid_urethral_sling"],
+  [/\bartificial.+sphincter/i, "artificial_urinary_sphincter"],
+  [/\baus\b/i, "artificial_urinary_sphincter"],
+  [/\bams\s+800/i, "artificial_urinary_sphincter"],
+  [/\bsuprapubic\s+catheter/i, "spc_placement"],
+  [/\bspc\b/i, "spc_placement"],
+  [/\bhypospadias/i, "hypospadias_repair"],
+  // ── General Surgery ──
   [/\bcholecystectom/i, "cholecystectomy"],
   [/\bappendectom/i, "appendectomy"],
   [/\bhernia\s+repair/i, "hernia_repair"],
   [/\binguinal\s+hernia/i, "hernia_repair"],
   [/\bumbilical\s+hernia/i, "hernia_repair"],
   [/\bventral\s+hernia/i, "hernia_repair"],
+  [/\btep\b/i, "hernia_repair"],
+  [/\btapp\b/i, "hernia_repair"],
+  [/\blichtenstein/i, "hernia_repair"],
   [/\bcolectom/i, "colectomy"],
   [/\bhemicolectom/i, "colectomy"],
+  [/\bfundoplicat/i, "fundoplication"],
+  [/\bnissen/i, "fundoplication"],
+  [/\btoupet/i, "fundoplication"],
+  [/\bgastrectom/i, "gastrectomy"],
+  [/\bsleeve\s+gastrectom/i, "bariatric"],
+  [/\broux.en.y/i, "bariatric"],
+  [/\bgastric\s+bypass/i, "bariatric"],
+  [/\bbariatric/i, "bariatric"],
+  [/\bsplenectom/i, "splenectomy"],
+  [/\bwhipple/i, "whipple"],
+  [/\bpancreaticoduodenectom/i, "whipple"],
+  [/\bmastectom/i, "mastectomy"],
+  [/\bthyroidectom/i, "thyroidectomy"],
+  [/\bthyroid\s+lobectom/i, "thyroidectomy"],
+  // ── Add-ons ──
   [/\badhesiolysis\b/i, "adhesiolysis_add_on"],
   [/\blysis\s+of\s+adhesion/i, "adhesiolysis_add_on"],
 ];
