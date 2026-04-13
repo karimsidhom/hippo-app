@@ -249,6 +249,10 @@ export default function LogCasePage() {
       // Store the real server ID so it's available for EPA suggestions later
       setSavedCaseId(newCase.id);
 
+      // Start fetching EPA suggestions RIGHT AWAY in the background
+      // so they're ready by the time the user dismisses milestones
+      startEpaSuggestionFetch(newCase.id);
+
       let newMilestones: Milestone[] = [];
       let newPRs: PersonalRecord[] = [];
       try {
@@ -263,14 +267,15 @@ export default function LogCasePage() {
         }
       } catch (milestoneErr) {
         console.error('[doSubmit] Milestone check failed:', milestoneErr);
-        // Continue to EPA suggestions even if milestone check fails
       }
 
       if (newMilestones.length > 0 || newPRs.length > 0) {
+        // Show celebration — EPA suggestions already loading in background.
+        // When user dismisses celebration, showEpaSuggestions will kick in.
         setCelebration({ milestones: newMilestones, prs: newPRs });
       } else {
-        // Try to fetch EPA suggestions for this case
-        fetchEpaSuggestions(newCase.id);
+        // No milestones — show EPA suggestions immediately (already loading)
+        setShowEpaSuggestions(true);
       }
     } catch (err) {
       console.error('[doSubmit] Unexpected error:', err);
@@ -280,11 +285,14 @@ export default function LogCasePage() {
     }
   };
 
-  /** Fetch EPA suggestions after case is saved */
-  const fetchEpaSuggestions = async (caseLogId: string) => {
+  /**
+   * Start fetching EPA suggestions in the background.
+   * Called immediately after case save — runs in parallel with milestone checks.
+   * Does NOT redirect on failure — always shows the EPA modal.
+   */
+  const startEpaSuggestionFetch = async (caseLogId: string) => {
     setEpaSuggestionsLoading(true);
-    setShowEpaSuggestions(true);
-    setSavedCaseId(caseLogId);
+    setEpaSuggestions([]);
     try {
       const res = await fetch("/api/epa/ai-suggest", {
         method: "POST",
@@ -292,23 +300,16 @@ export default function LogCasePage() {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ caseLogId }),
       });
-      if (!res.ok) {
-        // Suggestion failed — just navigate away
-        setShowEpaSuggestions(false);
-        router.push("/cases");
-        return;
+      if (res.ok) {
+        const json = await res.json();
+        const suggestions: EpaSuggestion[] = json.suggestions ?? [];
+        setEpaSuggestions(suggestions);
+      } else {
+        console.error('[startEpaSuggestionFetch] API error:', res.status);
+        // Keep suggestions empty — the sheet will show "no suggestions" UI
       }
-      const json = await res.json();
-      const suggestions: EpaSuggestion[] = json.suggestions ?? [];
-      if (suggestions.length === 0) {
-        setShowEpaSuggestions(false);
-        router.push("/cases");
-        return;
-      }
-      setEpaSuggestions(suggestions);
-    } catch {
-      setShowEpaSuggestions(false);
-      router.push("/cases");
+    } catch (err) {
+      console.error('[startEpaSuggestionFetch] Fetch error:', err);
     } finally {
       setEpaSuggestionsLoading(false);
     }
@@ -1089,11 +1090,8 @@ export default function LogCasePage() {
           prs={celebration.prs}
           onClose={() => {
             setCelebration(null);
-            if (savedCaseId) {
-              fetchEpaSuggestions(savedCaseId);
-            } else {
-              router.push("/cases");
-            }
+            // EPA suggestions were already fetched in the background — just show them
+            setShowEpaSuggestions(true);
           }}
         />
       )}

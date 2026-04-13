@@ -211,11 +211,11 @@ export function EpaSuggestionSheet({
               style={{
                 padding: 24,
                 textAlign: "center",
-                color: "var(--text-3, #475569)",
-                fontSize: 13,
+                color: "var(--text-2, #64748B)",
+                fontSize: 14,
               }}
             >
-              No EPA suggestions for this case.
+              No EPA suggestions found for this case. You can still link an EPA manually from your dashboard.
             </div>
           ) : (
             suggestions.map((suggestion) => {
