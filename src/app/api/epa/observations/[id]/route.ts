@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 const ObservationUpdateSchema = z.object({
   caseLogId:        z.string().nullable().optional(),
@@ -138,6 +139,17 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
       data: updateData,
     });
 
+    void logAudit({
+      userId: user.id,
+      action: 'epa.update',
+      entityType: 'EpaObservation',
+      entityId: id,
+      before: existing,
+      after: updated,
+      metadata: { fieldsChanged: Object.keys(updateData) },
+      req,
+    });
+
     return NextResponse.json(updated);
   } catch (err) {
     if (err instanceof z.ZodError) {
@@ -155,7 +167,7 @@ export async function PATCH(req: NextRequest, context: RouteContext) {
  * DELETE /api/epa/observations/[id]
  * Deletes an EPA observation (only if status is DRAFT).
  */
-export async function DELETE(_req: NextRequest, context: RouteContext) {
+export async function DELETE(req: NextRequest, context: RouteContext) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -178,6 +190,15 @@ export async function DELETE(_req: NextRequest, context: RouteContext) {
     }
 
     await db.epaObservation.delete({ where: { id } });
+
+    void logAudit({
+      userId: user.id,
+      action: 'epa.delete',
+      entityType: 'EpaObservation',
+      entityId: id,
+      before: existing,
+      req,
+    });
 
     return NextResponse.json({ success: true });
   } catch (err) {

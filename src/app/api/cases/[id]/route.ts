@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -55,13 +56,25 @@ export async function PATCH(req: NextRequest, { params }: Params) {
   }
 
   const updated = await db.caseLog.update({ where: { id }, data: updateData });
+
+  void logAudit({
+    userId: user.id,
+    action: 'case.update',
+    entityType: 'CaseLog',
+    entityId: id,
+    before: existing,
+    after: updated,
+    metadata: { fieldsChanged: Object.keys(updateData) },
+    req,
+  });
+
   return NextResponse.json(updated);
 }
 
 /**
  * DELETE /api/cases/:id — delete a case
  */
-export async function DELETE(_req: NextRequest, { params }: Params) {
+export async function DELETE(req: NextRequest, { params }: Params) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -73,5 +86,15 @@ export async function DELETE(_req: NextRequest, { params }: Params) {
   }
 
   await db.caseLog.delete({ where: { id } });
+
+  void logAudit({
+    userId: user.id,
+    action: 'case.delete',
+    entityType: 'CaseLog',
+    entityId: id,
+    before: existing,
+    req,
+  });
+
   return NextResponse.json({ success: true });
 }

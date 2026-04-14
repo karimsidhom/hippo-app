@@ -29,6 +29,11 @@ const SUBROUTES = [
     label: "Dictation Style",
     icon: Sparkles,
   },
+  {
+    href: "/settings/audit-log",
+    label: "Activity & Audit Log",
+    icon: Shield,
+  },
 ];
 
 export default function SettingsPage() {
@@ -433,6 +438,39 @@ export default function SettingsPage() {
               <p className="text-xs text-[#475569] text-center">
                 Exports all your cases in a PHIA-safe format. No patient identifiers are included.
               </p>
+
+              {/* Full-archive JSON download (GDPR/PIPEDA data portability) */}
+              <div style={{
+                marginTop: 24, paddingTop: 20,
+                borderTop: "1px solid var(--border)",
+              }}>
+                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", margin: "0 0 4px" }}>
+                  Download all your data
+                </h3>
+                <p style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.5, margin: "0 0 12px" }}>
+                  Machine-readable JSON archive of everything Hippo holds for your account —
+                  cases, EPA observations, schedule, profile, audit log. Use this if you
+                  want to leave, back up, or verify what we store.
+                </p>
+                <a
+                  href="/api/account/export"
+                  download
+                  style={{
+                    display: "inline-flex", alignItems: "center", gap: 8,
+                    padding: "10px 14px",
+                    background: "var(--surface2)",
+                    border: "1px solid var(--border-mid)",
+                    borderRadius: 8,
+                    color: "var(--text)",
+                    fontSize: 13, fontWeight: 500,
+                    textDecoration: "none",
+                    cursor: "pointer",
+                  }}
+                >
+                  <Download className="w-4 h-4" />
+                  Download JSON archive
+                </a>
+              </div>
             </div>
           )}
 

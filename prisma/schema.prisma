@@ -132,6 +132,7 @@ model User {
   pearlSaves      PearlSave[]
   pearlComments   PearlComment[]
   epaObservations  EpaObservation[]
+  auditLogs        AuditLog[]
 
   @@map("users")
 }
@@ -171,6 +172,7 @@ model Profile {
   allowBenchmarkSharing         Boolean      @default(true)
   bio                           String?
   onboardingCompleted           Boolean      @default(false)
+  acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
   tier                          String       @default("free")
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
@@ -582,4 +584,28 @@ model AttendingNotification {
   @@index([accessToken])
   @@index([epaObservationId])
   @@map("attending_notifications")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+// Append-only record of all sensitive reads/writes. Never mutate rows —
+// corrections are new rows with `action="audit.correction"` pointing to the
+// original. Surfaced to users (their own activity) and to PDs (their residents').
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  userId     String?  // Actor — nullable for system events
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // e.g. "case.create", "case.update", "case.delete", "epa.create", "epa.sign", "export.download", "auth.login", "profile.update", "consent.shadowRecord"
+  entityType String   // "CaseLog" | "EpaObservation" | "Profile" | "User" | "Export" | "Auth"
+  entityId   String?  // id of affected entity (nullable for auth events)
+  before     Json?    // snapshot before change (redacted of PHI-free-text when possible)
+  after      Json?    // snapshot after change
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?    // extra context (reason, source route, correlation id)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
 }

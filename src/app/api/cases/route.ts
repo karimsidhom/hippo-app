@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 const CaseCreateSchema = z.object({
   specialtyId:              z.string().nullable().optional(),
@@ -102,6 +103,15 @@ export async function POST(req: NextRequest) {
         },
       }).catch(() => {}); // Non-critical — don't fail the case save
     }
+
+    void logAudit({
+      userId: user.id,
+      action: 'case.create',
+      entityType: 'CaseLog',
+      entityId: created.id,
+      after: created,
+      req,
+    });
 
     return NextResponse.json(created, { status: 201 });
   } catch (err) {

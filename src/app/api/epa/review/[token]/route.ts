@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -145,6 +146,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
           data: { respondedAt: new Date() },
         }),
       ]);
+
+      void logAudit({
+        userId: observation.userId,
+        action: 'epa.sign',
+        entityType: 'EpaObservation',
+        entityId: observation.id,
+        before: observation,
+        after: updated,
+        metadata: {
+          signedByName: data.signedByName ?? notification.recipientName,
+          attendingEmail: notification.recipientEmail,
+          notificationId: notification.id,
+          viaAttendingLink: true,
+        },
+        req,
+      });
 
       return NextResponse.json(updated);
     }

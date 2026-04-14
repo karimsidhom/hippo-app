@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { logAudit } from '@/lib/audit';
 
 const ObservationCreateSchema = z.object({
   caseLogId:        z.string().nullable().optional(),
@@ -118,6 +119,16 @@ export async function POST(req: NextRequest) {
         concernDetails:         data.concernDetails ?? null,
         status:           'DRAFT',
       },
+    });
+
+    void logAudit({
+      userId: user.id,
+      action: 'epa.create',
+      entityType: 'EpaObservation',
+      entityId: created.id,
+      after: created,
+      metadata: { epaId: created.epaId, caseLogId: created.caseLogId },
+      req,
     });
 
     return NextResponse.json(created, { status: 201 });

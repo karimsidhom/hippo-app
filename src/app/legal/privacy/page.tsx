@@ -1,0 +1,47 @@
+export const metadata = { title: "Privacy Policy · Hippo" };
+
+export default function PrivacyPage() {
+  return (
+    <>
+      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Privacy Policy</h1>
+      <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Effective date: 2026-04-14 · Last updated: 2026-04-14</p>
+
+      <h2 style={H2}>1. What Hippo is (and is not)</h2>
+      <p>Hippo is a personal surgical training companion. It is <strong>not</strong> an official training record, credentialing system, or accreditation platform unless your program has explicitly entered into an institutional agreement with us. You should continue to use your program&apos;s official learning-management system (Elentra, MedHub, New Innovations, one45, Entrada, etc.) for any records your program requires.</p>
+
+      <h2 style={H2}>2. Data we collect</h2>
+      <ul>
+        <li><strong>Account data:</strong> email, name, specialty, institution, PGY year, role.</li>
+        <li><strong>Case logs:</strong> procedure, date, role, autonomy level, operative time, approach, and free-text notes/reflections that you enter yourself.</li>
+        <li><strong>EPA observations:</strong> ratings, attending information, and free-text comments.</li>
+        <li><strong>Device & audit data:</strong> IP address and user-agent when you take sensitive actions (case edits, sign-offs, exports). Retained in the audit log.</li>
+        <li><strong>No PHI by design:</strong> Hippo does not ask you for patient names, dates of birth, medical record numbers, or any direct identifiers. Our notes fields are scrubbed for obvious PHI tokens before storage, but you are responsible for not entering PHI.</li>
+      </ul>
+
+      <h2 style={H2}>3. How we use it</h2>
+      <p>To provide the product, to generate the analytics and briefs you see in the app, and to maintain security and integrity of the service. We do not sell your data. We do not show third-party advertising. We do not share your data with your program unless you explicitly opt in.</p>
+
+      <h2 style={H2}>4. Where it lives</h2>
+      <p>Primary storage is Supabase (Postgres) with encryption at rest and in transit. Files you upload are stored in Supabase Storage. For a full list of subprocessors see <a href="/legal/subprocessors" style={A}>Subprocessors</a>.</p>
+
+      <h2 style={H2}>5. AI processing</h2>
+      <p>Some features (morning brief, debrief parsing, dictation) send de-identified content to Anthropic (Claude) or OpenAI. We are in the process of executing Business Associate Agreements with these providers; until that is in place, you should not enter PHI into any free-text field. If AI processing is material to you, you can disable AI features in Settings.</p>
+
+      <h2 style={H2}>6. Your rights</h2>
+      <ul>
+        <li><strong>Access & export:</strong> download a complete archive of your data from Settings → Data Export. This is machine-readable JSON and includes everything we hold for your account.</li>
+        <li><strong>Correction:</strong> edit anything you&apos;ve entered from within the app.</li>
+        <li><strong>Deletion:</strong> request full account deletion from Settings → Delete account. We purge within 30 days, except for audit-log entries retained for legal/compliance reasons for up to 7 years (de-identified).</li>
+        <li><strong>Audit trail:</strong> see every action taken on your account at Settings → Audit Log.</li>
+      </ul>
+
+      <h2 style={H2}>7. Contact</h2>
+      <p>Questions, access requests, or complaints: <a href="mailto:privacy@hippomedicine.com" style={A}>privacy@hippomedicine.com</a>. If you are in Canada you may also contact the Office of the Privacy Commissioner; if you are in the EU/UK, your supervisory authority.</p>
+
+      <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginTop: 32 }}>Hippo reserves the right to update this policy. Material changes will be notified in-app.</p>
+    </>
+  );
+}
+
+const H2 = { fontSize: 17, fontWeight: 600, color: "var(--text, #f4f4f5)", marginTop: 28, marginBottom: 10 };
+const A = { color: "#3b82f6", textDecoration: "none" };
