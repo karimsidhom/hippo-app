@@ -20,6 +20,7 @@ export type AuditAction =
   | 'epa.update'
   | 'epa.sign'
   | 'epa.delete'
+  | 'epa.export'
   // Account
   | 'profile.update'
   | 'role.change'

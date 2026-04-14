@@ -7,6 +7,7 @@ import type { SpecialtyEpaData } from "@/lib/epa/data";
 import { computeEpaProgress } from "@/lib/epa/mapper";
 import type { EpaProgress, EpaDashboardData } from "@/lib/epa/mapper";
 import { EpaObservationForm } from "./EpaObservationForm";
+import { ModalShell } from "@/components/shared/ModalShell";
 import { EpaSubReqChecklist } from "./EpaSubReqChecklist";
 import { trackSubRequirements } from "@/lib/epa/subreqs";
 import type { ObservationForTracking, EpaSubRequirementSummary } from "@/lib/epa/subreqs";
@@ -622,45 +623,17 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
 
       {/* ── EPA Observation Form Modal ── */}
       {epaFormModal && (
-        <>
-          <div
-            onClick={() => setEpaFormModal(null)}
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0, 0, 0, 0.7)",
-              backdropFilter: "blur(4px)",
-              zIndex: 1002,
-            }}
+        <ModalShell onClose={() => setEpaFormModal(null)}>
+          <EpaObservationForm
+            epaId={epaFormModal.epaId}
+            epaTitle={epaFormModal.epaTitle}
+            specialtySlug={specialty || ""}
+            trainingSystem={isCanadian ? "RCPSC" : "ACGME"}
+            onSubmit={handleEpaFormSubmit}
+            onCancel={() => setEpaFormModal(null)}
+            onSaveDraft={handleEpaFormDraft}
           />
-          <div
-            style={{
-              position: "fixed",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              zIndex: 1003,
-              maxWidth: 640,
-              width: "90vw",
-              maxHeight: "85vh",
-              overflowY: "auto",
-              background: "var(--bg-1)",
-              border: "1px solid var(--border-mid)",
-              borderRadius: 16,
-              padding: 24,
-            }}
-          >
-            <EpaObservationForm
-              epaId={epaFormModal.epaId}
-              epaTitle={epaFormModal.epaTitle}
-              specialtySlug={specialty || ""}
-              trainingSystem={isCanadian ? "RCPSC" : "ACGME"}
-              onSubmit={handleEpaFormSubmit}
-              onCancel={() => setEpaFormModal(null)}
-              onSaveDraft={handleEpaFormDraft}
-            />
-          </div>
-        </>
+        </ModalShell>
       )}
     </div>
   );

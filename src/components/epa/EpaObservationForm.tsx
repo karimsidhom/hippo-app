@@ -60,20 +60,20 @@ function getStageLabel(epaId: string): string {
   return "EPA";
 }
 
-// ── Shared styles ──
+// ── Shared styles (theme-aware via CSS variables) ──
 const inputStyle: React.CSSProperties = {
-  width: "100%", padding: "10px 12px", background: "#0c1219",
-  border: "1px solid rgba(255,255,255,0.10)", borderRadius: 8, color: "#e2e8f0",
+  width: "100%", padding: "10px 12px", background: "var(--surface)",
+  border: "1px solid var(--border-mid)", borderRadius: 8, color: "var(--text)",
   fontSize: 14, outline: "none", transition: "border-color .15s", boxSizing: "border-box",
 };
 const labelStyle: React.CSSProperties = {
-  display: "block", fontSize: 13, fontWeight: 600, color: "#cbd5e1", marginBottom: 6,
+  display: "block", fontSize: 13, fontWeight: 600, color: "var(--text-1)", marginBottom: 6,
 };
 const sectionStyle: React.CSSProperties = {
-  background: "#141e2c", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 12, padding: 20,
+  background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 20,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16, fontWeight: 700, color: "#f1f5f9", margin: "0 0 16px",
+  fontSize: 16, fontWeight: 700, color: "var(--text-1)", margin: "0 0 16px",
   letterSpacing: "-0.01em",
 };
 
@@ -137,6 +137,39 @@ export function EpaObservationForm({
 
   // Send via Hippo toggle
   const [sendViaHippo, setSendViaHippo] = useState(false);
+
+  // ── Sign-off mode: pick a Hippo user (in-app) OR email a non-user ──
+  const [signOffMode, setSignOffMode] = useState<"none" | "in_app" | "email">("none");
+
+  // In-app picker state
+  type PickedAssessor = { id: string; name: string | null; email: string; role: string | null; institution: string | null };
+  const [pickerQuery, setPickerQuery] = useState("");
+  const [pickerResults, setPickerResults] = useState<PickedAssessor[]>([]);
+  const [pickerLoading, setPickerLoading] = useState(false);
+  const [pickedAssessor, setPickedAssessor] = useState<PickedAssessor | null>(null);
+
+  useEffect(() => {
+    if (signOffMode !== "in_app" || pickedAssessor) return;
+    const q = pickerQuery.trim();
+    if (q.length < 2) { setPickerResults([]); return; }
+    setPickerLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/assessors/search?q=${encodeURIComponent(q)}`)
+        .then(r => r.ok ? r.json() : { assessors: [] })
+        .then(d => setPickerResults(d.assessors ?? []))
+        .catch(() => setPickerResults([]))
+        .finally(() => setPickerLoading(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [pickerQuery, signOffMode, pickedAssessor]);
+
+  // When an in-app assessor is picked, sync into form fields the backend uses.
+  useEffect(() => {
+    if (pickedAssessor) {
+      setAssessorName(pickedAssessor.name ?? pickedAssessor.email);
+      setAssessorEmail(pickedAssessor.email);
+    }
+  }, [pickedAssessor]);
 
   // Live lookup: is this email a Hippo user? Drives the in-app vs email UX.
   const [assessorLookup, setAssessorLookup] = useState<
@@ -321,90 +354,198 @@ export function EpaObservationForm({
 
         </div>
 
-        {/* ── Send for Sign-off — prominent block ─────────────────────── */}
+        {/* ── Send for Sign-off — picker block ──────────────────────── */}
         <div style={{
           marginTop: 16,
-          padding: "14px 16px",
-          background: assessorLookup?.isHippoUser ? "rgba(16,185,129,.08)" : "rgba(37,99,235,.06)",
-          border: `1px solid ${assessorLookup?.isHippoUser ? "rgba(16,185,129,.3)" : "rgba(37,99,235,.25)"}`,
-          borderRadius: 10,
+          padding: "16px",
+          background: "var(--bg-2)",
+          border: "1px solid var(--border-mid)",
+          borderRadius: 12,
         }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-            <span style={{ fontSize: 16 }}>
-              {assessorLookup?.isHippoUser ? "\u2709\uFE0F" : "\uD83D\uDCE9"}
-            </span>
-            <div style={{
-              fontSize: 13, fontWeight: 700, color: "var(--text-1)",
-            }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
+            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)" }}>
               Send for sign-off
             </div>
-            <span style={{
-              fontSize: 10, color: "var(--text-3)",
-              marginLeft: "auto",
-            }}>Optional</span>
+            <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
+              Optional \u2014 you can also request later
+            </span>
           </div>
 
-          <label style={{ ...labelStyle, marginTop: 0 }}>Assessor email</label>
-          <input
-            type="email"
-            value={assessorEmail}
-            onChange={(e) => setAssessorEmail(e.target.value)}
-            placeholder="jane.smith@hospital.edu"
-            style={inputStyle}
-          />
+          {/* Mode selector — three big choice cards */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8, marginBottom: 14 }}>
+            <ChoiceCard
+              active={signOffMode === "in_app"}
+              activeColor="#10b981"
+              icon={"\uD83D\uDCAC"}
+              label="Send in Hippo"
+              sub="Pick an attending"
+              onClick={() => { setSignOffMode("in_app"); setPickedAssessor(null); setAssessorEmail(""); }}
+            />
+            <ChoiceCard
+              active={signOffMode === "email"}
+              activeColor="#2563eb"
+              icon={"\u2709\uFE0F"}
+              label="Email invite"
+              sub="365-day link"
+              onClick={() => { setSignOffMode("email"); setPickedAssessor(null); setPickerQuery(""); }}
+            />
+            <ChoiceCard
+              active={signOffMode === "none"}
+              activeColor="#64748b"
+              icon={"\uD83D\uDCBE"}
+              label="Save only"
+              sub="No sign-off yet"
+              onClick={() => { setSignOffMode("none"); setPickedAssessor(null); setAssessorEmail(""); setPickerQuery(""); }}
+            />
+          </div>
 
-          {/* Live lookup feedback */}
-          {assessorEmail.trim() && (
-            <div style={{
-              marginTop: 10,
-              padding: "10px 12px",
-              borderRadius: 8,
-              background: assessorLookup?.isHippoUser ? "rgba(16,185,129,.12)" : "var(--bg-2)",
-              border: `1px solid ${assessorLookup?.isHippoUser ? "rgba(16,185,129,.3)" : "var(--border-mid)"}`,
-              fontSize: 12,
-              color: "var(--text-2)",
-              lineHeight: 1.5,
-            }}>
-              {lookupLoading ? (
-                <span style={{ color: "var(--text-3)" }}>Checking{"\u2026"}</span>
-              ) : assessorLookup?.isHippoUser ? (
-                <>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
-                    <span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"} On Hippo</span>
-                    {assessorLookup.name && (
-                      <span style={{ color: "var(--text-2)" }}>{"\u2014"} {assessorLookup.name}</span>
-                    )}
-                    {assessorLookup.isAssessor === false && (
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, color: "#f59e0b",
-                        background: "rgba(245,158,11,.15)", padding: "1px 6px", borderRadius: 4,
-                      }}>
-                        Non-assessor role
-                      </span>
-                    )}
+          {/* In-app picker */}
+          {signOffMode === "in_app" && (
+            <div>
+              {pickedAssessor ? (
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 10,
+                  padding: "12px 14px",
+                  background: "rgba(16,185,129,.08)",
+                  border: "1px solid rgba(16,185,129,.3)",
+                  borderRadius: 8,
+                }}>
+                  <div style={{
+                    width: 36, height: 36, borderRadius: "50%",
+                    background: "rgba(16,185,129,.15)", color: "#10b981",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: 14, fontWeight: 700, flexShrink: 0,
+                  }}>
+                    {(pickedAssessor.name || pickedAssessor.email).slice(0, 1).toUpperCase()}
                   </div>
-                  <div style={{ color: "var(--text-3)" }}>
-                    {"They\u2019ll get an in-app notification in their Sign-Offs inbox. An email backup goes out too."}
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+                      {pickedAssessor.name || pickedAssessor.email}
+                    </div>
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+                      {pickedAssessor.email}
+                      {pickedAssessor.role ? ` \u00B7 ${pickedAssessor.role.replace("_", " ").toLowerCase()}` : ""}
+                      {pickedAssessor.institution ? ` \u00B7 ${pickedAssessor.institution}` : ""}
+                    </div>
                   </div>
-                </>
-              ) : /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(assessorEmail.trim()) ? (
-                <>
-                  <div style={{ color: "var(--text-2)", fontWeight: 600, marginBottom: 4 }}>
-                    Email invite
-                  </div>
-                  <div style={{ color: "var(--text-3)" }}>
-                    {"This attending isn\u2019t on Hippo yet. We\u2019ll email them a secure sign-off link (valid 12 months) \u2014 no login required."}
-                  </div>
-                </>
+                  <button
+                    type="button"
+                    onClick={() => { setPickedAssessor(null); setPickerQuery(""); setAssessorEmail(""); }}
+                    style={{
+                      padding: "4px 10px", fontSize: 11, fontWeight: 600,
+                      background: "transparent", color: "var(--text-2)",
+                      border: "1px solid var(--border-mid)", borderRadius: 6,
+                      cursor: "pointer",
+                    }}
+                  >
+                    Change
+                  </button>
+                </div>
               ) : (
-                <span style={{ color: "var(--text-3)" }}>Enter a valid email to preview.</span>
+                <>
+                  <input
+                    type="text"
+                    value={pickerQuery}
+                    onChange={(e) => setPickerQuery(e.target.value)}
+                    placeholder="Search by name or email\u2026"
+                    style={inputStyle}
+                    autoFocus
+                  />
+                  <div style={{ marginTop: 8, maxHeight: 220, overflowY: "auto" }}>
+                    {pickerLoading && (
+                      <div style={{ padding: 12, fontSize: 12, color: "var(--text-3)" }}>
+                        Searching{"\u2026"}
+                      </div>
+                    )}
+                    {!pickerLoading && pickerQuery.trim().length >= 2 && pickerResults.length === 0 && (
+                      <div style={{
+                        padding: 12, fontSize: 12, color: "var(--text-3)",
+                        background: "var(--surface)", borderRadius: 6,
+                      }}>
+                        No assessors found. Try the email invite option instead.
+                      </div>
+                    )}
+                    {pickerResults.map(a => (
+                      <button
+                        type="button"
+                        key={a.id}
+                        onClick={() => setPickedAssessor(a)}
+                        style={{
+                          display: "flex", width: "100%", alignItems: "center", gap: 10,
+                          padding: "10px 12px",
+                          background: "var(--surface)",
+                          border: "1px solid var(--border-mid)",
+                          borderRadius: 8,
+                          textAlign: "left", cursor: "pointer",
+                          marginBottom: 6, fontFamily: "inherit",
+                        }}
+                      >
+                        <div style={{
+                          width: 32, height: 32, borderRadius: "50%",
+                          background: "var(--surface2)", color: "var(--text-2)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                        }}>
+                          {(a.name || a.email).slice(0, 1).toUpperCase()}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+                            {a.name || a.email}
+                          </div>
+                          <div style={{
+                            fontSize: 11, color: "var(--text-3)",
+                            overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                          }}>
+                            {a.email}
+                            {a.role ? ` \u00B7 ${a.role.replace("_", " ").toLowerCase()}` : ""}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6 }}>
+                    {"They\u2019ll get an in-app notification in their Sign-Offs inbox (with email backup)."}
+                  </div>
+                </>
               )}
             </div>
           )}
 
-          <p style={{ fontSize: 11, color: "var(--text-3)", margin: "8px 0 0" }}>
-            Leave blank to save without requesting sign-off. You can request it later.
-          </p>
+          {/* Email invite */}
+          {signOffMode === "email" && (
+            <div>
+              <input
+                type="email"
+                value={assessorEmail}
+                onChange={(e) => setAssessorEmail(e.target.value)}
+                placeholder="jane.smith@hospital.edu"
+                style={inputStyle}
+                autoFocus
+              />
+              {assessorEmail.trim() && /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(assessorEmail.trim()) && (
+                <div style={{
+                  marginTop: 8, padding: "8px 10px",
+                  background: "var(--surface)",
+                  border: "1px solid var(--border-mid)",
+                  borderRadius: 6,
+                  fontSize: 11, color: "var(--text-3)",
+                }}>
+                  {lookupLoading
+                    ? <>Checking{"\u2026"}</>
+                    : assessorLookup?.isHippoUser
+                      ? <><span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"}</span>{" "}This email matches a Hippo user \u2014 we\u2019ll route as in-app + email backup.</>
+                      : <>We\u2019ll email a secure sign-off link valid for 12 months. No login needed.</>
+                  }
+                </div>
+              )}
+            </div>
+          )}
+
+          {signOffMode === "none" && (
+            <div style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.5 }}>
+              The observation will be saved as a draft. You can request sign-off later from your EPA list.
+            </div>
+          )}
         </div>
 
         {/* Linked case */}
@@ -719,7 +860,7 @@ export function EpaObservationForm({
         <button type="button" onClick={handleSaveDraft} disabled={savingDraft}
           style={{
             padding: "10px 20px", borderRadius: 8, border: "1px solid var(--border-mid)",
-            background: "transparent", color: "#94a3b8", fontSize: 13, fontWeight: 600,
+            background: "var(--surface2)", color: "var(--text-1)", fontSize: 13, fontWeight: 600,
             cursor: savingDraft ? "not-allowed" : "pointer", opacity: savingDraft ? 0.6 : 1,
             transition: "all .15s",
           }}>
@@ -745,7 +886,7 @@ export function EpaObservationForm({
         <button type="button" onClick={onCancel}
           style={{
             marginLeft: "auto", padding: "10px 16px", background: "transparent",
-            border: "none", color: "#94a3b8", fontSize: 13, cursor: "pointer",
+            border: "none", color: "var(--text-2)", fontSize: 13, cursor: "pointer",
             transition: "color .15s",
           }}
           onMouseEnter={(e) => { (e.currentTarget as HTMLButtonElement).style.color = "var(--text-1)"; }}
@@ -754,5 +895,38 @@ export function EpaObservationForm({
         </button>
       </div>
     </form>
+  );
+}
+
+function ChoiceCard({
+  active, activeColor, icon, label, sub, onClick,
+}: {
+  active: boolean;
+  activeColor: string;
+  icon: string;
+  label: string;
+  sub: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        padding: "10px 8px",
+        borderRadius: 8,
+        border: active ? `1px solid ${activeColor}` : "1px solid var(--border-mid)",
+        background: active ? `${activeColor}20` : "var(--surface)",
+        color: active ? activeColor : "var(--text-1)",
+        cursor: "pointer",
+        fontFamily: "inherit",
+        display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+        transition: "all .15s",
+      }}
+    >
+      <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+      <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{label}</span>
+      <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500 }}>{sub}</span>
+    </button>
   );
 }
