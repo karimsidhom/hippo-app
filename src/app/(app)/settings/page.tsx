@@ -8,6 +8,8 @@ import Link from "next/link";
 import { Shield, Users, BarChart2, Download, Trash2, Bell, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles, Sun, Moon, Monitor } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
 import type { ThemeMode } from "@/context/ThemeContext";
+import { USER_ROLE_TYPES } from "@/lib/constants";
+import type { UserRoleType } from "@/lib/types";
 
 const TABS = [
   { key: "profile", label: "Profile", icon: User },
@@ -175,6 +177,36 @@ export default function SettingsPage() {
                     className="w-full bg-[#16161f] border border-[#1e2130] text-[#64748b] rounded-lg px-3 py-2.5 text-sm cursor-not-allowed"
                   />
                   <p className="text-xs text-[#64748b] mt-1">Email cannot be changed after registration</p>
+                </div>
+                <div>
+                  <label className="block text-xs text-[#64748b] mb-2">Role</label>
+                  <select
+                    value={profile?.roleType || "RESIDENT"}
+                    onChange={(e) => updateProfile({ roleType: e.target.value as UserRoleType })}
+                    style={{
+                      width: "100%",
+                      background: "var(--surface2)",
+                      border: "1px solid var(--border-mid)",
+                      color: "var(--text)",
+                      borderRadius: 8,
+                      padding: "10px 12px",
+                      fontSize: 14,
+                      outline: "none",
+                      cursor: "pointer",
+                      appearance: "none" as const,
+                      WebkitAppearance: "none" as const,
+                      backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E")`,
+                      backgroundRepeat: "no-repeat",
+                      backgroundPosition: "right 12px center",
+                    }}
+                  >
+                    {USER_ROLE_TYPES.map((role) => (
+                      <option key={role.value} value={role.value}>
+                        {role.label} — {role.description}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-[#64748b] mt-1">Changing your role won't affect your logged cases or data</p>
                 </div>
               </div>
             </div>

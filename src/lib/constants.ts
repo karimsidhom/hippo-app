@@ -23,6 +23,7 @@ export const USER_ROLE_TYPES = [
   { value: "FELLOW", label: "Fellow", description: "Subspecialty training" },
   { value: "STAFF", label: "Staff / Attending", description: "Independent practice" },
   { value: "ATTENDING", label: "Attending Physician", description: "Fully independent practice" },
+  { value: "PROGRAM_DIRECTOR", label: "Program Director", description: "Residency/fellowship program leadership" },
 ];
 
 export const AUTONOMY_LEVELS = [

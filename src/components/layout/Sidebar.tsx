@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Avatar } from "@/components/ui/avatar";
 import {
   LayoutDashboard, FilePlus, ClipboardList, BarChart2, Trophy,
-  Users, User, Settings, ChevronLeft, ChevronRight, Plus, TrendingUp, Zap, LogOut
+  Users, User, Settings, ChevronLeft, ChevronRight, Plus, TrendingUp, Zap, LogOut, GraduationCap
 } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 
@@ -83,6 +83,29 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-0.5">
+        {/* PD Dashboard link — only for Program Directors */}
+        {profile?.roleType === "PROGRAM_DIRECTOR" && (
+          <Link
+            href="/pd-dashboard"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
+              pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")
+                ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
+                : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+            } ${collapsed ? "justify-center" : ""}`}
+            title={collapsed ? "PD Dashboard" : undefined}
+          >
+            <GraduationCap
+              className={`flex-shrink-0 transition-colors ${
+                pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")
+                  ? "text-[#2563eb]"
+                  : "text-[#64748b] group-hover:text-[#94a3b8]"
+              } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
+            />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate">PD Dashboard</span>
+            )}
+          </Link>
+        )}
         {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
           const isActive = pathname === href || pathname.startsWith(`${href}/`);
           return (

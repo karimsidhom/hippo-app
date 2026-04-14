@@ -3,19 +3,37 @@ import { requireAuth } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { validateNotes, scrubNotes } from "@/lib/phia";
 
-/** GET /api/pearls?authorId=xxx — list pearls, optionally filtered by author */
+/** GET /api/pearls?authorId=xxx — list pearls, optionally filtered by author
+ *  GET /api/pearls?feed=true  — feed of posts from followed users
+ */
 export async function GET(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
   const authorId = req.nextUrl.searchParams.get("authorId");
+  const feed = req.nextUrl.searchParams.get("feed");
   const cursor = req.nextUrl.searchParams.get("cursor");
   const limit = Math.min(parseInt(req.nextUrl.searchParams.get("limit") || "20"), 50);
 
-  const where = {
+  let where: Record<string, unknown> = {
     isPublished: true,
     ...(authorId && { authorId }),
   };
+
+  // Feed mode: return posts from users the current user follows
+  if (feed === "true") {
+    const followedIds = await db.follow.findMany({
+      where: { followerId: user.id },
+      select: { followingId: true },
+    });
+    const ids = followedIds.map((f) => f.followingId);
+    // Include own posts in the feed
+    ids.push(user.id);
+    where = {
+      isPublished: true,
+      authorId: { in: ids },
+    };
+  }
 
   const pearls = await db.pearl.findMany({
     where,
@@ -49,12 +67,12 @@ export async function GET(req: NextRequest) {
   });
 }
 
-/** POST /api/pearls — create a pearl */
+/** POST /api/pearls — create a post (pearl, case_share, research, discussion) */
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const { procedureName, category, title, content, tags } = await req.json();
+  const { procedureName, category, title, content, tags, postType, imageUrl, linkUrl, linkedCaseId } = await req.json();
 
   if (!procedureName?.trim() || !title?.trim() || !content?.trim()) {
     return NextResponse.json(
@@ -62,6 +80,9 @@ export async function POST(req: NextRequest) {
       { status: 400 }
     );
   }
+
+  const validPostTypes = ["pearl", "case_share", "research", "discussion"];
+  const resolvedPostType = validPostTypes.includes(postType) ? postType : "pearl";
 
   // PHIA scrub title and content
   const titleResult = validateNotes(title);
@@ -85,6 +106,10 @@ export async function POST(req: NextRequest) {
       title: scrubNotes(title.trim()),
       content: scrubNotes(content.trim()),
       tags: tags || [],
+      postType: resolvedPostType,
+      imageUrl: imageUrl || null,
+      linkUrl: linkUrl || null,
+      linkedCaseId: linkedCaseId || null,
     },
     include: {
       author: {
@@ -96,5 +121,5 @@ export async function POST(req: NextRequest) {
     },
   });
 
-  return NextResponse.json({ ...pearl, liked: false, saved: false }, { status: 201 });
+  return NextResponse.json({ ...pearl, liked: false, saved: false, commentCount: 0 }, { status: 201 });
 }

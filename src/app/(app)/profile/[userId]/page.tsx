@@ -7,7 +7,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { StatsStrip } from "@/components/profile/StatsStrip";
 import { ProfileTabs, type ProfileTab } from "@/components/profile/ProfileTabs";
 import { PortfolioTab } from "@/components/profile/PortfolioTab";
-import { PearlsTab } from "@/components/profile/PearlsTab";
+import { PostsTab } from "@/components/profile/PostsTab";
 import { Lock } from "lucide-react";
 import type { PublicProfile, Pearl, PortfolioCase } from "@/lib/types";
 
@@ -159,8 +159,8 @@ export default function PublicProfilePage() {
         <PortfolioTab items={portfolioItems} isOwn={false} />
       )}
 
-      {activeTab === "pearls" && (
-        <PearlsTab
+      {activeTab === "posts" && (
+        <PostsTab
           pearls={pearls}
           isOwn={false}
           onLike={handleLikePearl}

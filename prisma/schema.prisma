@@ -26,6 +26,7 @@ enum UserRoleType {
   FELLOW
   STAFF
   ATTENDING
+  PROGRAM_DIRECTOR
 }
 
 enum AutonomyLevel {
@@ -129,6 +130,7 @@ model User {
   pearls          Pearl[]
   pearlLikes      PearlLike[]
   pearlSaves      PearlSave[]
+  pearlComments   PearlComment[]
   epaObservations  EpaObservation[]
 
   @@map("users")
@@ -454,12 +456,18 @@ model Pearl {
   tags          String[]    @default([])
   likeCount     Int         @default(0)
   saveCount     Int         @default(0)
+  commentCount  Int         @default(0)
   isPublished   Boolean     @default(true)
+  postType      String      @default("pearl")   // "pearl" | "case_share" | "research" | "discussion"
+  imageUrl      String?                          // Optional image URL (Supabase storage)
+  linkUrl       String?                          // For research posts — external URL
+  linkedCaseId  String?                          // For case shares — reference to CaseLog
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   likes         PearlLike[]
   saves         PearlSave[]
+  comments      PearlComment[]
 
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
@@ -491,6 +499,21 @@ model PearlSave {
   @@unique([pearlId, userId])
   @@index([userId])
   @@map("pearl_saves")
+}
+
+model PearlComment {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pearlId, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@map("pearl_comments")
 }
 
 // ─── EPA Observations ────────────────────────────────────────────────────────

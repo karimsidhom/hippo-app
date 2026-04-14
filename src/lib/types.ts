@@ -1,5 +1,5 @@
 export type Role = "USER" | "ADMIN" | "PRO";
-export type UserRoleType = "RESIDENT" | "FELLOW" | "STAFF" | "ATTENDING";
+export type UserRoleType = "RESIDENT" | "FELLOW" | "STAFF" | "ATTENDING" | "PROGRAM_DIRECTOR";
 export type AutonomyLevel = "OBSERVER" | "ASSISTANT" | "SUPERVISOR_PRESENT" | "INDEPENDENT" | "TEACHING";
 export type SurgicalApproach = "OPEN" | "LAPAROSCOPIC" | "ROBOTIC" | "ENDOSCOPIC" | "HYBRID" | "PERCUTANEOUS" | "OTHER";
 export type OutcomeCategory = "UNCOMPLICATED" | "MINOR_COMPLICATION" | "MAJOR_COMPLICATION" | "REOPERATION" | "DEATH" | "UNKNOWN";
@@ -326,7 +326,9 @@ export interface ToastMessage {
 
 // ── Social Profile Types ─────────────────────────────────────────────────────
 
-export type PearlCategory = "Anatomy Tip" | "Technical Pearl" | "Pitfall" | "Decision Point" | "Equipment" | "Post-Op" | "Other";
+export type PearlCategory = "Clinical Pearl" | "Case Share" | "Research" | "Discussion" | "Question" | "Milestone" | "Anatomy Tip" | "Technical Pearl" | "Pitfall" | "Decision Point" | "Equipment" | "Post-Op" | "Other";
+
+export type PostType = "pearl" | "case_share" | "research" | "discussion";
 
 export interface Pearl {
   id: string;
@@ -338,7 +340,12 @@ export interface Pearl {
   tags: string[];
   likeCount: number;
   saveCount: number;
+  commentCount: number;
   isPublished: boolean;
+  postType: PostType;
+  imageUrl: string | null;
+  linkUrl: string | null;
+  linkedCaseId: string | null;
   createdAt: Date;
   updatedAt: Date;
   author?: {
@@ -349,6 +356,25 @@ export interface Pearl {
   };
   liked?: boolean;
   saved?: boolean;
+  linkedCase?: {
+    procedureName: string;
+    surgicalApproach: SurgicalApproach;
+    caseDate: Date;
+  } | null;
+}
+
+export interface PearlComment {
+  id: string;
+  pearlId: string;
+  authorId: string;
+  content: string;
+  createdAt: Date;
+  updatedAt: Date;
+  author?: {
+    id: string;
+    name: string | null;
+    image: string | null;
+  };
 }
 
 export interface PortfolioCase {

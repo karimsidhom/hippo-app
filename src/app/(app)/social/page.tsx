@@ -7,6 +7,7 @@ import {
   Search, UserPlus, Users, UserCheck, ChevronRight,
   Share2, MessageSquare, Link as LinkIcon, Check, Copy,
 } from "lucide-react";
+import { PostFeed } from "@/components/social/PostFeed";
 
 interface DiscoverUser {
   id: string;
@@ -32,12 +33,12 @@ interface FollowUser {
   } | null;
 }
 
-type Tab = "Discover" | "Following" | "Followers" | "Invite";
+type Tab = "Feed" | "Discover" | "Following" | "Followers" | "Invite";
 
 export default function SocialPage() {
   const { user } = useAuth();
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState<Tab>("Discover");
+  const [activeTab, setActiveTab] = useState<Tab>("Feed");
   const [searchQuery, setSearchQuery] = useState("");
   const [searchDebounced, setSearchDebounced] = useState("");
 
@@ -172,6 +173,7 @@ export default function SocialPage() {
   };
 
   const TABS: { key: Tab; label: string }[] = [
+    { key: "Feed", label: "Feed" },
     { key: "Discover", label: "Discover" },
     { key: "Following", label: "Following" },
     { key: "Followers", label: "Followers" },
@@ -249,6 +251,11 @@ export default function SocialPage() {
           </button>
         ))}
       </div>
+
+      {/* ═══ Feed Tab ═══ */}
+      {activeTab === "Feed" && (
+        <PostFeed onCreatePost={() => router.push("/profile")} />
+      )}
 
       {/* ═══ Discover Tab ═══ */}
       {activeTab === "Discover" && (

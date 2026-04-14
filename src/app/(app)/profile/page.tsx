@@ -11,8 +11,8 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { StatsStrip } from "@/components/profile/StatsStrip";
 import { ProfileTabs, type ProfileTab } from "@/components/profile/ProfileTabs";
 import { PortfolioTab } from "@/components/profile/PortfolioTab";
-import { PearlsTab } from "@/components/profile/PearlsTab";
-import type { PublicProfile, Pearl, PortfolioCase } from "@/lib/types";
+import { PostsTab } from "@/components/profile/PostsTab";
+import type { PublicProfile, Pearl, PortfolioCase, PostType } from "@/lib/types";
 
 export default function ProfilePage() {
   const { user, profile, updateProfile } = useUser();
@@ -163,8 +163,18 @@ export default function ProfilePage() {
     } catch { /* ignore */ }
   };
 
-  // Pearl handlers
-  const handleCreatePearl = async (data: { procedureName: string; category: string; title: string; content: string; tags: string[] }) => {
+  // Post handlers
+  const handleCreatePearl = async (data: {
+    procedureName: string;
+    category: string;
+    title: string;
+    content: string;
+    tags: string[];
+    postType: PostType;
+    imageUrl?: string;
+    linkUrl?: string;
+    linkedCaseId?: string;
+  }) => {
     try {
       const res = await fetch("/api/pearls", {
         method: "POST",
@@ -363,16 +373,17 @@ export default function ProfilePage() {
         )
       )}
 
-      {activeTab === "pearls" && (
+      {activeTab === "posts" && (
         pearlsLoading ? (
           <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>Loading...</div>
         ) : (
-          <PearlsTab
+          <PostsTab
             pearls={pearls}
             isOwn
             onLike={handleLikePearl}
             onSave={handleSavePearl}
             onCreate={handleCreatePearl}
+            cases={cases}
           />
         )
       )}
