@@ -67,6 +67,15 @@ export function VoiceTextarea({
   // so that interim re-renders don't duplicate recognized words.
   const baseValueRef = useRef<string>("");
 
+  // Parallel MediaRecorder — captures raw audio while Web Speech gives us a
+  // live preview. On stop, the raw audio is sent to Gemini for a much more
+  // accurate transcription of medical terminology, which replaces the
+  // Web-Speech result. Web Speech is still used for the live interim text.
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const mediaStreamRef = useRef<MediaStream | null>(null);
+  const [polishing, setPolishing] = useState(false);
+
   const supported = useMemo(() => {
     if (forceTextOnly) return false;
     return getSpeechRecognitionCtor() !== null;
@@ -86,6 +95,75 @@ export function VoiceTextarea({
     };
   }, []);
 
+  const startMediaRecorder = async () => {
+    if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaStreamRef.current = stream;
+      // Pick the most compatible mime type — Chrome prefers webm/opus, Safari mp4.
+      const mimeCandidates = [
+        "audio/webm;codecs=opus",
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg;codecs=opus",
+      ];
+      const mimeType = mimeCandidates.find(
+        (m) => typeof MediaRecorder !== "undefined" && MediaRecorder.isTypeSupported(m),
+      );
+      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+      audioChunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        if (e.data.size > 0) audioChunksRef.current.push(e.data);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+    } catch {
+      // If mic access is denied we still have Web Speech — no error shown.
+    }
+  };
+
+  const stopMediaRecorderAndPolish = async (): Promise<void> => {
+    const recorder = mediaRecorderRef.current;
+    mediaRecorderRef.current = null;
+    if (!recorder) return;
+    await new Promise<void>((resolve) => {
+      recorder.onstop = () => resolve();
+      try { recorder.stop(); } catch { resolve(); }
+    });
+    // Release the mic immediately (visible indicator in the OS goes away).
+    mediaStreamRef.current?.getTracks().forEach((t) => t.stop());
+    mediaStreamRef.current = null;
+
+    const chunks = audioChunksRef.current;
+    audioChunksRef.current = [];
+    if (chunks.length === 0) return;
+    const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    // Too small to bother — Gemini audio needs some signal.
+    if (blob.size < 2000) return;
+
+    try {
+      setPolishing(true);
+      const res = await fetch("/api/dictation/transcribe", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": blob.type },
+        body: blob,
+      });
+      if (!res.ok) return;
+      const { text } = (await res.json()) as { text?: string };
+      if (!text) return;
+      // Replace the Web-Speech preview with the Gemini result. Preserve the
+      // text that was already in the textarea before the mic opened.
+      const preMic = baseValueRef.current.replace(/\s+$/, "");
+      const joined = preMic ? `${preMic}${preMic.endsWith(".") || preMic.endsWith("?") ? " " : ". "}${text}` : text;
+      onChange(joined);
+    } catch {
+      // Fail silently — Web Speech's result is already in the textarea.
+    } finally {
+      setPolishing(false);
+    }
+  };
+
   const start = () => {
     const Ctor = getSpeechRecognitionCtor();
     if (!Ctor) {
@@ -95,6 +173,8 @@ export function VoiceTextarea({
 
     setError(null);
     baseValueRef.current = value.trimEnd();
+    // Kick off audio capture in parallel — Gemini will polish it on stop.
+    void startMediaRecorder();
 
     const rec = new Ctor();
     rec.continuous = true;
@@ -161,6 +241,8 @@ export function VoiceTextarea({
     recognitionRef.current?.stop();
     recognitionRef.current = null;
     setListening(false);
+    // Fire-and-forget: upload the captured audio for Gemini polish.
+    void stopMediaRecorderAndPolish();
   };
 
   const toggle = () => (listening ? stop() : start());
@@ -224,7 +306,7 @@ export function VoiceTextarea({
             transition: "background .15s, color .15s, border-color .15s",
           }}
         >
-          {listening ? <Square size={12} /> : <Mic size={14} />}
+          {listening ? <Square size={12} /> : polishing ? <Mic size={14} style={{ opacity: 0.5 }} /> : <Mic size={14} />}
           {listening && (
             <span
               aria-hidden
