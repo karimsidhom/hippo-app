@@ -1,7 +1,18 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock } from "lucide-react";
+import { CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle } from "lucide-react";
+
+const ENTRUSTMENT_LABELS: Record<number, string> = {
+  1: "Had to do",
+  2: "Talk through",
+  3: "Prompted",
+  4: "Just in case",
+  5: "Independent",
+};
+const ENTRUSTMENT_COLORS: Record<number, string> = {
+  1: "#ef4444", 2: "#f97316", 3: "#eab308", 4: "#22c55e", 5: "#10b981",
+};
 
 interface LinkedCase {
   id: string;
@@ -67,16 +78,38 @@ export default function InboxPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function act(id: string, action: "sign" | "return", reason?: string) {
+  async function act(
+    id: string,
+    action: "sign" | "return",
+    payload?: {
+      reason?: string;
+      entrustmentScore?: number;
+      achievement?: "NOT_ACHIEVED" | "ACHIEVED";
+      strengthsNotes?: string;
+      improvementNotes?: string;
+      safetyConcern?: boolean;
+      professionalismConcern?: boolean;
+      concernDetails?: string;
+    },
+  ) {
     setSubmitting(id);
     try {
+      const body: Record<string, unknown> = { action };
+      if (action === "return") {
+        body.returnedReason = payload?.reason ?? "";
+      } else if (payload) {
+        if (payload.entrustmentScore !== undefined) body.entrustmentScore = payload.entrustmentScore;
+        if (payload.achievement !== undefined) body.achievement = payload.achievement;
+        if (payload.strengthsNotes) body.strengthsNotes = payload.strengthsNotes;
+        if (payload.improvementNotes) body.improvementNotes = payload.improvementNotes;
+        if (payload.safetyConcern !== undefined) body.safetyConcern = payload.safetyConcern;
+        if (payload.professionalismConcern !== undefined) body.professionalismConcern = payload.professionalismConcern;
+        if (payload.concernDetails) body.concernDetails = payload.concernDetails;
+      }
       const res = await fetch(`/api/attending/observations/${id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          action,
-          ...(action === "return" ? { returnedReason: reason ?? "" } : {}),
-        }),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
       setExpanded(null);
@@ -144,12 +177,12 @@ export default function InboxPage() {
                     isExpanded={expanded === obs.id}
                     onToggle={() => setExpanded(expanded === obs.id ? null : obs.id)}
                     isSubmitting={submitting === obs.id}
-                    onSign={() => act(obs.id, "sign")}
+                    onSign={(payload) => act(obs.id, "sign", payload)}
                     onReturnRequest={() => { setReturnReasonFor(obs.id); setReturnReason(""); }}
                     returnOpen={returnReasonFor === obs.id}
                     returnReason={returnReason}
                     onReturnReasonChange={setReturnReason}
-                    onReturnSubmit={() => act(obs.id, "return", returnReason)}
+                    onReturnSubmit={() => act(obs.id, "return", { reason: returnReason })}
                     onReturnCancel={() => { setReturnReasonFor(null); setReturnReason(""); }}
                   />
                 ))}
@@ -204,12 +237,22 @@ export default function InboxPage() {
   );
 }
 
+interface SignPayload {
+  entrustmentScore?: number;
+  achievement?: "NOT_ACHIEVED" | "ACHIEVED";
+  strengthsNotes?: string;
+  improvementNotes?: string;
+  safetyConcern?: boolean;
+  professionalismConcern?: boolean;
+  concernDetails?: string;
+}
+
 interface CardProps {
   obs: Observation;
   isExpanded: boolean;
   onToggle: () => void;
   isSubmitting: boolean;
-  onSign: () => void;
+  onSign: (payload: SignPayload) => void;
   onReturnRequest: () => void;
   returnOpen: boolean;
   returnReason: string;
@@ -223,6 +266,30 @@ function ObservationCard({
   onSign, onReturnRequest, returnOpen, returnReason,
   onReturnReasonChange, onReturnSubmit, onReturnCancel,
 }: CardProps) {
+  // Attending's editable grading — defaults to resident's self-assessment.
+  const [score, setScore] = useState<number | null>(obs.entrustmentScore ?? null);
+  const [achievement, setAchievement] = useState<"NOT_ACHIEVED" | "ACHIEVED">(
+    (obs.achievement as "NOT_ACHIEVED" | "ACHIEVED") ?? "ACHIEVED",
+  );
+  const [strengths, setStrengths] = useState(obs.strengthsNotes ?? "");
+  const [improvements, setImprovements] = useState(obs.improvementNotes ?? "");
+  const [safety, setSafety] = useState(obs.safetyConcern);
+  const [professionalism, setProfessionalism] = useState(obs.professionalismConcern);
+  const [concernDetails, setConcernDetails] = useState(obs.concernDetails ?? "");
+
+  const handleSign = () => {
+    onSign({
+      entrustmentScore: score ?? undefined,
+      achievement,
+      strengthsNotes: strengths.trim() || undefined,
+      improvementNotes: improvements.trim() || undefined,
+      safetyConcern: safety,
+      professionalismConcern: professionalism,
+      concernDetails: (safety || professionalism) && concernDetails.trim()
+        ? concernDetails.trim() : undefined,
+    });
+  };
+
   return (
     <div style={{
       background: "var(--bg-1)",
@@ -281,40 +348,159 @@ function ObservationCard({
 
       {isExpanded && (
         <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)" }}>
-          <div style={{ paddingTop: 14, display: "grid", gap: 12, fontSize: 13 }}>
-            {obs.caseLog && (
-              <Row label="Case">
-                {obs.caseLog.procedureName} · {obs.caseLog.surgicalApproach}
-                {" · "}{formatDate(obs.caseLog.caseDate)}
-              </Row>
-            )}
-            {obs.setting && <Row label="Setting">{obs.setting}</Row>}
-            {obs.complexity && <Row label="Complexity">{obs.complexity}</Row>}
-            {obs.observationNotes && (
-              <Row label="Notes">
-                <span style={{ whiteSpace: "pre-wrap" }}>{obs.observationNotes}</span>
-              </Row>
-            )}
-            {obs.strengthsNotes && (
-              <Row label="Strengths (resident)">
-                <span style={{ whiteSpace: "pre-wrap" }}>{obs.strengthsNotes}</span>
-              </Row>
-            )}
-            {obs.improvementNotes && (
-              <Row label="For improvement">
-                <span style={{ whiteSpace: "pre-wrap" }}>{obs.improvementNotes}</span>
-              </Row>
-            )}
-            {(obs.safetyConcern || obs.professionalismConcern) && (
-              <Row label="Flagged">
-                <span style={{ color: "#f59e0b" }}>
-                  {[obs.safetyConcern && "safety", obs.professionalismConcern && "professionalism"]
-                    .filter(Boolean).join(", ")}
-                  {obs.concernDetails ? ` — ${obs.concernDetails}` : ""}
-                </span>
-              </Row>
-            )}
+          {/* ── Resident's submission (read-only) ─────────────────────── */}
+          <div style={{ paddingTop: 14 }}>
+            <SectionHeader>Resident's submission</SectionHeader>
+            <div style={{ display: "grid", gap: 10, fontSize: 13 }}>
+              {obs.caseLog && (
+                <Row label="Case">
+                  {obs.caseLog.procedureName} · {obs.caseLog.surgicalApproach}
+                  {" · "}{formatDate(obs.caseLog.caseDate)}
+                </Row>
+              )}
+              {obs.setting && <Row label="Setting">{obs.setting}</Row>}
+              {obs.complexity && <Row label="Complexity">{obs.complexity}</Row>}
+              {obs.entrustmentScore && (
+                <Row label="Self-assessment">
+                  <span style={{
+                    fontSize: 11, fontWeight: 700,
+                    color: ENTRUSTMENT_COLORS[obs.entrustmentScore],
+                    background: `${ENTRUSTMENT_COLORS[obs.entrustmentScore]}15`,
+                    padding: "2px 8px", borderRadius: 4,
+                    fontFamily: "'Geist Mono', monospace",
+                  }}>
+                    O-{obs.entrustmentScore} · {ENTRUSTMENT_LABELS[obs.entrustmentScore]}
+                  </span>
+                </Row>
+              )}
+              {obs.observationNotes && (
+                <Row label="Notes">
+                  <span style={{ whiteSpace: "pre-wrap" }}>{obs.observationNotes}</span>
+                </Row>
+              )}
+            </div>
           </div>
+
+          {/* ── Attending's assessment (editable) ─────────────────────── */}
+          {!returnOpen && (
+            <div style={{ marginTop: 18 }}>
+              <SectionHeader>Your assessment</SectionHeader>
+
+              {/* O-score selector */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Entrustment score (O-score)</FieldLabel>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[1, 2, 3, 4, 5].map(n => {
+                    const selected = score === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setScore(n)}
+                        style={{
+                          flex: 1, minWidth: 84,
+                          padding: "8px 10px",
+                          borderRadius: 6,
+                          border: selected
+                            ? `1px solid ${ENTRUSTMENT_COLORS[n]}`
+                            : "1px solid var(--border-mid)",
+                          background: selected
+                            ? `${ENTRUSTMENT_COLORS[n]}20`
+                            : "var(--surface2)",
+                          color: selected ? ENTRUSTMENT_COLORS[n] : "var(--text-2)",
+                          fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                        }}
+                      >
+                        <span style={{ fontSize: 14, fontWeight: 700 }}>{n}</span>
+                        <span style={{ fontSize: 10, opacity: .85 }}>{ENTRUSTMENT_LABELS[n]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Achievement */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Achievement</FieldLabel>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["ACHIEVED", "NOT_ACHIEVED"] as const).map(val => {
+                    const selected = achievement === val;
+                    const color = val === "ACHIEVED" ? "#10b981" : "#94a3b8";
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setAchievement(val)}
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px", borderRadius: 6,
+                          border: selected ? `1px solid ${color}` : "1px solid var(--border-mid)",
+                          background: selected ? `${color}20` : "var(--surface2)",
+                          color: selected ? color : "var(--text-2)",
+                          fontSize: 12, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        {val === "ACHIEVED" ? "Achieved" : "Not yet"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Strengths */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Strengths <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <textarea
+                  value={strengths}
+                  onChange={e => setStrengths(e.target.value)}
+                  rows={2}
+                  placeholder="What did the resident do well?"
+                  style={TEXTAREA_STYLE}
+                />
+              </div>
+
+              {/* Improvements */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>For improvement <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <textarea
+                  value={improvements}
+                  onChange={e => setImprovements(e.target.value)}
+                  rows={2}
+                  placeholder="What could be better next time?"
+                  style={TEXTAREA_STYLE}
+                />
+              </div>
+
+              {/* Concerns */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Flag a concern <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <label style={CHECKBOX_LABEL}>
+                    <input type="checkbox" checked={safety} onChange={e => setSafety(e.target.checked)} />
+                    <AlertTriangle size={12} style={{ color: "#f59e0b" }} />
+                    Patient safety
+                  </label>
+                  <label style={CHECKBOX_LABEL}>
+                    <input type="checkbox" checked={professionalism} onChange={e => setProfessionalism(e.target.checked)} />
+                    <AlertTriangle size={12} style={{ color: "#f59e0b" }} />
+                    Professionalism
+                  </label>
+                </div>
+                {(safety || professionalism) && (
+                  <textarea
+                    value={concernDetails}
+                    onChange={e => setConcernDetails(e.target.value)}
+                    rows={2}
+                    placeholder="Please describe the concern (required when flagging)."
+                    style={TEXTAREA_STYLE}
+                  />
+                )}
+              </div>
+            </div>
+          )}
 
           {returnOpen ? (
             <div style={{ marginTop: 14 }}>
@@ -351,7 +537,15 @@ function ObservationCard({
               <button onClick={onReturnRequest} style={BTN_SECONDARY} disabled={isSubmitting}>
                 <RotateCcw size={13} /> Return
               </button>
-              <button onClick={onSign} style={BTN_PRIMARY} disabled={isSubmitting}>
+              <button
+                onClick={handleSign}
+                style={{
+                  ...BTN_PRIMARY,
+                  opacity: (!score || ((safety || professionalism) && !concernDetails.trim()) || isSubmitting) ? .6 : 1,
+                }}
+                disabled={!score || ((safety || professionalism) && !concernDetails.trim()) || isSubmitting}
+                title={!score ? "Select an entrustment score to sign" : undefined}
+              >
                 <CheckCircle2 size={14} />
                 {isSubmitting ? "Signing…" : "Sign off"}
               </button>
@@ -371,6 +565,44 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
     </div>
   );
 }
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+      letterSpacing: "1px", color: "var(--text-3)", marginBottom: 10,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 600, color: "var(--text-2)", marginBottom: 6,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+const TEXTAREA_STYLE: React.CSSProperties = {
+  width: "100%", padding: "8px 10px",
+  background: "var(--surface2)",
+  border: "1px solid var(--border-mid)",
+  borderRadius: 6, color: "var(--text)",
+  fontSize: 13, fontFamily: "inherit", resize: "vertical",
+};
+
+const CHECKBOX_LABEL: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  padding: "6px 10px",
+  background: "var(--surface2)",
+  border: "1px solid var(--border-mid)",
+  borderRadius: 6,
+  fontSize: 12, color: "var(--text-2)", cursor: "pointer",
+};
 
 const BTN_PRIMARY: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,

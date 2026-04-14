@@ -150,6 +150,41 @@ export function EpaObservationCard({
         </span>
       </div>
 
+      {/* Returned feedback — shown prominently so resident knows why */}
+      {observation.status === "RETURNED" && (
+        <div
+          style={{
+            marginTop: 10,
+            padding: "8px 10px",
+            borderRadius: 8,
+            background: "#ef444410",
+            border: "1px solid #ef444430",
+          }}
+        >
+          <div style={{
+            fontSize: 10, fontWeight: 700, color: "#ef4444",
+            textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4,
+          }}>
+            Returned for revision
+          </div>
+          {observation.returnedReason ? (
+            <div style={{
+              fontSize: 12, color: "var(--text-1)", lineHeight: 1.5,
+              whiteSpace: "pre-wrap",
+            }}>
+              {observation.returnedReason}
+            </div>
+          ) : (
+            <div style={{ fontSize: 12, color: "var(--text-3)", fontStyle: "italic" }}>
+              No reason provided.
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 6 }}>
+            Click to edit and resubmit.
+          </div>
+        </div>
+      )}
+
       {/* Safety concern flag */}
       {(observation.safetyConcern || observation.professionalismConcern) && (
         <div

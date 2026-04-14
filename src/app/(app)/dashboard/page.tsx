@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
@@ -44,6 +44,19 @@ export default function DashboardPage() {
     caseDate: string;
   } | null>(null);
 
+  // Returned-EPA alert — residents need prompt visibility of attending feedback.
+  const [returnedCount, setReturnedCount] = useState<number>(0);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/epa/observations?status=RETURNED", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((d: unknown) => {
+        if (!cancelled && Array.isArray(d)) setReturnedCount(d.length);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
+
   const thisMonth = cases.filter(c => {
     const d = new Date(c.caseDate);
     return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
@@ -75,6 +88,42 @@ export default function DashboardPage() {
 
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+
+      {/* Returned-EPA alert banner */}
+      {returnedCount > 0 && (
+        <Link
+          href="/analytics?tab=EPAs"
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 16px", marginBottom: 16,
+            background: "#ef444410",
+            border: "1px solid #ef444430",
+            borderRadius: 10,
+            textDecoration: "none",
+            color: "var(--text-1)",
+          }}
+        >
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: "#ef444420",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#ef4444", flexShrink: 0,
+          }}>
+            <RotateCcw size={16} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+              {returnedCount === 1
+                ? "1 EPA was returned for revision"
+                : `${returnedCount} EPAs were returned for revision`}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+              Your attending left feedback. Tap to review and resubmit.
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: "var(--text-3)", flexShrink: 0 }} />
+        </Link>
+      )}
 
       {/* ── Identity + Primary Metric ─────────────────────────────────── */}
       <div style={{
