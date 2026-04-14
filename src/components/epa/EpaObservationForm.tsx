@@ -169,6 +169,7 @@ export function EpaObservationForm({
       observationDate: new Date(observationDate),
       setting: basisOfAssessment,
       complexity,
+      technique: technique || undefined,
       assessorName, assessorRole,
       assessorEmail: assessorEmail || undefined,
       achievement: achievement || undefined,

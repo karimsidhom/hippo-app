@@ -5,6 +5,8 @@
 
 import type { CaseLog, AutonomyLevel } from "@/lib/types";
 import type { SpecialtyEpaData, EpaDefinition } from "./data";
+import type { ParsedSubRequirement } from "./subreqs";
+import { parseSubRequirements } from "./subreqs";
 
 // ── Output Interfaces ───────────────────────────────────────────────────────
 
@@ -17,6 +19,10 @@ export interface EpaProgress {
   byAutonomy: Record<string, number>;
   estimatedLevel: number;
   matchedCases: string[];
+  /** Parsed sub-requirements from the EPA definition (for UI display) */
+  subRequirements: ParsedSubRequirement[];
+  /** Whether this EPA has sub-requirements beyond just a case count */
+  hasSubRequirements: boolean;
 }
 
 export interface MilestoneProgress {
@@ -116,6 +122,8 @@ export function computeEpaProgress(
       Math.round((totalCases / epa.targetCaseCount) * 100),
     );
 
+    const subreqs = parseSubRequirements(epa);
+
     return {
       epaId: epa.id,
       title: epa.title,
@@ -125,6 +133,8 @@ export function computeEpaProgress(
       byAutonomy,
       estimatedLevel: estimateLevelFromAutonomy(byAutonomy),
       matchedCases: matchedIds,
+      subRequirements: subreqs,
+      hasSubRequirements: subreqs.length > 0,
     };
   });
 

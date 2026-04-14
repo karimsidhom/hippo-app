@@ -8,6 +8,9 @@ import { computeEpaProgress } from "@/lib/epa/mapper";
 import type { EpaProgress, MilestoneProgress, EpaDashboardData } from "@/lib/epa/mapper";
 import { EpaObservationCard } from "./EpaObservationCard";
 import { EpaObservationForm } from "./EpaObservationForm";
+import { EpaSubReqChecklist } from "./EpaSubReqChecklist";
+import { trackSubRequirements } from "@/lib/epa/subreqs";
+import type { ObservationForTracking, EpaSubRequirementSummary } from "@/lib/epa/subreqs";
 
 // ── Sub-tabs within EPA Dashboard ──────────────────────────────────────────
 const EPA_TABS = ["Overview", "EPAs", "Milestones", "Gaps", "Observations"];
@@ -126,9 +129,10 @@ function MilestoneRadar({ milestones }: { milestones: MilestoneProgress[] }) {
 }
 
 // ── EPA Card ───────────────────────────────────────────────────────────────
-function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa }: {
+function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSummary }: {
   epa: EpaProgress; expanded: boolean; onToggle: () => void;
   observationCount?: number; onLogEpa?: () => void;
+  subReqSummary?: EpaSubRequirementSummary;
 }) {
   const color = getStageColor(epa.epaId);
   return (
@@ -192,6 +196,12 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa }: {
               L{epa.estimatedLevel}
             </span>
           </div>
+          {/* Compact sub-req badges when collapsed */}
+          {!expanded && subReqSummary && subReqSummary.remaining.length > 0 && (
+            <div style={{ marginTop: 6 }}>
+              <EpaSubReqChecklist summary={subReqSummary} compact />
+            </div>
+          )}
         </div>
       </div>
 
@@ -225,6 +235,17 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa }: {
               {epa.estimatedLevel} — {getLevelLabel(epa.estimatedLevel)}
             </strong>
           </div>
+
+          {/* Sub-requirement checklist */}
+          {subReqSummary && subReqSummary.subRequirements.length > 0 && (
+            <div style={{
+              marginTop: 12, paddingTop: 12,
+              borderTop: "1px solid var(--border)",
+            }}>
+              <EpaSubReqChecklist summary={subReqSummary} />
+            </div>
+          )}
+
           {onLogEpa && (
             <button
               onClick={(e) => { e.stopPropagation(); onLogEpa(); }}
@@ -346,6 +367,27 @@ function EpaPanel({
     acc[m.domain].push(m);
     return acc;
   }, {} as Record<string, MilestoneProgress[]>);
+
+  // Compute sub-requirement summaries for each EPA using observations
+  const subReqSummaries = useMemo(() => {
+    const summaryMap: Record<string, EpaSubRequirementSummary> = {};
+    const obsForTracking: ObservationForTracking[] = observations.map((obs) => ({
+      epaId: obs.epaId,
+      complexity: obs.complexity ?? null,
+      technique: obs.technique ?? null,
+      assessorName: obs.assessorName,
+      setting: obs.setting ?? null,
+      status: obs.status,
+    }));
+
+    for (const epaDef of epaData.epas) {
+      const summary = trackSubRequirements(epaDef, obsForTracking);
+      if (summary.subRequirements.length > 0) {
+        summaryMap[epaDef.id] = summary;
+      }
+    }
+    return summaryMap;
+  }, [observations, epaData.epas]);
 
   const sortedEpas = [...dashboard.epaProgress];
   const completedEpas = dashboard.epaProgress.filter(e => e.percentComplete >= 100).length;
@@ -509,6 +551,7 @@ function EpaPanel({
               onToggle={() => setExpandedEpa(expandedEpa === epa.epaId ? null : epa.epaId)}
               observationCount={observationCounts[epa.epaId] ?? 0}
               onLogEpa={() => onLogEpa(epa.epaId, epa.title)}
+              subReqSummary={subReqSummaries[epa.epaId]}
             />
           ))}
         </div>
@@ -613,6 +656,12 @@ function EpaPanel({
                               <> &middot; {epaProgress.totalCases}/{epaProgress.targetCases} logged</>
                             )}
                           </div>
+                          {/* Sub-requirement gaps */}
+                          {subReqSummaries[gap.epaId] && subReqSummaries[gap.epaId].remaining.length > 0 && (
+                            <div style={{ marginTop: 6 }}>
+                              <EpaSubReqChecklist summary={subReqSummaries[gap.epaId]} compact />
+                            </div>
+                          )}
                         </div>
                         {epaProgress && (
                           <div style={{ position: "relative" }}>

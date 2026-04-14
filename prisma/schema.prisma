@@ -510,6 +510,7 @@ model EpaObservation {
   observationDate   DateTime
   setting           String?               // "OR", "Clinic", "Simulation", "Ward"
   complexity        String?               // "Low", "Moderate", "High"
+  technique         String?               // Technique used (from EPA techniqueOptions)
   assessorName      String
   assessorRole      String?
   assessorEmail     String?

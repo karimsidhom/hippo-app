@@ -448,6 +448,7 @@ export interface EpaObservation {
   observationDate: Date;
   setting: string | null;
   complexity: string | null;
+  technique: string | null;
   assessorName: string;
   assessorRole: string | null;
   assessorEmail: string | null;
@@ -483,6 +484,7 @@ export interface EpaObservationInput {
   observationDate: Date;
   setting?: string;
   complexity?: string;
+  technique?: string;
   assessorName: string;
   assessorRole?: string;
   assessorEmail?: string;
