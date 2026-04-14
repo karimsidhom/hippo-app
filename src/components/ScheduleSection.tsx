@@ -401,7 +401,10 @@ function AddForm({
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ transcript: trimmed }),
+        body: JSON.stringify({
+          transcript: trimmed,
+          tzOffsetMinutes: new Date().getTimezoneOffset(),
+        }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));

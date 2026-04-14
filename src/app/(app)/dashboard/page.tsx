@@ -16,6 +16,10 @@ import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
 import { DebriefSheet } from "@/components/DebriefSheet";
+import { StaffDashboard } from "@/components/staff/StaffDashboard";
+
+// Role types that see the staff/attending dashboard instead of the trainee one.
+const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
 
 function approachColor(approach: string): string {
   const m: Record<string, string> = {
@@ -85,6 +89,11 @@ export default function DashboardPage() {
   const learningCurve = topProcName ? getLearningCurveData(cases ?? [], topProcName) : [];
 
   const firstName = user?.name?.split(" ")[0] ?? "Surgeon";
+
+  // Staff / attending / PD get a different home — personal cases + teaching load.
+  if (profile?.roleType && STAFF_ROLES.has(profile.roleType)) {
+    return <StaffDashboard />;
+  }
 
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>

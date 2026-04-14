@@ -80,15 +80,21 @@ export async function POST(req: NextRequest) {
   if (error) return error;
   await ensureDbUser(user);
 
-  let body: { transcript?: unknown };
+  let body: { transcript?: unknown; tzOffsetMinutes?: unknown };
   try {
-    body = (await req.json()) as { transcript?: unknown };
+    body = (await req.json()) as { transcript?: unknown; tzOffsetMinutes?: unknown };
   } catch {
     return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
   }
 
   const transcript =
     typeof body.transcript === "string" ? body.transcript.trim() : "";
+  // Client's timezone offset in minutes (from Date.getTimezoneOffset(), where
+  // positive = behind UTC). Used to translate the AI-parsed local time
+  // ("Monday 07:00") into a UTC instant that displays correctly in the
+  // client's timezone — critical because Vercel runs in UTC.
+  const tzOffsetMinutes =
+    typeof body.tzOffsetMinutes === "number" ? body.tzOffsetMinutes : 0;
   if (!transcript) {
     return NextResponse.json(
       { error: "Body must include a non-empty `transcript` string" },
@@ -154,7 +160,11 @@ export async function POST(req: NextRequest) {
     cases.map((c) => {
       const dateObj = resolveDate(c.dayOfWeek);
       const [hours, minutes] = (c.time ?? "07:00").split(":").map(Number);
-      dateObj.setHours(hours || 7, minutes || 0, 0, 0);
+      // Set the wall-clock time in the client's timezone, then translate to
+      // UTC for storage. Using setUTCHours + the client's tz offset avoids
+      // the server's own timezone (Vercel = UTC) skewing the stored value.
+      dateObj.setUTCHours((hours || 7), (minutes || 0), 0, 0);
+      dateObj.setUTCMinutes(dateObj.getUTCMinutes() + tzOffsetMinutes);
 
       return db.scheduledCase.create({
         data: {
