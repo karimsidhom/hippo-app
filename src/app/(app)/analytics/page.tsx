@@ -19,8 +19,9 @@ import {
 import { EpaDashboard } from "@/components/epa/EpaDashboard";
 import { EpaAnalyticsPanel } from "@/components/epa/EpaAnalyticsPanel";
 import { useUser } from "@/hooks/useUser";
+import Link from "next/link";
 
-const CHART_TABS = ["Overview", "EPAs", "Milestones", "Learning Curve", "Volume", "OR Time Trend"];
+const BASE_CHART_TABS = ["Overview", "EPAs", "Milestones", "Learning Curve", "Volume", "OR Time Trend"];
 
 
 export default function AnalyticsPage() {
@@ -29,6 +30,9 @@ export default function AnalyticsPage() {
   const { profile } = useUser();
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProcedure, setSelectedProcedure] = useState("");
+
+  const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
+  const CHART_TABS = isPD ? [...BASE_CHART_TABS, "PD Dashboard"] : BASE_CHART_TABS;
 
   const topProcedures = Object.entries(stats?.byProcedure || {})
     .sort(([, a], [, b]) => b - a)
@@ -76,6 +80,27 @@ export default function AnalyticsPage() {
       }}>
         {CHART_TABS.map(tab => {
           const active = activeTab === tab;
+          if (tab === "PD Dashboard") {
+            return (
+              <Link
+                key={tab}
+                href="/pd-dashboard"
+                style={{
+                  flexShrink: 0, padding: "5px 12px",
+                  background: "none",
+                  border: "1px solid transparent",
+                  color: "var(--accent, #0EA5E9)",
+                  borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                  whiteSpace: "nowrap", letterSpacing: ".01em",
+                  textDecoration: "none",
+                }}
+              >
+                {tab} →
+              </Link>
+            );
+          }
           return (
             <button
               key={tab}
