@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { ThemeProvider } from "@/context/ThemeContext";
 
 // All pages require runtime auth — never prerender statically
 export const dynamic = "force-dynamic";
@@ -55,13 +56,15 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen bg-[#0a0a0f] text-[#f1f5f9] antialiased">
-        <AuthProvider>
-          <SubscriptionProvider>
-            <div id="app-root">{children}</div>
-            <div id="portal-root" />
-          </SubscriptionProvider>
-        </AuthProvider>
+      <body className="min-h-screen antialiased" style={{ background: "var(--bg)", color: "var(--text)" }}>
+        <ThemeProvider>
+          <AuthProvider>
+            <SubscriptionProvider>
+              <div id="app-root">{children}</div>
+              <div id="portal-root" />
+            </SubscriptionProvider>
+          </AuthProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

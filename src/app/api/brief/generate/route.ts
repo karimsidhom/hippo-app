@@ -59,23 +59,41 @@ export async function POST(req: NextRequest) {
   // Pull the user's recent case log. `orderBy caseDate desc` gives the model
   // the most-relevant context; Postgres index @@index([userId, caseDate desc])
   // makes this a cheap lookup.
-  const rows = await db.caseLog.findMany({
-    where: { userId: user.id },
-    orderBy: { caseDate: "desc" },
-    take: CASE_HISTORY_LIMIT,
-    select: {
-      procedureName: true,
-      caseDate: true,
-      role: true,
-      surgicalApproach: true,
-      operativeDurationMinutes: true,
-      complicationCategory: true,
-      outcomeCategory: true,
-      notes: true,
-      reflection: true,
-      attendingLabel: true,
-    },
-  });
+  const [rows, scheduledCases] = await Promise.all([
+    db.caseLog.findMany({
+      where: { userId: user.id },
+      orderBy: { caseDate: "desc" },
+      take: CASE_HISTORY_LIMIT,
+      select: {
+        procedureName: true,
+        caseDate: true,
+        role: true,
+        surgicalApproach: true,
+        operativeDurationMinutes: true,
+        complicationCategory: true,
+        outcomeCategory: true,
+        notes: true,
+        reflection: true,
+        attendingLabel: true,
+      },
+    }),
+    // Also fetch upcoming scheduled cases so the brief knows what's planned
+    db.scheduledCase.findMany({
+      where: {
+        userId: user.id,
+        status: { not: "cancelled" },
+        scheduledAt: { gte: new Date() },
+      },
+      orderBy: { scheduledAt: "asc" },
+      take: 14,
+      select: {
+        procedureName: true,
+        attendingLabel: true,
+        scheduledAt: true,
+        notes: true,
+      },
+    }),
+  ]);
 
   // Normalize each row's `reflection` column — structured debriefs are
   // stored as JSON, legacy rows are freeform text. Prefer the structured
@@ -114,6 +132,19 @@ export async function POST(req: NextRequest) {
     };
   });
 
-  const result = await generateBrief({ userInput, cases });
+  // Build a schedule context string so the LLM knows what's already planned
+  const scheduleContext = scheduledCases.length > 0
+    ? scheduledCases.map((sc) => {
+        const dt = new Date(sc.scheduledAt);
+        const day = dt.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+        const time = dt.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+        const parts = [`${sc.procedureName} — ${day} ${time}`];
+        if (sc.attendingLabel) parts.push(`with ${sc.attendingLabel}`);
+        if (sc.notes) parts.push(`(${sc.notes})`);
+        return parts.join(" ");
+      }).join("\n")
+    : "";
+
+  const result = await generateBrief({ userInput, cases, scheduleContext });
   return NextResponse.json(result);
 }

@@ -5,10 +5,13 @@ import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PRICING } from "@/lib/pricing";
 import Link from "next/link";
-import { Shield, Users, BarChart2, Download, Trash2, Bell, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles } from "lucide-react";
+import { Shield, Users, BarChart2, Download, Trash2, Bell, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles, Sun, Moon, Monitor } from "lucide-react";
+import { useTheme } from "@/context/ThemeContext";
+import type { ThemeMode } from "@/context/ThemeContext";
 
 const TABS = [
   { key: "profile", label: "Profile", icon: User },
+  { key: "appearance", label: "Appearance", icon: Sun },
   { key: "privacy", label: "Privacy & PHIA", icon: Shield },
   { key: "social", label: "Social", icon: Users },
   { key: "leaderboard", label: "Leaderboard", icon: BarChart2 },
@@ -29,6 +32,7 @@ const SUBROUTES = [
 export default function SettingsPage() {
   const { user, profile, updateProfile } = useUser();
   const { isPro, isFree, tier, status, currentPeriodEnd, cancelAtPeriodEnd, startCheckout, openBillingPortal, simulateUpgrade, simulateDowngrade } = useSubscription();
+  const { mode: themeMode, resolved: resolvedTheme, setMode: setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState("privacy");
   const [portalLoading, setPortalLoading] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -172,6 +176,89 @@ export default function SettingsPage() {
                   />
                   <p className="text-xs text-[#64748b] mt-1">Email cannot be changed after registration</p>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Appearance */}
+          {activeTab === "appearance" && (
+            <div className="space-y-4">
+              <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text)" }}>Appearance</h2>
+              <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Choose how Hippo looks on your device.
+              </p>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {([
+                  { key: "dark" as ThemeMode, label: "Dark", desc: "Easier on the eyes, especially in the OR", icon: <Moon size={18} /> },
+                  { key: "light" as ThemeMode, label: "Light", desc: "Clean and bright for clinic and reading", icon: <Sun size={18} /> },
+                  { key: "system" as ThemeMode, label: "System", desc: "Follows your device settings automatically", icon: <Monitor size={18} /> },
+                ]).map((option) => {
+                  const isActive = themeMode === option.key;
+                  return (
+                    <button
+                      key={option.key}
+                      onClick={() => setThemeMode(option.key)}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 14,
+                        padding: "14px 16px",
+                        background: isActive ? "var(--primary-dim)" : "var(--surface)",
+                        border: `1.5px solid ${isActive ? "var(--primary)" : "var(--border)"}`,
+                        borderRadius: 10,
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        textAlign: "left",
+                        transition: "all .15s",
+                      }}
+                    >
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: isActive ? "var(--primary-glow)" : "var(--surface2)",
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        color: isActive ? "var(--primary)" : "var(--text-3)",
+                        flexShrink: 0,
+                      }}>
+                        {option.icon}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{
+                          fontSize: 14, fontWeight: 600,
+                          color: isActive ? "var(--primary)" : "var(--text)",
+                        }}>
+                          {option.label}
+                        </div>
+                        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
+                          {option.desc}
+                        </div>
+                      </div>
+                      {isActive && (
+                        <div style={{
+                          width: 20, height: 20, borderRadius: "50%",
+                          background: "var(--primary)",
+                          display: "flex", alignItems: "center", justifyContent: "center",
+                          flexShrink: 0,
+                        }}>
+                          <CheckCircle size={12} color="#fff" />
+                        </div>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{
+                marginTop: 16, padding: "10px 14px",
+                background: "var(--surface2)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                fontSize: 11, color: "var(--text-3)",
+              }}>
+                Currently using: <strong style={{ color: "var(--text-2)" }}>
+                  {resolvedTheme === "dark" ? "Dark" : "Light"} mode
+                </strong>
+                {themeMode === "system" && " (following system)"}
               </div>
             </div>
           )}

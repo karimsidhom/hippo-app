@@ -20,6 +20,8 @@ import type {
 export interface GenerateBriefInput {
   userInput: string;
   cases: BriefCaseContext[];
+  /** Pre-formatted schedule of upcoming cases the resident has already entered */
+  scheduleContext?: string;
 }
 
 const SYSTEM_PROMPT = `You are a senior surgical attending writing a targeted pre-op prep brief for a surgical resident.
@@ -65,6 +67,7 @@ Hard rules:
 function buildUserPrompt(
   userInput: string,
   cases: BriefCaseContext[],
+  scheduleContext?: string,
 ): string {
   const caseBlock = cases.length
     ? cases
@@ -93,9 +96,13 @@ function buildUserPrompt(
         .join("\n")
     : "(no prior cases logged)";
 
+  const scheduleBlock = scheduleContext
+    ? `\nResident's upcoming scheduled cases this week:\n${scheduleContext}\n`
+    : "";
+
   return `Upcoming case (free text from resident):
 ${userInput}
-
+${scheduleBlock}
 Resident's prior case log (most recent first, up to 30):
 ${caseBlock}
 
@@ -198,7 +205,7 @@ export async function generateBrief(
   try {
     const result = await callClaude({
       system: SYSTEM_PROMPT,
-      user: buildUserPrompt(input.userInput, input.cases),
+      user: buildUserPrompt(input.userInput, input.cases, input.scheduleContext),
       temperature: 0.3,
       maxTokens: 4096,
     });

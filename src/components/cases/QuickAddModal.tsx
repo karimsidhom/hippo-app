@@ -336,8 +336,8 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             maxHeight: "85vh",
             overflowY: "auto",
             borderRadius: 16,
-            background: "#0f1825",
-            border: "1px solid rgba(255,255,255,0.08)",
+            background: "var(--bg-1)",
+            border: "1px solid var(--border-mid)",
             boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
             margin: "auto",
           }}>

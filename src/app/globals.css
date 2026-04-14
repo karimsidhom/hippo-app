@@ -60,6 +60,94 @@
   --rl:  10px;
 }
 
+/* ═══════════════════════════════════════════════════════════════════════════
+   LIGHT MODE
+   Clean, clinical white. Same hierarchy, inverted contrast.
+   Applied via data-theme="light" on <html>.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme="light"] {
+  /* Canvas */
+  --bg:           #f8fafc;
+  --bg-elevated:  #ffffff;
+
+  /* Surfaces */
+  --surface:      #ffffff;
+  --surface2:     #f1f5f9;
+  --glass:        rgba(14, 165, 233, 0.03);
+  --glass-mid:    rgba(14, 165, 233, 0.05);
+  --glass-hi:     rgba(14, 165, 233, 0.08);
+
+  /* Borders */
+  --border:       rgba(0,0,0,0.06);
+  --border-mid:   rgba(0,0,0,0.10);
+  --border-glass: rgba(14,165,233,0.12);
+  --border-glow:  rgba(14,165,233,0.20);
+
+  /* Text */
+  --text:         #0f172a;
+  --text-2:       #64748b;
+  --text-3:       #94a3b8;
+  --muted:        #cbd5e1;
+
+  /* Accent — same teal, slightly deeper for contrast on white */
+  --primary:      #0284C7;
+  --primary-hi:   #0EA5E9;
+  --primary-lo:   #0369A1;
+  --primary-dim:  rgba(14,165,233,0.06);
+  --primary-glow: rgba(14,165,233,0.12);
+
+  /* Surface levels */
+  --bg-1:         #ffffff;
+  --bg-2:         #f8fafc;
+  --bg-3:         #f1f5f9;
+
+  /* Text alias */
+  --text-1:       #0f172a;
+
+  /* Signal — slightly deeper for white bg */
+  --success:      #059669;
+  --danger:       #dc2626;
+  --warning:      #d97706;
+}
+
+/* Light mode scrollbar */
+[data-theme="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(0,0,0,0.12);
+}
+[data-theme="light"] ::selection {
+  background: rgba(14,165,233,0.20);
+  color: #0f172a;
+}
+
+/* Light mode overrides for Tailwind hardcoded colors used in settings/layout */
+[data-theme="light"] .bg-\[\#16161f\],
+[data-theme="light"] .bg-\[\#0e1520\],
+[data-theme="light"] .bg-\[\#0a0a0f\],
+[data-theme="light"] .bg-\[\#1a1a2e\] {
+  background-color: var(--surface2) !important;
+}
+[data-theme="light"] .text-\[\#f1f5f9\] {
+  color: var(--text) !important;
+}
+[data-theme="light"] .text-\[\#94a3b8\],
+[data-theme="light"] .text-\[\#64748b\] {
+  color: var(--text-2) !important;
+}
+[data-theme="light"] .border-\[\#1e2130\],
+[data-theme="light"] .border-\[\#252838\] {
+  border-color: var(--border-mid) !important;
+}
+[data-theme="light"] .border-l-2.border-\[\#2563eb\] {
+  border-left-color: var(--primary) !important;
+}
+[data-theme="light"] .bg-\[\#1a0f0f\] {
+  background-color: rgba(220,38,38,0.05) !important;
+}
+[data-theme="light"] .focus\:ring-\[\#2563eb\]:focus {
+  --tw-ring-color: var(--primary) !important;
+}
+
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 html { height: 100%; }
