@@ -120,32 +120,88 @@
   color: #0f172a;
 }
 
-/* Light mode overrides for Tailwind hardcoded colors used in settings/layout */
-[data-theme="light"] .bg-\[\#16161f\],
-[data-theme="light"] .bg-\[\#0e1520\],
+/* ─── Light mode overrides for Tailwind hardcoded dark-theme colors ──────
+   The UI library (shadcn-style) was built with hardcoded dark hex values via
+   Tailwind arbitrary classes. Without these overrides, light mode renders
+   white-on-white buttons, invisible placeholders, and low-contrast cards.
+   Keep this list exhaustive. */
+
+/* Base/deepest background (body, sidebar, legal pages) */
+[data-theme="light"] .bg-\[\#060d13\],
 [data-theme="light"] .bg-\[\#0a0a0f\],
-[data-theme="light"] .bg-\[\#1a1a2e\] {
+[data-theme="light"] .bg-\[\#0d0d14\],
+[data-theme="light"] .bg-\[\#0e1520\] {
+  background-color: var(--bg) !important;
+}
+
+/* Surface level 1 — cards, inputs, dialogs */
+[data-theme="light"] .bg-\[\#0c1219\],
+[data-theme="light"] .bg-\[\#111118\],
+[data-theme="light"] .bg-\[\#111a23\],
+[data-theme="light"] .bg-\[\#141c28\] {
+  background-color: var(--surface) !important;
+}
+
+/* Surface level 2 — elevated / hover / active nav */
+[data-theme="light"] .bg-\[\#16161f\],
+[data-theme="light"] .bg-\[\#1a1a26\],
+[data-theme="light"] .bg-\[\#1a1a2e\],
+[data-theme="light"] .bg-\[\#1a2332\],
+[data-theme="light"] .bg-\[\#1e2130\],
+[data-theme="light"] .hover\:bg-\[\#16161f\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1a1a26\]:hover,
+[data-theme="light"] .hover\:bg-\[\#1a1a2e\]:hover {
   background-color: var(--surface2) !important;
 }
-[data-theme="light"] .text-\[\#f1f5f9\] {
+
+/* Text — primary */
+[data-theme="light"] .text-\[\#e2e8f0\],
+[data-theme="light"] .text-\[\#E2E8F0\],
+[data-theme="light"] .text-\[\#f1f5f9\],
+[data-theme="light"] .text-\[\#cbd5e1\],
+[data-theme="light"] .text-\[\#ffffff\] {
   color: var(--text) !important;
 }
+
+/* Text — secondary / muted */
 [data-theme="light"] .text-\[\#94a3b8\],
 [data-theme="light"] .text-\[\#64748b\] {
   color: var(--text-2) !important;
 }
+
+/* Text — tertiary */
+[data-theme="light"] .text-\[\#475569\],
+[data-theme="light"] .text-\[\#334155\] {
+  color: var(--text-3) !important;
+}
+
+/* Borders */
 [data-theme="light"] .border-\[\#1e2130\],
-[data-theme="light"] .border-\[\#252838\] {
+[data-theme="light"] .border-\[\#252838\],
+[data-theme="light"] .border-\[\#1a2332\],
+[data-theme="light"] .border-\[\#16161f\],
+[data-theme="light"] .hover\:border-\[\#252838\]:hover {
   border-color: var(--border-mid) !important;
 }
+
+/* Brand-blue accents stay, but tune to light variant */
 [data-theme="light"] .border-l-2.border-\[\#2563eb\] {
   border-left-color: var(--primary) !important;
 }
+[data-theme="light"] .focus\:ring-\[\#2563eb\]:focus {
+  --tw-ring-color: var(--primary) !important;
+}
+
+/* Tinted utility backgrounds */
 [data-theme="light"] .bg-\[\#1a0f0f\] {
   background-color: rgba(220,38,38,0.05) !important;
 }
-[data-theme="light"] .focus\:ring-\[\#2563eb\]:focus {
-  --tw-ring-color: var(--primary) !important;
+
+/* Placeholders — make sure they're visible on both themes */
+[data-theme="light"] input::placeholder,
+[data-theme="light"] textarea::placeholder {
+  color: var(--text-3) !important;
+  opacity: 1;
 }
 
 /* ─── Reset ─────────────────────────────────────────────────────────────── */

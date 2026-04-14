@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import type { EpaObservationInput, EpaAchievementLevel, CriterionRating } from "@/lib/types";
 import { getSpecialtyEpaData } from "@/lib/epa/data";
 import type { EpaDefinition } from "@/lib/epa/data";
@@ -137,6 +137,28 @@ export function EpaObservationForm({
 
   // Send via Hippo toggle
   const [sendViaHippo, setSendViaHippo] = useState(false);
+
+  // Live lookup: is this email a Hippo user? Drives the in-app vs email UX.
+  const [assessorLookup, setAssessorLookup] = useState<
+    { isHippoUser: boolean; isAssessor?: boolean; name?: string | null } | null
+  >(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  useEffect(() => {
+    const email = assessorEmail.trim();
+    if (!email || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      setAssessorLookup(null);
+      return;
+    }
+    setLookupLoading(true);
+    const t = setTimeout(() => {
+      fetch(`/api/assessors/lookup?email=${encodeURIComponent(email)}`)
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { setAssessorLookup(d); })
+        .catch(() => setAssessorLookup(null))
+        .finally(() => setLookupLoading(false));
+    }, 350); // debounce
+    return () => clearTimeout(t);
+  }, [assessorEmail]);
 
   const [submitting, setSubmitting] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
@@ -297,15 +319,92 @@ export function EpaObservationForm({
               style={{ ...inputStyle, colorScheme: "dark" }} />
           </div>
 
-          {/* Assessor Email */}
-          <div style={{ gridColumn: "1 / -1" }}>
-            <label style={labelStyle}>Assessor Email</label>
-            <input type="email" value={assessorEmail} onChange={(e) => setAssessorEmail(e.target.value)}
-              placeholder="jane.smith@hospital.edu" style={inputStyle} />
-            <p style={{ fontSize: 12, color: "#94a3b8", margin: "4px 0 0" }}>
-              Enter email to send for electronic sign-off
-            </p>
+        </div>
+
+        {/* ── Send for Sign-off — prominent block ─────────────────────── */}
+        <div style={{
+          marginTop: 16,
+          padding: "14px 16px",
+          background: assessorLookup?.isHippoUser ? "rgba(16,185,129,.08)" : "rgba(37,99,235,.06)",
+          border: `1px solid ${assessorLookup?.isHippoUser ? "rgba(16,185,129,.3)" : "rgba(37,99,235,.25)"}`,
+          borderRadius: 10,
+        }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+            <span style={{ fontSize: 16 }}>
+              {assessorLookup?.isHippoUser ? "\u2709\uFE0F" : "\uD83D\uDCE9"}
+            </span>
+            <div style={{
+              fontSize: 13, fontWeight: 700, color: "var(--text-1)",
+            }}>
+              Send for sign-off
+            </div>
+            <span style={{
+              fontSize: 10, color: "var(--text-3)",
+              marginLeft: "auto",
+            }}>Optional</span>
           </div>
+
+          <label style={{ ...labelStyle, marginTop: 0 }}>Assessor email</label>
+          <input
+            type="email"
+            value={assessorEmail}
+            onChange={(e) => setAssessorEmail(e.target.value)}
+            placeholder="jane.smith@hospital.edu"
+            style={inputStyle}
+          />
+
+          {/* Live lookup feedback */}
+          {assessorEmail.trim() && (
+            <div style={{
+              marginTop: 10,
+              padding: "10px 12px",
+              borderRadius: 8,
+              background: assessorLookup?.isHippoUser ? "rgba(16,185,129,.12)" : "var(--bg-2)",
+              border: `1px solid ${assessorLookup?.isHippoUser ? "rgba(16,185,129,.3)" : "var(--border-mid)"}`,
+              fontSize: 12,
+              color: "var(--text-2)",
+              lineHeight: 1.5,
+            }}>
+              {lookupLoading ? (
+                <span style={{ color: "var(--text-3)" }}>Checking{"\u2026"}</span>
+              ) : assessorLookup?.isHippoUser ? (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
+                    <span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"} On Hippo</span>
+                    {assessorLookup.name && (
+                      <span style={{ color: "var(--text-2)" }}>{"\u2014"} {assessorLookup.name}</span>
+                    )}
+                    {assessorLookup.isAssessor === false && (
+                      <span style={{
+                        fontSize: 10, fontWeight: 600, color: "#f59e0b",
+                        background: "rgba(245,158,11,.15)", padding: "1px 6px", borderRadius: 4,
+                      }}>
+                        Non-assessor role
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ color: "var(--text-3)" }}>
+                    {"They\u2019ll get an in-app notification in their Sign-Offs inbox. An email backup goes out too."}
+                  </div>
+                </>
+              ) : /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(assessorEmail.trim()) ? (
+                <>
+                  <div style={{ color: "var(--text-2)", fontWeight: 600, marginBottom: 4 }}>
+                    Email invite
+                  </div>
+                  <div style={{ color: "var(--text-3)" }}>
+                    {"This attending isn\u2019t on Hippo yet. We\u2019ll email them a secure sign-off link (valid 12 months) \u2014 no login required."}
+                  </div>
+                </>
+              ) : (
+                <span style={{ color: "var(--text-3)" }}>Enter a valid email to preview.</span>
+              )}
+            </div>
+          )}
+
+          <p style={{ fontSize: 11, color: "var(--text-3)", margin: "8px 0 0" }}>
+            Leave blank to save without requesting sign-off. You can request it later.
+          </p>
         </div>
 
         {/* Linked case */}
@@ -634,7 +733,13 @@ export function EpaObservationForm({
             cursor: (submitting || !assessorName.trim()) ? "not-allowed" : "pointer",
             opacity: (submitting || !assessorName.trim()) ? 0.6 : 1, transition: "all .15s",
           }}>
-          {submitting ? "Submitting..." : assessorEmail ? "Submit & Send for Sign-off" : "Submit Observation"}
+          {submitting
+            ? "Submitting..."
+            : assessorLookup?.isHippoUser
+              ? "Send to Attending (in-app)"
+              : assessorEmail
+                ? "Submit & Email for Sign-off"
+                : "Submit Observation"}
         </button>
 
         <button type="button" onClick={onCancel}
