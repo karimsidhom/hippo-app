@@ -62,6 +62,9 @@ export interface EpaReviewEmailData {
   procedureName: string;
   caseDate: string;
   reviewUrl: string;
+  /** Set when the attending is already a Hippo user — link to their in-app inbox. */
+  inAppUrl?: string;
+  isHippoUser?: boolean;
 }
 
 export function buildEpaReviewEmail(data: EpaReviewEmailData): {
@@ -79,10 +82,12 @@ EPA: ${data.epaId} — ${data.epaTitle}
 Procedure: ${data.procedureName}
 Date: ${data.caseDate}
 
-Please review and sign off here:
-${data.reviewUrl}
+${data.isHippoUser && data.inAppUrl
+  ? `Sign off in the app: ${data.inAppUrl}
+Or use this public link (no login needed): ${data.reviewUrl}`
+  : `Please review and sign off here: ${data.reviewUrl}
 
-This link does not require a login.
+This link does not require a login. It stays valid for 12 months.`}
 
 — Hippo (hippomedicine.com)`;
 
@@ -123,15 +128,28 @@ This link does not require a login.
         </div>
       </div>
 
+      ${data.isHippoUser && data.inAppUrl
+        ? `
+      <!-- Primary: in-app CTA -->
+      <a href="${escapeHtml(data.inAppUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
+        Open in Hippo &amp; Sign Off
+      </a>
+      <p style="color:#64748b;font-size:12px;text-align:center;margin:10px 0 0;line-height:1.5;">
+        You already have a Hippo account — this EPA is waiting in your Sign-Offs inbox.
+      </p>
+      <!-- Secondary: public link fallback -->
+      <a href="${escapeHtml(data.reviewUrl)}" style="display:block;text-align:center;color:#64748b;font-size:12px;margin-top:14px;text-decoration:underline;">
+        Or sign without the app
+      </a>`
+        : `
       <!-- CTA button -->
       <a href="${escapeHtml(data.reviewUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
         Review &amp; Sign Off
       </a>
-
       <p style="color:#64748b;font-size:12px;text-align:center;margin:14px 0 0;line-height:1.5;">
-        This link does not require a login.<br>
+        No login required. This link stays valid for 12 months.<br>
         You can review the observation, provide feedback, and sign off directly.
-      </p>
+      </p>`}
     </div>
 
     <!-- Footer -->

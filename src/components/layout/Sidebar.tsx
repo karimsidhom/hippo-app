@@ -2,13 +2,14 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { Avatar } from "@/components/ui/avatar";
 import {
   LayoutDashboard, FilePlus, ClipboardList, BarChart2, Trophy,
-  Users, User, Settings, ChevronLeft, ChevronRight, Plus, TrendingUp, Zap, LogOut, GraduationCap
+  Users, User, Settings, ChevronLeft, ChevronRight, Plus, TrendingUp, Zap, LogOut, GraduationCap, Inbox
 } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 
@@ -37,6 +38,26 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
   const { isFree } = useSubscription();
   const { logout } = useAuth();
   const isPro = !isFree;
+
+  // Attendings, PDs, and staff act as assessors — show their sign-off inbox.
+  const isAssessor = profile?.roleType === "ATTENDING"
+    || profile?.roleType === "STAFF"
+    || profile?.roleType === "PROGRAM_DIRECTOR";
+
+  const [pendingCount, setPendingCount] = useState<number>(0);
+  useEffect(() => {
+    if (!isAssessor) return;
+    let cancelled = false;
+    const load = () => {
+      fetch("/api/attending/inbox")
+        .then(r => r.ok ? r.json() : null)
+        .then(d => { if (!cancelled && d) setPendingCount(d.pendingCount ?? 0); })
+        .catch(() => {});
+    };
+    load();
+    const iv = setInterval(load, 60_000); // poll every minute
+    return () => { cancelled = true; clearInterval(iv); };
+  }, [isAssessor]);
 
   const handleLogout = () => {
     logout();
@@ -83,6 +104,43 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-2 px-3 space-y-0.5">
+        {/* Sign-Offs inbox — only for attendings / PDs / staff */}
+        {isAssessor && (
+          <Link
+            href="/inbox"
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
+              pathname === "/inbox" || pathname.startsWith("/inbox/")
+                ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
+                : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+            } ${collapsed ? "justify-center" : ""}`}
+            title={collapsed ? `Sign-Offs${pendingCount ? ` (${pendingCount})` : ""}` : undefined}
+          >
+            <Inbox
+              className={`flex-shrink-0 transition-colors ${
+                pathname === "/inbox" || pathname.startsWith("/inbox/")
+                  ? "text-[#2563eb]"
+                  : "text-[#64748b] group-hover:text-[#94a3b8]"
+              } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
+            />
+            {!collapsed && (
+              <span className="text-sm font-medium truncate flex-1">Sign-Offs</span>
+            )}
+            {pendingCount > 0 && (
+              <span style={{
+                fontSize: 10, fontWeight: 700,
+                padding: collapsed ? "1px 4px" : "1px 6px",
+                borderRadius: 99,
+                background: "#2563eb", color: "#fff",
+                minWidth: collapsed ? 14 : 18,
+                textAlign: "center" as const,
+                lineHeight: 1.4,
+              }}>
+                {pendingCount > 99 ? "99+" : pendingCount}
+              </span>
+            )}
+          </Link>
+        )}
+
         {/* PD Dashboard link — only for Program Directors */}
         {profile?.roleType === "PROGRAM_DIRECTOR" && (
           <Link

@@ -2,17 +2,26 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { sendEmail, buildEpaReviewEmail } from '@/lib/email';
+import { logAudit } from '@/lib/audit';
 
 type RouteContext = { params: Promise<{ id: string }> };
+
+// Links are long-lived. Attendings routinely sign weeks or months after the
+// fact; a 24-hour expiry is incompatible with real residency workflows.
+const TOKEN_TTL_DAYS = 365;
 
 /**
  * POST /api/epa/observations/[id]/submit
  * Submits an EPA observation for review.
- * - If no assessorEmail → status becomes SUBMITTED
- * - If assessorEmail is set → status becomes PENDING_REVIEW and an
- *   AttendingNotification record is created with a unique accessToken.
+ *
+ * Routing rule:
+ * - If assessorEmail matches a Hippo user → link them as assessorUserId and
+ *   the EPA appears in their in-app Sign-Off inbox. Email is still sent as a
+ *   fallback.
+ * - If no Hippo user matches → email-only with a 365-day signed link.
+ * - If no assessorEmail → status becomes SUBMITTED (no review requested).
  */
-export async function POST(_req: NextRequest, context: RouteContext) {
+export async function POST(req: NextRequest, context: RouteContext) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
@@ -35,7 +44,11 @@ export async function POST(_req: NextRequest, context: RouteContext) {
     }
 
     if (observation.assessorEmail) {
-      // Fetch the linked case for email context
+      const attendingUser = await db.user.findUnique({
+        where: { email: observation.assessorEmail.toLowerCase() },
+        select: { id: true },
+      });
+
       const linkedCase = observation.caseLogId
         ? await db.caseLog.findUnique({
             where: { id: observation.caseLogId },
@@ -43,32 +56,37 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           })
         : null;
 
-      // Get resident's name for the email
       const dbUser = await db.user.findUnique({
         where: { id: user.id },
         select: { name: true, email: true },
       });
 
-      // Create notification and set PENDING_REVIEW
+      const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
+      const channel = attendingUser ? 'in_app' : 'email';
+
       const [updated, notification] = await db.$transaction([
         db.epaObservation.update({
           where: { id },
-          data: { status: 'PENDING_REVIEW' },
+          data: {
+            status: 'PENDING_REVIEW',
+            assessorUserId: attendingUser?.id ?? null,
+          },
         }),
         db.attendingNotification.create({
           data: {
             epaObservationId: id,
             recipientEmail:   observation.assessorEmail,
             recipientName:    observation.assessorName,
+            expiresAt,
+            channel,
           },
         }),
       ]);
 
-      // Build the review URL
       const appBase = process.env.NEXT_PUBLIC_APP_URL || 'https://hippomedicine.com';
       const reviewUrl = `${appBase}/review/${notification.accessToken}`;
+      const inAppUrl = `${appBase}/inbox`;
 
-      // Send email notification (non-blocking — don't fail the submission if email fails)
       const emailData = buildEpaReviewEmail({
         assessorName: observation.assessorName,
         assessorEmail: observation.assessorEmail,
@@ -80,9 +98,10 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           ? new Date(linkedCase.caseDate).toLocaleDateString('en-CA')
           : new Date(observation.observationDate).toLocaleDateString('en-CA'),
         reviewUrl,
+        inAppUrl: attendingUser ? inAppUrl : undefined,
+        isHippoUser: Boolean(attendingUser),
       });
 
-      // Fire and forget — email failure should not block the response
       sendEmail({
         to: observation.assessorEmail,
         subject: emailData.subject,
@@ -92,6 +111,20 @@ export async function POST(_req: NextRequest, context: RouteContext) {
         console.error('[submit] Email send failed (non-fatal):', err);
       });
 
+      void logAudit({
+        userId: user.id,
+        action: 'epa.update',
+        entityType: 'EpaObservation',
+        entityId: id,
+        metadata: {
+          transition: 'DRAFT→PENDING_REVIEW',
+          channel,
+          attendingIsHippoUser: Boolean(attendingUser),
+          assessorUserId: attendingUser?.id ?? null,
+        },
+        req,
+      });
+
       return NextResponse.json({
         ...updated,
         notification: {
@@ -99,11 +132,13 @@ export async function POST(_req: NextRequest, context: RouteContext) {
           accessToken: notification.accessToken,
           recipientEmail: notification.recipientEmail,
           reviewUrl,
+          channel,
+          expiresAt,
+          inAppDelivered: Boolean(attendingUser),
         },
       });
     }
 
-    // No assessor email — just mark as SUBMITTED
     const updated = await db.epaObservation.update({
       where: { id },
       data: { status: 'SUBMITTED' },

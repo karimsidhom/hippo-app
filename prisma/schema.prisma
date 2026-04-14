@@ -132,6 +132,7 @@ model User {
   pearlSaves      PearlSave[]
   pearlComments   PearlComment[]
   epaObservations  EpaObservation[]
+  assessedObservations EpaObservation[] @relation("AssessorObservations")
   auditLogs        AuditLog[]
 
   @@map("users")
@@ -539,6 +540,10 @@ model EpaObservation {
   assessorName      String
   assessorRole      String?
   assessorEmail     String?
+  // If the attending is a Hippo user, link them directly so the observation
+  // appears in their in-app Sign-Off inbox (no token round-trip needed).
+  assessorUserId    String?
+  assessor          User?                 @relation("AssessorObservations", fields: [assessorUserId], references: [id], onDelete: SetNull)
 
   achievement       EpaAchievementLevel   @default(NOT_ACHIEVED)
   entrustmentScore  Int?                  // Royal College O-Score (1-5)
@@ -565,6 +570,7 @@ model EpaObservation {
   @@index([userId, epaId])
   @@index([userId, status])
   @@index([caseLogId])
+  @@index([assessorUserId, status])
   @@map("epa_observations")
 }
 
@@ -580,6 +586,11 @@ model AttendingNotification {
   sentAt            DateTime @default(now())
   viewedAt          DateTime?
   respondedAt       DateTime?
+  // Long-lived by default — attendings often sign weeks/months later.
+  // Null = never expires (e.g. in-app-only notifications).
+  expiresAt         DateTime?
+  /// "email" | "in_app" | "push" — how the notification was delivered
+  channel           String   @default("email")
 
   @@index([accessToken])
   @@index([epaObservationId])
