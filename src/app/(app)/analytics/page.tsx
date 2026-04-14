@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useCases } from "@/hooks/useCases";
 import { useStats } from "@/hooks/useStats";
 import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
@@ -17,9 +17,10 @@ import {
   getSpecialtyBreakdown,
 } from "@/lib/stats";
 import { EpaDashboard } from "@/components/epa/EpaDashboard";
+import { EpaAnalyticsPanel } from "@/components/epa/EpaAnalyticsPanel";
 import { useUser } from "@/hooks/useUser";
 
-const CHART_TABS = ["Overview", "EPAs & Milestones", "Learning Curve", "Volume", "OR Time Trend"];
+const CHART_TABS = ["Overview", "EPAs", "Milestones", "Learning Curve", "Volume", "OR Time Trend"];
 
 
 export default function AnalyticsPage() {
@@ -155,12 +156,22 @@ export default function AnalyticsPage() {
         </div>
       )}
 
-      {/* ── EPAs & Milestones ── */}
-      {activeTab === "EPAs & Milestones" && (
+      {/* ── EPAs ── */}
+      {activeTab === "EPAs" && (
+        <EpaAnalyticsPanel
+          cases={cases}
+          specialty={profile?.specialty ?? undefined}
+          trainingCountry={profile?.trainingCountry ?? undefined}
+        />
+      )}
+
+      {/* ── Milestones ── */}
+      {activeTab === "Milestones" && (
         <EpaDashboard
           cases={cases}
           specialty={profile?.specialty ?? undefined}
           trainingCountry={profile?.trainingCountry ?? undefined}
+          initialTab="Milestones"
         />
       )}
 

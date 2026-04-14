@@ -332,6 +332,7 @@ function EpaPanel({
   observations,
   observationCounts,
   onLogEpa,
+  initialTab: initialTabProp,
 }: {
   epaData: SpecialtyEpaData;
   dashboard: EpaDashboardData | null;
@@ -339,8 +340,9 @@ function EpaPanel({
   observations: EpaObservation[];
   observationCounts: Record<string, number>;
   onLogEpa: (epaId: string, epaTitle: string) => void;
+  initialTab?: string;
 }) {
-  const [subTab, setSubTab] = useState("Overview");
+  const [subTab, setSubTab] = useState(initialTabProp && EPA_TABS.includes(initialTabProp) ? initialTabProp : "Overview");
   const [expandedEpa, setExpandedEpa] = useState<string | null>(null);
 
   const systemLabel = getSystemLabel(epaData.system);
@@ -774,9 +776,11 @@ interface EpaDashboardProps {
   cases: CaseLog[];
   specialty?: string;
   trainingCountry?: string;
+  /** Optional initial sub-tab to show (e.g., "Milestones") */
+  initialTab?: string;
 }
 
-export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboardProps) {
+export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: EpaDashboardProps) {
   const isCanadian = trainingCountry === "CA";
 
   // Top-level tab: "Surgical Foundations" vs specialty
@@ -978,6 +982,7 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
           observations={observations}
           observationCounts={observationCounts}
           onLogEpa={handleLogEpa}
+          initialTab={initialTab}
         />
       ) : (
         <div style={{
@@ -1006,6 +1011,7 @@ export function EpaDashboard({ cases, specialty, trainingCountry }: EpaDashboard
             }}
           />
           <div
+            ref={(el) => { if (el) el.scrollTop = 0; }}
             style={{
               position: "fixed",
               top: "50%",

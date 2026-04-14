@@ -326,18 +326,21 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
           }}
         />
         {/* Form container */}
-        <div style={{
-          position: "relative",
-          zIndex: 1,
-          width: "95vw",
-          maxWidth: 720,
-          maxHeight: "90vh",
-          overflowY: "auto",
-          borderRadius: 16,
-          background: "#0f1825",
-          border: "1px solid rgba(255,255,255,0.08)",
-          boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
-        }}>
+        <div
+          ref={(el) => { if (el) el.scrollTop = 0; }}
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "95vw",
+            maxWidth: 720,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            borderRadius: 16,
+            background: "#0f1825",
+            border: "1px solid rgba(255,255,255,0.08)",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+            margin: "auto",
+          }}>
           <EpaObservationForm
             epaId={selectedEpaSuggestion.epaId}
             epaTitle={selectedEpaSuggestion.epaTitle}
