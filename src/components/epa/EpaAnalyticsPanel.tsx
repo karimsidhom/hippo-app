@@ -261,7 +261,13 @@ interface EpaAnalyticsPanelProps {
 }
 
 export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnalyticsPanelProps) {
-  const isCanadian = trainingCountry === "CA";
+  // Hippo is a Manitoba-based CBD app. Absent an explicit non-CA country,
+  // always show Surgical Foundations so every resident — regardless of specialty —
+  // has the SF track visible.
+  const isCanadian = !trainingCountry || trainingCountry === "CA";
+
+  // Toggle: "foundations" | "specialty"
+  const [activeTab, setActiveTab] = useState<"foundations" | "specialty">("specialty");
 
   // Observations
   const [observations, setObservations] = useState<EpaObservation[]>([]);
@@ -270,7 +276,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
   // EPA form modal
   const [epaFormModal, setEpaFormModal] = useState<{ epaId: string; epaTitle: string } | null>(null);
 
-  // Filter
+  // Stage filter (within the active tab)
   const [stageFilter, setStageFilter] = useState<string>("all");
 
   const loadObservations = useCallback(async () => {
@@ -288,39 +294,53 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
     if (!observationsLoaded) loadObservations();
   }, [observationsLoaded, loadObservations]);
 
-  // EPA data
-  const specialtyEpaData = useMemo(() => {
-    if (!specialty) return undefined;
-    return getSpecialtyEpaData(specialty, trainingCountry);
-  }, [specialty, trainingCountry]);
-
+  // Always load SF data for Canadian residents regardless of specialty
   const foundationsEpaData = useMemo(() => {
     if (!isCanadian) return undefined;
     return getSpecialtyEpaData("surgical-foundations", "CA");
   }, [isCanadian]);
 
-  // Compute progress
+  // Specialty EPA data — for Canadian residents, filter out F-prefix EPAs
+  // (those live in the Surgical Foundations tab to avoid duplication).
+  const specialtyEpaData = useMemo(() => {
+    if (!specialty) return undefined;
+    const raw = getSpecialtyEpaData(specialty, isCanadian ? "CA" : trainingCountry);
+    if (!raw) return undefined;
+    if (!foundationsEpaData) return raw;
+    // Strip Foundations-of-Discipline (F-prefix) EPAs — they're in the SF tab
+    const keepEpas = raw.epas.filter((e) => !/^F\d/i.test(e.id) && !/^D\d/i.test(e.id));
+    const keptMilestoneIds = new Set<string>();
+    for (const epa of keepEpas) for (const mId of epa.relatedMilestones) keptMilestoneIds.add(mId);
+    const keepMilestones = raw.milestones.filter((m) => keptMilestoneIds.has(m.id));
+    return { ...raw, epas: keepEpas, milestones: keepMilestones };
+  }, [specialty, trainingCountry, isCanadian, foundationsEpaData]);
+
+  // Compute progress. We intentionally compute even when cases.length === 0
+  // so the EPA list always renders (at 0% progress). Previously we bailed
+  // with `null` here which caused an empty analytics tab for new users —
+  // the real "EPAs are missing" bug the user reported.
   const specialtyDashboard = useMemo(() => {
-    if (!specialtyEpaData || cases.length === 0) return null;
+    if (!specialtyEpaData) return null;
     return computeEpaProgress(cases, specialtyEpaData);
   }, [cases, specialtyEpaData]);
 
   const foundationsDashboard = useMemo(() => {
-    if (!foundationsEpaData || cases.length === 0) return null;
+    if (!foundationsEpaData) return null;
     return computeEpaProgress(cases, foundationsEpaData);
   }, [cases, foundationsEpaData]);
 
-  // Merge all EPAs for display
+  // Active dashboard based on selected tab
+  const activeDashboard = activeTab === "foundations" ? foundationsDashboard : specialtyDashboard;
+
+  // EPAs for the active tab
   const allEpaData = useMemo(() => {
     const items: { epa: EpaProgress; source: string }[] = [];
-    if (foundationsDashboard) {
-      foundationsDashboard.epaProgress.forEach(e => items.push({ epa: e, source: "Foundations" }));
-    }
-    if (specialtyDashboard) {
-      specialtyDashboard.epaProgress.forEach(e => items.push({ epa: e, source: "Specialty" }));
+    if (activeDashboard) {
+      const source = activeTab === "foundations" ? "Foundations" : "Specialty";
+      activeDashboard.epaProgress.forEach(e => items.push({ epa: e, source }));
     }
     return items;
-  }, [foundationsDashboard, specialtyDashboard]);
+  }, [activeDashboard, activeTab]);
 
   // Observation counts
   const observationCounts = useMemo(() => {
@@ -344,10 +364,9 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
       setting: obs.setting ?? null,
       status: obs.status,
     }));
-    const allEpaDefs = [
-      ...(foundationsEpaData?.epas || []),
-      ...(specialtyEpaData?.epas || []),
-    ];
+    // Only track sub-reqs for the active tab's EPA set
+    const activeData = activeTab === "foundations" ? foundationsEpaData : specialtyEpaData;
+    const allEpaDefs = activeData?.epas || [];
     for (const epaDef of allEpaDefs) {
       const summary = trackSubRequirements(epaDef, obsForTracking);
       if (summary.subRequirements.length > 0) {
@@ -355,7 +374,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
       }
     }
     return summaryMap;
-  }, [observations, foundationsEpaData, specialtyEpaData]);
+  }, [observations, foundationsEpaData, specialtyEpaData, activeTab]);
 
   // Aggregate stats
   const stats = useMemo(() => {
@@ -470,8 +489,48 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
     );
   }
 
+  const specialtyLabel = specialtyEpaData?.specialty || specialty || "Specialty";
+
   return (
     <div>
+      {/* ── Surgical Foundations / Specialty toggle ── */}
+      {isCanadian && foundationsEpaData && (
+        <div style={{
+          display: "flex", gap: 0, marginBottom: 20,
+          background: "var(--surface2, #141c28)", borderRadius: 8,
+          padding: 3, border: "1px solid var(--border)",
+        }}>
+          <button
+            onClick={() => { setActiveTab("foundations"); setStageFilter("all"); }}
+            style={{
+              flex: 1, padding: "8px 12px",
+              background: activeTab === "foundations" ? "var(--surface)" : "transparent",
+              border: activeTab === "foundations" ? "1px solid var(--border-mid)" : "1px solid transparent",
+              borderRadius: 6, cursor: "pointer",
+              fontSize: 12, fontWeight: activeTab === "foundations" ? 700 : 500,
+              color: activeTab === "foundations" ? "var(--text)" : "var(--text-3)",
+              fontFamily: "inherit", transition: "all .15s",
+            }}
+          >
+            🏥 Surgical Foundations
+          </button>
+          <button
+            onClick={() => { setActiveTab("specialty"); setStageFilter("all"); }}
+            style={{
+              flex: 1, padding: "8px 12px",
+              background: activeTab === "specialty" ? "var(--surface)" : "transparent",
+              border: activeTab === "specialty" ? "1px solid var(--border-mid)" : "1px solid transparent",
+              borderRadius: 6, cursor: "pointer",
+              fontSize: 12, fontWeight: activeTab === "specialty" ? 700 : 500,
+              color: activeTab === "specialty" ? "var(--text)" : "var(--text-3)",
+              fontFamily: "inherit", transition: "all .15s",
+            }}
+          >
+            🔬 {specialtyLabel}
+          </button>
+        </div>
+      )}
+
       {/* ── Summary Cards ── */}
       <div style={{
         display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 10,
@@ -627,7 +686,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
           <EpaObservationForm
             epaId={epaFormModal.epaId}
             epaTitle={epaFormModal.epaTitle}
-            specialtySlug={specialty || ""}
+            specialtySlug={activeTab === "foundations" ? "surgical-foundations" : (specialty || "")}
             trainingSystem={isCanadian ? "RCPSC" : "ACGME"}
             onSubmit={handleEpaFormSubmit}
             onCancel={() => setEpaFormModal(null)}

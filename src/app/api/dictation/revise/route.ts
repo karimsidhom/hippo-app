@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { reviseDictation } from "@/lib/dictation/revise";
-import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 import { loadOrCreateStyleProfile } from "@/lib/dictation/style/db";
 import type { LengthLevel, ServiceKey } from "@/lib/dictation/types";
 
@@ -53,8 +52,6 @@ export async function POST(req: NextRequest) {
   if (error) return error;
   await ensureDbUser(user);
 
-  const rl = checkRateLimit(`ai:revise:${user.id}`, LIMITS.ai);
-  if (!rl.allowed) return rl.response;
 
   let body: ReviseRequestBody;
   try {

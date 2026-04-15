@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { generateBrief } from "@/lib/brief/generate";
-import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 import type { BriefCaseContext } from "@/lib/brief/types";
 import { parseStoredReflection } from "@/lib/debrief/types";
 
@@ -35,8 +34,6 @@ export async function POST(req: NextRequest) {
   if (error) return error;
   await ensureDbUser(user);
 
-  const rl = checkRateLimit(`ai:brief:${user.id}`, LIMITS.ai);
-  if (!rl.allowed) return rl.response;
 
   let body: GenerateBriefBody;
   try {

@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { parseVoiceCaseLog } from "@/lib/voice-log/parse";
-import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // POST /api/voice-log
@@ -23,9 +22,6 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
   await ensureDbUser(user);
-
-  const rl = checkRateLimit(`ai:voice-log:${user.id}`, LIMITS.ai);
-  if (!rl.allowed) return rl.response;
 
   let body: VoiceLogBody;
   try {

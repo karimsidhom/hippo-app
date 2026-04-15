@@ -1,7 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { callClaude, LlmUnavailableError, AiDisabledError } from "@/lib/dictation/llm";
-import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 
 // Second-pass PHI preflight. The regex-based `lib/phia` scrub catches the
 // obvious patterns (dates, MRNs, room numbers) but misses paraphrased
@@ -35,8 +34,6 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const rl = checkRateLimit(`ai:preflight:${user.id}`, LIMITS.ai);
-  if (!rl.allowed) return rl.response;
 
   const { title, content } = (await req.json().catch(() => ({}))) as {
     title?: string;

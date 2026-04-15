@@ -81,6 +81,3 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Webhook handler failed' }, { status: 500 });
   }
 }
-
-// Required for raw body access in App Router
-export const config = { api: { bodyParser: false } };

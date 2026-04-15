@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { callClaude, LlmUnavailableError, AiDisabledError } from '@/lib/dictation/llm';
-import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 
 // Turn a logged case OR a signed EPA into a draft pearl. The point of
 // Hippo's social layer is zero-friction content creation: the resident
@@ -29,8 +28,6 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const rl = checkRateLimit(`ai:draft:${user.id}`, LIMITS.ai);
-  if (!rl.allowed) return rl.response;
 
   const { caseId, epaId } = (await req.json()) as { caseId?: string; epaId?: string };
   if (!caseId && !epaId) {

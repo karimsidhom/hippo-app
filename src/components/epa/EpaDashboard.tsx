@@ -802,7 +802,10 @@ interface EpaDashboardProps {
 }
 
 export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: EpaDashboardProps) {
-  const isCanadian = trainingCountry === "CA";
+  // Hippo is a Manitoba-based CBD app — absent an explicit country, assume CA
+  // so Surgical Foundations is available. Only an explicit non-CA value
+  // switches to ACGME.
+  const isCanadian = !trainingCountry || trainingCountry === "CA";
 
   // Top-level tab: "Surgical Foundations" vs specialty
   const [topTab, setTopTab] = useState<"foundations" | "specialty">("specialty");
@@ -910,9 +913,10 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
     return getSpecialtyEpaData("surgical-foundations", "CA");
   }, [isCanadian]);
 
-  // Compute progress for foundations panel
+  // Compute progress for foundations panel. Always compute when data exists
+  // (even with 0 cases) so the EPA list renders.
   const foundationsDashboard: EpaDashboardData | null = useMemo(() => {
-    if (!foundationsEpaData || cases.length === 0) return null;
+    if (!foundationsEpaData) return null;
     return computeEpaProgress(cases, foundationsEpaData);
   }, [cases, foundationsEpaData]);
 
@@ -941,7 +945,7 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
   }, [specialtyEpaData, foundationsEpaData]);
 
   const specialtyDashboardFiltered: EpaDashboardData | null = useMemo(() => {
-    if (!specialtyEpaDataFiltered || cases.length === 0) return null;
+    if (!specialtyEpaDataFiltered) return null;
     return computeEpaProgress(cases, specialtyEpaDataFiltered);
   }, [cases, specialtyEpaDataFiltered]);
 

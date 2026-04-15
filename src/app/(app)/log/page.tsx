@@ -105,6 +105,7 @@ export default function LogCasePage() {
   // EPA suggestion flow state
   const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
   const [epaSuggestionsLoading, setEpaSuggestionsLoading] = useState(false);
+  const [epaNote, setEpaNote] = useState<string | null>(null);
   const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
   const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
   const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
@@ -256,13 +257,12 @@ export default function LogCasePage() {
 
     setSubmitting(false);
 
-    // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID
-    if (realCaseId) {
-      startEpaSuggestionFetch(realCaseId);
-    } else {
-      // Even without a real case ID, show the modal with empty suggestions
-      setEpaSuggestionsLoading(false);
-    }
+    // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID.
+    // When the server save failed (realCaseId == null) we fall back to sending
+    // inline case details so the suggestion engine still runs. This is the
+    // same fallback QuickAddModal uses; without it, users who lose a network
+    // round-trip see an empty modal and think the feature is broken.
+    startEpaSuggestionFetch(realCaseId, caseInput);
 
     // Force the EPA suggestion modal open — this MUST run no matter what
     setShowEpaSuggestions(true);
@@ -276,26 +276,50 @@ export default function LogCasePage() {
    * Called immediately after case save — runs in parallel with milestone checks.
    * Does NOT redirect on failure — always shows the EPA modal.
    */
-  const startEpaSuggestionFetch = async (caseLogId: string) => {
+  const startEpaSuggestionFetch = async (
+    caseLogId: string | null,
+    caseInput: Omit<Parameters<typeof addCaseAsync>[0], never>,
+  ) => {
     setEpaSuggestionsLoading(true);
     setEpaSuggestions([]);
+    setEpaNote(null);
     try {
+      const reqBody: Record<string, unknown> = caseLogId
+        ? { caseLogId }
+        : {
+            caseDetails: {
+              procedureName: caseInput.procedureName,
+              procedureCategory: caseInput.procedureCategory ?? null,
+              surgicalApproach: caseInput.surgicalApproach ?? null,
+              role: caseInput.role ?? null,
+              autonomyLevel: caseInput.autonomyLevel ?? null,
+              difficultyScore: caseInput.difficultyScore ?? null,
+              diagnosisCategory: caseInput.diagnosisCategory ?? null,
+              attendingLabel: caseInput.attendingLabel ?? null,
+              outcomeCategory: caseInput.outcomeCategory ?? null,
+              notes: caseInput.notes ?? null,
+              specialtyId: caseInput.specialtyId ?? null,
+            },
+          };
       const res = await fetch("/api/epa/ai-suggest", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ caseLogId }),
+        body: JSON.stringify(reqBody),
       });
       if (res.ok) {
         const json = await res.json();
         const suggestions: EpaSuggestion[] = json.suggestions ?? [];
         setEpaSuggestions(suggestions);
+        setEpaNote(typeof json.note === "string" ? json.note : null);
       } else {
-        console.error('[startEpaSuggestionFetch] API error:', res.status);
-        // Keep suggestions empty — the sheet will show "no suggestions" UI
+        const errText = await res.text();
+        console.error('[startEpaSuggestionFetch] API error:', res.status, errText);
+        setEpaNote("Couldn't load EPA suggestions right now. You can link an EPA from this case later.");
       }
     } catch (err) {
       console.error('[startEpaSuggestionFetch] Fetch error:', err);
+      setEpaNote("Couldn't reach the EPA suggestion service. Check your connection.");
     } finally {
       setEpaSuggestionsLoading(false);
     }
@@ -1088,6 +1112,7 @@ export default function LogCasePage() {
           {showEpaSuggestions && (
             <EpaSuggestionSheet
               suggestions={epaSuggestions}
+              note={epaNote}
               onSelect={handleEpaSelect}
               onSkip={handleEpaSkip}
               loading={epaSuggestionsLoading}
