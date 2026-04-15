@@ -2,6 +2,21 @@
   "name": "hippo",
   "version": "0.1.0",
   "private": true,
+  "description": "Hippo — surgical case logging, EPA tracking, and competency analytics for residents and staff surgeons.",
+  "license": "SEE LICENSE IN ./LICENSE",
+  "author": {
+    "name": "Hippo Medicine Inc.",
+    "email": "legal@hippomedicine.com",
+    "url": "https://hippomedicine.com"
+  },
+  "homepage": "https://hippomedicine.com",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/karimsidhom/hippo-app.git"
+  },
+  "bugs": {
+    "email": "support@hippomedicine.com"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "prisma generate && next build",

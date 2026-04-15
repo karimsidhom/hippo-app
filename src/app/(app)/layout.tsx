@@ -187,13 +187,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               position: "relative",
               marginTop: -12,
             }}>
-              {/* + button — elevated, attached to Cases */}
+              {/* + button — elevated, attached to Cases.
+                  44×44 hits Apple HIG's minimum tappable target so the
+                  most-used primary action never misfires on iPhone. */}
               <button
                 onClick={() => setQuickAddOpen(true)}
+                aria-label="Log a case"
                 style={{
-                  width: 38,
-                  height: 38,
-                  borderRadius: 12,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 14,
                   background: "var(--primary)",
                   border: "3px solid var(--bg)",
                   display: "flex",
@@ -207,7 +210,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
                 onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
               >
-                <Plus size={17} color="#fff" strokeWidth={2.5} />
+                <Plus size={20} color="#fff" strokeWidth={2.5} />
               </button>
               {/* Cases label/icon below */}
               <Link
@@ -288,8 +291,14 @@ function NavTab({
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
+        justifyContent: "center",
         gap: 2,
-        padding: "8px 12px 4px",
+        // 44×44 minimum hit area per Apple HIG. The visual chrome stays
+        // compact (icon + 9pt label) but the tappable surface now meets
+        // the iOS guideline — no more mis-taps on the bottom nav.
+        minWidth: 44,
+        minHeight: 44,
+        padding: "8px 14px",
         color: active ? "var(--text)" : "var(--muted)",
         textDecoration: "none",
         fontSize: 9,

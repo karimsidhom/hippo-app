@@ -55,7 +55,13 @@ export function ModalShell({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 16,
+        // Safe-area padding keeps the modal clear of the iPhone notch and
+        // home indicator. `max(16px, env(…))` guarantees a comfortable
+        // gutter on devices that don't expose safe-area insets at all.
+        padding: "max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left))",
+        // overscroll-behavior: contain prevents iOS pull-to-refresh from
+        // firing when a scrollable modal panel reaches the top/bottom.
+        overscrollBehavior: "contain",
       }}
       onMouseDown={(e) => {
         if (closeOnBackdrop && e.target === e.currentTarget) onClose();
@@ -77,8 +83,13 @@ export function ModalShell({
           zIndex: 1,
           width: "100%",
           maxWidth,
-          maxHeight: "min(86vh, 900px)",
+          // 86dvh tracks the visual viewport on iOS (shrinks when the URL
+          // bar is visible, expands when it collapses) so the panel never
+          // overflows the actually-visible area — 86vh was including the
+          // URL bar and clipping the bottom on initial render.
+          maxHeight: "min(86dvh, 900px)",
           overflowY: "auto",
+          overscrollBehavior: "contain",
           background: "var(--bg-1)",
           border: "1px solid var(--border-mid)",
           borderRadius: 16,

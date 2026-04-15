@@ -29,10 +29,15 @@ const Input = forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             id={inputId}
+            // iOS Safari zooms the viewport on focus when the input's
+            // computed font-size is < 16px. Keep it at 16px on mobile
+            // (sm:text-sm restores the compact look on ≥640px where
+            // auto-zoom doesn't apply) to preserve the intended
+            // information density on desktop.
             className={clsx(
               "w-full bg-[#16161f] border text-[#f1f5f9] placeholder-[#64748b] rounded-lg py-2.5",
               "focus:outline-none focus:ring-2 focus:ring-[#2563eb] focus:border-transparent",
-              "transition-all duration-150 text-sm",
+              "transition-all duration-150 text-base sm:text-sm",
               "disabled:opacity-50 disabled:cursor-not-allowed",
               error ? "border-[#ef4444]" : "border-[#1e2130]",
               leftAddon ? "pl-10" : "pl-3",

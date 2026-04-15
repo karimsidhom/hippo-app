@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { CopyrightFooter } from "@/components/shared/CopyrightFooter";
 
 export default function LegalLayout({ children }: { children: ReactNode }) {
   return (
@@ -37,6 +38,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
         }}>
           {children}
         </article>
+        <CopyrightFooter />
       </div>
     </div>
   );

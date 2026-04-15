@@ -10,6 +10,8 @@
    When the splash overlay fades, these layers are revealed underneath.
    ═══════════════════════════════════════════════════════════════════════════ */
 
+import { CopyrightFooter } from "@/components/shared/CopyrightFooter";
+
 export default function AuthLayout({
   children,
 }: {
@@ -113,6 +115,20 @@ export default function AuthLayout({
         }}
       >
         {children}
+      </div>
+
+      {/* ── Copyright / legal links ──────────────────────────────────── */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: "max(8px, env(safe-area-inset-bottom))",
+          zIndex: 2,
+          pointerEvents: "auto",
+        }}
+      >
+        <CopyrightFooter />
       </div>
     </div>
   );

@@ -206,7 +206,13 @@
 
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-html { height: 100%; }
+html {
+  height: 100%;
+  /* Disable iOS text-size auto-adjust which can otherwise inflate labels
+     when the user rotates or zooms — breaks our compact nav/chips. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
 
 body {
   min-height: 100%;
@@ -216,8 +222,23 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow-y: scroll;
+  /* Contain overscroll so pull-to-refresh on iOS doesn't fire on top of
+     in-app pull gestures (e.g. inside scrollable modals, carousels). */
+  overscroll-behavior-y: none;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* Full-viewport helpers that respect the iOS URL bar. Use these instead
+   of 100vh / h-screen when a page section needs to fill the visible
+   area — 100vh includes the URL bar and causes layout shift. */
+@supports (height: 100dvh) {
+  .h-screen-safe { height: 100dvh; }
+  .min-h-screen-safe { min-height: 100dvh; }
+}
+@supports not (height: 100dvh) {
+  .h-screen-safe { height: 100vh; }
+  .min-h-screen-safe { min-height: 100vh; }
 }
 
 /* Scrollbar — nearly invisible, teal tint */

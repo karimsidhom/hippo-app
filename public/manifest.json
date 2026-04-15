@@ -1,0 +1,21 @@
+{
+  "name": "Hippo — Surgical Case Logging",
+  "short_name": "Hippo",
+  "description": "Strava for surgeons. Case logging, EPA tracking, and competency analytics for residents and staff surgeons — PHIA/HIPAA compliant.",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "categories": ["medical", "productivity", "education"],
+  "lang": "en-CA",
+  "icons": [
+    {
+      "src": "/hippo-mark.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

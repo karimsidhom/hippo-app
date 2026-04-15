@@ -38,10 +38,16 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
 };
 
+// NOTE: We intentionally do NOT set `maximumScale` or `userScalable: false`.
+// Pinch-to-zoom is a WCAG accessibility requirement, and several residents
+// reviewing this app will be using it one-handed in scrub areas. The iOS
+// input-zoom bug is solved at the `<Input>` level (16px min font-size), not
+// by locking the viewport. `viewportFit: "cover"` lets us paint under the
+// iPhone notch/home-indicator and then inset content with env(safe-area-*).
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
+  viewportFit: "cover",
   themeColor: "#0a0a0f",
 };
 
