@@ -7,6 +7,7 @@ import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, t
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
+import { SubprocessorBanner } from "@/components/SubprocessorBanner";
 import { useAuth } from "@/context/AuthContext";
 import {
   hydrateStyleProfile,
@@ -61,6 +62,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
       <ShadowRecordBanner />
+      <SubprocessorBanner />
       {/* Responsive breakpoint styles */}
       <style>{`
         .app-header { max-width: 640px; }

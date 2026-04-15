@@ -233,7 +233,7 @@ function EpaRow({
               padding: "8px 16px",
               borderRadius: 6,
               border: "none",
-              background: "var(--accent)",
+              background: "var(--primary)",
               color: "#fff",
               fontSize: 12,
               fontWeight: 600,
@@ -567,8 +567,8 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
             style={{
               fontSize: 10, fontWeight: 600, padding: "4px 10px",
               borderRadius: 4, border: "1px solid",
-              borderColor: stageFilter === "all" ? "var(--accent)" : "var(--border)",
-              background: stageFilter === "all" ? "var(--accent)" : "transparent",
+              borderColor: stageFilter === "all" ? "var(--primary)" : "var(--border)",
+              background: stageFilter === "all" ? "var(--primary)" : "transparent",
               color: stageFilter === "all" ? "#fff" : "var(--text-3)",
               cursor: "pointer", transition: "all .15s",
             }}

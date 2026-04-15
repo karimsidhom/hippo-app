@@ -1,23 +1,29 @@
 "use client";
 
 import { useState } from "react";
-import { Heart, Bookmark, MessageCircle, ExternalLink, ChevronDown, ChevronUp, Send, Briefcase } from "lucide-react";
-import type { Pearl, PearlComment } from "@/lib/types";
+import { Heart, Bookmark, MessageCircle, ExternalLink, ChevronDown, ChevronUp, Send, Briefcase, UserCircle2 } from "lucide-react";
+import type { Pearl, PearlComment, UserRoleType } from "@/lib/types";
+import { ReactionBar } from "@/components/social/ReactionBar";
+import { EndorsementRibbon } from "@/components/social/EndorsementRibbon";
+import { PollCard } from "@/components/social/PollCard";
 
 const POST_TYPE_LABELS: Record<string, { label: string; color: string; bg: string }> = {
   pearl: { label: "Pearl", color: "#F59E0B", bg: "rgba(245,158,11,0.08)" },
   case_share: { label: "Case Share", color: "#10B981", bg: "rgba(16,185,129,0.08)" },
   research: { label: "Research", color: "#8B5CF6", bg: "rgba(139,92,246,0.08)" },
   discussion: { label: "Discussion", color: "#3B82F6", bg: "rgba(59,130,246,0.08)" },
+  poll: { label: "Ask the room", color: "#0EA5E9", bg: "rgba(14,165,233,0.08)" },
 };
 
 interface Props {
   pearl: Pearl;
   onLike: (id: string) => void;
   onSave: (id: string) => void;
+  /** Viewer's role — needed to decide whether to show the Co-sign button. */
+  viewerRoleType?: UserRoleType;
 }
 
-export function PostCard({ pearl, onLike, onSave }: Props) {
+export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
   const [showComments, setShowComments] = useState(false);
   const [comments, setComments] = useState<PearlComment[]>([]);
   const [commentsLoading, setCommentsLoading] = useState(false);
@@ -102,26 +108,46 @@ export function PostCard({ pearl, onLike, onSave }: Props) {
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
             <div style={{
               width: 28, height: 28, borderRadius: 8,
-              background: "var(--primary-dim)",
+              background: pearl.isAnonymous ? "var(--surface2)" : "var(--primary-dim)",
               border: "1px solid var(--border)",
               display: "flex", alignItems: "center", justifyContent: "center",
               fontSize: 10, fontWeight: 700, color: "var(--primary)",
               fontFamily: "'Geist', sans-serif",
               overflow: "hidden",
             }}>
-              {pearl.author.image ? (
+              {pearl.isAnonymous ? (
+                <UserCircle2 size={18} color="var(--text-3)" />
+              ) : pearl.author.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
                 <img src={pearl.author.image} alt="" style={{ width: 28, height: 28, objectFit: "cover" }} />
               ) : (
                 pearl.author.name?.charAt(0)?.toUpperCase() || "?"
               )}
             </div>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
-                {pearl.author.name || "Anonymous"}
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 12, fontWeight: 600, color: "var(--text)", display: "flex", alignItems: "center", gap: 4 }}>
+                {pearl.isAnonymous
+                  ? `Anonymous ${pearl.author.profile?.trainingYearLabel ?? ""}`.trim()
+                  : (pearl.author.name || "Anonymous")}
+                {pearl.author.profile?.roleType &&
+                  ["ATTENDING", "STAFF", "PROGRAM_DIRECTOR"].includes(pearl.author.profile.roleType) && (
+                    <span title="Verified attending" style={{
+                      fontSize: 9, fontWeight: 600, color: "var(--primary)",
+                      background: "rgba(14,165,233,0.1)",
+                      padding: "1px 5px", borderRadius: 3,
+                      letterSpacing: ".05em",
+                    }}>
+                      ATTENDING
+                    </span>
+                  )}
               </div>
               <div style={{ fontSize: 10, color: "var(--text-3)" }}>
-                {pearl.author.profile?.trainingYearLabel}
-                {pearl.author.profile?.specialty ? ` \u00b7 ${pearl.author.profile.specialty}` : ""}
+                {pearl.isAnonymous ? "Verified account · identity hidden" : (
+                  <>
+                    {pearl.author.profile?.trainingYearLabel}
+                    {pearl.author.profile?.specialty ? ` \u00b7 ${pearl.author.profile.specialty}` : ""}
+                  </>
+                )}
               </div>
             </div>
           </div>
@@ -211,6 +237,11 @@ export function PostCard({ pearl, onLike, onSave }: Props) {
           </div>
         )}
 
+        {/* Poll — rendered inline for postType=poll */}
+        {pearl.postType === "poll" && pearl.pollOptions && pearl.pollOptions.length >= 2 && (
+          <PollCard pearlId={pearl.id} options={pearl.pollOptions} />
+        )}
+
         {/* Tags */}
         {pearl.tags.length > 0 && (
           <div style={{ display: "flex", gap: 4, flexWrap: "wrap", marginBottom: 10 }}>
@@ -225,7 +256,24 @@ export function PostCard({ pearl, onLike, onSave }: Props) {
           </div>
         )}
 
-        {/* Actions */}
+        {/* Attending endorsement ribbon (+ Co-sign button if viewer is attending) */}
+        <EndorsementRibbon
+          pearlId={pearl.id}
+          initialCount={pearl.endorseCount ?? 0}
+          initialMine={pearl.endorsedByMe ?? false}
+          viewerRoleType={viewerRoleType}
+        />
+
+        {/* Structured reactions — replaces the plain like for most engagement */}
+        <div style={{ marginBottom: 10 }}>
+          <ReactionBar
+            pearlId={pearl.id}
+            initialMine={pearl.myReactions ?? []}
+            initialCount={pearl.reactionCount ?? 0}
+          />
+        </div>
+
+        {/* Secondary actions — save + comments (and a subtle like fallback) */}
         <div style={{ display: "flex", gap: 16 }}>
           <button
             onClick={() => onLike(pearl.id)}

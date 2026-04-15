@@ -255,7 +255,7 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSu
                 padding: "7px 16px",
                 borderRadius: 6,
                 border: "none",
-                background: "var(--accent)",
+                background: "var(--primary)",
                 color: "#fff",
                 fontSize: 12,
                 fontWeight: 600,

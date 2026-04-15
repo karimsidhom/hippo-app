@@ -56,6 +56,7 @@ export default function SignupPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -81,6 +82,10 @@ export default function SignupPage() {
     }
     if (password.length < 8) {
       setError("Password must be at least 8 characters.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match.");
       return;
     }
     setLoading(true);
@@ -287,6 +292,26 @@ export default function SignupPage() {
             </button>
           </div>
 
+          {/* Confirm password */}
+          <label style={labelStyle}>Confirm password</label>
+          <input
+            type={showPw ? "text" : "password"}
+            autoComplete="new-password"
+            placeholder="••••••••"
+            value={confirmPassword}
+            onChange={(e) => setConfirmPassword(e.target.value)}
+            onFocus={() => setFocused("confirmPassword")}
+            onBlur={() => setFocused(null)}
+            style={{
+              ...inputStyle(focused === "confirmPassword"),
+              marginBottom: 20,
+              borderColor:
+                confirmPassword.length > 0 && confirmPassword !== password
+                  ? "rgba(239,68,68,0.35)"
+                  : undefined,
+            }}
+          />
+
           {/* Submit */}
           <button
             type="submit"
@@ -346,16 +371,20 @@ export default function SignupPage() {
       <p
         style={{
           fontSize: 11,
-          color: "rgba(255,255,255,0.15)",
+          color: "rgba(255,255,255,0.2)",
           textAlign: "center",
           marginTop: 14,
-          lineHeight: 1.5,
+          lineHeight: 1.6,
         }}
       >
-        By creating an account you agree not to enter patient-identifying
-        information.
+        By creating an account you agree to our{" "}
+        <Link href="/legal/eula" style={{ color: TEAL, textDecoration: "none" }}>EULA</Link>,{" "}
+        <Link href="/legal/terms" style={{ color: TEAL, textDecoration: "none" }}>Terms</Link>,{" "}
+        <Link href="/legal/privacy" style={{ color: TEAL, textDecoration: "none" }}>Privacy</Link>,{" "}
+        <Link href="/legal/phia" style={{ color: TEAL, textDecoration: "none" }}>PHIA Notice</Link>, and{" "}
+        <Link href="/legal/acceptable-use" style={{ color: TEAL, textDecoration: "none" }}>Acceptable Use Policy</Link>.
         <br />
-        Hippo is PHIA/HIPAA privacy-conscious by design.
+        You'll confirm each during onboarding.
       </p>
     </div>
   );

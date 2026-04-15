@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, Shield } from "lucide-react";
+import { ArrowLeft, Shield, Download } from "lucide-react";
 
 interface AuditEntry {
   id: string;
@@ -94,18 +94,32 @@ export default function AuditLogPage() {
         character count rather than stored in full.
       </p>
 
-      <div style={{ marginBottom: 16 }}>
+      <div style={{ marginBottom: 16, display: "flex", gap: 8, alignItems: "center" }}>
         <input
           placeholder="Filter by action (e.g. case.update)…"
           value={filter}
           onChange={(e) => setFilter(e.target.value)}
           style={{
-            width: "100%", padding: "8px 12px",
+            flex: 1, padding: "8px 12px",
             background: "var(--surface2)", border: "1px solid var(--border-mid)",
             borderRadius: 6, color: "var(--text)", fontSize: 13,
             fontFamily: "'Geist', sans-serif",
           }}
         />
+        <a
+          href="/api/account/audit-log/export"
+          download
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "8px 12px", fontSize: 13, fontWeight: 500,
+            background: "var(--surface2)", border: "1px solid var(--border-mid)",
+            borderRadius: 6, color: "var(--text)", textDecoration: "none",
+            whiteSpace: "nowrap", fontFamily: "'Geist', sans-serif",
+          }}
+          title="Download your full audit log as a CSV (up to 10 000 rows)"
+        >
+          <Download size={14} /> Export CSV
+        </a>
       </div>
 
       {loading ? (

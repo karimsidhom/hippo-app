@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import { parseDebrief } from "@/lib/debrief/parse";
+import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 import type { StructuredDebrief } from "@/lib/debrief/types";
 
 // ---------------------------------------------------------------------------
@@ -35,6 +36,9 @@ export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
   await ensureDbUser(user);
+
+  const rl = checkRateLimit(`ai:debrief:${user.id}`, LIMITS.ai);
+  if (!rl.allowed) return rl.response;
 
   let body: ParseBody;
   try {

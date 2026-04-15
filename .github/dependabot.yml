@@ -1,0 +1,49 @@
+# Dependabot configuration — automatically opens PRs for vulnerable or
+# outdated dependencies. Security-only updates are auto-labeled for
+# expedited review.
+#
+# Docs: https://docs.github.com/en/code-security/dependabot/dependabot-version-updates
+version: 2
+updates:
+  # ── npm (the Next.js app) ────────────────────────────────────────────────
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Winnipeg"
+    open-pull-requests-limit: 10
+    labels:
+      - "dependencies"
+      - "security"
+    # Group low-risk patch bumps into a single PR to keep review volume down;
+    # major/minor bumps still get their own PRs for per-package review.
+    groups:
+      patch-updates:
+        update-types:
+          - "patch"
+    # Ignore specific packages that are pinned intentionally.
+    # ignore:
+    #   - dependency-name: "react"
+    #     versions: ["19.x"]
+    commit-message:
+      prefix: "deps"
+      prefix-development: "deps-dev"
+      include: "scope"
+
+  # ── GitHub Actions (CI workflows) ────────────────────────────────────────
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "America/Winnipeg"
+    open-pull-requests-limit: 5
+    labels:
+      - "dependencies"
+      - "ci"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

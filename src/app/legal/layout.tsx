@@ -19,12 +19,16 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           ← Hippo
         </Link>
         <nav style={{
-          display: "flex", gap: 16, flexWrap: "wrap", marginBottom: 28,
+          display: "flex", gap: 14, flexWrap: "wrap", marginBottom: 28,
           paddingBottom: 16, borderBottom: "1px solid var(--border, #1f1f23)",
           fontSize: 13,
         }}>
-          <Link href="/legal/privacy" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Privacy</Link>
+          <Link href="/legal" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>All</Link>
+          <Link href="/legal/eula" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>EULA</Link>
           <Link href="/legal/terms" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Terms</Link>
+          <Link href="/legal/privacy" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Privacy</Link>
+          <Link href="/legal/phia" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>PHIA</Link>
+          <Link href="/legal/acceptable-use" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Acceptable Use</Link>
           <Link href="/legal/security" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Security</Link>
           <Link href="/legal/subprocessors" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Subprocessors</Link>
         </nav>

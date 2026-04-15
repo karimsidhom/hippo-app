@@ -25,7 +25,17 @@ export default function PrivacyPage() {
       <p>Primary storage is Supabase (Postgres) with encryption at rest and in transit. Files you upload are stored in Supabase Storage. For a full list of subprocessors see <a href="/legal/subprocessors" style={A}>Subprocessors</a>.</p>
 
       <h2 style={H2}>5. AI processing</h2>
-      <p>Some features (morning brief, debrief parsing, dictation) send de-identified content to Anthropic (Claude) or OpenAI. We are in the process of executing Business Associate Agreements with these providers; until that is in place, you should not enter PHI into any free-text field. If AI processing is material to you, you can disable AI features in Settings.</p>
+      <p>
+        Some features (morning brief, debrief parsing, dictation refinement, PHI preflight,
+        feed drafts) send content to third-party large-language-model providers. Our default
+        provider is <strong>Groq</strong> running open-weight Llama 3.3 70B. Every AI vendor
+        we use has committed in their commercial terms of service that inputs and outputs
+        are <strong>not used to train their models</strong>. We additionally regex-scrub
+        every prompt on our server to remove obvious patient identifiers before it leaves
+        our infrastructure, as defense-in-depth. You should still never enter patient
+        names, health-card numbers, MRNs, or dates of birth into any free-text field. You
+        can disable AI features in Settings if you prefer fully local processing.
+      </p>
 
       <h2 style={H2}>6. Your rights</h2>
       <ul>
@@ -35,8 +45,37 @@ export default function PrivacyPage() {
         <li><strong>Audit trail:</strong> see every action taken on your account at Settings → Audit Log.</li>
       </ul>
 
-      <h2 style={H2}>7. Contact</h2>
-      <p>Questions, access requests, or complaints: <a href="mailto:privacy@hippomedicine.com" style={A}>privacy@hippomedicine.com</a>. If you are in Canada you may also contact the Office of the Privacy Commissioner; if you are in the EU/UK, your supervisory authority.</p>
+      <h2 style={H2}>7. Privacy Officer</h2>
+      <p>
+        Under PHIA and PIPEDA, Hippo is required to designate an individual accountable for
+        our privacy practices. This person investigates complaints, processes access
+        requests, and is your single point of contact for anything privacy-related.
+      </p>
+      <div style={{
+        marginTop: 12,
+        padding: "14px 16px",
+        background: "var(--surface, #111113)",
+        border: "1px solid var(--border, #1f1f23)",
+        borderRadius: 8,
+      }}>
+        <p style={{ margin: 0, fontSize: 13 }}>
+          <strong style={{ color: "var(--text, #f4f4f5)" }}>Privacy Officer:</strong> Karim Sidhom, Founder<br />
+          <strong style={{ color: "var(--text, #f4f4f5)" }}>Email:</strong>{" "}
+          <a href="mailto:privacy@hippomedicine.com" style={A}>privacy@hippomedicine.com</a><br />
+          <strong style={{ color: "var(--text, #f4f4f5)" }}>Response SLA:</strong> acknowledgement within 48 hours, substantive response within 30 days.
+        </p>
+      </div>
+
+      <h2 style={H2}>8. Contact & escalation</h2>
+      <p>
+        Complaints, access requests, or corrections should first go to the Privacy Officer
+        above. If you are not satisfied with our response, you may escalate to:
+      </p>
+      <ul>
+        <li><strong>Manitoba Ombudsman</strong> (for PHIA matters in Manitoba) — <a href="https://www.ombudsman.mb.ca" target="_blank" rel="noopener noreferrer" style={A}>ombudsman.mb.ca</a></li>
+        <li><strong>Office of the Privacy Commissioner of Canada</strong> (for PIPEDA matters) — <a href="https://www.priv.gc.ca" target="_blank" rel="noopener noreferrer" style={A}>priv.gc.ca</a></li>
+        <li>Your provincial or national supervisory authority if you are outside Manitoba.</li>
+      </ul>
 
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginTop: 32 }}>Hippo reserves the right to update this policy. Material changes will be notified in-app.</p>
     </>

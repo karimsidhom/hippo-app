@@ -2,8 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2 } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
+import { PostComposer } from "@/components/social/PostComposer";
 import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
@@ -42,7 +43,7 @@ const APPROACH_LABELS: Record<string, string> = {
   ENDOSCOPIC: "Endoscopic", HYBRID: "Hybrid", PERCUTANEOUS: "Percutaneous", OTHER: "Other",
 };
 
-function Sheet({ c, onClose, onDelete }: { c: CaseLog; onClose: () => void; onDelete: (id: string) => void }) {
+function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: () => void; onDelete: (id: string) => void; onShareAsPearl: (id: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
 
   const rows: [string, string | null | undefined][] = [
@@ -153,7 +154,23 @@ function Sheet({ c, onClose, onDelete }: { c: CaseLog; onClose: () => void; onDe
         </div>
 
         {/* Footer */}
-        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", flexShrink: 0 }}>
+        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", flexShrink: 0, display: "flex", gap: 8 }}>
+          <button
+            onClick={() => onShareAsPearl(c.id)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              flex: 1, justifyContent: "center",
+              padding: "9px",
+              background: "rgba(14,165,233,0.08)",
+              border: "1px solid rgba(14,165,233,0.3)",
+              borderRadius: 6,
+              color: "var(--primary)",
+              fontSize: 12, fontWeight: 600, cursor: "pointer",
+              fontFamily: "inherit",
+            }}
+          >
+            <Share2 size={12} /> Share as pearl
+          </button>
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
@@ -161,7 +178,7 @@ function Sheet({ c, onClose, onDelete }: { c: CaseLog; onClose: () => void; onDe
                 display: "flex",
                 alignItems: "center",
                 gap: 6,
-                width: "100%",
+                flex: 1,
                 justifyContent: "center",
                 padding: "9px",
                 background: "transparent",
@@ -686,6 +703,7 @@ export default function CasesPage() {
   const [dictation, setDictation]   = useState<CaseLog | null>(null);
   const [debrief, setDebrief]       = useState<CaseLog | null>(null);
   const [exporting, setExporting]   = useState(false);
+  const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
   const years = useMemo(() => {
     const ys = [...new Set(cases.map(c => new Date(c.caseDate).getFullYear()))].sort((a, b) => b - a);
@@ -937,8 +955,17 @@ export default function CasesPage() {
           c={expanded}
           onClose={() => setExpanded(null)}
           onDelete={(id) => { deleteCase(id); setExpanded(null); }}
+          onShareAsPearl={(id) => { setShareCaseId(id); setExpanded(null); }}
         />
       )}
+
+      <PostComposer
+        open={shareCaseId !== null}
+        onClose={() => setShareCaseId(null)}
+        source={shareCaseId ? { kind: "case", caseId: shareCaseId } : undefined}
+        onPublished={() => setShareCaseId(null)}
+      />
+
 
       {dictation && (
         <DictationSheet

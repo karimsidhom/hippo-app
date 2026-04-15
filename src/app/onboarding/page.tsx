@@ -1,10 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { SPECIALTIES, USER_ROLE_TYPES, PGY_YEARS } from "@/lib/constants";
-import { Shield, Activity, Users, Trophy, ChevronRight, ChevronLeft, Check } from "lucide-react";
+import { POLICY_KEYS, POLICY_VERSIONS, POLICY_META, type PolicyKey } from "@/lib/legal";
+import { Shield, Activity, Users, Trophy, ChevronRight, ChevronLeft, Check, ExternalLink } from "lucide-react";
 
 const TOTAL_STEPS = 10;
 
@@ -28,12 +30,41 @@ export default function OnboardingPage() {
     phiaAgreed: false,
   });
 
+  // Per-policy acceptance. Every key in POLICY_KEYS must be true before
+  // the user can leave step 3 or finish onboarding.
+  const [legalAccepted, setLegalAccepted] = useState<Record<PolicyKey, boolean>>(
+    () => Object.fromEntries(POLICY_KEYS.map((k) => [k, false])) as Record<PolicyKey, boolean>,
+  );
+  const allLegalAccepted = POLICY_KEYS.every((k) => legalAccepted[k]) && form.phiaAgreed;
+
   const update = (updates: Partial<typeof form>) => setForm((f) => ({ ...f, ...updates }));
+  const toggleLegal = (key: PolicyKey) =>
+    setLegalAccepted((prev) => ({ ...prev, [key]: !prev[key] }));
+
+  const recordLegalAcceptances = async () => {
+    // Only POST acceptances that the user actually ticked. The server
+    // enforces version match against POLICY_VERSIONS.
+    const acceptances = POLICY_KEYS.filter((k) => legalAccepted[k]).map((k) => ({
+      policyKey: k,
+      version: POLICY_VERSIONS[k],
+    }));
+    if (acceptances.length === 0) return;
+    await fetch("/api/legal/accept", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ acceptances }),
+    }).catch(() => {
+      // Non-blocking: if the network drops here we don't want to strand the
+      // user, but we do want to know. Onboarding completion will still fire;
+      // the gate will re-prompt on next load if any acceptance is missing.
+    });
+  };
 
   const handleFinish = async () => {
     setSaving(true);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { phiaAgreed: _, ...profileData } = form;
+    await recordLegalAcceptances();
     await updateProfile({
       ...(profileData as Parameters<typeof updateProfile>[0]),
       onboardingCompleted: true,
@@ -117,43 +148,99 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 3: PHIA Commitment */}
+        {/* Step 3: Legal acceptance (click-wrap) */}
         {step === 3 && (
-          <div className="space-y-6 animate-slide-up">
+          <div className="space-y-5 animate-slide-up">
             <div className="text-center">
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1a1a2e] border border-[#2563eb]/30 flex items-center justify-center">
                 <Shield className="w-8 h-8 text-[#3b82f6]" />
               </div>
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Privacy First</h2>
-              <p className="text-[#94a3b8] mt-2">Your commitment to patient privacy matters</p>
+              <h2 className="text-2xl font-bold text-[#f1f5f9]">Terms & Privacy</h2>
+              <p className="text-[#94a3b8] mt-2 text-sm">
+                Please review each document and tick to accept. We record the
+                version and timestamp of each acceptance.
+              </p>
             </div>
 
-            <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-4">
-              <h3 className="font-semibold text-[#f1f5f9]">PHIA / Privacy Pledge</h3>
+            {/* Per-policy checkboxes */}
+            <div className="space-y-2">
+              {POLICY_KEYS.map((key) => {
+                const meta = POLICY_META[key];
+                const checked = legalAccepted[key];
+                return (
+                  <label
+                    key={key}
+                    className={`flex items-start gap-3 cursor-pointer p-3.5 rounded-xl border transition-colors ${
+                      checked
+                        ? "bg-[#1a1a2e] border-[#2563eb]/60"
+                        : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      onChange={() => toggleLegal(key)}
+                      className="w-4 h-4 mt-0.5 accent-[#2563eb] flex-shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span className="text-sm font-semibold text-[#f1f5f9]">
+                          I have read & agree to the {meta.title}
+                        </span>
+                        <Link
+                          href={meta.href}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
+                          className="inline-flex items-center gap-1 text-xs text-[#3b82f6] hover:underline"
+                        >
+                          Read
+                          <ExternalLink className="w-3 h-3" />
+                        </Link>
+                      </div>
+                      <p className="text-xs text-[#64748b] mt-0.5 leading-relaxed">
+                        {meta.summary}
+                      </p>
+                      <p className="text-[10px] text-[#475569] mt-1 uppercase tracking-wider">
+                        v{POLICY_VERSIONS[key]}
+                      </p>
+                    </div>
+                  </label>
+                );
+              })}
+            </div>
+
+            {/* PHIA pledge (separate, affirmative) */}
+            <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-4 space-y-2.5">
+              <h3 className="font-semibold text-[#f1f5f9] text-sm">Patient privacy pledge</h3>
               {[
-                "I will never enter patient names, health card numbers, MRNs, or any other personal health identifiers",
-                "I will use age groups instead of specific birthdates",
-                "I understand that all notes are screened for PHI patterns automatically",
-                "I agree to the Hippo Privacy Policy and Terms of Use",
+                "I will never enter patient names, health-card numbers, MRNs, or other identifiers.",
+                "I will use age groups or decades instead of exact dates of birth.",
+                "I understand Hippo scrubs for PHI patterns automatically, but I am ultimately responsible.",
               ].map((item, i) => (
-                <div key={i} className="flex items-start gap-3">
-                  <Check className="w-4 h-4 text-[#10b981] mt-0.5 flex-shrink-0" />
-                  <p className="text-sm text-[#94a3b8] leading-relaxed">{item}</p>
+                <div key={i} className="flex items-start gap-2.5">
+                  <Check className="w-3.5 h-3.5 text-[#10b981] mt-0.5 flex-shrink-0" />
+                  <p className="text-xs text-[#94a3b8] leading-relaxed">{item}</p>
                 </div>
               ))}
+              <label className="flex items-start gap-3 cursor-pointer pt-2 mt-2 border-t border-[#1e2130]">
+                <input
+                  type="checkbox"
+                  checked={form.phiaAgreed}
+                  onChange={(e) => update({ phiaAgreed: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 accent-[#2563eb] flex-shrink-0"
+                />
+                <p className="text-xs text-[#f1f5f9]">
+                  I understand and commit to never entering patient-identifying information in Hippo.
+                </p>
+              </label>
             </div>
 
-            <label className="flex items-start gap-3 cursor-pointer p-4 bg-[#16161f] border border-[#1e2130] rounded-xl">
-              <input
-                type="checkbox"
-                checked={form.phiaAgreed}
-                onChange={(e) => update({ phiaAgreed: e.target.checked })}
-                className="w-4 h-4 mt-0.5 accent-[#2563eb]"
-              />
-              <p className="text-sm text-[#f1f5f9]">
-                I understand and commit to never entering patient-identifying information in Hippo
+            {!allLegalAccepted && (
+              <p className="text-xs text-[#64748b] text-center">
+                Please accept every document above to continue.
               </p>
-            </label>
+            )}
           </div>
         )}
 
@@ -372,6 +459,7 @@ export default function OnboardingPage() {
                   setSaving(true);
                   // eslint-disable-next-line @typescript-eslint/no-unused-vars
                   const { phiaAgreed: _pa, ...skipData } = form;
+                  await recordLegalAcceptances();
                   await updateProfile({ ...(skipData as Parameters<typeof updateProfile>[0]), onboardingCompleted: true });
                   setSaving(false);
                   router.push("/dashboard");
@@ -398,8 +486,8 @@ export default function OnboardingPage() {
             {step < TOTAL_STEPS && (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 3 && !form.phiaAgreed}
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-lg text-sm disabled:opacity-40 transition-all active:scale-95"
+                disabled={step === 3 && !allLegalAccepted}
+                className="flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 Continue
                 <ChevronRight className="w-4 h-4" />

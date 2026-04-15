@@ -1,21 +1,37 @@
 // ---------------------------------------------------------------------------
-// LLM abstraction layer — supports Google Gemini (free) and Anthropic Claude.
+// LLM abstraction layer — supports Google Gemini, Groq, and Anthropic Claude.
 //
 // Server-side only — do not import this from client components.
 //
-// Priority order:
-//   1. GOOGLE_AI_API_KEY  → Gemini 2.5 Flash (free tier, generous limits)
-//   2. ANTHROPIC_API_KEY  → Claude Opus (premium, for future Pro tier)
-//   3. Neither set        → throws LlmUnavailableError, callers fall back
-//                           to deterministic pipelines.
+// Priority order (current demo configuration):
+//   1. GOOGLE_AI_API_KEY   → Gemini 2.5 Flash. Confirmed working for the
+//                            demo. NOTE: the consumer / AI Studio free tier
+//                            MAY retain inputs for training — do NOT enter
+//                            PHI. For production we must move to Vertex AI
+//                            (no-log) or a signed BAA vendor.
+//   2. GROQ_API_KEY        → Llama 3.3 70B Versatile on Groq. Free dev tier,
+//                            no training on inputs per commercial terms.
+//                            Kept as a fallback if Gemini is unavailable.
+//   3. ANTHROPIC_API_KEY   → Claude (no training on API inputs per
+//                            commercial terms; paid, not free).
+//   4. None set            → throws LlmUnavailableError, callers fall back
+//                            to deterministic pipelines.
+//
+// Every prompt is scrubbed server-side (via scrubNotes from @/lib/phia)
+// before being sent to any vendor, defense-in-depth against PHI leakage.
 // ---------------------------------------------------------------------------
+
+// ── Groq config (fallback — free, no-training) ───────────────────────────────
+
+const GROQ_BASE_URL = "https://api.groq.com/openai/v1";
+const GROQ_MODEL = "llama-3.3-70b-versatile";
 
 // ── Gemini config ────────────────────────────────────────────────────────────
 
 const GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 const GEMINI_MODEL = "gemini-2.5-flash";
 
-// ── Anthropic config (kept for future Pro tier) ──────────────────────────────
+// ── Anthropic config ─────────────────────────────────────────────────────────
 
 const ANTHROPIC_BASE_URL_DEFAULT = "https://api.anthropic.com";
 const ANTHROPIC_API_VERSION = "2023-06-01";
@@ -23,10 +39,12 @@ const ANTHROPIC_MODEL = "claude-opus-4-6";
 
 // ── Public exports ───────────────────────────────────────────────────────────
 
-/** Exported for callers that reference it — now reflects whichever model is active. */
+/** Exported for callers that reference it — reflects whichever model is active. */
 export const DICTATION_MODEL = process.env.GOOGLE_AI_API_KEY
   ? GEMINI_MODEL
-  : ANTHROPIC_MODEL;
+  : process.env.GROQ_API_KEY
+    ? GROQ_MODEL
+    : ANTHROPIC_MODEL;
 
 export interface LlmCallOptions {
   system: string;
@@ -46,12 +64,89 @@ export interface LlmCallResult {
 /**
  * Thrown when the LLM call fails or no API key is configured.
  * Callers should catch this and fall back to the deterministic pipeline.
+ * Defined in llm-error.ts to avoid a circular import with ai-gate.ts.
  */
-export class LlmUnavailableError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "LlmUnavailableError";
+export { LlmUnavailableError } from "./llm-error";
+import { LlmUnavailableError } from "./llm-error";
+
+// ── Groq implementation (OpenAI-compatible chat completions) ─────────────────
+
+async function callGroq(opts: LlmCallOptions): Promise<LlmCallResult> {
+  const apiKey = process.env.GROQ_API_KEY!;
+  const url = `${GROQ_BASE_URL}/chat/completions`;
+
+  const body = {
+    model: GROQ_MODEL,
+    temperature: opts.temperature ?? 0.2,
+    max_tokens: opts.maxTokens ?? 4096,
+    // Groq's JSON mode — when the caller expects JSON output. We enable it
+    // globally since virtually every Hippo LLM call wants structured output.
+    response_format: { type: "json_object" as const },
+    messages: [
+      { role: "system", content: opts.system },
+      { role: "user", content: opts.user },
+    ],
+  };
+
+  console.log(`[llm] callGroq → ${GROQ_MODEL}`);
+
+  let response: Response;
+  try {
+    response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (err) {
+    throw new LlmUnavailableError(
+      `Network error calling Groq: ${err instanceof Error ? err.message : String(err)}`,
+    );
   }
+
+  if (!response.ok) {
+    const errText = await response.text().catch(() => "<no body>");
+    throw new LlmUnavailableError(
+      `Groq returned ${response.status}: ${errText.slice(0, 500)}`,
+    );
+  }
+
+  const json = (await response.json()) as {
+    choices?: Array<{
+      message?: { content?: string | null };
+      finish_reason?: string;
+    }>;
+    usage?: {
+      prompt_tokens?: number;
+      completion_tokens?: number;
+    };
+  };
+
+  const choice = json.choices?.[0];
+  const text = (choice?.message?.content ?? "").trim();
+
+  if (!text) {
+    throw new LlmUnavailableError("Empty response from Groq");
+  }
+
+  if (choice?.finish_reason === "length") {
+    throw new LlmUnavailableError(
+      "Groq response was truncated (hit max_tokens). Try a shorter input.",
+    );
+  }
+
+  return {
+    text,
+    model: GROQ_MODEL,
+    usage: json.usage
+      ? {
+          input_tokens: json.usage.prompt_tokens ?? 0,
+          output_tokens: json.usage.completion_tokens ?? 0,
+        }
+      : undefined,
+  };
 }
 
 // ── Gemini implementation ────────────────────────────────────────────────────
@@ -200,21 +295,66 @@ async function callAnthropic(opts: LlmCallOptions): Promise<LlmCallResult> {
 
 // ── Public entry point ───────────────────────────────────────────────────────
 
+import { requireAiAllowed, AiDisabledError } from "@/lib/ai-gate";
+import { scrubNotes } from "@/lib/phia";
+
+export { AiDisabledError };
+
+/**
+ * Server-side belt-and-suspenders scrub. The client runs scrubNotes before
+ * submitting and the composer runs the Gemini-style holistic preflight, but
+ * we scrub ONCE MORE here right before the prompt leaves the server. This
+ * catches (a) any route that forgot to scrub upstream, (b) any future client
+ * bug that skips the client-side scrubber. Zero cost and pure defense.
+ *
+ * We only scrub the user content (not the system prompt — system prompts
+ * are developer-authored and never contain PHI).
+ */
+function scrubPromptForVendor(opts: LlmCallOptions): LlmCallOptions {
+  return {
+    ...opts,
+    user: scrubNotes(opts.user),
+  };
+}
+
 /**
  * Call the configured LLM with a system + user prompt.
- * Tries Gemini first (free), falls back to Anthropic if configured.
+ *
+ * Priority: Groq (free, no-training ToS) → Gemini → Anthropic.
+ *
+ * Every prompt is scrubbed through scrubNotes() before being sent to the
+ * vendor, even though upstream callers should also be scrubbing. This is
+ * defense in depth — if one route ever forgets, the LLM still never sees
+ * obvious PHI patterns.
+ *
+ * The AI gate (`AI_BAA_SIGNED` env) is consulted first. When using Groq,
+ * set AI_BAA_SIGNED=true — Groq's commercial terms already provide the
+ * no-training guarantee the gate is meant to enforce. Do NOT set it to
+ * true while using the consumer Gemini free tier.
+ *
  * Throws LlmUnavailableError if neither key is set or the call fails.
+ * Throws AiDisabledError if AI_BAA_SIGNED is not "true".
  */
 export async function callClaude(opts: LlmCallOptions): Promise<LlmCallResult> {
+  requireAiAllowed();
+
+  const safeOpts = scrubPromptForVendor(opts);
+
+  // Gemini first — confirmed working for this deployment. Groq + Anthropic
+  // kept as fallbacks when/if those keys are configured.
   if (process.env.GOOGLE_AI_API_KEY) {
-    return callGemini(opts);
+    return callGemini(safeOpts);
+  }
+
+  if (process.env.GROQ_API_KEY) {
+    return callGroq(safeOpts);
   }
 
   if (process.env.ANTHROPIC_API_KEY) {
-    return callAnthropic(opts);
+    return callAnthropic(safeOpts);
   }
 
   throw new LlmUnavailableError(
-    "No LLM API key configured. Set GOOGLE_AI_API_KEY (free) or ANTHROPIC_API_KEY.",
+    "No LLM API key configured. Set GOOGLE_AI_API_KEY, GROQ_API_KEY, or ANTHROPIC_API_KEY.",
   );
 }

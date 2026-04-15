@@ -131,11 +131,35 @@ model User {
   pearlLikes      PearlLike[]
   pearlSaves      PearlSave[]
   pearlComments   PearlComment[]
+  pearlReactions  PearlReaction[]
+  pearlEndorsements PearlEndorsement[]
+  pollVotes       PollVote[]
   epaObservations  EpaObservation[]
   assessedObservations EpaObservation[] @relation("AssessorObservations")
   auditLogs        AuditLog[]
+  legalAcceptances LegalAcceptance[]
 
   @@map("users")
+}
+
+// Click-wrap record: one row per (user, policyKey, version) the user accepts.
+// Written during signup/onboarding and whenever a policy is revved (material
+// change) and re-acceptance is required. Never deleted — this is the legal
+// evidence trail.
+model LegalAcceptance {
+  id         String   @id @default(cuid())
+  userId     String
+  policyKey  String   // "eula" | "terms" | "privacy" | "phia" | "acceptable-use"
+  version    String   // e.g. "2026-04-14"
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, policyKey, version])
+  @@index([userId])
+  @@map("legal_acceptances")
 }
 
 // Learned dictation style preferences. One row per user, mutated in place as
@@ -460,17 +484,25 @@ model Pearl {
   likeCount     Int         @default(0)
   saveCount     Int         @default(0)
   commentCount  Int         @default(0)
+  reactionCount Int         @default(0)   // total structured reactions (sum of all kinds)
+  endorseCount  Int         @default(0)   // number of attending endorsements
   isPublished   Boolean     @default(true)
-  postType      String      @default("pearl")   // "pearl" | "case_share" | "research" | "discussion"
+  postType      String      @default("pearl")   // "pearl" | "case_share" | "research" | "discussion" | "poll"
   imageUrl      String?                          // Optional image URL (Supabase storage)
   linkUrl       String?                          // For research posts — external URL
   linkedCaseId  String?                          // For case shares — reference to CaseLog
+  isAnonymous   Boolean     @default(false)      // posted without name/avatar; still verified account
+  isFeatured    Boolean     @default(false)      // curated seed for empty feed & "alive empty state"
+  pollOptions   Json?                            // For poll posts — array of {id,label}. Votes live in PollVote.
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
 
   likes         PearlLike[]
   saves         PearlSave[]
   comments      PearlComment[]
+  reactions     PearlReaction[]
+  endorsements  PearlEndorsement[]
+  pollVotes     PollVote[]
 
   @@index([authorId])
   @@index([createdAt(sort: Desc)])
@@ -517,6 +549,64 @@ model PearlComment {
   @@index([pearlId, createdAt(sort: Desc)])
   @@index([authorId])
   @@map("pearl_comments")
+}
+
+// Surgeon-native structured reactions. Replaces plain "like" with a small
+// taxonomy that drives feed ranking and expresses what the viewer actually
+// took away from the pearl.
+//
+// Allowed `kind` values (string enum kept loose to evolve without migration):
+//   "technique"  🔪 Clean technique
+//   "saved"      🎯 Saved me
+//   "teaching"   🧠 Teaching gold
+//   "warning"    🚨 Warning sign
+//   "seen"       👀 Saw this too
+model PearlReaction {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId, kind])
+  @@index([pearlId, kind])
+  @@index([userId])
+  @@map("pearl_reactions")
+}
+
+// Attending "co-sign" on a pearl. Gated on Profile.roleType at the API level.
+// Visible as a verified ribbon on the card — the social moat that no other
+// platform has.
+model PearlEndorsement {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([pearlId])
+  @@index([userId])
+  @@map("pearl_endorsements")
+}
+
+// Poll vote — one per user per pearl. `optionId` matches an id from the
+// Pearl.pollOptions JSON array.
+model PollVote {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  optionId  String
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([pearlId, optionId])
+  @@map("poll_votes")
 }
 
 // ─── EPA Observations ────────────────────────────────────────────────────────

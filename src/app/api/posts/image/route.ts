@@ -46,6 +46,29 @@ export async function POST(req: NextRequest) {
 
   const supabase = createServiceRoleClient();
 
+  // Ensure the bucket exists. After migrating Supabase projects (e.g. to
+  // Canada for PHIA compliance) the Storage buckets don't come across with
+  // `pg_dump` — so the first upload on a fresh project would fail with
+  // "Bucket not found" until an admin manually created it. Auto-creating
+  // here keeps the user-visible behaviour identical across projects.
+  {
+    const { data: existing } = await supabase.storage.getBucket(BUCKET);
+    if (!existing) {
+      const { error: createErr } = await supabase.storage.createBucket(BUCKET, {
+        public: true,
+        fileSizeLimit: MAX_SIZE,
+        allowedMimeTypes: ALLOWED_TYPES,
+      });
+      if (createErr && !/already exists/i.test(createErr.message ?? "")) {
+        console.error("[post image upload] createBucket error:", createErr);
+        return NextResponse.json(
+          { error: `Storage bucket unavailable: ${createErr.message}` },
+          { status: 500 },
+        );
+      }
+    }
+  }
+
   // Generate a unique path: posts/{userId}/{timestamp}.{ext}
   const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];
   const path = `posts/${user.id}/${Date.now()}.${ext}`;
@@ -63,8 +86,9 @@ export async function POST(req: NextRequest) {
 
   if (uploadError) {
     console.error("[post image upload] Storage error:", uploadError);
+    // Surface the real message so we can tell (bucket missing vs RLS vs size).
     return NextResponse.json(
-      { error: "Failed to upload image. Please try again." },
+      { error: `Upload failed: ${uploadError.message ?? "unknown"}` },
       { status: 500 },
     );
   }

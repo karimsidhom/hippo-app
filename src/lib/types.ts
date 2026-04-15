@@ -328,7 +328,11 @@ export interface ToastMessage {
 
 export type PearlCategory = "Clinical Pearl" | "Case Share" | "Research" | "Discussion" | "Question" | "Milestone" | "Anatomy Tip" | "Technical Pearl" | "Pitfall" | "Decision Point" | "Equipment" | "Post-Op" | "Other";
 
-export type PostType = "pearl" | "case_share" | "research" | "discussion";
+export type PostType = "pearl" | "case_share" | "research" | "discussion" | "poll";
+
+export type ReactionKind = "technique" | "saved" | "teaching" | "warning" | "seen";
+
+export interface PollOption { id: string; label: string }
 
 export interface Pearl {
   id: string;
@@ -341,21 +345,33 @@ export interface Pearl {
   likeCount: number;
   saveCount: number;
   commentCount: number;
+  reactionCount?: number;
+  endorseCount?: number;
   isPublished: boolean;
   postType: PostType;
   imageUrl: string | null;
   linkUrl: string | null;
   linkedCaseId: string | null;
+  isAnonymous?: boolean;
+  isFeatured?: boolean;
+  pollOptions?: PollOption[] | null;
   createdAt: Date;
   updatedAt: Date;
   author?: {
     id: string;
     name: string | null;
     image: string | null;
-    profile?: { specialty: string | null; trainingYearLabel: string | null } | null;
+    profile?: {
+      specialty: string | null;
+      trainingYearLabel: string | null;
+      roleType?: UserRoleType;
+      institution?: string | null;
+    } | null;
   };
   liked?: boolean;
   saved?: boolean;
+  endorsedByMe?: boolean;
+  myReactions?: ReactionKind[];
   linkedCase?: {
     procedureName: string;
     surgicalApproach: SurgicalApproach;

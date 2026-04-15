@@ -1,10 +1,11 @@
 export const metadata = { title: "Subprocessors · Hippo" };
 
 const ROWS: { vendor: string; purpose: string; data: string; region: string }[] = [
-  { vendor: "Supabase (Postgres + Storage + Auth)", purpose: "Primary database, file storage, authentication", data: "All account and training data", region: "US East (default) — CA region available for institutional plans" },
+  { vendor: "Supabase (Postgres + Storage + Auth)", purpose: "Primary database, file storage, authentication", data: "All account and training data", region: "Canada (Central) — ca-central-1" },
   { vendor: "Vercel", purpose: "Application hosting + edge network", data: "Request metadata, logs", region: "Global edge; primary US" },
-  { vendor: "Anthropic (Claude)", purpose: "AI brief, dictation refinement, debrief parsing", data: "De-identified free-text that you submit to AI features", region: "US" },
-  { vendor: "OpenAI (Whisper / GPT)", purpose: "Speech-to-text fallback for voice logging", data: "Audio clips you record", region: "US" },
+  { vendor: "Groq (Llama 3.3 70B)", purpose: "AI brief, dictation refinement, debrief parsing, PHI preflight, feed drafts", data: "De-identified free-text you submit to AI features (regex-scrubbed server-side before transmission). Groq's commercial terms forbid using inputs/outputs for model training.", region: "US" },
+  { vendor: "Anthropic (Claude) — optional fallback", purpose: "AI features when Groq is unavailable", data: "Same as Groq. Anthropic's API commercial terms forbid training on API inputs.", region: "US" },
+  { vendor: "OpenAI (Whisper)", purpose: "Speech-to-text for voice logging", data: "Audio clips you record", region: "US" },
   { vendor: "Stripe", purpose: "Payment processing for Pro subscriptions", data: "Email, billing address, payment card data (held by Stripe, not Hippo)", region: "Global" },
   { vendor: "Resend", purpose: "Transactional email (attending sign-off links, password resets)", data: "Email addresses, email bodies", region: "US" },
 ];

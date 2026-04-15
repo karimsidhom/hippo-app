@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
-import { callClaude, LlmUnavailableError } from "@/lib/dictation/llm";
+import { callClaude, LlmUnavailableError, AiDisabledError } from "@/lib/dictation/llm";
+import { checkRateLimit, LIMITS } from "@/lib/rate-limit";
 
 // ---------------------------------------------------------------------------
 // POST /api/schedule/bulk
@@ -80,6 +81,9 @@ export async function POST(req: NextRequest) {
   if (error) return error;
   await ensureDbUser(user);
 
+  const rl = checkRateLimit(`ai:schedule-bulk:${user.id}`, LIMITS.ai);
+  if (!rl.allowed) return rl.response;
+
   let body: { transcript?: unknown; tzOffsetMinutes?: unknown };
   try {
     body = (await req.json()) as { transcript?: unknown; tzOffsetMinutes?: unknown };
@@ -136,6 +140,9 @@ export async function POST(req: NextRequest) {
         !!(c as Record<string, unknown>).procedureName,
     );
   } catch (err) {
+    if (err instanceof AiDisabledError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: 503 });
+    }
     const msg =
       err instanceof LlmUnavailableError
         ? err.message

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { db } from '@/lib/db';
+import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 
 const schema = z.object({
   name:     z.string().min(2, 'Name must be at least 2 characters'),
@@ -20,6 +21,14 @@ const schema = z.object({
  */
 export async function POST(req: NextRequest) {
   try {
+    // IP-based rate limit — block credential-stuffing + mass account creation.
+    const ip =
+      req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ||
+      req.headers.get('x-real-ip') ||
+      'unknown';
+    const rl = checkRateLimit(`auth:register:${ip}`, LIMITS.auth);
+    if (!rl.allowed) return rl.response;
+
     const body = await req.json();
     const { name, email, password } = schema.parse(body);
 
