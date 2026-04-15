@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { getSpecialtyEpaData } from '@/lib/epa/data';
+import type { EpaDefinition, SpecialtyEpaData } from '@/lib/epa/data';
 import { suggestEpasForCase } from '@/lib/epa/suggest';
 
 // Accepts EITHER a saved caseLogId (preferred, used when case was already
@@ -121,8 +122,6 @@ export async function POST(req: NextRequest) {
     });
 
     // Use profile specialty, or fall back to the case's specialty slug.
-    // If neither exists, we still return 200 with a helpful note so the
-    // sheet can render a useful empty state instead of a red banner.
     const specialty = profile?.specialty || caseLike.specialtyId || '';
     if (!specialty) {
       return NextResponse.json({
@@ -131,28 +130,72 @@ export async function POST(req: NextRequest) {
       });
     }
 
-    // Load EPA data for the user's specialty
-    const trainingCountry = profile?.trainingCountry ?? undefined;
-    const epaData = getSpecialtyEpaData(specialty, trainingCountry);
+    // Hippo is a Manitoba-based CBD app — default to "CA" when the profile
+    // hasn't set a country. This ensures we load RCPSC data (which has
+    // coverage for all surgical specialties) instead of falling through to
+    // ACGME which only covers a few — that mismatch was the real
+    // "no suggestions found" bug.
+    const trainingCountry = profile?.trainingCountry || 'CA';
+    const specialtyEpaData = getSpecialtyEpaData(specialty, trainingCountry);
 
-    if (!epaData) {
+    // For Canadian residents, ALWAYS include Surgical Foundations EPAs in
+    // the suggestion pool — early-stage cases (F/D prefix) should match SF
+    // regardless of the resident's chosen specialty.
+    const foundationsEpaData =
+      trainingCountry === 'CA'
+        ? getSpecialtyEpaData('surgical-foundations', 'CA')
+        : undefined;
+
+    if (!specialtyEpaData && !foundationsEpaData) {
       return NextResponse.json({
         suggestions: [],
         note: `No EPA framework available for ${specialty} yet.`,
       });
     }
 
-    // Count existing observations per EPA for this user
+    // Merge SF + specialty EPAs into one pool so a single case can match
+    // either track. De-dup by EPA id (keeps the first occurrence — SF wins
+    // when there's a collision, matching the UI's toggle priority).
+    const mergedEpas: EpaDefinition[] = [];
+    const mergedMilestones: SpecialtyEpaData['milestones'] = [];
+    const seenEpaIds = new Set<string>();
+    const seenMilestoneIds = new Set<string>();
+
+    for (const data of [foundationsEpaData, specialtyEpaData].filter(Boolean) as SpecialtyEpaData[]) {
+      for (const epa of data.epas) {
+        if (seenEpaIds.has(epa.id)) continue;
+        seenEpaIds.add(epa.id);
+        mergedEpas.push(epa);
+      }
+      for (const m of data.milestones) {
+        if (seenMilestoneIds.has(m.id)) continue;
+        seenMilestoneIds.add(m.id);
+        mergedMilestones.push(m);
+      }
+    }
+
+    const epaData: SpecialtyEpaData = {
+      specialty: specialtyEpaData?.specialty || 'Surgical Foundations',
+      system: specialtyEpaData?.system || foundationsEpaData?.system || 'RCPSC',
+      epas: mergedEpas,
+      milestones: mergedMilestones,
+    };
+
+    // Count existing observations per EPA for this user — scan across both
+    // SF and specialty slugs so gap-priority scoring is accurate.
     const specialtySlug = specialty.toLowerCase();
     const existingObs = await db.epaObservation.groupBy({
       by: ['epaId'],
-      where: { userId: user.id, specialtySlug },
+      where: {
+        userId: user.id,
+        specialtySlug: { in: [specialtySlug, 'surgical-foundations'] },
+      },
       _count: { epaId: true },
     });
 
     const observationCounts: Record<string, number> = {};
     for (const row of existingObs) {
-      observationCounts[row.epaId] = row._count.epaId;
+      observationCounts[row.epaId] = (observationCounts[row.epaId] ?? 0) + row._count.epaId;
     }
 
     // Build EPA reference data for the prompt
