@@ -1,5 +1,6 @@
 // @ts-nocheck — seed data uses demo UUIDs; User.id is set by Supabase auth in production
 import { PrismaClient } from "@prisma/client";
+import { randomUUID } from "node:crypto";
 
 const prisma = new PrismaClient();
 
@@ -96,6 +97,7 @@ async function main() {
     where: { email: "alex.chen@hospital.com" },
     update: {},
     create: {
+      id: randomUUID(),
       email: "alex.chen@hospital.com",
       name: "Dr. Alex Chen",
       role: "USER",
@@ -123,6 +125,7 @@ async function main() {
     where: { email: "sarah.kim@hospital.com" },
     update: {},
     create: {
+      id: randomUUID(),
       email: "sarah.kim@hospital.com",
       name: "Dr. Sarah Kim",
       role: "USER",
@@ -145,6 +148,7 @@ async function main() {
     where: { email: "james.wilson@hospital.com" },
     update: {},
     create: {
+      id: randomUUID(),
       email: "james.wilson@hospital.com",
       name: "Dr. James Wilson",
       role: "USER",
@@ -168,6 +172,7 @@ async function main() {
     where: { email: "priya.patel@hospital.com" },
     update: {},
     create: {
+      id: randomUUID(),
       email: "priya.patel@hospital.com",
       name: "Dr. Priya Patel",
       role: "USER",
@@ -190,6 +195,7 @@ async function main() {
     where: { email: "michael.okonkwo@hospital.com" },
     update: {},
     create: {
+      id: randomUUID(),
       email: "michael.okonkwo@hospital.com",
       name: "Dr. Michael Okonkwo",
       role: "USER",
@@ -202,6 +208,62 @@ async function main() {
           pgyYear: 2,
           trainingYearLabel: "PGY-2",
           publicProfile: false,
+          onboardingCompleted: true,
+        },
+      },
+    },
+  });
+
+  // Attending — required for pearl endorsements (gated on roleType === ATTENDING).
+  // Having at least one attending on staff is what separates Hippo from a
+  // student-only journal; their endorsements are the social moat.
+  const attending1 = await prisma.user.upsert({
+    where: { email: "david.hernandez@hospital.com" },
+    update: {},
+    create: {
+      id: randomUUID(),
+      email: "david.hernandez@hospital.com",
+      name: "Dr. David Hernandez",
+      role: "USER",
+      profile: {
+        create: {
+          roleType: "ATTENDING",
+          specialty: "Urology",
+          subspecialty: "Robotic Oncology",
+          institution: "University Health Network",
+          city: "Toronto",
+          pgyYear: 15,
+          trainingYearLabel: "Attending",
+          publicProfile: true,
+          allowFriendRequests: true,
+          bio: "Staff urologist. Robotic oncology lead at UHN. I co-sign what I'd teach in my own OR.",
+          onboardingCompleted: true,
+        },
+      },
+    },
+  });
+
+  // A general surgery attending for cross-specialty variety.
+  const attending2 = await prisma.user.upsert({
+    where: { email: "rachel.thompson@hospital.com" },
+    update: {},
+    create: {
+      id: randomUUID(),
+      email: "rachel.thompson@hospital.com",
+      name: "Dr. Rachel Thompson",
+      role: "USER",
+      profile: {
+        create: {
+          roleType: "ATTENDING",
+          specialty: "General Surgery",
+          subspecialty: "Hepatobiliary",
+          institution: "St. Michael's Hospital",
+          city: "Toronto",
+          pgyYear: 12,
+          trainingYearLabel: "Attending",
+          publicProfile: true,
+          allowFriendRequests: true,
+          bio: "HPB staff. Teaching is the job.",
           onboardingCompleted: true,
         },
       },
@@ -346,6 +408,298 @@ async function main() {
       { userId: user1.id, eventType: "CASE_LOG", title: "Logged a new case", description: "Completed a Robot-Assisted Partial Nephrectomy", isPublic: true, createdAt: new Date("2025-12-10") },
     ],
   });
+
+  // ─── Pearls (social feed) ────────────────────────────────────────────────
+  // A resident or PD opening the feed for the first time needs to see a live
+  // community, not an empty state. We seed 6 canonical pearls covering the
+  // post types (pearl, case_share, discussion, research, poll) and author
+  // them across resident + attending roles. Two are endorsed by an attending
+  // (the "co-sign" ribbon) and two are marked isFeatured for the empty-state
+  // rail. Idempotent: if any featured pearls already exist we skip — this
+  // lets `prisma db seed` be re-run safely.
+  const existingFeatured = await prisma.pearl.count({ where: { isFeatured: true } });
+  if (existingFeatured === 0) {
+    const pearlSeeds: Array<{
+      author: typeof user1;
+      data: Parameters<typeof prisma.pearl.create>[0]["data"];
+      endorsedBy?: Array<typeof attending1>;
+      reactions?: Array<{ user: typeof user1; kind: string }>;
+      comments?: Array<{ author: typeof user1; content: string }>;
+    }> = [
+      {
+        // Endorsed attending pearl — the kind of content that makes a resident
+        // scroll. Short, specific, "I wish I knew this sooner" tone.
+        author: attending1,
+        data: {
+          authorId: attending1.id,
+          procedureName: "Robot-Assisted Radical Prostatectomy",
+          category: "Oncology",
+          postType: "pearl",
+          title: "The apex dissection trick nobody taught me until year 4 of fellowship",
+          content:
+            "Before you transect the DVC, lower the pneumoperitoneum to 8 mmHg for 30 seconds. Venous bleeders that were hiding under 15 mmHg become obvious. I've never re-packed an apex since I started doing this.\n\nSmall change. Saves 10 minutes and a transfusion on the cases where it matters.",
+          tags: ["RARP", "technique", "bleeding-control"],
+          isFeatured: true,
+          likeCount: 42,
+          saveCount: 28,
+          commentCount: 3,
+          reactionCount: 31,
+          endorseCount: 2,
+        },
+        endorsedBy: [attending2],
+        reactions: [
+          { user: user1, kind: "technique" },
+          { user: user2, kind: "saved" },
+          { user: user3, kind: "teaching" },
+          { user: user4, kind: "technique" },
+          { user: user5, kind: "saved" },
+        ],
+        comments: [
+          {
+            author: user3,
+            content:
+              "Tried this last week on a case with a high-riding apex. Completely changed the dissection. Thanks for sharing.",
+          },
+          {
+            author: user1,
+            content:
+              "Wait — is 8 mmHg safe for a full 30 seconds intraop? Any concern about gas embolism?",
+          },
+          {
+            author: attending1,
+            content:
+              "Great question. I've never seen an issue at 8 for <60s in a patient with normal CO2 clearance — I bump it back to 15 the moment I see the venous anatomy.",
+          },
+        ],
+      },
+      {
+        // Resident case share — mistakes + what they'd do differently. Honest.
+        author: user1,
+        data: {
+          authorId: user1.id,
+          procedureName: "Laparoscopic Pyeloplasty",
+          category: "Reconstruction",
+          postType: "case_share",
+          title: "Anastomosis took me 90 minutes today. Here's why.",
+          content:
+            "Did a lap pyelo as primary surgeon, UPJ anastomosis. Planned for 20 min, took 90. What went wrong:\n\n• Picked the 5-0 Monocryl on a curved needle instead of the V-Loc that our attendings use\n• Didn't mark the apex stitch before starting — got disoriented on my second run\n• Tension was higher than I thought; should have done more ureteral mobilization up front\n\nNext time: V-Loc, mark the apex with a 4-0 silk tagger, 2 cm more mobilization before committing.",
+          tags: ["pyeloplasty", "anastomosis", "lessons-learned"],
+          isFeatured: false,
+          likeCount: 18,
+          saveCount: 24,
+          commentCount: 2,
+          reactionCount: 19,
+          endorseCount: 1,
+        },
+        endorsedBy: [attending1],
+        reactions: [
+          { user: user2, kind: "teaching" },
+          { user: user3, kind: "teaching" },
+          { user: user5, kind: "saved" },
+          { user: attending1, kind: "technique" },
+        ],
+        comments: [
+          {
+            author: attending1,
+            content:
+              "This is exactly the kind of self-reflection I want to see from my residents. V-Loc is a game changer for UPJ — try it next case.",
+          },
+        ],
+      },
+      {
+        // Warning-kind pearl — complication avoidance. Dense and useful.
+        author: user3,
+        data: {
+          authorId: user3.id,
+          procedureName: "Robot-Assisted Partial Nephrectomy",
+          category: "Oncology",
+          postType: "pearl",
+          title: "Warning: don't trust the pre-op CT for renal artery count",
+          content:
+            "Third partial this year where the pre-op CT missed an accessory lower-pole artery. On one of them we hit it during hilar dissection and had to convert to ischemia before I was ready.\n\nIf the tumor sits on the lower pole or you see any asymmetry in the arterial phase, get the 3D reconstruction. Radiology misses accessories 10–15% of the time.",
+          tags: ["partial-nephrectomy", "anatomy", "safety"],
+          isFeatured: true,
+          likeCount: 31,
+          saveCount: 19,
+          commentCount: 1,
+          reactionCount: 22,
+          endorseCount: 1,
+        },
+        endorsedBy: [attending1],
+        reactions: [
+          { user: user1, kind: "warning" },
+          { user: user2, kind: "warning" },
+          { user: user4, kind: "saved" },
+          { user: attending1, kind: "teaching" },
+        ],
+        comments: [
+          {
+            author: user2,
+            content:
+              "Can confirm. Had the same thing in a right lower-pole case last month. 3D recon caught it on review.",
+          },
+        ],
+      },
+      {
+        // Research share — journal club material. Links to a paper (linkUrl).
+        author: user4,
+        data: {
+          authorId: user4.id,
+          procedureName: "Laparoscopic Cholecystectomy",
+          category: "Biliary",
+          postType: "research",
+          title: "New meta-analysis: critical view of safety halves bile duct injury rate",
+          content:
+            "32,000-patient meta-analysis in Annals of Surgery (Feb 2026). CVS reduced BDI from 0.4% to 0.17% across training hospitals. The kicker: adoption is still only 48% globally.\n\nIf your program isn't tracking CVS on every lap chole, this should change that. Our attending is rolling out a post-op photo review — one minute, every case.",
+          tags: ["cholecystectomy", "CVS", "patient-safety", "journal-club"],
+          linkUrl: "https://journals.lww.com/annalsofsurgery",
+          isFeatured: false,
+          likeCount: 12,
+          saveCount: 15,
+          commentCount: 0,
+          reactionCount: 9,
+          endorseCount: 0,
+        },
+        reactions: [
+          { user: user1, kind: "seen" },
+          { user: user3, kind: "teaching" },
+          { user: attending2, kind: "teaching" },
+        ],
+      },
+      {
+        // Discussion — open question to the community. Good for engagement.
+        author: user2,
+        data: {
+          authorId: user2.id,
+          procedureName: "Ureteroscopy with Laser Lithotripsy",
+          category: "Endourology",
+          postType: "discussion",
+          title: "Dusting vs. basketing for sub-1cm lower-pole stones — what's your default?",
+          content:
+            "We've been running a split of ~60% dusting, 40% basketing for lower-pole stones under 10mm. Attending preference varies heavily.\n\nI keep seeing dusted fragments float up and re-obstruct. Anyone else moved toward basketing as a default for lower pole specifically? What's your stone-free rate at 6 weeks?",
+          tags: ["URS", "stone-management", "technique-debate"],
+          isFeatured: false,
+          likeCount: 8,
+          saveCount: 3,
+          commentCount: 2,
+          reactionCount: 6,
+          endorseCount: 0,
+        },
+        reactions: [
+          { user: user1, kind: "seen" },
+          { user: user5, kind: "seen" },
+          { user: attending1, kind: "teaching" },
+        ],
+        comments: [
+          {
+            author: user1,
+            content:
+              "Basket every lower pole under 1cm. Dusting gives you a pretty OR but the follow-up CT rate is higher than people admit.",
+          },
+          {
+            author: user3,
+            content:
+              "Agree. We moved to basketing default 6 months ago — re-treatment rate dropped from 14% to 6%.",
+          },
+        ],
+      },
+      {
+        // Poll — quick engagement pearl. Gets residents voting on something
+        // real. Adds social liveness even without an endorsement.
+        author: attending2,
+        data: {
+          authorId: attending2.id,
+          procedureName: "Laparoscopic Appendectomy",
+          category: "Colorectal",
+          postType: "poll",
+          title: "Intracorporeal knot vs. endoloop for the appendiceal stump — what do you teach?",
+          content:
+            "Asking because I'm building our new resident curriculum. Curious what senior trainees actually prefer in real life.",
+          tags: ["appendectomy", "teaching", "technique"],
+          pollOptions: [
+            { id: "opt-endoloop", label: "Endoloop — faster, simpler for juniors" },
+            { id: "opt-intracorp", label: "Intracorporeal knot — builds skill, same safety" },
+            { id: "opt-stapler", label: "Endo GIA stapler — least variable outcome" },
+            { id: "opt-depends", label: "Depends on the stump — case by case" },
+          ],
+          isFeatured: false,
+          likeCount: 5,
+          saveCount: 2,
+          commentCount: 0,
+          reactionCount: 4,
+          endorseCount: 0,
+        },
+        reactions: [
+          { user: user1, kind: "teaching" },
+          { user: user4, kind: "teaching" },
+          { user: user2, kind: "seen" },
+        ],
+      },
+    ];
+
+    // Spread createdAt across the last 10 days so the feed has a believable
+    // timeline rather than six posts all stamped "now".
+    const dayMs = 24 * 60 * 60 * 1000;
+    const baseTime = Date.now();
+    for (let i = 0; i < pearlSeeds.length; i++) {
+      const spec = pearlSeeds[i];
+      const createdAt = new Date(baseTime - i * 1.7 * dayMs);
+
+      const pearl = await prisma.pearl.create({
+        data: {
+          ...spec.data,
+          createdAt,
+          updatedAt: createdAt,
+        },
+      });
+
+      if (spec.endorsedBy?.length) {
+        for (const endorser of spec.endorsedBy) {
+          await prisma.pearlEndorsement.create({
+            data: {
+              pearlId: pearl.id,
+              userId: endorser.id,
+              createdAt: new Date(createdAt.getTime() + 2 * 60 * 60 * 1000),
+            },
+          });
+        }
+      }
+
+      if (spec.reactions?.length) {
+        for (let r = 0; r < spec.reactions.length; r++) {
+          const { user: reactor, kind } = spec.reactions[r];
+          await prisma.pearlReaction.create({
+            data: {
+              pearlId: pearl.id,
+              userId: reactor.id,
+              kind,
+              createdAt: new Date(createdAt.getTime() + (30 + r * 15) * 60 * 1000),
+            },
+          });
+        }
+      }
+
+      if (spec.comments?.length) {
+        for (let c = 0; c < spec.comments.length; c++) {
+          const { author: commenter, content } = spec.comments[c];
+          const commentedAt = new Date(createdAt.getTime() + (60 + c * 45) * 60 * 1000);
+          await prisma.pearlComment.create({
+            data: {
+              pearlId: pearl.id,
+              authorId: commenter.id,
+              content,
+              createdAt: commentedAt,
+              updatedAt: commentedAt,
+            },
+          });
+        }
+      }
+    }
+
+    console.log(`Seeded ${pearlSeeds.length} pearls with reactions, endorsements, and comments.`);
+  } else {
+    console.log("Pearls already seeded; skipping.");
+  }
 
   console.log("Seeding complete!");
 }

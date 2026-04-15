@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2 } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
@@ -17,6 +17,7 @@ import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
 import { DebriefSheet } from "@/components/DebriefSheet";
 import { StaffDashboard } from "@/components/staff/StaffDashboard";
+import { PostComposer } from "@/components/social/PostComposer";
 
 // Role types that see the staff/attending dashboard instead of the trainee one.
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
@@ -47,6 +48,10 @@ export default function DashboardPage() {
     procedureName: string;
     caseDate: string;
   } | null>(null);
+
+  // PostComposer seeded from a recent case — the social flywheel entry point
+  // right from the dashboard. Gemini drafts a pearl from the case server-side.
+  const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
   // Returned-EPA alert — residents need prompt visibility of attending feedback.
   const [returnedCount, setReturnedCount] = useState<number>(0);
@@ -482,19 +487,47 @@ export default function DashboardPage() {
               }} />
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
                 <span style={{
                   fontSize: 13, fontWeight: 500, color: "var(--text)",
                   whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  marginRight: 8,
+                  marginRight: 8, flex: 1, minWidth: 0,
                 }}>{c.procedureName}</span>
-                <span style={{
-                  fontSize: 11, color: "var(--text-3)",
-                  fontFamily: "'Geist Mono', monospace",
-                  flexShrink: 0,
-                }}>
-                  {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
-                </span>
+                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                  {/* Share as pearl — opens the composer with a Gemini-drafted
+                      post from this case. The single most important way to
+                      turn a case log into community content. */}
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
+                    title="Share as pearl"
+                    aria-label="Share as pearl"
+                    style={{
+                      background: "transparent",
+                      border: "1px solid var(--border-mid)",
+                      borderRadius: 5,
+                      width: 22, height: 22,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", color: "var(--text-3)",
+                      transition: "all .15s",
+                    }}
+                    onMouseEnter={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
+                    }}
+                    onMouseLeave={e => {
+                      (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
+                      (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
+                    }}
+                  >
+                    <Share2 size={11} />
+                  </button>
+                  <span style={{
+                    fontSize: 11, color: "var(--text-3)",
+                    fontFamily: "'Geist Mono', monospace",
+                  }}>
+                    {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                  </span>
+                </div>
               </div>
               <div style={{
                 display: "flex", gap: 6, marginTop: 2,
@@ -570,6 +603,14 @@ export default function DashboardPage() {
         open={debriefCase !== null}
         caseLog={debriefCase}
         onClose={() => setDebriefCase(null)}
+      />
+
+      {/* Share-as-pearl composer — Gemini drafts from the selected case. */}
+      <PostComposer
+        open={shareCaseId !== null}
+        onClose={() => setShareCaseId(null)}
+        source={shareCaseId ? { kind: "case", caseId: shareCaseId } : undefined}
+        onPublished={() => setShareCaseId(null)}
       />
     </div>
   );

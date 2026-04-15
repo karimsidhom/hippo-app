@@ -49,20 +49,28 @@ export function EndorsementRibbon({ pearlId, initialCount, initialMine, viewerRo
     }
   };
 
+  // Gold — the universal "verified / co-signed" signal. Deliberately warmer
+  // than the default card chrome so the eye catches it while scrolling,
+  // without screaming like a notification badge. Matches the gold shell the
+  // PostCard applies when endorseCount > 0.
+  const GOLD = "#F59E0B";
+  const GOLD_TINT = "rgba(245,158,11,0.10)";
+  const GOLD_EDGE = "rgba(245,158,11,0.30)";
+
   return (
     <div style={{
       display: "flex", alignItems: "center", gap: 10,
-      padding: count > 0 ? "6px 10px" : 0,
+      padding: count > 0 ? "7px 12px" : 0,
       marginBottom: count > 0 ? 10 : 0,
-      background: count > 0 ? "rgba(14,165,233,0.06)" : "transparent",
-      border: count > 0 ? "1px solid rgba(14,165,233,0.18)" : "none",
+      background: count > 0 ? GOLD_TINT : "transparent",
+      border: count > 0 ? `1px solid ${GOLD_EDGE}` : "none",
       borderRadius: 8,
       fontSize: 12,
     }}>
       {count > 0 && (
-        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--primary)", flex: 1, minWidth: 0 }}>
-          <BadgeCheck size={14} />
-          <span style={{ fontWeight: 600 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, color: GOLD, flex: 1, minWidth: 0 }}>
+          <BadgeCheck size={14} fill={GOLD} color="#1a1a1a" strokeWidth={2.5} />
+          <span style={{ fontWeight: 700, letterSpacing: ".1px" }}>
             Co-signed by {count} attending{count === 1 ? "" : "s"}
           </span>
         </div>
@@ -75,12 +83,12 @@ export function EndorsementRibbon({ pearlId, initialCount, initialMine, viewerRo
           style={{
             display: "flex", alignItems: "center", gap: 5,
             padding: "4px 10px",
-            background: mine ? "var(--primary)" : "transparent",
-            color: mine ? "#fff" : "var(--primary)",
-            border: `1px solid ${mine ? "var(--primary)" : "var(--primary)"}`,
+            background: mine ? GOLD : "transparent",
+            color: mine ? "#1a1a1a" : GOLD,
+            border: `1px solid ${GOLD}`,
             borderRadius: 999,
             cursor: busy ? "wait" : "pointer",
-            fontSize: 11, fontWeight: 600,
+            fontSize: 11, fontWeight: 700,
             fontFamily: "'Geist', sans-serif",
             transition: "background .12s",
           }}

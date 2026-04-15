@@ -97,6 +97,13 @@ export async function GET(req: NextRequest) {
   }
   // feed=all or missing → everything public
 
+  // Specialty feed ranks by engagement, not pure recency — an attending
+  // endorsement from three days ago beats a cold post from this morning.
+  // Weights mirror /api/pearls/trending: endorse x4, reactions x1.5,
+  // comments x2, saves, likes x0.5. Other feeds keep newest-first so the
+  // "following" timeline feels chronological.
+  const useEngagementRanking = feed === "specialty" || feed === "featured";
+
   const pearls = await db.pearl.findMany({
     where,
     include: {
@@ -106,7 +113,13 @@ export async function GET(req: NextRequest) {
       reactions: { where: { userId: user.id }, select: { kind: true } },
       endorsements: { where: { userId: user.id }, select: { id: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: useEngagementRanking
+      ? [
+          { endorseCount: "desc" },
+          { reactionCount: "desc" },
+          { createdAt: "desc" },
+        ]
+      : { createdAt: "desc" },
     take: limit + 1,
     ...(cursor && { cursor: { id: cursor }, skip: 1 }),
   });

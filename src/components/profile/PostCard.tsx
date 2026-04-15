@@ -72,14 +72,29 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
     setSubmittingComment(false);
   };
 
+  // An attending-endorsed pearl gets a subtle gold shell in the feed — this
+  // is the social-moat signal that residents should instantly recognize as
+  // "vetted content." Kept deliberately understated (thin ring + tinted bg)
+  // so the feed doesn't read like a casino, but strong enough that a PD can
+  // scroll past and immediately see which posts have been co-signed.
+  const isEndorsed = (pearl.endorseCount ?? 0) > 0;
+
   return (
     <div style={{
-      background: "var(--surface)",
-      border: "1px solid var(--border)",
+      background: isEndorsed
+        ? "linear-gradient(180deg, rgba(245,158,11,0.05), var(--surface) 40%)"
+        : "var(--surface)",
+      border: isEndorsed
+        ? "1px solid rgba(245,158,11,0.35)"
+        : "1px solid var(--border)",
       borderRadius: 12,
       padding: 0,
       marginBottom: 10,
       overflow: "hidden",
+      boxShadow: isEndorsed
+        ? "0 0 0 1px rgba(245,158,11,0.08), 0 1px 0 rgba(245,158,11,0.08) inset"
+        : "none",
+      transition: "border-color .2s",
     }}>
       {/* Image (if present) */}
       {pearl.imageUrl && (

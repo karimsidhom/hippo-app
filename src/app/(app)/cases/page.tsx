@@ -933,6 +933,37 @@ export default function CasesPage() {
                 >
                   <FileText size={12} />
                 </button>
+                {/* Share-as-pearl button — opens the PostComposer seeded from
+                    this case. Inline on the row so residents don't have to
+                    open the detail sheet first. */}
+                <button
+                  onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
+                  title="Share as pearl"
+                  style={{
+                    background: "var(--glass)",
+                    border: "1px solid var(--border-mid)",
+                    borderRadius: 5,
+                    width: 26,
+                    height: 26,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    cursor: "pointer",
+                    color: "var(--text-3)",
+                    transition: "all .15s",
+                    flexShrink: 0,
+                  }}
+                  onMouseEnter={e => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
+                  }}
+                  onMouseLeave={e => {
+                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
+                    (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
+                  }}
+                >
+                  <Share2 size={12} />
+                </button>
               </div>
             </div>
             <div className="case-meta">

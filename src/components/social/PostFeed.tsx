@@ -34,10 +34,35 @@ interface SuggestionsPayload {
   pgyPeers: SuggestedUser[];
 }
 
+// Feed modes — the dropdown above the feed. "program" (specialty) is the
+// default because a resident seeing their attendings/peers is the moment the
+// product feels like a community. "following" is the intentional, curated
+// timeline; "all" is the firehose for explore.
+type FeedMode = "program" | "following" | "all";
+
+const FEED_MODE_QUERY: Record<FeedMode, string> = {
+  program: "specialty",
+  following: "true",
+  all: "all",
+};
+
+const FEED_MODE_LABEL: Record<FeedMode, string> = {
+  program: "Your program",
+  following: "Following",
+  all: "All",
+};
+
 export function PostFeed({ onCreatePost }: Props) {
   const router = useRouter();
   const { profile } = useAuth();
   const viewerRoleType = profile?.roleType as UserRoleType | undefined;
+
+  // Default to "program" (specialty feed) only when we actually know the
+  // viewer's specialty — otherwise fall back to "following" so the feed
+  // isn't empty for users who haven't finished onboarding.
+  const [feedMode, setFeedMode] = useState<FeedMode>(
+    profile?.specialty ? "program" : "following",
+  );
 
   const [posts, setPosts] = useState<Pearl[]>([]);
   const [loading, setLoading] = useState(true);
@@ -58,7 +83,7 @@ export function PostFeed({ onCreatePost }: Props) {
       setLoading(true);
     }
     try {
-      const params = new URLSearchParams({ feed: "true", limit: "15" });
+      const params = new URLSearchParams({ feed: FEED_MODE_QUERY[feedMode], limit: "15" });
       if (cursor) params.set("cursor", cursor);
       const res = await fetch(`/api/pearls?${params}`);
       if (res.ok) {
@@ -83,7 +108,7 @@ export function PostFeed({ onCreatePost }: Props) {
     } catch { /* ignore */ }
     setLoading(false);
     setLoadingMore(false);
-  }, []);
+  }, [feedMode]);
 
   useEffect(() => {
     fetchPosts();
@@ -247,13 +272,50 @@ export function PostFeed({ onCreatePost }: Props) {
         </div>
       )}
 
+      {/* Feed-mode switcher — three compact chips. Defaults to "Your program"
+          so residents immediately see peers in their specialty, not an empty
+          Following timeline. Small enough to ignore, big enough to find. */}
+      <div style={{
+        display: "flex", gap: 6, padding: "0 0 12px 0",
+        alignItems: "center", flexWrap: "wrap",
+      }}>
+        {(Object.keys(FEED_MODE_LABEL) as FeedMode[]).map((mode) => {
+          const active = feedMode === mode;
+          // Hide "Your program" chip if we don't know the viewer's specialty.
+          if (mode === "program" && !profile?.specialty) return null;
+          return (
+            <button
+              key={mode}
+              onClick={() => setFeedMode(mode)}
+              style={{
+                padding: "6px 12px",
+                borderRadius: 999,
+                background: active ? "var(--primary)" : "var(--surface2)",
+                border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`,
+                color: active ? "#fff" : "var(--text-3)",
+                fontSize: 11, fontWeight: 600,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                transition: "all .15s",
+              }}
+            >
+              {mode === "program" && profile?.specialty
+                ? `${profile.specialty}`
+                : FEED_MODE_LABEL[mode]}
+            </button>
+          );
+        })}
+      </div>
+
       {posts.length === 0 ? (
         <div style={{ textAlign: "center", padding: 40 }}>
           <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
-            Your feed is empty
+            {feedMode === "program" ? "No posts in your specialty yet" : "Your feed is empty"}
           </div>
           <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16, lineHeight: 1.5 }}>
-            Follow colleagues to see their posts here, or create your own.
+            {feedMode === "program"
+              ? "Be the first — share a pearl from a recent case."
+              : "Follow colleagues to see their posts here, or create your own."}
           </div>
         </div>
       ) : (

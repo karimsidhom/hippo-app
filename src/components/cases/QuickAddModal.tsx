@@ -9,6 +9,7 @@ import { CelebrationModal } from "@/components/shared/CelebrationModal";
 import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
+import { PostComposer } from "@/components/social/PostComposer";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES } from "@/lib/constants";
 import { validateNotes } from "@/lib/phia";
@@ -75,6 +76,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [savedProcedureName, setSavedProcedureName] = useState("");
   const [savedAttending, setSavedAttending] = useState("");
   const [savedCaseDate, setSavedCaseDate] = useState<Date>(new Date());
+  const [shareAsPearl, setShareAsPearl] = useState(false);
 
   // Portal root for rendering EPA modals above everything
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
@@ -281,9 +283,23 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     setSavedProcedureName("");
     setSavedAttending("");
     setSavedCaseDate(new Date());
+    setShareAsPearl(false);
   };
 
-  if (!open && !showEpaSuggestions && !selectedEpaSuggestion) return null;
+  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl) return null;
+
+  // ── PostComposer (Share as pearl from the Next-steps banner) ──
+  if (shareAsPearl && portalRoot) {
+    return createPortal(
+      <PostComposer
+        open={true}
+        source={savedCaseId ? { kind: "case", caseId: savedCaseId } : { kind: "blank" }}
+        onClose={() => { setShareAsPearl(false); onClose(); resetForm(); }}
+        onPublished={() => { setShareAsPearl(false); onClose(); resetForm(); }}
+      />,
+      portalRoot,
+    );
+  }
 
   // ── EPA Suggestion Sheet (rendered via portal, above everything) ──
   if (showEpaSuggestions && portalRoot) {
@@ -292,6 +308,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
         suggestions={epaSuggestions}
         onSelect={handleEpaSelect}
         onSkip={handleEpaSkip}
+        onShareAsPearl={savedCaseId ? () => { setShowEpaSuggestions(false); setShareAsPearl(true); } : undefined}
         loading={epaSuggestionsLoading}
       />,
       portalRoot,
