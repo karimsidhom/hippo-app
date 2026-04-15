@@ -5,31 +5,10 @@ import { db } from '@/lib/db';
 import { getSpecialtyEpaData } from '@/lib/epa/data';
 import type { EpaDefinition, SpecialtyEpaData } from '@/lib/epa/data';
 import { suggestEpasForCase } from '@/lib/epa/suggest';
-
-// Accepts EITHER a saved caseLogId (preferred, used when case was already
-// persisted) OR inline case details (fallback, used during the brief window
-// between an optimistic client-side save and the server round-trip, or when
-// the save itself failed). Without this, a flaky network or a trainee with
-// no profile.specialty would see the EPA sheet silently render empty — which
-// is exactly the bug the user hit before this change.
-const AiSuggestSchema = z.object({
-  caseLogId: z.string().min(1).optional(),
-  caseDetails: z.object({
-    procedureName: z.string().min(1),
-    procedureCategory: z.string().nullable().optional(),
-    surgicalApproach: z.string().nullable().optional(),
-    role: z.string().nullable().optional(),
-    autonomyLevel: z.string().nullable().optional(),
-    difficultyScore: z.number().nullable().optional(),
-    diagnosisCategory: z.string().nullable().optional(),
-    attendingLabel: z.string().nullable().optional(),
-    outcomeCategory: z.string().nullable().optional(),
-    notes: z.string().nullable().optional(),
-    specialtyId: z.string().nullable().optional(),
-  }).optional(),
-}).refine((d) => d.caseLogId || d.caseDetails, {
-  message: "Either caseLogId or caseDetails must be provided",
-});
+// Shared with mobile — see src/lib/shared/README.md. Changing the
+// request contract here automatically flows through to the mobile
+// pre-flight validator.
+import { AiSuggestSchema } from '@/lib/shared/schemas/epa';
 
 interface GeminiSuggestion {
   epaId: string;

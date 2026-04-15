@@ -3,34 +3,10 @@ import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
-
-const CaseCreateSchema = z.object({
-  specialtyId:              z.string().nullable().optional(),
-  specialtyName:            z.string().nullable().optional(),
-  procedureDefinitionId:    z.string().nullable().optional(),
-  procedureName:            z.string().min(1),
-  procedureCategory:        z.string().nullable().optional(),
-  surgicalApproach:         z.string().default('LAPAROSCOPIC'),
-  role:                     z.string().min(1),
-  autonomyLevel:            z.string().default('SUPERVISOR_PRESENT'),
-  difficultyScore:          z.number().int().min(1).max(5).default(3),
-  operativeDurationMinutes: z.number().int().positive().nullable().optional(),
-  consoleTimeMinutes:       z.number().int().positive().nullable().optional(),
-  dockingTimeMinutes:       z.number().int().positive().nullable().optional(),
-  attendingLabel:           z.string().nullable().optional(),
-  institutionSite:          z.string().nullable().optional(),
-  patientAgeBin:            z.string().default('UNKNOWN'),
-  diagnosisCategory:        z.string().nullable().optional(),
-  outcomeCategory:          z.string().default('UNCOMPLICATED'),
-  complicationCategory:     z.string().default('NONE'),
-  conversionOccurred:       z.boolean().default(false),
-  notes:                    z.string().nullable().optional(),
-  reflection:               z.string().nullable().optional(),
-  tags:                     z.array(z.string()).default([]),
-  isPublic:                 z.boolean().default(false),
-  benchmarkOptIn:           z.boolean().default(true),
-  caseDate:                 z.string().or(z.date()),
-});
+// Schema is imported from the shared module so the mobile app validates
+// against the exact same rules on its client-side pre-flight. Do NOT
+// re-declare CaseCreateSchema here — change it in src/lib/shared.
+import { CaseCreateSchema } from '@/lib/shared/schemas/case';
 
 /**
  * GET /api/cases
