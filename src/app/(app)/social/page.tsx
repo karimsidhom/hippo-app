@@ -8,6 +8,7 @@ import {
   Share2, MessageSquare, Link as LinkIcon, Check, Copy,
 } from "lucide-react";
 import { PostFeed } from "@/components/social/PostFeed";
+import { PostComposer } from "@/components/social/PostComposer";
 
 interface DiscoverUser {
   id: string;
@@ -54,6 +55,8 @@ export default function SocialPage() {
 
   // Invite state
   const [copied, setCopied] = useState(false);
+  const [composerOpen, setComposerOpen] = useState(false);
+  const [, setFeedBump] = useState(0);
 
   // The invite link — use NEXT_PUBLIC_APP_URL for clean production URLs,
   // fall back to window.location.origin for dev/preview
@@ -254,8 +257,16 @@ export default function SocialPage() {
 
       {/* ═══ Feed Tab ═══ */}
       {activeTab === "Feed" && (
-        <PostFeed onCreatePost={() => router.push("/profile")} />
+        <PostFeed onCreatePost={() => setComposerOpen(true)} />
       )}
+
+      {/* Unified composer — opens from PostFeed's "new post" button or from
+          "Share as pearl" buttons elsewhere in the app. */}
+      <PostComposer
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        onPublished={() => { setComposerOpen(false); setFeedBump(b => b + 1); }}
+      />
 
       {/* ═══ Discover Tab ═══ */}
       {activeTab === "Discover" && (
