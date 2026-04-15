@@ -1,0 +1,110 @@
+{
+  "expo": {
+    "name": "Hippo",
+    "slug": "hippo",
+    "scheme": "hippo",
+    "owner": "hippomedicine",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0a0a0f"
+    },
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.hippomedicine.hippo",
+      "buildNumber": "1",
+      "config": {
+        "usesNonExemptEncryption": false
+      },
+      "infoPlist": {
+        "NSCameraUsageDescription": "Hippo uses the camera only when you explicitly attach a photo to a case — for example, a whiteboard schedule or an anonymized imaging snippet. Images never leave your device without your confirmation.",
+        "NSMicrophoneUsageDescription": "Hippo transcribes your voice locally so you can log a case hands-free after a procedure. Audio is processed on-device; only the resulting text is sent to the server.",
+        "NSSpeechRecognitionUsageDescription": "Hippo uses Apple Speech Recognition to turn your dictation into case-log fields. Recognition happens on-device where supported.",
+        "NSFaceIDUsageDescription": "Hippo uses Face ID to unlock the app quickly after the first login. Your biometric data never leaves your device.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "CFBundleLocalizations": ["en"],
+        "UIBackgroundModes": ["remote-notification"]
+      },
+      "associatedDomains": [
+        "applinks:hippomedicine.com",
+        "webcredentials:hippomedicine.com"
+      ]
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0a0a0f"
+      },
+      "package": "com.hippomedicine.hippo",
+      "versionCode": 1,
+      "permissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT",
+        "android.permission.POST_NOTIFICATIONS"
+      ],
+      "intentFilters": [
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "data": [
+            { "scheme": "https", "host": "hippomedicine.com" }
+          ],
+          "category": ["BROWSABLE", "DEFAULT"]
+        }
+      ]
+    },
+    "web": {
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-local-authentication",
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.1",
+            "useFrameworks": "static"
+          },
+          "android": {
+            "compileSdkVersion": 35,
+            "targetSdkVersion": 35,
+            "minSdkVersion": 24
+          }
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#0a0a0f"
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    },
+    "updates": {
+      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
+      },
+      "router": {
+        "origin": "https://hippomedicine.com"
+      }
+    }
+  }
+}
