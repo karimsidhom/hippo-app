@@ -10,6 +10,8 @@ interface EpaSuggestionSheetProps {
   /** Optional — if provided, shows a "Share as pearl" CTA in the Next-steps banner. */
   onShareAsPearl?: () => void;
   loading?: boolean;
+  /** Optional server note — rendered when suggestions are empty (e.g. "AI unavailable, showing keyword matches"). */
+  note?: string | null;
 }
 
 function getStageColor(epaId: string): string {
@@ -104,6 +106,7 @@ export function EpaSuggestionSheet({
   onSkip,
   onShareAsPearl,
   loading,
+  note,
 }: EpaSuggestionSheetProps) {
   return (
     <>
@@ -213,8 +216,8 @@ export function EpaSuggestionSheet({
               }}
             >
               <Share2 size={14} />
-              Share a pearl from this case
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, color: "rgba(245,158,11,0.7)", fontWeight: 500, marginLeft: 4 }}>
+              <span style={{ flex: "0 1 auto", whiteSpace: "nowrap" }}>Share a pearl</span>
+              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, color: "rgba(245,158,11,0.7)", fontWeight: 500, marginLeft: 4, whiteSpace: "nowrap" }}>
                 <Sparkles size={10} /> AI-drafted
               </span>
             </button>
@@ -262,13 +265,14 @@ export function EpaSuggestionSheet({
           ) : suggestions.length === 0 ? (
             <div
               style={{
-                padding: 24,
+                padding: "20px 20px 24px",
                 textAlign: "center",
                 color: "var(--text-2, #64748B)",
-                fontSize: 14,
+                fontSize: 13,
+                lineHeight: 1.5,
               }}
             >
-              No EPA suggestions found for this case. You can still link an EPA manually from your dashboard.
+              {note || "No EPA suggestions found for this case. You can still link an EPA manually from your dashboard."}
             </div>
           ) : (
             suggestions.map((suggestion) => {

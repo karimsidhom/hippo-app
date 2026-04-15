@@ -1,7 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle,
+  ClipboardCheck, Users, MessageSquare, Lock,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
 
 const ENTRUSTMENT_LABELS: Record<number, string> = {
   1: "Had to do",
@@ -55,7 +60,18 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
+interface AttendingSummary {
+  pendingReview: number;
+  residentsToObserve: number;
+  pearlsMentioning: number;
+}
+
 export default function InboxPage() {
+  const { profile } = useAuth();
+  const roleType = profile?.roleType;
+  const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
+  const isPD = roleType === "PROGRAM_DIRECTOR";
+
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<Observation[]>([]);
   const [recent, setRecent] = useState<Observation[]>([]);
@@ -63,20 +79,58 @@ export default function InboxPage() {
   const [submitting, setSubmitting] = useState<string | null>(null);
   const [returnReasonFor, setReturnReasonFor] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
+  const [summary, setSummary] = useState<AttendingSummary | null>(null);
+  const pendingSectionRef = useRef<HTMLElement | null>(null);
 
   const load = useCallback(async () => {
+    if (!isStaff) { setLoading(false); return; }
     setLoading(true);
     try {
-      const res = await fetch("/api/attending/inbox");
-      const data = await res.json();
+      const [inboxRes, summaryRes] = await Promise.all([
+        fetch("/api/attending/inbox"),
+        fetch("/api/attending/summary"),
+      ]);
+      const data = await inboxRes.json();
       setPending(data.pending ?? []);
       setRecent(data.recent ?? []);
+      if (summaryRes.ok) {
+        setSummary(await summaryRes.json());
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [isStaff]);
 
   useEffect(() => { load(); }, [load]);
+
+  // ── Role-gate: show a friendly redirect for residents/fellows ──────────────
+  if (!isStaff) {
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", padding: "72px 20px 48px",
+        maxWidth: 360, margin: "0 auto", textAlign: "center",
+      }}>
+        <Lock size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+          Inbox is for attendings
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+          The inbox is for attendings and program directors reviewing EPA sign-offs.
+        </div>
+        <Link
+          href="/dashboard"
+          style={{
+            fontSize: 12, fontWeight: 600, color: "var(--primary)",
+            textDecoration: "none", padding: "8px 14px",
+            border: "1px solid var(--primary)", borderRadius: 6,
+          }}
+        >
+          Back to dashboard
+        </Link>
+      </div>
+    );
+  }
 
   async function act(
     id: string,
@@ -138,31 +192,72 @@ export default function InboxPage() {
         )}
       </div>
 
-      <p style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 24 }}>
+      <p style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 20 }}>
         EPAs your residents have sent to you for sign-off. Open any one to review the
         resident&apos;s self-assessment, adjust the entrustment score if needed, and sign.
       </p>
+
+      {/* ── Hero summary strip — 3 KPI tiles ─────────────────────────────── */}
+      {summary && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+          gap: 10, marginBottom: 24,
+        }}>
+          <SummaryTile
+            icon={<ClipboardCheck size={18} strokeWidth={1.5} />}
+            label="Pending your review"
+            value={summary.pendingReview}
+            accentColor={summary.pendingReview > 0 ? "var(--warning)" : "var(--text-3)"}
+            onClick={() => {
+              pendingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+          <SummaryTile
+            icon={<Users size={18} strokeWidth={1.5} />}
+            label="Residents to observe"
+            value={summary.residentsToObserve}
+            accentColor="var(--text-3)"
+            href={isPD ? "/pd-dashboard" : "/social"}
+          />
+          <SummaryTile
+            icon={<MessageSquare size={18} strokeWidth={1.5} />}
+            label="Pearls mentioning you"
+            value={summary.pearlsMentioning}
+            accentColor="var(--text-3)"
+            href="/social?filter=tagged"
+          />
+        </div>
+      )}
 
       {loading ? (
         <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>Loading…</div>
       ) : pending.length === 0 && recent.length === 0 ? (
         <div style={{
-          padding: 60, textAlign: "center",
-          border: "1px dashed var(--border-mid)",
-          borderRadius: 10, color: "var(--text-3)",
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
         }}>
-          <Inbox size={28} style={{ opacity: .4, marginBottom: 12 }} />
-          <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
-            Nothing waiting for you
+          <CheckCircle2 size={32} strokeWidth={1.25} style={{ color: "var(--success)", marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            You&apos;re all caught up
           </div>
-          <div style={{ fontSize: 12 }}>
-            When a resident sends you an EPA for sign-off, it appears here.
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
+            Check the cohort for who to observe next.
           </div>
+          <Link
+            href={isPD ? "/pd-dashboard" : "/social"}
+            style={{
+              fontSize: 12, fontWeight: 600, color: "var(--primary)",
+              textDecoration: "none",
+            }}
+          >
+            {isPD ? "Open PD dashboard →" : "Go to community →"}
+          </Link>
         </div>
       ) : (
         <>
           {pending.length > 0 && (
-            <section style={{ marginBottom: 32 }}>
+            <section ref={pendingSectionRef} style={{ marginBottom: 32, scrollMarginTop: 60 }}>
               <div style={{
                 fontSize: 10, fontWeight: 600, textTransform: "uppercase",
                 letterSpacing: "1px", color: "var(--text-3)", marginBottom: 12,
@@ -603,6 +698,66 @@ const CHECKBOX_LABEL: React.CSSProperties = {
   borderRadius: 6,
   fontSize: 12, color: "var(--text-2)", cursor: "pointer",
 };
+
+function SummaryTile({
+  icon, label, value, accentColor, onClick, href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  accentColor: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const content = (
+    <>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 8,
+      }}>
+        <span style={{ color: accentColor }}>{icon}</span>
+        <span style={{
+          fontSize: 22, fontWeight: 700,
+          fontFamily: "'Geist Mono', monospace",
+          color: accentColor === "var(--text-3)" ? "var(--text)" : accentColor,
+          lineHeight: 1,
+        }}>
+          {value}
+        </span>
+      </div>
+      <div style={{
+        fontSize: 11, fontWeight: 500, color: "var(--text-3)",
+        lineHeight: 1.35,
+      }}>
+        {label}
+      </div>
+    </>
+  );
+  const baseStyle: React.CSSProperties = {
+    display: "block", textAlign: "left",
+    padding: "12px 14px",
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    textDecoration: "none",
+    width: "100%",
+    transition: "border-color .15s, transform .1s",
+  };
+  if (href) {
+    return (
+      <Link href={href} style={baseStyle}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} style={baseStyle}>
+      {content}
+    </button>
+  );
+}
 
 const BTN_PRIMARY: React.CSSProperties = {
   display: "inline-flex", alignItems: "center", gap: 6,

@@ -150,7 +150,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
                 ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
                 : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
             } ${collapsed ? "justify-center" : ""}`}
-            title={collapsed ? "PD Dashboard" : undefined}
+            title={collapsed ? "Cohort" : undefined}
           >
             <GraduationCap
               className={`flex-shrink-0 transition-colors ${
@@ -160,7 +160,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
               } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
             />
             {!collapsed && (
-              <span className="text-sm font-medium truncate">PD Dashboard</span>
+              <span className="text-sm font-medium truncate">Cohort</span>
             )}
           </Link>
         )}

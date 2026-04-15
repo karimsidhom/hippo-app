@@ -20,6 +20,8 @@ import { EpaDashboard } from "@/components/epa/EpaDashboard";
 import { EpaAnalyticsPanel } from "@/components/epa/EpaAnalyticsPanel";
 import { useUser } from "@/hooks/useUser";
 import Link from "next/link";
+import { BarChart2, Plus } from "lucide-react";
+import { QuickAddModal } from "@/components/cases/QuickAddModal";
 
 const BASE_CHART_TABS = ["Overview", "EPAs", "Milestones", "Learning Curve", "Volume", "OR Time Trend"];
 
@@ -33,6 +35,7 @@ export default function AnalyticsPage() {
 
   const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const CHART_TABS = isPD ? [...BASE_CHART_TABS, "PD Dashboard"] : BASE_CHART_TABS;
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const topProcedures = Object.entries(stats?.byProcedure || {})
     .sort(([, a], [, b]) => b - a)
@@ -47,22 +50,7 @@ export default function AnalyticsPage() {
   const autonomyProgression = getAutonomyProgression(cases);
   const specialtyBreakdown = getSpecialtyBreakdown(cases);
 
-  if (cases.length === 0) {
-    return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: 200, color: "var(--text-3)", fontSize: 14, textAlign: "center", gap: 8,
-        padding: "48px 0",
-      }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
-          No data yet
-        </div>
-        <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-          Log at least a few cases to see analytics
-        </div>
-      </div>
-    );
-  }
+  const hasNoCases = cases.length === 0;
 
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
@@ -123,8 +111,40 @@ export default function AnalyticsPage() {
         })}
       </div>
 
+      {hasNoCases && (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px 20px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+        }}>
+          <BarChart2 size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            Nothing to chart yet
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+            Log a few cases and your trends, volume, and EPA progress will show up here.
+          </div>
+          <button
+            onClick={() => setQuickAddOpen(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "9px 16px",
+              background: "var(--primary)", color: "#fff",
+              border: "none", borderRadius: 6,
+              fontSize: 12, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+              letterSpacing: ".01em",
+            }}
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            Log your first case
+          </button>
+          <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+        </div>
+      )}
+
       {/* ── Overview ── */}
-      {activeTab === "Overview" && (
+      {!hasNoCases && activeTab === "Overview" && (
         <div>
           {/* Heatmap */}
           <section style={{ marginBottom: 28 }}>
@@ -182,7 +202,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── EPAs ── */}
-      {activeTab === "EPAs" && (
+      {!hasNoCases && activeTab === "EPAs" && (
         <EpaAnalyticsPanel
           cases={cases}
           specialty={profile?.specialty ?? undefined}
@@ -191,7 +211,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── Milestones ── */}
-      {activeTab === "Milestones" && (
+      {!hasNoCases && activeTab === "Milestones" && (
         <EpaDashboard
           cases={cases}
           specialty={profile?.specialty ?? undefined}
@@ -201,7 +221,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── Learning Curve ── */}
-      {activeTab === "Learning Curve" && (
+      {!hasNoCases && activeTab === "Learning Curve" && (
         <div>
           <section style={{ marginBottom: 28 }}>
             <div style={{
@@ -308,7 +328,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── Volume ── */}
-      {activeTab === "Volume" && (
+      {!hasNoCases && activeTab === "Volume" && (
         <div>
           <section style={{ marginBottom: 28 }}>
             <div style={{
@@ -355,7 +375,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── OR Time Trend ── */}
-      {activeTab === "OR Time Trend" && (
+      {!hasNoCases && activeTab === "OR Time Trend" && (
         <div>
           <section>
             <div style={{

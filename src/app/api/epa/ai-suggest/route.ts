@@ -5,8 +5,29 @@ import { db } from '@/lib/db';
 import { getSpecialtyEpaData } from '@/lib/epa/data';
 import { suggestEpasForCase } from '@/lib/epa/suggest';
 
+// Accepts EITHER a saved caseLogId (preferred, used when case was already
+// persisted) OR inline case details (fallback, used during the brief window
+// between an optimistic client-side save and the server round-trip, or when
+// the save itself failed). Without this, a flaky network or a trainee with
+// no profile.specialty would see the EPA sheet silently render empty — which
+// is exactly the bug the user hit before this change.
 const AiSuggestSchema = z.object({
-  caseLogId: z.string().min(1),
+  caseLogId: z.string().min(1).optional(),
+  caseDetails: z.object({
+    procedureName: z.string().min(1),
+    procedureCategory: z.string().nullable().optional(),
+    surgicalApproach: z.string().nullable().optional(),
+    role: z.string().nullable().optional(),
+    autonomyLevel: z.string().nullable().optional(),
+    difficultyScore: z.number().nullable().optional(),
+    diagnosisCategory: z.string().nullable().optional(),
+    attendingLabel: z.string().nullable().optional(),
+    outcomeCategory: z.string().nullable().optional(),
+    notes: z.string().nullable().optional(),
+    specialtyId: z.string().nullable().optional(),
+  }).optional(),
+}).refine((d) => d.caseLogId || d.caseDetails, {
+  message: "Either caseLogId or caseDetails must be provided",
 });
 
 interface GeminiSuggestion {
@@ -32,15 +53,66 @@ export async function POST(req: NextRequest) {
 
   try {
     const body = await req.json();
-    const { caseLogId } = AiSuggestSchema.parse(body);
+    const parsed = AiSuggestSchema.parse(body);
 
-    // Fetch the case log (must belong to user)
-    const caseLog = await db.caseLog.findFirst({
-      where: { id: caseLogId, userId: user.id },
-    });
+    // Resolve a "caseLike" object from either the saved row or inline details.
+    // We never throw on a missing caseLog — we just degrade gracefully.
+    let caseLike: {
+      procedureName: string;
+      procedureCategory: string | null;
+      surgicalApproach: string | null;
+      role: string | null;
+      autonomyLevel: string | null;
+      difficultyScore: number | null;
+      diagnosisCategory: string | null;
+      attendingLabel: string | null;
+      outcomeCategory: string | null;
+      notes: string | null;
+      specialtyId: string | null;
+    } | null = null;
 
-    if (!caseLog) {
-      return NextResponse.json({ error: 'Case not found' }, { status: 404 });
+    if (parsed.caseLogId) {
+      const caseLog = await db.caseLog.findFirst({
+        where: { id: parsed.caseLogId, userId: user.id },
+      });
+      if (caseLog) {
+        caseLike = {
+          procedureName: caseLog.procedureName,
+          procedureCategory: caseLog.procedureCategory,
+          surgicalApproach: caseLog.surgicalApproach as unknown as string,
+          role: caseLog.role,
+          autonomyLevel: caseLog.autonomyLevel as unknown as string,
+          difficultyScore: caseLog.difficultyScore,
+          diagnosisCategory: caseLog.diagnosisCategory,
+          attendingLabel: caseLog.attendingLabel,
+          outcomeCategory: caseLog.outcomeCategory as unknown as string,
+          notes: caseLog.notes,
+          specialtyId: caseLog.specialtyId,
+        };
+      }
+    }
+
+    if (!caseLike && parsed.caseDetails) {
+      caseLike = {
+        procedureName: parsed.caseDetails.procedureName,
+        procedureCategory: parsed.caseDetails.procedureCategory ?? null,
+        surgicalApproach: parsed.caseDetails.surgicalApproach ?? null,
+        role: parsed.caseDetails.role ?? null,
+        autonomyLevel: parsed.caseDetails.autonomyLevel ?? null,
+        difficultyScore: parsed.caseDetails.difficultyScore ?? null,
+        diagnosisCategory: parsed.caseDetails.diagnosisCategory ?? null,
+        attendingLabel: parsed.caseDetails.attendingLabel ?? null,
+        outcomeCategory: parsed.caseDetails.outcomeCategory ?? null,
+        notes: parsed.caseDetails.notes ?? null,
+        specialtyId: parsed.caseDetails.specialtyId ?? null,
+      };
+    }
+
+    if (!caseLike) {
+      return NextResponse.json({
+        suggestions: [],
+        note: "We couldn't read this case yet — try again in a moment, or open the case to link an EPA manually.",
+      });
     }
 
     // Get the user's profile for specialty and training country
@@ -48,13 +120,15 @@ export async function POST(req: NextRequest) {
       where: { userId: user.id },
     });
 
-    // Use profile specialty, or fall back to the case log's specialty slug
-    const specialty = profile?.specialty || caseLog.specialtyId || '';
+    // Use profile specialty, or fall back to the case's specialty slug.
+    // If neither exists, we still return 200 with a helpful note so the
+    // sheet can render a useful empty state instead of a red banner.
+    const specialty = profile?.specialty || caseLike.specialtyId || '';
     if (!specialty) {
-      return NextResponse.json(
-        { error: 'Profile specialty not set. Please complete onboarding first.' },
-        { status: 400 },
-      );
+      return NextResponse.json({
+        suggestions: [],
+        note: "Set your specialty in Profile to see EPA suggestions.",
+      });
     }
 
     // Load EPA data for the user's specialty
@@ -62,10 +136,10 @@ export async function POST(req: NextRequest) {
     const epaData = getSpecialtyEpaData(specialty, trainingCountry);
 
     if (!epaData) {
-      return NextResponse.json(
-        { error: 'No EPA data available for your specialty' },
-        { status: 404 },
-      );
+      return NextResponse.json({
+        suggestions: [],
+        note: `No EPA framework available for ${specialty} yet.`,
+      });
     }
 
     // Count existing observations per EPA for this user
@@ -97,16 +171,16 @@ export async function POST(req: NextRequest) {
 Given the following surgical case details, determine which EPAs from the resident's specialty best match this case.
 
 CASE DETAILS:
-- Procedure Name: ${caseLog.procedureName}
-- Procedure Category: ${caseLog.procedureCategory ?? 'N/A'}
-- Surgical Approach: ${caseLog.surgicalApproach ?? 'N/A'}
-- Role: ${caseLog.role ?? 'N/A'}
-- Autonomy Level: ${caseLog.autonomyLevel ?? 'N/A'}
-- Difficulty Score: ${caseLog.difficultyScore ?? 'N/A'}
-- Diagnosis Category: ${caseLog.diagnosisCategory ?? 'N/A'}
-- Attending: ${caseLog.attendingLabel ?? 'N/A'}
-- Outcome: ${caseLog.outcomeCategory ?? 'N/A'}
-- Notes: ${caseLog.notes ?? 'N/A'}
+- Procedure Name: ${caseLike.procedureName}
+- Procedure Category: ${caseLike.procedureCategory ?? 'N/A'}
+- Surgical Approach: ${caseLike.surgicalApproach ?? 'N/A'}
+- Role: ${caseLike.role ?? 'N/A'}
+- Autonomy Level: ${caseLike.autonomyLevel ?? 'N/A'}
+- Difficulty Score: ${caseLike.difficultyScore ?? 'N/A'}
+- Diagnosis Category: ${caseLike.diagnosisCategory ?? 'N/A'}
+- Attending: ${caseLike.attendingLabel ?? 'N/A'}
+- Outcome: ${caseLike.outcomeCategory ?? 'N/A'}
+- Notes: ${caseLike.notes ?? 'N/A'}
 
 AVAILABLE EPAs FOR ${specialty.toUpperCase()} (${epaData.system} system):
 ${JSON.stringify(epaReference, null, 2)}
@@ -131,17 +205,28 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
   ]
 }`;
 
-    // Call Gemini 2.5 Flash API
+    // Call Gemini 2.5 Flash API. If the key is missing we skip directly to
+    // the deterministic fallback — this is important in local/dev and in
+    // preview deployments where GOOGLE_AI_API_KEY may not be configured.
     const apiKey = process.env.GOOGLE_AI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'Google AI API key not configured' },
-        { status: 500 },
-      );
-    }
-
     let suggestions: EpaSuggestion[] = [];
     let aiNote: string | undefined;
+
+    if (!apiKey) {
+      try {
+        const fallback = suggestEpasForCase(caseLike as never, epaData, observationCounts);
+        suggestions = fallback.map((s) => ({
+          ...s,
+          matchReasons: [...s.matchReasons, "(matched by keyword scoring)"],
+        }));
+        aiNote = "AI suggestions disabled — showing keyword-based matches.";
+      } catch (fallbackErr) {
+        console.error('[ai-suggest] Scoring fallback failed:', fallbackErr);
+        suggestions = [];
+        aiNote = "Suggestion engine is temporarily unavailable.";
+      }
+      return NextResponse.json({ suggestions, ...(aiNote ? { note: aiNote } : {}) });
+    }
 
     try {
       // Try models in order with fallbacks for availability/rate limits
@@ -236,7 +321,7 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
       // Fallback: use the deterministic scoring engine
       try {
         const fallbackSuggestions = suggestEpasForCase(
-          caseLog as never,
+          caseLike as never,
           epaData,
           observationCounts,
         );

@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ClipboardList, Plus, Target, Stethoscope } from "lucide-react";
+import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import type { CaseLog, EpaObservation, EpaObservationInput } from "@/lib/types";
 import { getSpecialtyEpaData, getSystemLabel, getMilestoneFramework } from "@/lib/epa/data";
 import type { SpecialtyEpaData } from "@/lib/epa/data";
@@ -350,18 +352,7 @@ function EpaPanel({
   const frameworkLabel = getMilestoneFramework(epaData.system);
 
   if (!dashboard || cases.length === 0) {
-    return (
-      <div style={{
-        display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-        minHeight: 200, color: "var(--text-3)", fontSize: 14, textAlign: "center", gap: 8,
-        padding: "48px 0",
-      }}>
-        <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>No cases logged yet</div>
-        <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-          Log cases to see your EPA progress and milestone tracking
-        </div>
-      </div>
-    );
+    return <EpaEmptyCases />;
   }
 
   // Group milestones by domain
@@ -618,12 +609,27 @@ function EpaPanel({
         <div>
           {dashboard.gaps.length === 0 ? (
             <div style={{
-              textAlign: "center", padding: "40px 0",
-              color: "var(--text-3)", fontSize: 13,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "48px 20px 20px", textAlign: "center",
+              maxWidth: 360, margin: "0 auto",
             }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>🎯</div>
-              <div style={{ fontWeight: 500, color: "var(--text-2)" }}>No major gaps!</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>All your EPAs are at 50%+ completion</div>
+              <Target size={32} strokeWidth={1.25} style={{ color: "var(--success)", marginBottom: 14 }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+                No gaps right now
+              </div>
+              <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
+                Every EPA is at 50%+ completion. Keep the streak going — pick an EPA from the list to push it over the line.
+              </div>
+              <button
+                onClick={() => setSubTab("EPAs")}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: "var(--primary)",
+                  background: "none", border: "none",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Browse EPAs →
+              </button>
             </div>
           ) : (
             <>
@@ -694,13 +700,27 @@ function EpaPanel({
         <div>
           {observations.length === 0 ? (
             <div style={{
-              textAlign: "center", padding: "40px 0",
-              color: "var(--text-3)", fontSize: 13,
+              display: "flex", flexDirection: "column", alignItems: "center",
+              padding: "48px 20px 20px", textAlign: "center",
+              maxWidth: 360, margin: "0 auto",
             }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)" }}>No observations yet</div>
-              <div style={{ fontSize: 12, marginTop: 4 }}>
-                Log a case and link it to an EPA, or click &ldquo;Log EPA Observation&rdquo; on an EPA card
+              <Stethoscope size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+              <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+                No observations yet
               </div>
+              <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
+                Pick an EPA and log an observation — attach it to a case to send it to an attending for sign-off.
+              </div>
+              <button
+                onClick={() => setSubTab("EPAs")}
+                style={{
+                  fontSize: 12, fontWeight: 600, color: "var(--primary)",
+                  background: "none", border: "none",
+                  cursor: "pointer", fontFamily: "inherit",
+                }}
+              >
+                Choose an EPA →
+              </button>
             </div>
           ) : (
             <>
@@ -890,20 +910,44 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
     return getSpecialtyEpaData("surgical-foundations", "CA");
   }, [isCanadian]);
 
-  // Compute progress for both
-  const specialtyDashboard: EpaDashboardData | null = useMemo(() => {
-    if (!specialtyEpaData || cases.length === 0) return null;
-    return computeEpaProgress(cases, specialtyEpaData);
-  }, [cases, specialtyEpaData]);
-
+  // Compute progress for foundations panel
   const foundationsDashboard: EpaDashboardData | null = useMemo(() => {
     if (!foundationsEpaData || cases.length === 0) return null;
     return computeEpaProgress(cases, foundationsEpaData);
   }, [cases, foundationsEpaData]);
 
+  // When viewing the specialty panel for a Canadian trainee, hide the
+  // "Foundations of Discipline" (F-prefix) EPAs and their milestones — those
+  // are covered in the dedicated Surgical Foundations tab. Without this,
+  // users see the same F1..F9 content in both tabs and ask "why are the
+  // Surgical Foundations EPAs still in the specialty milestones view?"
+  const specialtyEpaDataFiltered = useMemo<SpecialtyEpaData | undefined>(() => {
+    if (!specialtyEpaData) return undefined;
+    // Only filter when a separate SF panel exists (Canadian system). ACGME
+    // specialties don't have a parallel SF track, so keep everything.
+    if (!foundationsEpaData) return specialtyEpaData;
+    const keepEpas = specialtyEpaData.epas.filter(
+      (e) => !/^F\d/i.test(e.id),
+    );
+    // Milestones referenced only by F-EPAs should also drop out.
+    const keptMilestoneIds = new Set<string>();
+    for (const epa of keepEpas) {
+      for (const mId of epa.relatedMilestones) keptMilestoneIds.add(mId);
+    }
+    const keepMilestones = specialtyEpaData.milestones.filter((m) =>
+      keptMilestoneIds.has(m.id),
+    );
+    return { ...specialtyEpaData, epas: keepEpas, milestones: keepMilestones };
+  }, [specialtyEpaData, foundationsEpaData]);
+
+  const specialtyDashboardFiltered: EpaDashboardData | null = useMemo(() => {
+    if (!specialtyEpaDataFiltered || cases.length === 0) return null;
+    return computeEpaProgress(cases, specialtyEpaDataFiltered);
+  }, [cases, specialtyEpaDataFiltered]);
+
   // Determine which panel is active
-  const activeEpaData = topTab === "foundations" ? foundationsEpaData : specialtyEpaData;
-  const activeDashboard = topTab === "foundations" ? foundationsDashboard : specialtyDashboard;
+  const activeEpaData = topTab === "foundations" ? foundationsEpaData : specialtyEpaDataFiltered;
+  const activeDashboard = topTab === "foundations" ? foundationsDashboard : specialtyDashboardFiltered;
 
   // No EPA data for this specialty at all
   if (!specialtyEpaData && !foundationsEpaData) {
@@ -1012,6 +1056,41 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
           />
         </ModalShell>
       )}
+    </div>
+  );
+}
+
+function EpaEmptyCases() {
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      padding: "48px 20px 20px", textAlign: "center",
+      maxWidth: 360, margin: "0 auto",
+    }}>
+      <ClipboardList size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+        No cases logged yet
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+        Log your first case to start tracking EPA progress and milestones.
+      </div>
+      <button
+        onClick={() => setQuickAddOpen(true)}
+        style={{
+          display: "inline-flex", alignItems: "center", gap: 6,
+          padding: "9px 16px",
+          background: "var(--primary)", color: "#fff",
+          border: "none", borderRadius: 6,
+          fontSize: 12, fontWeight: 600,
+          cursor: "pointer", fontFamily: "inherit",
+          letterSpacing: ".01em",
+        }}
+      >
+        <Plus size={13} strokeWidth={2.5} />
+        Log your first case
+      </button>
+      <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
     </div>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, GraduationCap, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
@@ -17,7 +17,7 @@ import {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router   = useRouter();
-  const { user, loading, onboardingDone, logout } = useAuth();
+  const { user, profile, loading, onboardingDone, logout } = useAuth();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   useEffect(() => {
@@ -249,6 +249,16 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           );
         })()}
+
+        {/* ── Cohort (Program Directors only) ── */}
+        {profile?.roleType === "PROGRAM_DIRECTOR" && (
+          <NavTab
+            href="/pd-dashboard"
+            label="Cohort"
+            icon={GraduationCap}
+            active={pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")}
+          />
+        )}
 
         {/* ── Profile ── */}
         <NavTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />

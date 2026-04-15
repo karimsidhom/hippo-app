@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Shield } from "lucide-react";
+import { Plus, Shield, Sparkles } from "lucide-react";
 import { PearlCard } from "./PearlCard";
 import type { Pearl, PearlCategory } from "@/lib/types";
 
@@ -48,8 +48,37 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
       ))}
 
       {pearls.length === 0 && !showCreate && (
-        <div style={{ textAlign: "center", padding: "40px 0", color: "var(--text-3)", fontSize: 13 }}>
-          {isOwn ? "Share your first teaching pearl." : "No pearls shared yet."}
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px 24px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+        }}>
+          <Sparkles size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            {isOwn ? "No pearls yet" : "No pearls shared yet"}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: isOwn ? 14 : 0 }}>
+            {isOwn
+              ? "Turn a lesson from a case into a pearl — your teaching moments, saved for others."
+              : "When this person shares a pearl it will show up here."}
+          </div>
+          {isOwn && (
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px",
+                background: "var(--primary)", color: "#fff",
+                border: "none", borderRadius: 6,
+                fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+                letterSpacing: ".01em",
+              }}
+            >
+              <Plus size={13} strokeWidth={2.5} />
+              Write your first pearl
+            </button>
+          )}
         </div>
       )}
 

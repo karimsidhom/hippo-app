@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react";
 import { PostCard } from "@/components/profile/PostCard";
-import { Plus, TrendingUp, Sparkles, UserPlus, ChevronRight } from "lucide-react";
+import { Plus, TrendingUp, Sparkles, UserPlus, ChevronRight, Users as UsersIcon, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import type { Pearl, UserRoleType } from "@/lib/types";
@@ -308,16 +308,7 @@ export function PostFeed({ onCreatePost }: Props) {
       </div>
 
       {posts.length === 0 ? (
-        <div style={{ textAlign: "center", padding: 40 }}>
-          <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
-            {feedMode === "program" ? "No posts in your specialty yet" : "Your feed is empty"}
-          </div>
-          <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16, lineHeight: 1.5 }}>
-            {feedMode === "program"
-              ? "Be the first — share a pearl from a recent case."
-              : "Follow colleagues to see their posts here, or create your own."}
-          </div>
-        </div>
+        <EmptyFeedState mode={feedMode} onCreate={onCreatePost} onSwitchMode={setFeedMode} />
       ) : (
         <>
           {fellBackToFeatured && (
@@ -446,6 +437,71 @@ function MiniPearl({ pearl, onClick }: { pearl: Pearl; onClick: () => void }) {
         {(pearl.endorseCount ?? 0) > 0 && <span style={{ color: "var(--primary)" }}>· co-signed</span>}
       </div>
     </button>
+  );
+}
+
+function EmptyFeedState({
+  mode, onCreate, onSwitchMode,
+}: {
+  mode: FeedMode;
+  onCreate?: () => void;
+  onSwitchMode: (m: FeedMode) => void;
+}) {
+  const content = (() => {
+    if (mode === "program") {
+      return {
+        icon: <MessageSquare size={32} strokeWidth={1.25} />,
+        title: "Nothing from your program yet",
+        body: "Share a pearl to start the conversation.",
+        cta: onCreate ? { label: "Share a pearl", onClick: onCreate } : null,
+      };
+    }
+    if (mode === "following") {
+      return {
+        icon: <UsersIcon size={32} strokeWidth={1.25} />,
+        title: "You're not following anyone yet",
+        body: "Switch to Program or All to discover people.",
+        cta: { label: "See all posts", onClick: () => onSwitchMode("all") },
+      };
+    }
+    return {
+      icon: <Sparkles size={32} strokeWidth={1.25} />,
+      title: "The feed is quiet right now",
+      body: "Share a pearl and give it a spark.",
+      cta: onCreate ? { label: "Share a pearl", onClick: onCreate } : null,
+    };
+  })();
+
+  return (
+    <div style={{
+      display: "flex", flexDirection: "column", alignItems: "center",
+      padding: "48px 20px 20px", textAlign: "center",
+      maxWidth: 360, margin: "0 auto",
+    }}>
+      <div style={{ color: "var(--text-3)", marginBottom: 14 }}>{content.icon}</div>
+      <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+        {content.title}
+      </div>
+      <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
+        {content.body}
+      </div>
+      {content.cta && (
+        <button
+          onClick={content.cta.onClick}
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "9px 16px",
+            background: "var(--primary)", color: "#fff",
+            border: "none", borderRadius: 6,
+            fontSize: 12, fontWeight: 600,
+            cursor: "pointer", fontFamily: "inherit",
+            letterSpacing: ".01em",
+          }}
+        >
+          {content.cta.label}
+        </button>
+      )}
+    </div>
   );
 }
 

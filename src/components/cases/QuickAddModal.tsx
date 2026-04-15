@@ -70,6 +70,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   // ── EPA suggestion flow state ──
   const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
   const [epaSuggestionsLoading, setEpaSuggestionsLoading] = useState(false);
+  const [epaNote, setEpaNote] = useState<string | null>(null);
   const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
   const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
   const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
@@ -155,28 +156,49 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
         setSubmitting(false);
 
-        // ALWAYS show EPA suggestions — this is the critical flow
+        // ALWAYS show EPA suggestions — this is the critical flow.
+        // If we have a real caseLogId, use it; otherwise send inline case
+        // details so the sheet still shows something useful instead of
+        // spinning forever.
         setShowEpaSuggestions(true);
         setEpaSuggestionsLoading(true);
 
-        if (realCaseId) {
-          // Fetch AI suggestions in the background
-          try {
-            const res = await fetch("/api/epa/ai-suggest", {
-              method: "POST",
-              credentials: "include",
-              headers: { "content-type": "application/json" },
-              body: JSON.stringify({ caseLogId: realCaseId }),
-            });
-            if (res.ok) {
-              const json = await res.json();
-              setEpaSuggestions(json.suggestions ?? []);
-            } else {
-              console.error('[QuickAdd EPA] API error:', res.status);
-            }
-          } catch (err) {
-            console.error('[QuickAdd EPA] Fetch error:', err);
+        try {
+          const reqBody: Record<string, unknown> = realCaseId
+            ? { caseLogId: realCaseId }
+            : {
+                caseDetails: {
+                  procedureName,
+                  procedureCategory: null,
+                  surgicalApproach: approach,
+                  role,
+                  autonomyLevel,
+                  difficultyScore,
+                  diagnosisCategory: diagnosisCategory.trim() || null,
+                  attendingLabel: attendingLabel.trim() || null,
+                  outcomeCategory,
+                  notes: notes.trim() || null,
+                  specialtyId: specialtySlug,
+                },
+              };
+          const res = await fetch("/api/epa/ai-suggest", {
+            method: "POST",
+            credentials: "include",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify(reqBody),
+          });
+          if (res.ok) {
+            const json = await res.json();
+            setEpaSuggestions(json.suggestions ?? []);
+            setEpaNote(typeof json.note === "string" ? json.note : null);
+          } else {
+            const errText = await res.text();
+            console.error('[QuickAdd EPA] API error:', res.status, errText);
+            setEpaNote("Couldn't load EPA suggestions right now. You can link an EPA from this case later.");
           }
+        } catch (err) {
+          console.error('[QuickAdd EPA] Fetch error:', err);
+          setEpaNote("Couldn't reach the EPA suggestion service. Check your connection.");
         }
         setEpaSuggestionsLoading(false);
       }
@@ -277,6 +299,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     // Reset EPA state
     setEpaSuggestions([]);
     setEpaSuggestionsLoading(false);
+    setEpaNote(null);
     setShowEpaSuggestions(false);
     setSelectedEpaSuggestion(null);
     setSavedCaseId(null);
@@ -306,6 +329,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     return createPortal(
       <EpaSuggestionSheet
         suggestions={epaSuggestions}
+        note={epaNote}
         onSelect={handleEpaSelect}
         onSkip={handleEpaSkip}
         onShareAsPearl={savedCaseId ? () => { setShowEpaSuggestions(false); setShareAsPearl(true); } : undefined}

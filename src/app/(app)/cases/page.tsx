@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2 } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2, ClipboardList, Plus } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
 import { PostComposer } from "@/components/social/PostComposer";
+import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
@@ -704,6 +705,7 @@ export default function CasesPage() {
   const [debrief, setDebrief]       = useState<CaseLog | null>(null);
   const [exporting, setExporting]   = useState(false);
   const [shareCaseId, setShareCaseId] = useState<string | null>(null);
+  const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const years = useMemo(() => {
     const ys = [...new Set(cases.map(c => new Date(c.caseDate).getFullYear()))].sort((a, b) => b - a);
@@ -719,6 +721,48 @@ export default function CasesPage() {
   }).sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime()), [cases, search, approach, role, year]);
 
   const hasFilters = approach !== "All" || role !== "All";
+
+  if (cases.length === 0) {
+    return (
+      <div>
+        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
+          <div>
+            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", letterSpacing: "-.5px" }}>Cases</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>0 logged</div>
+          </div>
+        </div>
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px 20px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+        }}>
+          <ClipboardList size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            No cases logged yet
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+            Log your first case to see your dashboard come alive.
+          </div>
+          <button
+            onClick={() => setQuickAddOpen(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: 6,
+              padding: "9px 16px",
+              background: "var(--primary)", color: "#fff",
+              border: "none", borderRadius: 6,
+              fontSize: 12, fontWeight: 600,
+              cursor: "pointer", fontFamily: "inherit",
+              letterSpacing: ".01em",
+            }}
+          >
+            <Plus size={13} strokeWidth={2.5} />
+            Log a Case
+          </button>
+        </div>
+        <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+      </div>
+    );
+  }
 
   return (
     <div>

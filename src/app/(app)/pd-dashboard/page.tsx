@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import {
-  GraduationCap, Download, Users, Activity, AlertTriangle,
-  BarChart2, ChevronDown, ChevronUp, Clock, TrendingUp,
-  CheckCircle, AlertCircle, Shield,
+  GraduationCap,
+  Download,
+  Users,
+  Activity,
+  AlertTriangle,
+  CheckCircle2,
+  Search,
+  ShieldAlert,
+  Shield,
+  AlertCircle,
 } from "lucide-react";
 
 // ── Types ────────────────────────────────────────────────────────────────────
@@ -28,38 +37,24 @@ interface ResidentData {
   lastCaseDate: string | null;
 }
 
-interface EpaDetail {
-  id: string;
-  epaId: string;
-  epaTitle: string;
-  status: string;
-  achievement: string;
-  entrustmentScore: number | null;
-  observationDate: string;
-  assessorName: string;
-  caseLog?: {
-    procedureName: string;
-    caseDate: string;
-    surgicalApproach: string;
-    autonomyLevel: string;
-    operativeDurationMinutes: number | null;
-  } | null;
-}
+const MONO = "'Geist Mono', monospace";
+const SILENT_DAYS = 14;
 
-// ── Component ────────────────────────────────────────────────────────────────
+// ── Page ─────────────────────────────────────────────────────────────────────
 
 export default function PDDashboardPage() {
   const { profile } = useUser();
+  const router = useRouter();
+
   const [loading, setLoading] = useState(true);
   const [institution, setInstitution] = useState("");
   const [residents, setResidents] = useState<ResidentData[]>([]);
-  const [expandedId, setExpandedId] = useState<string | null>(null);
-  const [epaDetails, setEpaDetails] = useState<Record<string, EpaDetail[]>>({});
-  const [epaLoading, setEpaLoading] = useState<Record<string, boolean>>({});
-  const [exportLoading, setExportLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [exportLoading, setExportLoading] = useState(false);
 
-  // ── Fetch residents ──────────────────────────────────────────────────────
+  const [query, setQuery] = useState("");
+  const [pgyFilter, setPgyFilter] = useState<string>("ALL");
+  const [specialtyFilter, setSpecialtyFilter] = useState<string>("ALL");
 
   const fetchResidents = useCallback(async () => {
     try {
@@ -82,54 +77,21 @@ export default function PDDashboardPage() {
   useEffect(() => {
     if (profile?.roleType === "PROGRAM_DIRECTOR") {
       fetchResidents();
-    } else {
+    } else if (profile !== null) {
       setLoading(false);
     }
-  }, [profile?.roleType, fetchResidents]);
-
-  // ── Fetch EPA details for a resident ─────────────────────────────────────
-
-  const fetchEpaDetails = async (userId: string) => {
-    if (epaDetails[userId]) return;
-    setEpaLoading((prev) => ({ ...prev, [userId]: true }));
-    try {
-      const res = await fetch(`/api/pd/residents/${userId}/epa`, {
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data: EpaDetail[] = await res.json();
-        setEpaDetails((prev) => ({ ...prev, [userId]: data }));
-      }
-    } catch {
-      // silently fail
-    } finally {
-      setEpaLoading((prev) => ({ ...prev, [userId]: false }));
-    }
-  };
-
-  const toggleExpand = (userId: string) => {
-    if (expandedId === userId) {
-      setExpandedId(null);
-    } else {
-      setExpandedId(userId);
-      fetchEpaDetails(userId);
-    }
-  };
-
-  // ── Export CSV ────────────────────────────────────────────────────────────
+  }, [profile, fetchResidents]);
 
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      const res = await fetch("/api/pd/export?format=csv", {
-        credentials: "include",
-      });
+      const res = await fetch("/api/pd/export?format=csv", { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `program-report-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `cohort-report-${new Date().toISOString().slice(0, 10)}.csv`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -141,9 +103,24 @@ export default function PDDashboardPage() {
     }
   };
 
-  // ── Access gate ──────────────────────────────────────────────────────────
+  // ── Derived (memoized) — must be before early returns for Rules of Hooks ──
+  const pgyOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of residents) {
+      const v = r.trainingYearLabel ?? (r.pgyYear != null ? `PGY-${r.pgyYear}` : null);
+      if (v) set.add(v);
+    }
+    return Array.from(set).sort();
+  }, [residents]);
 
-  if (!loading && profile?.roleType !== "PROGRAM_DIRECTOR") {
+  const specialtyOptions = useMemo(() => {
+    const set = new Set<string>();
+    for (const r of residents) if (r.specialty) set.add(r.specialty);
+    return Array.from(set).sort();
+  }, [residents]);
+
+  // ── Role gate ──────────────────────────────────────────────────────────────
+  if (!loading && profile && profile.roleType !== "PROGRAM_DIRECTOR") {
     return (
       <div
         style={{
@@ -175,19 +152,22 @@ export default function PDDashboardPage() {
             marginBottom: 8,
           }}
         >
-          Program Director Dashboard
+          Cohort view
         </h1>
-        <p style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.6 }}>
-          This dashboard is for Program Directors only. If you are a program
-          director, please update your role in{" "}
-          <a
-            href="/settings"
-            style={{ color: "var(--primary)", textDecoration: "underline" }}
-          >
-            Settings
-          </a>
-          .
+        <p style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.6, marginBottom: 16 }}>
+          This page is for Program Directors only. Head back to your dashboard.
         </p>
+        <Link
+          href="/dashboard"
+          style={{
+            fontSize: 13,
+            color: "var(--primary)",
+            textDecoration: "none",
+            fontWeight: 600,
+          }}
+        >
+          Go to dashboard →
+        </Link>
       </div>
     );
   }
@@ -204,7 +184,7 @@ export default function PDDashboardPage() {
           fontSize: 14,
         }}
       >
-        Loading dashboard...
+        Loading cohort…
       </div>
     );
   }
@@ -213,71 +193,154 @@ export default function PDDashboardPage() {
     return (
       <div
         style={{
-          maxWidth: 480,
-          margin: "80px auto",
+          maxWidth: 520,
+          margin: "60px auto",
           textAlign: "center",
-          padding: "40px 24px",
+          padding: "32px 24px",
+          background: "var(--surface)",
+          border: "1px solid var(--border)",
+          borderRadius: 14,
         }}
       >
         <AlertCircle
-          size={32}
+          size={28}
           style={{ color: "var(--danger)", margin: "0 auto 12px", display: "block" }}
         />
-        <p style={{ fontSize: 14, color: "var(--text-3)" }}>{fetchError}</p>
+        <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 16 }}>{fetchError}</p>
+        {fetchError.toLowerCase().includes("institution") && (
+          <Link
+            href="/settings"
+            style={{
+              fontSize: 13,
+              color: "var(--primary)",
+              fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            Edit profile →
+          </Link>
+        )}
       </div>
     );
   }
 
-  // ── Computed stats ───────────────────────────────────────────────────────
+  // ── Derived ─────────────────────────────────────────────────────────────
+  const residentCount = residents.filter((r) => r.roleType === "RESIDENT").length;
+  const fellowCount = residents.filter((r) => r.roleType === "FELLOW").length;
 
-  const totalResidents = residents.length;
-  const totalCases = residents.reduce((s, r) => s + r.totalCases, 0);
-  const avgCases =
-    totalResidents > 0 ? Math.round(totalCases / totalResidents) : 0;
-  const belowTarget = residents.filter((r) => r.casesThisMonth < 10).length;
+  const casesThisWeek = residents.reduce((s, r) => s + r.casesThisWeek, 0);
 
-  // ── Render ───────────────────────────────────────────────────────────────
+  // EPAs signed this month — best-effort: we use epaSigned totals as a signal.
+  // The residents route doesn't break signed-by-month; we surface the live total
+  // as "EPAs signed (all time)" and highlight "this month" if avail.
+  const epasSignedTotal = residents.reduce((s, r) => s + r.epaSigned, 0);
 
+  const silentResidents = residents.filter((r) => {
+    if (!r.lastCaseDate) return true;
+    return daysSince(r.lastCaseDate) >= SILENT_DAYS;
+  });
+
+  const avgEpaCompletion = (() => {
+    const active = residents.filter((r) => r.epaTotal > 0);
+    if (active.length === 0) return 0;
+    const pct =
+      active.reduce((s, r) => s + r.epaSigned / Math.max(1, r.epaTotal), 0) / active.length;
+    return Math.round(pct * 100);
+  })();
+
+  const filtered = residents
+    .filter((r) => {
+      if (query.trim()) {
+        const q = query.trim().toLowerCase();
+        const name = (r.name || r.email).toLowerCase();
+        if (!name.includes(q) && !r.email.toLowerCase().includes(q)) return false;
+      }
+      if (pgyFilter !== "ALL") {
+        const label = r.trainingYearLabel ?? (r.pgyYear != null ? `PGY-${r.pgyYear}` : null);
+        if (label !== pgyFilter) return false;
+      }
+      if (specialtyFilter !== "ALL") {
+        if (r.specialty !== specialtyFilter) return false;
+      }
+      return true;
+    })
+    .slice()
+    .sort((a, b) => {
+      const aSilent = a.lastCaseDate ? daysSince(a.lastCaseDate) >= SILENT_DAYS : true;
+      const bSilent = b.lastCaseDate ? daysSince(b.lastCaseDate) >= SILENT_DAYS : true;
+      if (aSilent !== bSilent) return aSilent ? -1 : 1;
+      const aT = a.lastCaseDate ? new Date(a.lastCaseDate).getTime() : 0;
+      const bT = b.lastCaseDate ? new Date(b.lastCaseDate).getTime() : 0;
+      return bT - aT;
+    });
+
+  // ── Render ──────────────────────────────────────────────────────────────
   return (
-    <div style={{ maxWidth: 960, margin: "0 auto", padding: "0 0 60px" }}>
-      {/* Header */}
+    <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 0 60px" }}>
+      {/* Pulse keyframes for the silent-dot */}
+      <style>{`
+        @keyframes pd-pulse {
+          0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.55); }
+          70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+        }
+        .pd-card:hover {
+          transform: translateY(-1px);
+          border-color: var(--border-mid);
+          box-shadow: 0 6px 20px rgba(0,0,0,0.18);
+        }
+      `}</style>
+
+      {/* ── Institution header ─────────────────────────────────────────── */}
       <div
         style={{
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-end",
           justifyContent: "space-between",
-          marginBottom: 24,
           flexWrap: "wrap",
           gap: 12,
+          marginBottom: 18,
         }}
       >
         <div>
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <GraduationCap size={24} style={{ color: "var(--primary)" }} />
-            <h1
+          <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 4 }}>
+            <GraduationCap size={22} style={{ color: "var(--primary)" }} />
+            <span
               style={{
-                fontSize: 22,
+                fontSize: 11,
                 fontWeight: 700,
-                color: "var(--text)",
-                margin: 0,
-              }}
-            >
-              Program Director Dashboard
-            </h1>
-          </div>
-          {institution && (
-            <p
-              style={{
-                fontSize: 13,
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
                 color: "var(--text-3)",
-                marginTop: 4,
-                marginLeft: 34,
               }}
             >
-              {institution}
-            </p>
-          )}
+              Cohort
+            </span>
+          </div>
+          <h1
+            style={{
+              fontSize: 28,
+              fontWeight: 700,
+              color: "var(--text)",
+              margin: 0,
+              letterSpacing: "-0.01em",
+            }}
+          >
+            {institution || "Your institution"}
+          </h1>
+          <p
+            style={{
+              fontSize: 13,
+              color: "var(--text-3)",
+              marginTop: 4,
+              fontFamily: MONO,
+            }}
+          >
+            {residentCount} resident{residentCount === 1 ? "" : "s"} ·{" "}
+            {fellowCount} fellow{fellowCount === 1 ? "" : "s"}
+          </p>
         </div>
+
         <button
           onClick={handleExport}
           disabled={exportLoading}
@@ -285,7 +348,7 @@ export default function PDDashboardPage() {
             display: "flex",
             alignItems: "center",
             gap: 8,
-            padding: "10px 18px",
+            padding: "10px 16px",
             background: "var(--surface)",
             border: "1px solid var(--border)",
             borderRadius: 10,
@@ -297,319 +360,436 @@ export default function PDDashboardPage() {
             fontFamily: "inherit",
           }}
         >
-          <Download size={15} />
-          {exportLoading ? "Exporting..." : "Export CSV"}
+          <Download size={14} />
+          {exportLoading ? "Exporting…" : "Export CSV"}
         </button>
       </div>
 
-      {/* Stats Strip */}
+      {/* ── KPI strip ──────────────────────────────────────────────────── */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: 12,
-          marginBottom: 28,
+          marginBottom: 22,
         }}
       >
-        <StatCard
-          icon={<Users size={18} />}
-          label="Total Residents"
-          value={totalResidents}
+        <KpiCard
+          icon={<Activity size={16} />}
+          label="Cases this week"
+          value={casesThisWeek}
           color="var(--primary)"
         />
-        <StatCard
-          icon={<Activity size={18} />}
-          label="Total Cases"
-          value={totalCases}
+        <KpiCard
+          icon={<CheckCircle2 size={16} />}
+          label="EPAs signed"
+          value={epasSignedTotal}
           color="var(--success)"
+          sublabel="cohort total"
         />
-        <StatCard
-          icon={<BarChart2 size={18} />}
-          label="Avg Cases / Resident"
-          value={avgCases}
-          color="var(--accent, #f59e0b)"
+        <KpiCard
+          icon={<ShieldAlert size={16} />}
+          label="Silent ≥ 2 weeks"
+          value={silentResidents.length}
+          color={silentResidents.length > 0 ? "var(--danger)" : "var(--success)"}
+          emphasize={silentResidents.length > 0}
         />
-        <StatCard
-          icon={<AlertTriangle size={18} />}
-          label="Below Target (<10/mo)"
-          value={belowTarget}
-          color={belowTarget > 0 ? "var(--danger)" : "var(--success)"}
+        <KpiCard
+          icon={<Users size={16} />}
+          label="Avg EPA completion"
+          value={avgEpaCompletion}
+          color="var(--warning)"
+          suffix="%"
         />
       </div>
 
-      {/* Resident Roster */}
+      {/* ── Filter / search bar ───────────────────────────────────────── */}
       <div
         style={{
-          background: "var(--surface)",
-          border: "1px solid var(--border)",
-          borderRadius: 14,
-          overflow: "hidden",
+          display: "flex",
+          gap: 8,
+          alignItems: "center",
+          marginBottom: 16,
+          flexWrap: "wrap",
         }}
       >
-        {/* Table header */}
         <div
           style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 40px",
-            gap: 8,
-            padding: "12px 16px",
-            borderBottom: "1px solid var(--border)",
-            fontSize: 11,
-            fontWeight: 600,
-            color: "var(--text-3)",
-            textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            flex: "1 1 260px",
+            position: "relative",
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          <span>Resident</span>
-          <span>Total Cases</span>
-          <span>This Month</span>
-          <span>EPA Progress</span>
-          <span>Last Active</span>
-          <span />
-        </div>
-
-        {residents.length === 0 && (
-          <div
+          <Search
+            size={14}
             style={{
-              padding: "40px 16px",
-              textAlign: "center",
+              position: "absolute",
+              left: 12,
               color: "var(--text-3)",
-              fontSize: 14,
+              pointerEvents: "none",
             }}
-          >
-            No residents found at your institution. Make sure residents have set
-            their institution to &ldquo;{institution}&rdquo; in their profile.
-          </div>
-        )}
+          />
+          <input
+            type="text"
+            placeholder="Search by name or email…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            style={{
+              width: "100%",
+              padding: "9px 12px 9px 34px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              color: "var(--text)",
+              fontSize: 13,
+              fontFamily: "inherit",
+              outline: "none",
+            }}
+          />
+        </div>
+        <select
+          value={pgyFilter}
+          onChange={(e) => setPgyFilter(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="ALL">All PGYs</option>
+          {pgyOptions.map((p) => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </select>
+        <select
+          value={specialtyFilter}
+          onChange={(e) => setSpecialtyFilter(e.target.value)}
+          style={selectStyle}
+        >
+          <option value="ALL">All specialties</option>
+          {specialtyOptions.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+      </div>
 
-        {residents.map((r) => {
-          const isExpanded = expandedId === r.userId;
-          const epaPct =
-            r.epaTotal > 0
-              ? Math.round((r.epaSigned / r.epaTotal) * 100)
-              : 0;
-
-          return (
-            <div key={r.userId}>
-              {/* Row */}
-              <div
-                onClick={() => toggleExpand(r.userId)}
+      {/* ── Empty state ───────────────────────────────────────────────── */}
+      {residents.length === 0 && (
+        <div
+          style={{
+            padding: "48px 24px",
+            textAlign: "center",
+            background: "var(--surface)",
+            border: "1px dashed var(--border)",
+            borderRadius: 14,
+          }}
+        >
+          <Users size={32} style={{ color: "var(--text-3)", margin: "0 auto 10px", display: "block" }} />
+          {institution ? (
+            <>
+              <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 4 }}>
+                No residents linked yet.
+              </p>
+              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
+                Residents who set their institution to{" "}
+                <strong style={{ color: "var(--text-2)" }}>{institution}</strong> will appear here.
+              </p>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 10 }}>
+                Your institution isn&rsquo;t set.
+              </p>
+              <Link
+                href="/settings"
                 style={{
-                  display: "grid",
-                  gridTemplateColumns: "2fr 1fr 1fr 1fr 1fr 40px",
-                  gap: 8,
-                  padding: "14px 16px",
-                  borderBottom: isExpanded
-                    ? "none"
-                    : "1px solid var(--border)",
-                  cursor: "pointer",
-                  transition: "background .15s",
-                  background: isExpanded
-                    ? "var(--surface2)"
-                    : "transparent",
-                  alignItems: "center",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isExpanded)
-                    (e.currentTarget as HTMLDivElement).style.background =
-                      "var(--surface2)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isExpanded)
-                    (e.currentTarget as HTMLDivElement).style.background =
-                      "transparent";
+                  fontSize: 13,
+                  color: "var(--primary)",
+                  fontWeight: 600,
+                  textDecoration: "none",
                 }}
               >
-                {/* Name + role */}
-                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: "50%",
-                      background: "var(--primary-dim, #1a1a2e)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 13,
-                      fontWeight: 700,
-                      color: "var(--primary)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {(r.name || "?").charAt(0).toUpperCase()}
-                  </div>
-                  <div>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 600,
-                        color: "var(--text)",
-                      }}
-                    >
-                      {r.name || "Unknown"}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-                      {r.trainingYearLabel || r.roleType}{" "}
-                      {r.specialty ? ` · ${r.specialty}` : ""}
-                    </div>
-                  </div>
-                </div>
+                Edit profile →
+              </Link>
+            </>
+          )}
+        </div>
+      )}
 
-                {/* Total cases */}
-                <div
-                  style={{
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: "var(--text)",
-                    fontFamily: "'Geist Mono', monospace",
-                  }}
-                >
-                  {r.totalCases}
-                </div>
-
-                {/* This month */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 14,
-                      fontWeight: 600,
-                      color:
-                        r.casesThisMonth < 10
-                          ? "var(--warning, #f59e0b)"
-                          : "var(--text)",
-                      fontFamily: "'Geist Mono', monospace",
-                    }}
-                  >
-                    {r.casesThisMonth}
-                  </span>
-                  {r.casesThisMonth < 10 && (
-                    <AlertTriangle
-                      size={12}
-                      style={{ color: "var(--warning, #f59e0b)" }}
-                    />
-                  )}
-                </div>
-
-                {/* EPA progress */}
-                <div>
-                  <div
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 6,
-                      marginBottom: 4,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 12,
-                        color: "var(--text-2)",
-                        fontFamily: "'Geist Mono', monospace",
-                      }}
-                    >
-                      {r.epaSigned}/{r.epaTotal}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      width: "100%",
-                      maxWidth: 80,
-                      height: 4,
-                      background: "var(--border)",
-                      borderRadius: 2,
-                      overflow: "hidden",
-                    }}
-                  >
-                    <div
-                      style={{
-                        width: `${epaPct}%`,
-                        height: "100%",
-                        background:
-                          epaPct >= 75
-                            ? "var(--success)"
-                            : epaPct >= 40
-                              ? "var(--warning, #f59e0b)"
-                              : "var(--danger)",
-                        borderRadius: 2,
-                        transition: "width .3s",
-                      }}
-                    />
-                  </div>
-                </div>
-
-                {/* Last active */}
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-3)",
-                    fontFamily: "'Geist Mono', monospace",
-                  }}
-                >
-                  {r.lastCaseDate
-                    ? formatRelativeDate(r.lastCaseDate)
-                    : "Never"}
-                </div>
-
-                {/* Expand arrow */}
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                  }}
-                >
-                  {isExpanded ? (
-                    <ChevronUp size={16} style={{ color: "var(--text-3)" }} />
-                  ) : (
-                    <ChevronDown size={16} style={{ color: "var(--text-3)" }} />
-                  )}
-                </div>
-              </div>
-
-              {/* Expanded detail panel */}
-              {isExpanded && (
-                <ResidentDetailPanel
-                  resident={r}
-                  epas={epaDetails[r.userId] || []}
-                  loading={epaLoading[r.userId] || false}
-                />
-              )}
+      {/* ── Resident grid ─────────────────────────────────────────────── */}
+      {residents.length > 0 && (
+        <>
+          {filtered.length === 0 ? (
+            <div
+              style={{
+                padding: "32px 16px",
+                textAlign: "center",
+                color: "var(--text-3)",
+                fontSize: 13,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 14,
+              }}
+            >
+              No residents match your filters.
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fill, minmax(320px, 1fr))",
+                gap: 14,
+              }}
+            >
+              {filtered.map((r) => (
+                <ResidentCard
+                  key={r.userId}
+                  resident={r}
+                  onClick={() => router.push(`/pd-dashboard/${r.userId}`)}
+                />
+              ))}
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }
 
-// ── Stat Card ────────────────────────────────────────────────────────────────
+// ── Resident card ────────────────────────────────────────────────────────────
 
-function StatCard({
+function ResidentCard({
+  resident,
+  onClick,
+}: {
+  resident: ResidentData;
+  onClick: () => void;
+}) {
+  const lastDays = resident.lastCaseDate ? daysSince(resident.lastCaseDate) : null;
+  const silent = lastDays === null || lastDays >= SILENT_DAYS;
+  const epaPct =
+    resident.epaTotal > 0 ? Math.round((resident.epaSigned / resident.epaTotal) * 100) : 0;
+
+  const roleLabel = resident.roleType === "FELLOW" ? "Fellow" : "Resident";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="pd-card"
+      style={{
+        textAlign: "left",
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        padding: 16,
+        cursor: "pointer",
+        color: "var(--text)",
+        fontFamily: "inherit",
+        transition: "transform .15s ease, border-color .15s ease, box-shadow .15s ease",
+      }}
+    >
+      {/* Header row */}
+      <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 14 }}>
+        <ResidentAvatar image={resident.image} name={resident.name} />
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div
+            style={{
+              fontSize: 14,
+              fontWeight: 600,
+              color: "var(--text)",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+          >
+            {resident.name || resident.email}
+          </div>
+          <div
+            style={{
+              fontSize: 11,
+              color: "var(--text-3)",
+              marginTop: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 6,
+              flexWrap: "wrap",
+            }}
+          >
+            <span style={{ fontFamily: MONO }}>
+              {resident.trainingYearLabel ||
+                (resident.pgyYear != null ? `PGY-${resident.pgyYear}` : "—")}
+            </span>
+            {resident.specialty && (
+              <>
+                <span>·</span>
+                <span>{resident.specialty}</span>
+              </>
+            )}
+          </div>
+        </div>
+        <span
+          style={{
+            fontSize: 10,
+            fontWeight: 700,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            padding: "3px 7px",
+            borderRadius: 5,
+            background:
+              resident.roleType === "FELLOW"
+                ? "rgba(139, 92, 246, 0.12)"
+                : "rgba(14, 165, 233, 0.12)",
+            color: resident.roleType === "FELLOW" ? "#a78bfa" : "var(--primary)",
+            flexShrink: 0,
+          }}
+        >
+          {roleLabel}
+        </span>
+      </div>
+
+      {/* Activity bar */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          padding: "10px 12px",
+          background: silent ? "rgba(239, 68, 68, 0.07)" : "var(--surface2)",
+          border: silent ? "1px solid rgba(239, 68, 68, 0.25)" : "1px solid var(--border)",
+          borderRadius: 10,
+          marginBottom: 10,
+        }}
+      >
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <span style={{ fontSize: 12, color: "var(--text-2)" }}>
+            <span style={{ fontFamily: MONO, fontWeight: 600, color: "var(--text)" }}>
+              {resident.casesThisMonth}
+            </span>{" "}
+            cases this month
+          </span>
+          <span style={{ fontSize: 11, color: silent ? "var(--danger)" : "var(--text-3)" }}>
+            {lastDays === null
+              ? "No cases logged yet"
+              : silent
+                ? `Silent for ${lastDays} days`
+                : `Last case ${lastDays === 0 ? "today" : `${lastDays}d ago`}`}
+          </span>
+        </div>
+        {silent && (
+          <span
+            aria-hidden
+            style={{
+              width: 9,
+              height: 9,
+              borderRadius: "50%",
+              background: "var(--danger)",
+              animation: "pd-pulse 1.8s ease-out infinite",
+              flexShrink: 0,
+            }}
+          />
+        )}
+      </div>
+
+      {/* EPA progress */}
+      <div style={{ marginBottom: resident.epaPending > 0 ? 10 : 0 }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "baseline",
+            marginBottom: 5,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 10,
+              fontWeight: 700,
+              textTransform: "uppercase",
+              letterSpacing: "0.06em",
+              color: "var(--text-3)",
+            }}
+          >
+            EPA progress
+          </span>
+          <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: MONO }}>
+            {resident.epaSigned} / {resident.epaTotal} signed
+          </span>
+        </div>
+        <div
+          style={{
+            height: 5,
+            background: "var(--border)",
+            borderRadius: 99,
+            overflow: "hidden",
+          }}
+        >
+          <div
+            style={{
+              width: `${epaPct}%`,
+              height: "100%",
+              background:
+                epaPct >= 75
+                  ? "var(--success)"
+                  : epaPct >= 40
+                    ? "var(--warning)"
+                    : "var(--danger)",
+              transition: "width .3s",
+            }}
+          />
+        </div>
+      </div>
+
+      {/* Pending review pill */}
+      {resident.epaPending > 0 && (
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: "3px 8px",
+            borderRadius: 99,
+            background: "rgba(245, 158, 11, 0.12)",
+            color: "var(--warning)",
+            fontSize: 11,
+            fontWeight: 600,
+          }}
+        >
+          <AlertTriangle size={11} />
+          {resident.epaPending} pending your review
+        </div>
+      )}
+    </button>
+  );
+}
+
+// ── KPI card ─────────────────────────────────────────────────────────────────
+
+function KpiCard({
   icon,
   label,
   value,
   color,
+  sublabel,
+  suffix,
+  emphasize,
 }: {
   icon: React.ReactNode;
   label: string;
   value: number;
   color: string;
+  sublabel?: string;
+  suffix?: string;
+  emphasize?: boolean;
 }) {
   return (
     <div
       style={{
         background: "var(--surface)",
-        border: "1px solid var(--border)",
+        border: emphasize ? "1px solid rgba(239, 68, 68, 0.45)" : "1px solid var(--border)",
         borderRadius: 12,
-        padding: "16px 18px",
+        padding: "14px 16px",
       }}
     >
       <div
@@ -622,10 +802,10 @@ function StatCard({
       >
         <div
           style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: `${color}18`,
+            width: 28,
+            height: 28,
+            borderRadius: 7,
+            background: `color-mix(in srgb, ${color} 15%, transparent)`,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -636,11 +816,11 @@ function StatCard({
         </div>
         <span
           style={{
-            fontSize: 11,
-            fontWeight: 600,
+            fontSize: 10,
+            fontWeight: 700,
             color: "var(--text-3)",
             textTransform: "uppercase",
-            letterSpacing: "0.03em",
+            letterSpacing: "0.06em",
           }}
         >
           {label}
@@ -648,465 +828,86 @@ function StatCard({
       </div>
       <div
         style={{
-          fontSize: 28,
+          fontSize: 26,
           fontWeight: 700,
-          color: "var(--text)",
-          fontFamily: "'Geist Mono', monospace",
+          color: emphasize ? "var(--danger)" : "var(--text)",
+          fontFamily: MONO,
+          letterSpacing: "-0.01em",
         }}
       >
         {value}
+        {suffix && (
+          <span style={{ fontSize: 14, color: "var(--text-3)", fontWeight: 500, marginLeft: 2 }}>
+            {suffix}
+          </span>
+        )}
       </div>
+      {sublabel && (
+        <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+          {sublabel}
+        </div>
+      )}
     </div>
   );
 }
 
-// ── Resident Detail Panel ────────────────────────────────────────────────────
+// ── Helpers / small components ───────────────────────────────────────────────
 
-function ResidentDetailPanel({
-  resident,
-  epas,
-  loading,
-}: {
-  resident: ResidentData;
-  epas: EpaDetail[];
-  loading: boolean;
-}) {
-  if (loading) {
+function ResidentAvatar({ image, name }: { image: string | null; name: string | null }) {
+  const initial = (name || "?").trim().charAt(0).toUpperCase();
+  if (image) {
     return (
-      <div
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={image}
+        alt={name || "Resident"}
         style={{
-          padding: "24px 16px",
-          borderBottom: "1px solid var(--border)",
-          background: "var(--surface2)",
-          textAlign: "center",
-          color: "var(--text-3)",
-          fontSize: 13,
+          width: 38,
+          height: 38,
+          borderRadius: "50%",
+          objectFit: "cover",
+          border: "1px solid var(--border)",
+          flexShrink: 0,
         }}
-      >
-        Loading EPA details...
-      </div>
+      />
     );
   }
-
-  // Compute autonomy distribution from EPA caseLog data
-  const autonomyCounts: Record<string, number> = {};
-  const approachCounts: Record<string, number> = {};
-  epas.forEach((epa) => {
-    if (epa.caseLog) {
-      const auto = epa.caseLog.autonomyLevel || "Unknown";
-      autonomyCounts[auto] = (autonomyCounts[auto] || 0) + 1;
-      const appr = epa.caseLog.surgicalApproach || "Unknown";
-      approachCounts[appr] = (approachCounts[appr] || 0) + 1;
-    }
-  });
-
-  // Group EPAs by epaId for progress grid
-  const epaGroups: Record<string, { title: string; observations: EpaDetail[] }> =
-    {};
-  epas.forEach((epa) => {
-    if (!epaGroups[epa.epaId]) {
-      epaGroups[epa.epaId] = { title: epa.epaTitle, observations: [] };
-    }
-    epaGroups[epa.epaId].observations.push(epa);
-  });
-
-  // Missing assessments — EPAs with 0 signed observations
-  const missingEpas = Object.entries(epaGroups).filter(
-    ([, g]) => g.observations.filter((o) => o.status === "SIGNED").length === 0,
-  );
-
-  // Needs attention flags
-  const flags: string[] = [];
-  if (resident.casesThisMonth < 10) {
-    flags.push("Below target: fewer than 10 cases this month");
-  }
-  if (resident.epaPending > 3) {
-    flags.push(`${resident.epaPending} EPA observations pending review`);
-  }
-  if (missingEpas.length > 0) {
-    flags.push(
-      `${missingEpas.length} EPA${missingEpas.length > 1 ? "s" : ""} with no signed observations`,
-    );
-  }
-  if (
-    resident.lastCaseDate &&
-    Date.now() - new Date(resident.lastCaseDate).getTime() >
-      14 * 24 * 60 * 60 * 1000
-  ) {
-    flags.push("No cases logged in the last 14 days");
-  }
-
   return (
     <div
       style={{
-        padding: "20px 16px 20px",
-        borderBottom: "1px solid var(--border)",
-        background: "var(--surface2)",
+        width: 38,
+        height: 38,
+        borderRadius: "50%",
+        background: "rgba(14, 165, 233, 0.12)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 14,
+        fontWeight: 700,
+        color: "var(--primary)",
+        flexShrink: 0,
       }}
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {/* EPA Completion Grid */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            padding: 16,
-          }}
-        >
-          <h4
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text-2)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-              marginBottom: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <CheckCircle size={14} /> EPA Progress
-          </h4>
-          {Object.keys(epaGroups).length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--text-3)" }}>
-              No EPA observations recorded
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {Object.entries(epaGroups)
-                .slice(0, 8)
-                .map(([epaId, group]) => {
-                  const signed = group.observations.filter(
-                    (o) => o.status === "SIGNED",
-                  ).length;
-                  const total = group.observations.length;
-                  const pct = total > 0 ? Math.round((signed / total) * 100) : 0;
-                  return (
-                    <div key={epaId}>
-                      <div
-                        style={{
-                          display: "flex",
-                          justifyContent: "space-between",
-                          marginBottom: 3,
-                        }}
-                      >
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-2)",
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                            maxWidth: 180,
-                          }}
-                        >
-                          {epaId}: {group.title}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-3)",
-                            fontFamily: "'Geist Mono', monospace",
-                            flexShrink: 0,
-                          }}
-                        >
-                          {signed}/{total} ({pct}%)
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          height: 4,
-                          background: "var(--border)",
-                          borderRadius: 2,
-                          overflow: "hidden",
-                        }}
-                      >
-                        <div
-                          style={{
-                            width: `${pct}%`,
-                            height: "100%",
-                            background:
-                              pct >= 75
-                                ? "var(--success)"
-                                : pct >= 40
-                                  ? "var(--warning, #f59e0b)"
-                                  : "var(--danger)",
-                            borderRadius: 2,
-                          }}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          )}
-        </div>
-
-        {/* Autonomy Distribution */}
-        <div
-          style={{
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            padding: 16,
-          }}
-        >
-          <h4
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--text-2)",
-              textTransform: "uppercase",
-              letterSpacing: "0.04em",
-              marginBottom: 12,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <TrendingUp size={14} /> Autonomy Distribution
-          </h4>
-          {Object.keys(autonomyCounts).length === 0 ? (
-            <p style={{ fontSize: 12, color: "var(--text-3)" }}>
-              No autonomy data available
-            </p>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {Object.entries(autonomyCounts).map(([level, count]) => {
-                const total = Object.values(autonomyCounts).reduce(
-                  (s, v) => s + v,
-                  0,
-                );
-                const pct = Math.round((count / total) * 100);
-                return (
-                  <div
-                    key={level}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 8,
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-2)",
-                        minWidth: 120,
-                      }}
-                    >
-                      {formatAutonomy(level)}
-                    </span>
-                    <div
-                      style={{
-                        flex: 1,
-                        height: 6,
-                        background: "var(--border)",
-                        borderRadius: 3,
-                        overflow: "hidden",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: `${pct}%`,
-                          height: "100%",
-                          background: autonomyColor(level),
-                          borderRadius: 3,
-                        }}
-                      />
-                    </div>
-                    <span
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-3)",
-                        fontFamily: "'Geist Mono', monospace",
-                        minWidth: 36,
-                        textAlign: "right",
-                      }}
-                    >
-                      {count}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-
-          {/* Case volume mini summary */}
-          <div style={{ marginTop: 16, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
-            <h4
-              style={{
-                fontSize: 12,
-                fontWeight: 700,
-                color: "var(--text-2)",
-                textTransform: "uppercase",
-                letterSpacing: "0.04em",
-                marginBottom: 8,
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-              }}
-            >
-              <Clock size={14} /> Case Volume
-            </h4>
-            <div style={{ display: "flex", gap: 16 }}>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
-                  {resident.casesThisWeek}
-                </div>
-                <div style={{ fontSize: 10, color: "var(--text-3)" }}>This week</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
-                  {resident.casesThisMonth}
-                </div>
-                <div style={{ fontSize: 10, color: "var(--text-3)" }}>This month</div>
-              </div>
-              <div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
-                  {resident.totalCases}
-                </div>
-                <div style={{ fontSize: 10, color: "var(--text-3)" }}>Total</div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Needs Attention Flags */}
-      {flags.length > 0 && (
-        <div
-          style={{
-            marginTop: 12,
-            background: "var(--danger, #ef4444)" + "10",
-            border: "1px solid var(--danger, #ef4444)" + "30",
-            borderRadius: 10,
-            padding: "12px 14px",
-          }}
-        >
-          <h4
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--danger, #ef4444)",
-              marginBottom: 8,
-              display: "flex",
-              alignItems: "center",
-              gap: 6,
-            }}
-          >
-            <AlertCircle size={14} /> Needs Attention
-          </h4>
-          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            {flags.map((flag, i) => (
-              <div
-                key={i}
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-2)",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 6,
-                }}
-              >
-                <span style={{ color: "var(--danger, #ef4444)" }}>&#x2022;</span>
-                {flag}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Missing Assessments */}
-      {missingEpas.length > 0 && (
-        <div
-          style={{
-            marginTop: 12,
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            padding: "12px 14px",
-          }}
-        >
-          <h4
-            style={{
-              fontSize: 12,
-              fontWeight: 700,
-              color: "var(--warning, #f59e0b)",
-              marginBottom: 8,
-            }}
-          >
-            Missing Signed Assessments
-          </h4>
-          <div
-            style={{
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 6,
-            }}
-          >
-            {missingEpas.map(([epaId, group]) => (
-              <span
-                key={epaId}
-                style={{
-                  fontSize: 11,
-                  padding: "4px 10px",
-                  background: "var(--surface2)",
-                  border: "1px solid var(--border)",
-                  borderRadius: 6,
-                  color: "var(--text-2)",
-                }}
-              >
-                {epaId}: {group.title}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      {initial}
     </div>
   );
 }
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function formatRelativeDate(dateStr: string): string {
-  const d = new Date(dateStr);
-  const now = new Date();
-  const diffMs = now.getTime() - d.getTime();
-  const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
-
-  if (diffDays === 0) return "Today";
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays}d ago`;
-  if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+function daysSince(iso: string): number {
+  const then = new Date(iso).getTime();
+  const now = Date.now();
+  return Math.floor((now - then) / (1000 * 60 * 60 * 24));
 }
 
-function formatAutonomy(level: string): string {
-  const map: Record<string, string> = {
-    OBSERVER: "Observer",
-    ASSISTANT: "Assistant",
-    SUPERVISOR_PRESENT: "Supervised",
-    INDEPENDENT: "Independent",
-    TEACHING: "Teaching",
-  };
-  return map[level] || level;
-}
-
-function autonomyColor(level: string): string {
-  const map: Record<string, string> = {
-    OBSERVER: "#64748b",
-    ASSISTANT: "#94a3b8",
-    SUPERVISOR_PRESENT: "#f59e0b",
-    INDEPENDENT: "#10b981",
-    TEACHING: "#6366f1",
-  };
-  return map[level] || "#64748b";
-}
+const selectStyle: React.CSSProperties = {
+  padding: "9px 12px",
+  background: "var(--surface)",
+  border: "1px solid var(--border)",
+  borderRadius: 10,
+  color: "var(--text)",
+  fontSize: 13,
+  fontFamily: "inherit",
+  outline: "none",
+  cursor: "pointer",
+  minWidth: 140,
+};

@@ -155,6 +155,21 @@ export default function LeaderboardPage() {
             {" — "}{timeFilter}
           </h2>
         </div>
+        {entries.length === 0 ? (
+          <div style={{
+            display: "flex", flexDirection: "column", alignItems: "center",
+            padding: "48px 20px", textAlign: "center",
+            maxWidth: 360, margin: "0 auto",
+          }}>
+            <Trophy size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+            <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+              Leaderboard updates weekly
+            </div>
+            <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5 }}>
+              Keep logging cases — your ranking will appear on the next refresh.
+            </div>
+          </div>
+        ) : (
         <div className="divide-y divide-[#1e2130]">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {entries.map((entry: any) => {
@@ -213,6 +228,7 @@ export default function LeaderboardPage() {
             );
           })}
         </div>
+        )}
       </div>
 
       {/* Note */}
