@@ -55,6 +55,15 @@ DECLARE
   ];
 BEGIN
   FOREACH t IN ARRAY tables LOOP
+    -- Skip tables that don't exist yet (planned features).
+    IF NOT EXISTS (
+      SELECT 1 FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_name = t
+    ) THEN
+      RAISE NOTICE 'Skipping RLS for %.% — table does not exist yet', 'public', t;
+      CONTINUE;
+    END IF;
+
     -- Enable RLS. ALTER is idempotent when already enabled.
     EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', t);
 
