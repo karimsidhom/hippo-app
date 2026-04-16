@@ -395,7 +395,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             epaId={selectedEpaSuggestion.epaId}
             epaTitle={selectedEpaSuggestion.epaTitle}
             specialtySlug={userSpecialtySlug}
-            trainingSystem="RCPSC"
+            trainingSystem={profile?.trainingCountry === "US" ? "ACGME" : "RCPSC"}
             prefillData={{
               caseLogId: savedCaseId || "",
               caseDate: savedCaseDate,

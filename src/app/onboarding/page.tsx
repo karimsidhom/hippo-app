@@ -72,7 +72,7 @@ export default function OnboardingPage() {
       trainingCountry: form.trainingCountry || undefined,
     });
     setSaving(false);
-    router.push("/log");
+    router.push("/dashboard");
   };
 
   const progress = (step / TOTAL_STEPS) * 100;
@@ -452,7 +452,7 @@ export default function OnboardingPage() {
                 disabled={saving}
                 className="w-full py-3.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-xl transition-all active:scale-95 shadow-glow-blue disabled:opacity-50"
               >
-                {saving ? "Saving..." : "Log My First Case →"}
+                {saving ? "Saving..." : "Go to Dashboard →"}
               </button>
               <button
                 onClick={async () => {
