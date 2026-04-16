@@ -3,9 +3,11 @@ module.exports = function (api) {
   return {
     presets: ['babel-preset-expo'],
     plugins: [
-      // Reanimated plugin MUST be listed last — see
-      // https://docs.swmansion.com/react-native-reanimated/docs/fundamentals/getting-started#babel-plugin
-      'react-native-reanimated/plugin',
+      // SDK 54 / Reanimated 4 moved the worklet babel transform into
+      // `react-native-worklets`. The old `react-native-reanimated/plugin`
+      // entry is a no-op (and errors if worklets isn't installed) —
+      // load worklets/plugin directly and keep it last.
+      'react-native-worklets/plugin',
     ],
   };
 };
