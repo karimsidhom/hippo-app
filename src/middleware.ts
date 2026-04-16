@@ -8,11 +8,14 @@ const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/stripe/webhook'];
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Always allow static assets
+  // Always allow static assets + PWA manifest
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico)$/)
+    pathname === '/manifest.json' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json)$/)
   ) {
     return NextResponse.next();
   }
