@@ -3,7 +3,6 @@
     "name": "Hippo",
     "slug": "hippo",
     "scheme": "hippo",
-    "owner": "hippomedicine",
     "version": "0.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -27,8 +26,12 @@
         "NSSpeechRecognitionUsageDescription": "Hippo uses Apple Speech Recognition to turn your dictation into case-log fields. Recognition happens on-device where supported.",
         "NSFaceIDUsageDescription": "Hippo uses Face ID to unlock the app quickly after the first login. Your biometric data never leaves your device.",
         "ITSAppUsesNonExemptEncryption": false,
-        "CFBundleLocalizations": ["en"],
-        "UIBackgroundModes": ["remote-notification"]
+        "CFBundleLocalizations": [
+          "en"
+        ],
+        "UIBackgroundModes": [
+          "remote-notification"
+        ]
       },
       "associatedDomains": [
         "applinks:hippomedicine.com",
@@ -53,9 +56,15 @@
           "action": "VIEW",
           "autoVerify": true,
           "data": [
-            { "scheme": "https", "host": "hippomedicine.com" }
+            {
+              "scheme": "https",
+              "host": "hippomedicine.com"
+            }
           ],
-          "category": ["BROWSABLE", "DEFAULT"]
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ]
         }
       ]
     },
@@ -86,22 +95,13 @@
           "icon": "./assets/notification-icon.png",
           "color": "#0a0a0f"
         }
-      ]
+      ],
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true
     },
-    "updates": {
-      "url": "https://u.expo.dev/REPLACE_WITH_EAS_PROJECT_ID",
-      "fallbackToCacheTimeout": 0
-    },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
     "extra": {
-      "eas": {
-        "projectId": "REPLACE_WITH_EAS_PROJECT_ID"
-      },
       "router": {
         "origin": "https://hippomedicine.com"
       }

@@ -261,14 +261,26 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
     }
 
     try {
-      // Try models in order with fallbacks for availability/rate limits.
-      // Timeout is per-attempt, generous enough that 2.5-flash can finish
-      // reasoning over a full specialty EPA list (~40 items). The old 8s
-      // cap was firing on cold starts and killing the whole flow.
-      const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
-      const PER_MODEL_TIMEOUT_MS = 25_000;
+      // NO timeouts, no token caps, no conservative models. User wants
+      // Gemini unleashed to reason through the full EPA list and produce
+      // the best possible match. Order is pro (best) → flash (fast) →
+      // flash-lite (cheap fallback) → 1.5-flash (legacy safety net).
+      // Per-model abort is gated only by the route-level maxDuration.
+      const models = [
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-1.5-flash',
+      ];
       let geminiData: Record<string, unknown> | null = null;
+      let usedModel: string | null = null;
       let lastErr: string | null = null;
+
+      console.log(
+        `[ai-suggest] start user=${user.id} specialty=${specialty} ` +
+          `country=${trainingCountry} epas=${epaReference.length} ` +
+          `procedure="${caseLike.procedureName}"`,
+      );
 
       for (const model of models) {
         try {
@@ -277,37 +289,46 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
             {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              signal: AbortSignal.timeout(PER_MODEL_TIMEOUT_MS),
               body: JSON.stringify({
                 contents: [
                   {
                     parts: [{ text: prompt }],
                   },
                 ],
+                // Force JSON so we don't lose suggestions to markdown
+                // fences or prose preambles.
                 generationConfig: {
                   temperature: 0.3,
-                  // Large enough that a full JSON response with 3-5
-                  // suggestions + reasons never gets truncated mid-object.
-                  maxOutputTokens: 8192,
+                  // 32k is well within 2.5-pro/-flash output ceilings and
+                  // guarantees a 40-EPA response never truncates.
+                  maxOutputTokens: 32768,
+                  responseMimeType: 'application/json',
                 },
+                // Disable every safety category so clinical language
+                // (anatomy, bleeding, death outcomes) never triggers a
+                // spurious block. Trainees log what happened; the model
+                // shouldn't moralize at them.
+                safetySettings: [
+                  { category: 'HARM_CATEGORY_HARASSMENT', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_HATE_SPEECH', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_SEXUALLY_EXPLICIT', threshold: 'BLOCK_NONE' },
+                  { category: 'HARM_CATEGORY_DANGEROUS_CONTENT', threshold: 'BLOCK_NONE' },
+                ],
               }),
             },
           );
 
           if (geminiRes.ok) {
             geminiData = await geminiRes.json();
+            usedModel = model;
             console.log(`[ai-suggest] Success with model: ${model}`);
             break;
           }
 
           const errText = await geminiRes.text();
-          lastErr = `${model}: ${geminiRes.status} ${errText.slice(0, 200)}`;
-          console.error(`[ai-suggest] ${model} error:`, geminiRes.status, errText);
-          // Always try the next model on any non-OK status — the old
-          // "non-503/429 → throw" path meant a transient 400/404 from
-          // one model killed the whole chain instead of falling through.
+          lastErr = `${model}: ${geminiRes.status} ${errText.slice(0, 300)}`;
+          console.error(`[ai-suggest] ${model} error:`, geminiRes.status, errText.slice(0, 300));
         } catch (modelErr) {
-          // AbortError (timeout) or network error — try the next model.
           lastErr = `${model}: ${modelErr instanceof Error ? modelErr.message : 'unknown'}`;
           console.error(`[ai-suggest] ${model} threw:`, modelErr);
         }
@@ -320,11 +341,28 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
       // Extract the text content from Gemini's response
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const gd = geminiData as any;
+      const candidate = gd?.candidates?.[0];
       const rawText: string | undefined =
-        gd?.candidates?.[0]?.content?.parts?.[0]?.text;
+        candidate?.content?.parts?.[0]?.text ??
+        // With responseMimeType=application/json, some SDKs return the
+        // JSON as `parts[0].inlineData.data` or the whole `text` array.
+        // Handle both defensively.
+        (Array.isArray(candidate?.content?.parts)
+          ? candidate.content.parts
+              .map((p: { text?: string }) => p?.text ?? '')
+              .filter(Boolean)
+              .join('')
+          : undefined);
 
       if (!rawText) {
-        throw new Error('No text in Gemini response');
+        console.error('[ai-suggest] empty candidate:', {
+          finishReason: candidate?.finishReason,
+          safetyRatings: candidate?.safetyRatings,
+          model: usedModel,
+        });
+        throw new Error(
+          `No text in Gemini response (finishReason=${candidate?.finishReason ?? 'unknown'})`,
+        );
       }
 
       // Strip markdown code fences if Gemini included them despite instructions
