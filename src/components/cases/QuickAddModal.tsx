@@ -189,12 +189,21 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
           });
           if (res.ok) {
             const json = await res.json();
-            setEpaSuggestions(json.suggestions ?? []);
+            console.log('[QuickAdd EPA] ai-suggest response:', {
+              suggestionCount: Array.isArray(json.suggestions) ? json.suggestions.length : 0,
+              note: json.note,
+              diagnostics: json.diagnostics,
+            });
+            setEpaSuggestions(Array.isArray(json.suggestions) ? json.suggestions : []);
             setEpaNote(typeof json.note === "string" ? json.note : null);
           } else {
             const errText = await res.text();
             console.error('[QuickAdd EPA] API error:', res.status, errText);
-            setEpaNote("Couldn't load EPA suggestions right now. You can link an EPA from this case later.");
+            setEpaNote(
+              res.status === 401
+                ? "You need to be signed in to see EPA suggestions."
+                : "Couldn't load EPA suggestions right now. You can link an EPA from this case later.",
+            );
           }
         } catch (err) {
           console.error('[QuickAdd EPA] Fetch error:', err);
