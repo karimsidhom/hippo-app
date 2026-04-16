@@ -27,12 +27,22 @@ interface EpaSuggestion extends GeminiSuggestion {
  * Uses Google Gemini 2.5 Flash to analyze a logged surgical case
  * and suggest which EPAs it best fits.
  */
+// This route calls Gemini, which can stall under load. Don't let Next/Vercel
+// kill us at 10s — give the model room to think through a large EPA list.
+export const maxDuration = 60;
+
 export async function POST(req: NextRequest) {
   const { user, error } = await requireAuth();
   if (error) return error;
 
+  // --- From here on, we NEVER return 5xx. Any unexpected error degrades to a
+  //     200 with `suggestions: []` + a human-readable `note`, so the modal
+  //     always shows something and the "Couldn't load EPA suggestions right
+  //     now" copy never fires on the client side. The client treats non-OK
+  //     responses as failure, which meant every transient hiccup blanked the
+  //     sheet — that was the bug.
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const parsed = AiSuggestSchema.parse(body);
 
     // Resolve a "caseLike" object from either the saved row or inline details.
@@ -251,48 +261,60 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
     }
 
     try {
-      // Try models in order with fallbacks for availability/rate limits
+      // Try models in order with fallbacks for availability/rate limits.
+      // Timeout is per-attempt, generous enough that 2.5-flash can finish
+      // reasoning over a full specialty EPA list (~40 items). The old 8s
+      // cap was firing on cold starts and killing the whole flow.
       const models = ['gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-1.5-flash'];
+      const PER_MODEL_TIMEOUT_MS = 25_000;
       let geminiData: Record<string, unknown> | null = null;
+      let lastErr: string | null = null;
 
       for (const model of models) {
-        const geminiRes = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
-          {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            signal: AbortSignal.timeout(8000),
-            body: JSON.stringify({
-              contents: [
-                {
-                  parts: [{ text: prompt }],
+        try {
+          const geminiRes = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              signal: AbortSignal.timeout(PER_MODEL_TIMEOUT_MS),
+              body: JSON.stringify({
+                contents: [
+                  {
+                    parts: [{ text: prompt }],
+                  },
+                ],
+                generationConfig: {
+                  temperature: 0.3,
+                  // Large enough that a full JSON response with 3-5
+                  // suggestions + reasons never gets truncated mid-object.
+                  maxOutputTokens: 8192,
                 },
-              ],
-              generationConfig: {
-                temperature: 0.3,
-                maxOutputTokens: 2048,
-              },
-            }),
-          },
-        );
+              }),
+            },
+          );
 
-        if (geminiRes.ok) {
-          geminiData = await geminiRes.json();
-          console.log(`[ai-suggest] Success with model: ${model}`);
-          break;
-        }
+          if (geminiRes.ok) {
+            geminiData = await geminiRes.json();
+            console.log(`[ai-suggest] Success with model: ${model}`);
+            break;
+          }
 
-        const errText = await geminiRes.text();
-        console.error(`[ai-suggest] ${model} error:`, geminiRes.status, errText);
-
-        // Only retry on 503 (overloaded) or 429 (rate limit)
-        if (geminiRes.status !== 503 && geminiRes.status !== 429) {
-          throw new Error(`Gemini API returned ${geminiRes.status}`);
+          const errText = await geminiRes.text();
+          lastErr = `${model}: ${geminiRes.status} ${errText.slice(0, 200)}`;
+          console.error(`[ai-suggest] ${model} error:`, geminiRes.status, errText);
+          // Always try the next model on any non-OK status — the old
+          // "non-503/429 → throw" path meant a transient 400/404 from
+          // one model killed the whole chain instead of falling through.
+        } catch (modelErr) {
+          // AbortError (timeout) or network error — try the next model.
+          lastErr = `${model}: ${modelErr instanceof Error ? modelErr.message : 'unknown'}`;
+          console.error(`[ai-suggest] ${model} threw:`, modelErr);
         }
       }
 
       if (!geminiData) {
-        throw new Error('All Gemini models unavailable');
+        throw new Error(`All Gemini models unavailable${lastErr ? ` (last: ${lastErr})` : ''}`);
       }
 
       // Extract the text content from Gemini's response
@@ -365,12 +387,23 @@ Respond ONLY with valid JSON (no markdown, no code fences, no extra text), in th
     });
   } catch (err) {
     if (err instanceof z.ZodError) {
+      // Bad request body is the only thing we still 4xx on — this is a
+      // programming error, not a runtime flake, and silently ignoring it
+      // would hide real bugs.
+      console.error('[POST /api/epa/ai-suggest] ZodError:', err.errors);
       return NextResponse.json(
         { error: err.errors[0]?.message ?? 'Invalid input' },
         { status: 400 },
       );
     }
-    console.error('[POST /api/epa/ai-suggest]', err);
-    return NextResponse.json({ error: 'Failed to generate AI suggestions' }, { status: 500 });
+    // Any other failure (Prisma hiccup, Gemini infra, missing env) returns
+    // a friendly 200 so the modal shows a useful empty state instead of
+    // the generic "Couldn't load EPA suggestions right now" client error.
+    console.error('[POST /api/epa/ai-suggest] unhandled:', err);
+    return NextResponse.json({
+      suggestions: [],
+      note:
+        "We couldn't match this case to an EPA just now — your case is saved, and you can link an EPA from the case detail page.",
+    });
   }
 }
