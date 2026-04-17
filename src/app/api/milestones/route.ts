@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 
+// Auth-gated per-user data — never cache.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/milestones — fetch all milestones for the current user
  */
@@ -14,7 +18,9 @@ export async function GET() {
     orderBy: { achievedAt: 'desc' },
   });
 
-  return NextResponse.json(milestones);
+  return NextResponse.json(milestones, {
+    headers: { 'Cache-Control': 'no-store, must-revalidate' },
+  });
 }
 
 /**

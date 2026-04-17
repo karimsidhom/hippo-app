@@ -4,6 +4,12 @@ import { db } from "@/lib/db";
 import { generateBrief } from "@/lib/brief/generate";
 import type { BriefCaseContext } from "@/lib/brief/types";
 import { parseStoredReflection } from "@/lib/debrief/types";
+import { requireAiQuota, recordAiCall } from "@/lib/ai-quota";
+
+// Allow up to 60s for the Claude/Gemini upstream call. Without this,
+// Vercel kills the function at 10s and the client sees a "timeout"
+// error for briefs that would have succeeded in 12-20s.
+export const maxDuration = 60;
 
 // ---------------------------------------------------------------------------
 // POST /api/brief/generate
@@ -34,6 +40,12 @@ export async function POST(req: NextRequest) {
   if (error) return error;
   await ensureDbUser(user);
 
+  // Per-user daily quota — prevents one user's heavy AI usage from
+  // burning the shared provider budget for everyone else.
+  const quota = await requireAiQuota(user.id);
+  if (!quota.ok) {
+    return NextResponse.json(quota.body, { status: quota.status });
+  }
 
   let body: GenerateBriefBody;
   try {
@@ -56,6 +68,14 @@ export async function POST(req: NextRequest) {
       { status: 413 },
     );
   }
+
+  // ── Beta: everything is free, unlimited briefs for all users ──────────
+  // The Pro gate is disabled during the public beta. We still write an
+  // AuditLog entry per generation (below) so once we re-introduce tiers
+  // we already have the monthly usage history on hand. No schema changes
+  // needed when we flip this back on — just restore the `isProRole` check
+  // here and the BriefMeSheet counter chip.
+  const isProRole = true; // beta: everyone gets unlimited briefs
 
   // Pull the user's recent case log. `orderBy caseDate desc` gives the model
   // the most-relevant context; Postgres index @@index([userId, caseDate desc])
@@ -147,5 +167,22 @@ export async function POST(req: NextRequest) {
     : "";
 
   const result = await generateBrief({ userInput, cases, scheduleContext });
-  return NextResponse.json(result);
+
+  // Record this call against the per-user daily quota. Fire-and-forget.
+  recordAiCall(user.id, "brief", {
+    inputLength: userInput.length,
+    caseCount: cases.length,
+    scheduledCaseCount: scheduledCases.length,
+  });
+
+  return NextResponse.json({
+    ...result,
+    // Beta: always report "pro" tier so the client never shows a
+    // remaining-briefs counter or paywall.
+    usage: {
+      count: null,
+      limit: null,
+      tier: "pro" as const,
+    },
+  });
 }

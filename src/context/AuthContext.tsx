@@ -88,37 +88,110 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [milestones, setMilestones] = useState<Milestone[]>([]);
 
   // ── Data loader ────────────────────────────────────────────────────────────
+  //
+  // Resilient to deploy-time blips. The old loader used a single Promise.all
+  // and ignored non-OK responses; a transient 500 or 504 on any of the three
+  // calls (common when a Vercel lambda cold-starts right after a deploy) left
+  // the user with a logged-in shell and no data, silently. That's the failure
+  // mode where "their data doesn't load after an update."
+  //
+  // Changes here:
+  //   1. Each endpoint has its own fetch-with-retry — one failure on /api/cases
+  //      no longer prevents /api/milestones from loading.
+  //   2. Transient 5xx / network errors retry once after 800 ms. Most deploy
+  //      cold-starts resolve inside that window.
+  //   3. cache: "no-store" + same-origin credentials explicit — defeats any
+  //      intermediate cache layer that might serve stale post-deploy content.
+  //   4. If a fetch ultimately fails, we leave the caller's existing state
+  //      alone rather than clearing to empty. A stale cached list is better
+  //      than a blank "no cases" screen.
 
-  const loadUserData = useCallback(async (
-    id: string, name: string, email: string,
-  ) => {
-    setUser({ id, name, email });
+  const fetchWithRetry = useCallback(
+    async (path: string): Promise<Response | null> => {
+      const attempt = async () =>
+        fetch(path, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'cache-control': 'no-cache' },
+        });
+      try {
+        const r1 = await attempt();
+        if (r1.ok) return r1;
+        // Only retry on transient server errors. 4xx means the request is
+        // wrong — retrying won't help and would mask real auth bugs.
+        if (r1.status >= 500) {
+          await new Promise((res) => setTimeout(res, 800));
+          const r2 = await attempt();
+          if (r2.ok) return r2;
+          console.warn(`[AuthContext] ${path} failed after retry: ${r2.status}`);
+          return null;
+        }
+        console.warn(`[AuthContext] ${path} returned ${r1.status}`);
+        return null;
+      } catch (err) {
+        // Network / CORS / aborted — one retry, same reasoning.
+        await new Promise((res) => setTimeout(res, 800));
+        try {
+          const r2 = await attempt();
+          if (r2.ok) return r2;
+          console.warn(
+            `[AuthContext] ${path} retry failed: ${r2.status}`,
+          );
+          return null;
+        } catch (err2) {
+          console.warn(`[AuthContext] ${path} network error:`, err2);
+          return null;
+        }
+      }
+    },
+    [],
+  );
 
-    try {
-      const [profileRes, casesRes, milestonesRes] = await Promise.all([
-        fetch('/api/auth/me'),
-        fetch('/api/cases'),
-        fetch('/api/milestones'),
-      ]);
+  const loadUserData = useCallback(
+    async (id: string, name: string, email: string) => {
+      setUser({ id, name, email });
 
-      if (profileRes.ok) {
-        const data = await profileRes.json();
-        setProfile((data.profile ?? null) as Profile | null);
+      // Run the three loads independently with Promise.allSettled so one
+      // failure never blocks the others. Each branch checks for null (the
+      // fetchWithRetry contract for "failed after retry") and preserves
+      // existing state in that case.
+      const [profileResult, casesResult, milestonesResult] =
+        await Promise.allSettled([
+          fetchWithRetry('/api/auth/me'),
+          fetchWithRetry('/api/cases'),
+          fetchWithRetry('/api/milestones'),
+        ]);
+
+      if (profileResult.status === 'fulfilled' && profileResult.value) {
+        try {
+          const data = await profileResult.value.json();
+          setProfile((data.profile ?? null) as Profile | null);
+        } catch (err) {
+          console.warn('[AuthContext] profile parse failed:', err);
+        }
       }
 
-      if (casesRes.ok) {
-        const raw: Record<string, unknown>[] = await casesRes.json();
-        setCases(raw.map(deserializeCase));
+      if (casesResult.status === 'fulfilled' && casesResult.value) {
+        try {
+          const raw: Record<string, unknown>[] = await casesResult.value.json();
+          setCases(raw.map(deserializeCase));
+        } catch (err) {
+          console.warn('[AuthContext] cases parse failed:', err);
+        }
       }
 
-      if (milestonesRes.ok) {
-        const raw: Record<string, unknown>[] = await milestonesRes.json();
-        setMilestones(raw.map(deserializeMilestone));
+      if (milestonesResult.status === 'fulfilled' && milestonesResult.value) {
+        try {
+          const raw: Record<string, unknown>[] =
+            await milestonesResult.value.json();
+          setMilestones(raw.map(deserializeMilestone));
+        } catch (err) {
+          console.warn('[AuthContext] milestones parse failed:', err);
+        }
       }
-    } catch (e) {
-      console.error('[AuthContext] loadUserData error:', e);
-    }
-  }, []);
+    },
+    [fetchWithRetry],
+  );
 
   // ── Auth state listener ────────────────────────────────────────────────────
 

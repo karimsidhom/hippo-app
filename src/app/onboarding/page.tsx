@@ -37,6 +37,10 @@ export default function OnboardingPage() {
   );
   const allLegalAccepted = POLICY_KEYS.every((k) => legalAccepted[k]) && form.phiaAgreed;
 
+  // Institution is required for staff / attending / PD roles
+  const ROLES_REQUIRING_INSTITUTION = ["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"];
+  const institutionRequired = ROLES_REQUIRING_INSTITUTION.includes(form.roleType);
+
   const update = (updates: Partial<typeof form>) => setForm((f) => ({ ...f, ...updates }));
   const toggleLegal = (key: PolicyKey) =>
     setLegalAccepted((prev) => ({ ...prev, [key]: !prev[key] }));
@@ -377,18 +381,33 @@ export default function OnboardingPage() {
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Institution</h2>
-              <p className="text-[#94a3b8] mt-1">Helps with benchmark comparison (optional)</p>
+              <p className="text-[#94a3b8] mt-1">
+                {institutionRequired
+                  ? "Required for attending and program director roles"
+                  : "Helps with benchmark comparison (optional)"}
+              </p>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="block text-sm text-[#94a3b8] mb-2">Institution / Hospital</label>
+                <label className="block text-sm text-[#94a3b8] mb-2">
+                  Institution / Hospital{institutionRequired && <span className="text-[#0EA5E9] ml-1">*</span>}
+                </label>
                 <input
                   type="text"
                   value={form.institution}
                   onChange={(e) => update({ institution: e.target.value })}
                   placeholder="e.g. University Health Network"
-                  className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] placeholder-[#64748b] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                  className={`w-full bg-[#16161f] border text-[#f1f5f9] placeholder-[#64748b] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb] ${
+                    institutionRequired && !form.institution.trim()
+                      ? "border-[#ef4444]/40"
+                      : "border-[#1e2130]"
+                  }`}
                 />
+                {institutionRequired && !form.institution.trim() && (
+                  <p className="text-xs text-[#ef4444] mt-1.5">
+                    Institution is required for your selected role.
+                  </p>
+                )}
               </div>
               <div>
                 <label className="block text-sm text-[#94a3b8] mb-2">City</label>
@@ -486,7 +505,10 @@ export default function OnboardingPage() {
             {step < TOTAL_STEPS && (
               <button
                 onClick={() => setStep(step + 1)}
-                disabled={step === 3 && !allLegalAccepted}
+                disabled={
+                  (step === 3 && !allLegalAccepted) ||
+                  (step === 8 && institutionRequired && !form.institution.trim())
+                }
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
               >
                 Continue

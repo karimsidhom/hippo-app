@@ -7,7 +7,7 @@ export default function PhiaPage() {
         PHIA Notice (Manitoba)
       </h1>
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>
-        Effective date: 2026-04-14 · Last updated: 2026-04-14
+        Effective date: 2026-04-17 · Last updated: 2026-04-17
       </p>
 
       <p style={{ marginBottom: 18 }}>
@@ -77,12 +77,35 @@ export default function PhiaPage() {
 
       <h2 style={H2}>4. AI features and PHI</h2>
       <p>
-        Some optional features (dictation polish, brief generation, PHI preflight, debrief parsing)
-        transmit the text you submit to a third-party AI provider (Anthropic, Google, or OpenAI) for
-        processing. Until Hippo has executed a written data-processing agreement with the provider in
-        which the provider agrees (a) not to train on your submissions and (b) to provide Canadian
-        or equivalent safeguards, you <strong>must not</strong> enter PHI into AI-facing fields. You
-        can disable AI features in <a href="/settings" style={A}>Settings → AI features</a>.
+        Several features (Brief Me, Voice Log transcript parsing, EPA auto-suggest, AI O-score
+        suggestion, dictation polish) transmit the text you submit to third-party AI providers —
+        currently <strong>Google AI Studio (Gemini)</strong> as the primary provider and{" "}
+        <strong>Groq (Llama 3.3)</strong> as a failover. Neither arrangement is currently covered by
+        a signed data-processing agreement with Hippo that commits the provider to Canadian data
+        residency or a &quot;no training&quot; contractual clause. Treat these features as if anything
+        you type may be retained by the provider for operational or training purposes.
+      </p>
+      <p>
+        As a compensating control we apply a multi-layer scrub before any text leaves our servers:
+        (a) a client-side regex filter that strips names, MRN-shaped tokens, dates of birth, phone
+        numbers, addresses, and postal codes from the draft before submission; and (b) a server-side
+        re-scrub performed at the LLM call site on every request. Matches are redacted and logged to
+        the audit log. This is defense-in-depth, not a guarantee — regex cannot catch every
+        combination of identifiers that might re-identify a patient.
+      </p>
+      <p>
+        Accordingly you <strong>must not</strong> enter personal health information into any Hippo
+        field — AI-facing or otherwise. This includes names, MRNs, exact dates of birth or service,
+        hospital identifiers combined with other quasi-identifiers, facial images, or any free-text
+        detail that would allow a reasonable third party to re-identify a patient. See{" "}
+        <a href="/legal/terms" style={A}>Terms of Use §6</a> for the full list of prohibited content.
+      </p>
+      <p>
+        You can disable AI features globally in{" "}
+        <a href="/settings" style={A}>Settings → AI features</a>. Before Hippo is made available to
+        programs under an institutional agreement, we will migrate AI processing to a provider
+        arrangement with a signed BAA / DPA (Google Vertex AI, Anthropic commercial, or equivalent)
+        and update this notice to reflect the change.
       </p>
 
       <h2 style={H2}>5. Your rights under PHIA</h2>

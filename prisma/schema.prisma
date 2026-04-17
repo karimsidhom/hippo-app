@@ -98,6 +98,29 @@ enum EpaObservationStatus {
   RETURNED
 }
 
+enum ProgramMemberRole {
+  OWNER
+  MEMBER
+}
+
+enum ProgramEventType {
+  GENERAL
+  VACATION
+  MEETING
+  CONFERENCE
+  ROUNDS
+  SOCIAL
+  DOCUMENT
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
 // ─── Models ───────────────────────────────────────────────────────────────────
 
 // User.id is explicitly set to the Supabase auth UUID on registration.
@@ -138,6 +161,11 @@ model User {
   assessedObservations EpaObservation[] @relation("AssessorObservations")
   auditLogs        AuditLog[]
   legalAcceptances LegalAcceptance[]
+  createdPrograms       Program[]          @relation("CreatedPrograms")
+  programMemberships    ProgramMember[]
+  sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
+  acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
+  createdProgramEvents  ProgramEvent[]
 
   @@map("users")
 }
@@ -195,6 +223,7 @@ model Profile {
   allowFriendRequests           Boolean      @default(true)
   allowLeaderboardParticipation Boolean      @default(true)
   allowBenchmarkSharing         Boolean      @default(true)
+  allowWeeklyDigest             Boolean      @default(true)
   bio                           String?
   onboardingCompleted           Boolean      @default(false)
   acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
@@ -709,4 +738,86 @@ model AuditLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("audit_logs")
+}
+
+// ─── Programs ─────────────────────────────────────────────────────────────────
+// A Program is a private group created by a PD that contains residents,
+// fellows, attendings, and other staff. Members share a calendar.
+// Only PDs can create programs. Members join by invitation only.
+
+model Program {
+  id          String   @id @default(cuid())
+  name        String
+  institution String?
+  specialty   String?
+  description String?
+  createdById String
+  createdBy   User     @relation("CreatedPrograms", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members ProgramMember[]
+  invites ProgramInvite[]
+  events  ProgramEvent[]
+
+  @@index([createdById])
+  @@map("programs")
+}
+
+model ProgramMember {
+  id        String            @id @default(cuid())
+  programId String
+  program   Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ProgramMemberRole @default(MEMBER)
+  joinedAt  DateTime          @default(now())
+
+  @@unique([programId, userId])
+  @@index([userId])
+  @@map("program_members")
+}
+
+model ProgramInvite {
+  id           String    @id @default(cuid())
+  programId    String
+  program      Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  email        String
+  token        String    @unique
+  invitedById  String
+  invitedBy    User      @relation("SentProgramInvites", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedById String?
+  acceptedBy   User?     @relation("AcceptedProgramInvites", fields: [acceptedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+
+  @@index([programId])
+  @@index([email])
+  @@map("program_invites")
+}
+
+model ProgramEvent {
+  id              String               @id @default(cuid())
+  programId       String
+  program         Program              @relation(fields: [programId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  startAt         DateTime
+  endAt           DateTime?
+  allDay          Boolean              @default(false)
+  location        String?
+  url             String?
+  type            ProgramEventType     @default(GENERAL)
+  recurrence      RecurrenceFrequency  @default(NONE)
+  recurrenceUntil DateTime?
+  createdById     String
+  createdBy       User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([programId, startAt])
+  @@index([createdById])
+  @@map("program_events")
 }

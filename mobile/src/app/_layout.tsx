@@ -4,23 +4,43 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useEffect } from 'react';
 import * as SplashScreen from 'expo-splash-screen';
+import {
+  useFonts,
+  Geist_400Regular,
+  Geist_500Medium,
+  Geist_600SemiBold,
+  Geist_700Bold,
+} from '@expo-google-fonts/geist';
+import {
+  GeistMono_400Regular,
+  GeistMono_500Medium,
+} from '@expo-google-fonts/geist-mono';
 import { colors } from '@/theme/tokens';
 
-// Keep the splash up until we've bootstrapped auth. In a real app this
-// gates on the first `supabase.auth.onAuthStateChange` event plus any
-// required local data (style profile, cached EPA data, etc.).
-SplashScreen.preventAutoHideAsync().catch(() => {
-  /* already hidden — ignore */
-});
+// Keep the splash up until fonts load — rendering Geist text with the
+// system fallback and then swapping causes a visible layout jump,
+// especially for tracking-tight section labels. Same idea as web's
+// `display=swap` but blocking instead, because a flash of system font
+// under the Hippo brand mark looks broken.
+SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
+  const [fontsLoaded, fontError] = useFonts({
+    Geist_400Regular,
+    Geist_500Medium,
+    Geist_600SemiBold,
+    Geist_700Bold,
+    GeistMono_400Regular,
+    GeistMono_500Medium,
+  });
+
   useEffect(() => {
-    // Placeholder: when auth + caches hydrate, hide the splash.
-    const t = setTimeout(() => {
+    if (fontsLoaded || fontError) {
       SplashScreen.hideAsync().catch(() => {});
-    }, 400);
-    return () => clearTimeout(t);
-  }, []);
+    }
+  }, [fontsLoaded, fontError]);
+
+  if (!fontsLoaded && !fontError) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.bg }}>
@@ -30,7 +50,7 @@ export default function RootLayout() {
           screenOptions={{
             headerStyle: { backgroundColor: colors.bg },
             headerTintColor: colors.text,
-            headerTitleStyle: { fontFamily: 'Geist', fontWeight: '600' },
+            headerTitleStyle: { fontFamily: 'Geist_600SemiBold' },
             contentStyle: { backgroundColor: colors.bg },
             animation: 'slide_from_right',
           }}

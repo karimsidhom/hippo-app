@@ -16,18 +16,18 @@ export const PRICING = {
     tagline: 'For residents & fellows',
     cta: 'Start Pro — $5/month',
     ctaShort: '$5/mo',
-    description: 'Unlimited surgical case logging with full analytics.',
+    description: 'Unlimited logging, AI coaching, and interview-ready PDF exports.',
     features: [
       'Unlimited case logging',
       'All 10+ specialties',
-      'No ads',
-      'Benchmark percentiles',
-      'Social & friends system',
-      'Procedure leaderboards',
+      'Logbook PDF export — interview & fellowship ready',
+      'Unlimited AI Brief Me (pre-case coaching)',
+      'AI O-score suggestions on every EPA',
+      'Bulk EPA sign-off queue (attendings)',
+      'Benchmark percentiles & leaderboards',
       'Excel export (PHIA-safe)',
-      'AI learning curve insights',
-      'Fellowship portfolio export',
-      'Residency milestone tracking',
+      'Social & friends system',
+      'No ads — ever',
     ],
   },
   institution: {
@@ -93,4 +93,20 @@ export const FEATURE_GATES = {
   aiInsights:           ['pro', 'institution'] as PricingTier[],
   programDashboard:     ['institution'] as PricingTier[],
   noAds:                ['pro', 'institution'] as PricingTier[],
+
+  // Pro anchors — shipped April 2026
+  /** Download the full logbook as a branded PDF — interview & fellowship ready. */
+  logbookPdf:           ['pro', 'institution'] as PricingTier[],
+  /** AI "Brief Me" pre-case coaching — free tier limited to FREE_BRIEF_LIMIT/mo. */
+  aiBrief:              ['pro', 'institution'] as PricingTier[],
+  /** AI entrustment-score suggestions in the attending inbox. */
+  aiOscore:             ['pro', 'institution'] as PricingTier[],
+  /** Bulk EPA sign-off queue for attendings / PDs. */
+  bulkSignoff:          ['pro', 'institution'] as PricingTier[],
 } as const;
+
+/**
+ * Free-tier monthly allowance for AI Brief Me. Residents get this many
+ * briefs per calendar month before hitting the paywall. Pro = unlimited.
+ */
+export const FREE_BRIEF_LIMIT = 5;

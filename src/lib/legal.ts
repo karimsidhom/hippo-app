@@ -23,9 +23,16 @@ export type PolicyKey = typeof POLICY_KEYS[number];
 
 export const POLICY_VERSIONS: Record<PolicyKey, string> = {
   eula: "2026-04-14",
-  terms: "2026-04-14",
+  // 2026-04-17: rewrote Terms with the risk-shifting stack — user-content
+  // warranty, indemnity, AI disclaimer, content-moderation rights,
+  // privacy-specific no-PHI list, strengthened liability cap. Bumping the
+  // version forces every existing user to re-accept on next sign-in.
+  terms: "2026-04-17",
   privacy: "2026-04-14",
-  phia: "2026-04-14",
+  // 2026-04-17: rewrote §4 (AI features and PHI) to disclose current
+  // providers (Google AI Studio primary, Groq failover), the multi-layer
+  // scrub compensating control, and the expanded no-PHI obligation.
+  phia: "2026-04-17",
   "acceptable-use": "2026-04-14",
 };
 

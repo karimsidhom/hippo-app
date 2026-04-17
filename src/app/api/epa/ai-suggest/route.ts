@@ -5,6 +5,7 @@ import { db } from '@/lib/db';
 import { getSpecialtyEpaData } from '@/lib/epa/data';
 import type { EpaDefinition, SpecialtyEpaData } from '@/lib/epa/data';
 import { suggestEpasForCase } from '@/lib/epa/suggest';
+import { checkAiQuota, recordAiCall } from '@/lib/ai-quota';
 // Shared with mobile — see src/lib/shared/README.md. Changing the
 // request contract here automatically flows through to the mobile
 // pre-flight validator.
@@ -21,6 +22,44 @@ interface GeminiSuggestion {
 interface EpaSuggestion extends GeminiSuggestion {
   currentProgress: { observations: number; targetCount: number };
   source?: 'ai' | 'keyword' | 'ai+keyword';
+}
+
+// ── In-memory suggestion cache ─────────────────────────────────────────
+// Survives across requests within the same Vercel Lambda instance.
+// Key: "procedure::specialty::country", Value: { suggestions, cachedAt }.
+//
+// 24-hour TTL. EPA-to-procedure mappings don't change minute-to-minute;
+// once we know "Laparoscopic Cholecystectomy + General Surgery + CA"
+// maps to EPAs X, Y, Z, that mapping is good for the day. This caps
+// Gemini calls at roughly ONE per unique procedure per lambda per day,
+// which is the biggest single quota-saving lever across many users.
+const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+const suggestionCache = new Map<
+  string,
+  { suggestions: EpaSuggestion[]; cachedAt: number; note?: string }
+>();
+
+function cacheKey(procedure: string, specialty: string, country: string): string {
+  return `${procedure.toLowerCase().trim()}::${specialty.toLowerCase().trim()}::${country}`;
+}
+
+function getCached(key: string): { suggestions: EpaSuggestion[]; note?: string } | null {
+  const entry = suggestionCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.cachedAt > CACHE_TTL_MS) {
+    suggestionCache.delete(key);
+    return null;
+  }
+  return { suggestions: entry.suggestions, note: entry.note };
+}
+
+function setCache(key: string, suggestions: EpaSuggestion[], note?: string): void {
+  // Cap at 200 entries to prevent unbounded growth
+  if (suggestionCache.size > 200) {
+    const oldest = suggestionCache.keys().next().value;
+    if (oldest) suggestionCache.delete(oldest);
+  }
+  suggestionCache.set(key, { suggestions, cachedAt: Date.now(), note });
 }
 
 /**
@@ -144,6 +183,18 @@ export async function POST(req: NextRequest) {
       });
     }
 
+    // ── Cache check — fast path for repeated procedure+specialty combos ──
+    const ck = cacheKey(caseLike.procedureName, specialty, trainingCountry);
+    const cached = getCached(ck);
+    if (cached) {
+      log('cache-hit', { key: ck, count: cached.suggestions.length, ms: Date.now() - started });
+      return NextResponse.json({
+        suggestions: cached.suggestions,
+        ...(cached.note ? { note: cached.note } : {}),
+        diagnostics: { caseSource, specialty, trainingCountry, reason: 'cache-hit' },
+      });
+    }
+
     const specialtyEpaData = getSpecialtyEpaData(specialty, trainingCountry);
     const foundationsEpaData =
       trainingCountry === 'CA' ? getSpecialtyEpaData('surgical-foundations', 'CA') : undefined;
@@ -231,12 +282,16 @@ export async function POST(req: NextRequest) {
     });
 
     // ── Step 5: call Gemini to re-rank / enhance ────────────────────────
+    // Per-user quota: if this user has burned their daily AI budget we
+    // skip the Gemini call entirely and return the keyword floor. They
+    // still get useful EPA suggestions — just without AI enhancement.
     const apiKey = process.env.GOOGLE_AI_API_KEY;
+    const quota = await checkAiQuota(user.id);
     let aiResults: EpaSuggestion[] = [];
     let aiNote: string | undefined;
-    let geminiReason = 'skipped';
+    let geminiReason = quota.allowed ? 'skipped' : 'user-quota-exhausted';
 
-    if (apiKey) {
+    if (apiKey && quota.allowed) {
       // Build a focused prompt using the keyword floor as the candidate
       // set — this both constrains Gemini to real EPAs and keeps the
       // prompt short enough to avoid context-overflow empties.
@@ -385,6 +440,14 @@ export async function POST(req: NextRequest) {
           returned: parsedAi.suggestions.length,
           valid: aiResults.length,
         });
+
+        // Count this successful Gemini call against the user's daily
+        // AI quota. Cache hits and keyword-only paths don't charge.
+        recordAiCall(user.id, 'epa-suggest', {
+          model: usedModel,
+          returned: aiResults.length,
+          specialty,
+        });
       } catch (aiErr) {
         if (!geminiReason || geminiReason === 'skipped')
           geminiReason = aiErr instanceof Error ? aiErr.message.slice(0, 120) : 'unknown';
@@ -419,6 +482,11 @@ export async function POST(req: NextRequest) {
     }
 
     const capped = final.slice(0, 5);
+
+    // Cache the result for this procedure+specialty combo
+    if (capped.length > 0) {
+      setCache(ck, capped, aiNote);
+    }
 
     log('done', {
       userId: user.id,

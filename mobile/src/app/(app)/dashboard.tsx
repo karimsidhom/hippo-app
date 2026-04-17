@@ -1,9 +1,17 @@
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Screen, Text, Card, Button } from '@/components';
+import { Mic, Sparkles } from 'lucide-react-native';
+import {
+  Screen,
+  Text,
+  Card,
+  Button,
+  VoiceLogSheet,
+  type NormalizedVoiceFields,
+} from '@/components';
 import { listCases, type CaseLog } from '@/lib/cases';
-import { colors } from '@/theme/tokens';
+import { colors, radii } from '@/theme/tokens';
 
 interface Stats {
   totalCases: number;
@@ -50,6 +58,20 @@ export default function DashboardScreen() {
   const router = useRouter();
   const [cases, setCases] = useState<CaseLog[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Voice dictation routes through the dedicated log form so the resident
+  // always sees their fields in one place. We hand the parsed fields to
+  // the log tab via a route param and open it.
+  const onVoiceFieldsReady = (v: NormalizedVoiceFields) => {
+    // The log form reads its initial state from useState; we use a URL
+    // param as a simple, stringifiable handoff channel. The log screen
+    // will apply these via a useEffect on mount.
+    router.push({
+      pathname: '/(app)/log',
+      params: { voice: JSON.stringify(v) },
+    });
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -99,13 +121,56 @@ export default function DashboardScreen() {
         />
       </View>
 
-      <Button
-        title="Log a case"
-        onPress={() => router.push('/(app)/log')}
-        fullWidth
-        size="lg"
-        style={{ marginBottom: 24 }}
-      />
+      {/* Primary log row — voice (hero) + manual fallback */}
+      <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>
+        <Pressable
+          onPress={() => setVoiceOpen(true)}
+          style={({ pressed }) => ({
+            flex: 1.35,
+            opacity: pressed ? 0.85 : 1,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: colors.borderGlow,
+            backgroundColor: colors.primaryDim,
+            paddingVertical: 14,
+            paddingHorizontal: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          })}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor: colors.primaryGlow,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Mic size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <Text variant="body" weight="600">
+                Voice log
+              </Text>
+              <Sparkles size={10} color={colors.primary} />
+            </View>
+            <Text variant="caption" tone="subtle" style={{ marginTop: 1 }}>
+              ~10s after the OR
+            </Text>
+          </View>
+        </Pressable>
+        <Button
+          title="Manual"
+          variant="secondary"
+          onPress={() => router.push('/(app)/log')}
+          size="lg"
+          style={{ flex: 1 }}
+        />
+      </View>
 
       <View style={{ marginBottom: 10 }}>
         <Text variant="h3">Recent cases</Text>
@@ -143,6 +208,15 @@ export default function DashboardScreen() {
           </Text>
         </Card>
       )}
+
+      <VoiceLogSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        onFieldsReady={(v) => {
+          setVoiceOpen(false);
+          onVoiceFieldsReady(v);
+        }}
+      />
     </Screen>
   );
 }

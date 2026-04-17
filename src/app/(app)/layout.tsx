@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, GraduationCap, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
@@ -253,15 +253,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           );
         })()}
 
-        {/* ── Cohort (Program Directors only) ── */}
-        {profile?.roleType === "PROGRAM_DIRECTOR" && (
-          <NavTab
-            href="/pd-dashboard"
-            label="Cohort"
-            icon={GraduationCap}
-            active={pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")}
-          />
-        )}
+        {/* Cohort tab lives inside Stats for PDs — see src/app/(app)/analytics/page.tsx.
+            Kept off the bottom nav to avoid crowding. */}
 
         {/* ── Profile ── */}
         <NavTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />

@@ -1,7 +1,7 @@
 import { Tabs } from 'expo-router';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
-import { LayoutDashboard, ClipboardList, BarChart2, User } from 'lucide-react-native';
+import { LayoutDashboard, ClipboardList, BarChart2, User, ListOrdered } from 'lucide-react-native';
 import { supabase } from '@/lib/supabase';
 import { colors } from '@/theme/tokens';
 
@@ -56,10 +56,10 @@ export default function AppLayout() {
         }}
       />
       <Tabs.Screen
-        name="analytics"
+        name="cases"
         options={{
-          title: 'Stats',
-          tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size - 2} />,
+          title: 'Cases',
+          tabBarIcon: ({ color, size }) => <ListOrdered color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen
@@ -67,6 +67,13 @@ export default function AppLayout() {
         options={{
           title: 'Log',
           tabBarIcon: ({ color, size }) => <ClipboardList color={color} size={size - 2} />,
+        }}
+      />
+      <Tabs.Screen
+        name="analytics"
+        options={{
+          title: 'Stats',
+          tabBarIcon: ({ color, size }) => <BarChart2 color={color} size={size - 2} />,
         }}
       />
       <Tabs.Screen

@@ -4,9 +4,11 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle,
-  ClipboardCheck, Users, MessageSquare, Lock,
+  ClipboardCheck, Users, MessageSquare, Lock, Sparkles, Loader2, ListChecks, Zap,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { PaywallModal } from "@/components/PaywallModal";
 
 const ENTRUSTMENT_LABELS: Record<number, string> = {
   1: "Had to do",
@@ -68,6 +70,7 @@ interface AttendingSummary {
 
 export default function InboxPage() {
   const { profile } = useAuth();
+  const { isPro } = useSubscription();
   const roleType = profile?.roleType;
   const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
   const isPD = roleType === "PROGRAM_DIRECTOR";
@@ -80,6 +83,12 @@ export default function InboxPage() {
   const [returnReasonFor, setReturnReasonFor] = useState<string | null>(null);
   const [returnReason, setReturnReason] = useState("");
   const [summary, setSummary] = useState<AttendingSummary | null>(null);
+  // Pro features
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkPaywall, setBulkPaywall] = useState(false);
+  const [aiPaywall, setAiPaywall] = useState(false);
+  const [bulkScores, setBulkScores] = useState<Record<string, number>>({});
+  const [bulkSigning, setBulkSigning] = useState(false);
   const pendingSectionRef = useRef<HTMLElement | null>(null);
 
   const load = useCallback(async () => {
@@ -259,29 +268,99 @@ export default function InboxPage() {
           {pending.length > 0 && (
             <section ref={pendingSectionRef} style={{ marginBottom: 32, scrollMarginTop: 60 }}>
               <div style={{
-                fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                letterSpacing: "1px", color: "var(--text-3)", marginBottom: 12,
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                marginBottom: 12,
               }}>
-                Pending ({pending.length})
+                <div style={{
+                  fontSize: 10, fontWeight: 600, textTransform: "uppercase",
+                  letterSpacing: "1px", color: "var(--text-3)",
+                }}>
+                  Pending ({pending.length})
+                </div>
+                {pending.length >= 2 && (
+                  <button
+                    onClick={() => {
+                      if (!isPro) { setBulkPaywall(true); return; }
+                      setBulkMode(!bulkMode);
+                      setBulkScores({});
+                      setExpanded(null);
+                    }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "4px 10px", borderRadius: 6,
+                      background: bulkMode ? "rgba(59,130,246,.14)" : "transparent",
+                      border: bulkMode
+                        ? "1px solid rgba(59,130,246,.5)"
+                        : "1px solid var(--border-mid)",
+                      color: bulkMode ? "var(--primary)" : "var(--text-2)",
+                      fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                    title="Bulk sign-off mode"
+                  >
+                    <ListChecks size={12} />
+                    {bulkMode ? "Exit bulk mode" : "Bulk sign-off"}
+                  </button>
+                )}
               </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {pending.map(obs => (
-                  <ObservationCard
-                    key={obs.id}
-                    obs={obs}
-                    isExpanded={expanded === obs.id}
-                    onToggle={() => setExpanded(expanded === obs.id ? null : obs.id)}
-                    isSubmitting={submitting === obs.id}
-                    onSign={(payload) => act(obs.id, "sign", payload)}
-                    onReturnRequest={() => { setReturnReasonFor(obs.id); setReturnReason(""); }}
-                    returnOpen={returnReasonFor === obs.id}
-                    returnReason={returnReason}
-                    onReturnReasonChange={setReturnReason}
-                    onReturnSubmit={() => act(obs.id, "return", { reason: returnReason })}
-                    onReturnCancel={() => { setReturnReasonFor(null); setReturnReason(""); }}
-                  />
-                ))}
-              </div>
+
+              {bulkMode ? (
+                <BulkQueue
+                  pending={pending}
+                  scores={bulkScores}
+                  onScore={(id, score) =>
+                    setBulkScores(prev => ({ ...prev, [id]: score }))
+                  }
+                  signing={bulkSigning}
+                  onSignAll={async () => {
+                    const toSign = pending.filter(o => bulkScores[o.id]);
+                    if (toSign.length === 0) return;
+                    setBulkSigning(true);
+                    try {
+                      // Sequential to keep ordering + error handling simple.
+                      for (const obs of toSign) {
+                        await fetch(`/api/attending/observations/${obs.id}`, {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({
+                            action: "sign",
+                            entrustmentScore: bulkScores[obs.id],
+                            achievement: "ACHIEVED",
+                            safetyConcern: false,
+                            professionalismConcern: false,
+                          }),
+                        });
+                      }
+                    } finally {
+                      setBulkSigning(false);
+                      setBulkScores({});
+                      setBulkMode(false);
+                      await load();
+                    }
+                  }}
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pending.map(obs => (
+                    <ObservationCard
+                      key={obs.id}
+                      obs={obs}
+                      isPro={isPro}
+                      onAiGateTrigger={() => setAiPaywall(true)}
+                      isExpanded={expanded === obs.id}
+                      onToggle={() => setExpanded(expanded === obs.id ? null : obs.id)}
+                      isSubmitting={submitting === obs.id}
+                      onSign={(payload) => act(obs.id, "sign", payload)}
+                      onReturnRequest={() => { setReturnReasonFor(obs.id); setReturnReason(""); }}
+                      returnOpen={returnReasonFor === obs.id}
+                      returnReason={returnReason}
+                      onReturnReasonChange={setReturnReason}
+                      onReturnSubmit={() => act(obs.id, "return", { reason: returnReason })}
+                      onReturnCancel={() => { setReturnReasonFor(null); setReturnReason(""); }}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           )}
 
@@ -328,6 +407,21 @@ export default function InboxPage() {
           )}
         </>
       )}
+
+      <PaywallModal
+        open={bulkPaywall}
+        onClose={() => setBulkPaywall(false)}
+        feature="bulkSignoff"
+        headline="Sign off a whole queue in minutes"
+        body="Bulk mode lets you pick an entrustment score for every pending EPA and sign them all at once. Save an hour a week."
+      />
+      <PaywallModal
+        open={aiPaywall}
+        onClose={() => setAiPaywall(false)}
+        feature="aiOscore"
+        headline="AI O-score suggestions"
+        body="A calibrated entrustment-score recommendation for every observation, based on the case context and the resident's self-assessment."
+      />
     </div>
   );
 }
@@ -344,6 +438,8 @@ interface SignPayload {
 
 interface CardProps {
   obs: Observation;
+  isPro: boolean;
+  onAiGateTrigger: () => void;
   isExpanded: boolean;
   onToggle: () => void;
   isSubmitting: boolean;
@@ -356,8 +452,15 @@ interface CardProps {
   onReturnCancel: () => void;
 }
 
+interface AiSuggestion {
+  score: 1 | 2 | 3 | 4 | 5;
+  confidence: "low" | "medium" | "high";
+  reasoning: string;
+  engine?: "ai" | "fallback";
+}
+
 function ObservationCard({
-  obs, isExpanded, onToggle, isSubmitting,
+  obs, isPro, onAiGateTrigger, isExpanded, onToggle, isSubmitting,
   onSign, onReturnRequest, returnOpen, returnReason,
   onReturnReasonChange, onReturnSubmit, onReturnCancel,
 }: CardProps) {
@@ -371,6 +474,30 @@ function ObservationCard({
   const [safety, setSafety] = useState(obs.safetyConcern);
   const [professionalism, setProfessionalism] = useState(obs.professionalismConcern);
   const [concernDetails, setConcernDetails] = useState(obs.concernDetails ?? "");
+  // AI O-score suggestion — loaded on demand when attending clicks the chip.
+  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleAiSuggest = async () => {
+    if (!isPro) { onAiGateTrigger(); return; }
+    if (aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/epa/oscore-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ observationId: obs.id }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as AiSuggestion;
+        setAiSuggestion(data);
+      }
+    } catch (err) {
+      console.warn("AI suggest failed", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
 
   const handleSign = () => {
     onSign({
@@ -483,7 +610,70 @@ function ObservationCard({
 
               {/* O-score selector */}
               <div style={{ marginBottom: 14 }}>
-                <FieldLabel>Entrustment score (O-score)</FieldLabel>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  marginBottom: 6,
+                }}>
+                  <FieldLabel>Entrustment score (O-score)</FieldLabel>
+                  <button
+                    type="button"
+                    onClick={handleAiSuggest}
+                    disabled={aiLoading}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      padding: "3px 8px", borderRadius: 5,
+                      background: "rgba(59,130,246,.08)",
+                      border: "1px solid rgba(59,130,246,.35)",
+                      color: "var(--primary)",
+                      fontSize: 10, fontWeight: 600, fontFamily: "inherit",
+                      cursor: aiLoading ? "wait" : "pointer",
+                      opacity: aiLoading ? 0.7 : 1,
+                    }}
+                    title="Get an AI entrustment recommendation"
+                  >
+                    {aiLoading ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={10} />
+                    )}
+                    {aiLoading ? "Thinking…" : "AI suggest"}
+                  </button>
+                </div>
+                {aiSuggestion && (
+                  <div style={{
+                    marginBottom: 8, padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "rgba(59,130,246,.07)",
+                    border: "1px solid rgba(59,130,246,.28)",
+                    fontSize: 12, color: "var(--text-2)", lineHeight: 1.45,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                      <Sparkles size={11} style={{ color: "var(--primary)" }} />
+                      <span style={{ fontWeight: 600, color: "var(--text)" }}>
+                        Suggested O-{aiSuggestion.score}
+                      </span>
+                      <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+                        · {aiSuggestion.confidence} confidence
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setScore(aiSuggestion.score)}
+                        style={{
+                          marginLeft: "auto",
+                          padding: "2px 8px", borderRadius: 4,
+                          background: "var(--primary)", border: "none",
+                          color: "#fff", fontSize: 10, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        Use
+                      </button>
+                    </div>
+                    <div style={{ color: "var(--text-3)", fontSize: 11 }}>
+                      {aiSuggestion.reasoning}
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {[1, 2, 3, 4, 5].map(n => {
                     const selected = score === n;
@@ -777,3 +967,143 @@ const BTN_SECONDARY: React.CSSProperties = {
   fontSize: 13, fontWeight: 500, cursor: "pointer",
   fontFamily: "inherit",
 };
+
+// ─── Bulk sign-off queue ──────────────────────────────────────────────────
+// Pro-only fast lane for attendings with a backlog. Shows every pending EPA
+// in a compact row, each with a 1-5 pill strip. Attending clicks through the
+// queue, then "Sign all N" submits them serially.
+//
+// Only ACHIEVED, no-concern sign-offs are permitted from bulk mode — anything
+// that needs narrative feedback should be signed from the full review card.
+
+interface BulkQueueProps {
+  pending: Observation[];
+  scores: Record<string, number>;
+  onScore: (id: string, score: number) => void;
+  signing: boolean;
+  onSignAll: () => void;
+}
+
+function BulkQueue({ pending, scores, onScore, signing, onSignAll }: BulkQueueProps) {
+  const readyCount = pending.filter(o => scores[o.id]).length;
+
+  return (
+    <div style={{
+      padding: "10px 12px",
+      background: "var(--bg-1)",
+      border: "1px solid var(--border-mid)",
+      borderRadius: 10,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "4px 0 8px",
+        fontSize: 11, color: "var(--text-3)",
+      }}>
+        <Zap size={12} style={{ color: "var(--primary)" }} />
+        <span>Pick an O-score for each. Signs as <strong>Achieved</strong>, no concerns flagged.</span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {pending.map(obs => {
+          const picked = scores[obs.id];
+          return (
+            <div
+              key={obs.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 10px",
+                background: picked ? "rgba(34,197,94,.06)" : "var(--surface)",
+                border: picked
+                  ? "1px solid rgba(34,197,94,.35)"
+                  : "1px solid var(--border)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12,
+                }}>
+                  <span style={{
+                    fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
+                    fontFamily: "'Geist Mono', monospace",
+                    background: "rgba(14,165,233,.12)", color: "#0ea5e9",
+                  }}>
+                    {obs.epaId}
+                  </span>
+                  <span style={{
+                    color: "var(--text)", fontWeight: 600,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>
+                    {obs.epaTitle}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--text-3)", marginTop: 1 }}>
+                  {obs.user.name || obs.user.email}
+                  {obs.caseLog ? ` · ${obs.caseLog.procedureName}` : ""}
+                  {obs.entrustmentScore ? ` · self: ${obs.entrustmentScore}/5` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                {[1, 2, 3, 4, 5].map(n => {
+                  const selected = picked === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => onScore(obs.id, n)}
+                      disabled={signing}
+                      style={{
+                        width: 26, height: 26, borderRadius: 5,
+                        border: selected
+                          ? `1px solid ${ENTRUSTMENT_COLORS[n]}`
+                          : "1px solid var(--border-mid)",
+                        background: selected
+                          ? `${ENTRUSTMENT_COLORS[n]}22`
+                          : "var(--surface2)",
+                        color: selected ? ENTRUSTMENT_COLORS[n] : "var(--text-3)",
+                        fontSize: 11, fontWeight: 700,
+                        cursor: signing ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginTop: 12, paddingTop: 10,
+        borderTop: "1px solid var(--border)",
+      }}>
+        <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+          {readyCount} of {pending.length} ready to sign
+        </div>
+        <button
+          onClick={onSignAll}
+          disabled={readyCount === 0 || signing}
+          style={{
+            ...BTN_PRIMARY,
+            opacity: readyCount === 0 || signing ? 0.55 : 1,
+            cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
+          }}
+        >
+          {signing ? (
+            <Loader2 size={13} className="animate-spin" />
+          ) : (
+            <CheckCircle2 size={13} />
+          )}
+          {signing
+            ? `Signing ${readyCount}…`
+            : readyCount > 0
+              ? `Sign all ${readyCount}`
+              : "Pick scores to sign"}
+        </button>
+      </div>
+    </div>
+  );
+}

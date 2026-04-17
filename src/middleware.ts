@@ -3,7 +3,11 @@ import { createServerClient } from '@supabase/ssr';
 
 // Routes that don't need auth
 const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/onboarding']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/stripe/webhook'];
+const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/stripe/webhook', '/api/cron/'];
+
+// Public page prefixes (e.g., invite acceptance landing uses a token; the page
+// itself is public, though actually joining requires a login).
+const PUBLIC_PAGE_PREFIXES = ['/join/'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -60,11 +64,23 @@ export async function middleware(request: NextRequest) {
   } = await supabase.auth.getUser();
 
   const isAuthed = !!user;
-  const isPublicPage = PUBLIC_ROUTES.has(pathname);
+  const isPublicPage =
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_PAGE_PREFIXES.some((p) => pathname.startsWith(p));
   const isApiRoute = pathname.startsWith('/api/');
+
+  // The invite-preview GET is token-secured and must be public so the join
+  // page can render for logged-out users.
+  const isInvitePreviewGet =
+    isApiRoute && pathname.startsWith('/api/programs/invites/');
 
   // ── Protect API routes ─────────────────────────────────────────────────────
   if (isApiRoute && !isAuthed) {
+    // Allow the GET-only invite preview through so the join page works for
+    // logged-out users. The POST accept path re-checks auth at the route level.
+    if (isInvitePreviewGet && request.method === 'GET') {
+      return response;
+    }
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 

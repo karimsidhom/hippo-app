@@ -2,10 +2,12 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2, ClipboardList, Plus } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2, ClipboardList, Plus, Printer } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
+import { PaywallModal } from "@/components/PaywallModal";
 import { PostComposer } from "@/components/social/PostComposer";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
+import { useSubscription } from "@/context/SubscriptionContext";
 import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
@@ -706,6 +708,8 @@ export default function CasesPage() {
   const [exporting, setExporting]   = useState(false);
   const [shareCaseId, setShareCaseId] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const [pdfPaywall, setPdfPaywall] = useState(false);
+  const { isPro } = useSubscription();
 
   const years = useMemo(() => {
     const ys = [...new Set(cases.map(c => new Date(c.caseDate).getFullYear()))].sort((a, b) => b - a);
@@ -772,41 +776,75 @@ export default function CasesPage() {
           <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", letterSpacing: "-.5px" }}>Cases</div>
           <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{filtered.length} logged</div>
         </div>
-        <button
-          disabled={exporting}
-          onClick={async () => {
-            setExporting(true);
-            try {
-              const res = await fetch('/api/export', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
-              if (!res.ok) throw new Error('Export failed');
-              const blob = await res.blob();
-              const url = URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = `Hippo-Export-${new Date().toISOString().slice(0, 10)}.xlsx`;
-              document.body.appendChild(a); a.click(); document.body.removeChild(a);
-              URL.revokeObjectURL(url);
-            } catch { alert('Export failed. Please try again.'); }
-            finally { setExporting(false); }
-          }}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 5,
-            background: "none",
-            border: "none",
-            padding: 0,
-            fontSize: 12,
-            color: exporting ? "var(--muted)" : "var(--text-3)",
-            cursor: exporting ? "wait" : "pointer",
-            fontFamily: "inherit",
-            opacity: exporting ? 0.5 : 1,
-            transition: "opacity .15s",
-          }}
-        >
-          <Download size={13} /> {exporting ? "Exporting\u2026" : "Export .xlsx"}
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          <button
+            onClick={() => {
+              if (!isPro) {
+                setPdfPaywall(true);
+                return;
+              }
+              window.open("/cases/logbook-print", "_blank", "noopener,noreferrer");
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              background: "none",
+              border: "none",
+              padding: 0,
+              fontSize: 12,
+              color: "var(--text-3)",
+              cursor: "pointer",
+              fontFamily: "inherit",
+              transition: "color .15s",
+            }}
+            title="Open logbook in a new tab to save as PDF"
+          >
+            <Printer size={13} /> Logbook PDF
+          </button>
+          <button
+            disabled={exporting}
+            onClick={async () => {
+              setExporting(true);
+              try {
+                const res = await fetch('/api/export', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
+                if (!res.ok) throw new Error('Export failed');
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Hippo-Export-${new Date().toISOString().slice(0, 10)}.xlsx`;
+                document.body.appendChild(a); a.click(); document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+              } catch { alert('Export failed. Please try again.'); }
+              finally { setExporting(false); }
+            }}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 5,
+              background: "none",
+              border: "none",
+              padding: 0,
+              fontSize: 12,
+              color: exporting ? "var(--muted)" : "var(--text-3)",
+              cursor: exporting ? "wait" : "pointer",
+              fontFamily: "inherit",
+              opacity: exporting ? 0.5 : 1,
+              transition: "opacity .15s",
+            }}
+          >
+            <Download size={13} /> {exporting ? "Exporting\u2026" : "Export .xlsx"}
+          </button>
+        </div>
       </div>
+      <PaywallModal
+        open={pdfPaywall}
+        onClose={() => setPdfPaywall(false)}
+        feature="logbookPdf"
+        headline="Download your logbook as a PDF"
+        body="One branded, PHIA-safe document — ready for fellowship applications, job interviews, or end-of-year reviews."
+      />
 
       {/* Search — glass input */}
       <div style={{ position: "relative", marginBottom: 12 }}>

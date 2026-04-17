@@ -179,6 +179,26 @@ export default function LoginPage() {
   const [focused, setFocused] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState(false);
 
+  // Detect the `?deleted=1` flash set by POST /api/account/delete so we can
+  // show a confirmation that the account was permanently removed. The flag
+  // lives only for the first render — clearing it after read means a page
+  // refresh won't keep asserting "your account was deleted".
+  const [deletedFlash, setDeletedFlash] = useState(false);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("deleted") === "1") {
+      setDeletedFlash(true);
+      params.delete("deleted");
+      const q = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (q ? `?${q}` : ""),
+      );
+    }
+  }, []);
+
   const [splashPhase, setSplashPhase] = useState<SplashPhase>("done");
 
   useEffect(() => {
@@ -340,6 +360,28 @@ export default function LoginPage() {
             background: `linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent)`,
             margin: "0 auto 28px",
           }} />
+
+          {/* Account-deleted flash — one-shot confirmation after POST
+              /api/account/delete succeeds and the client redirects here. */}
+          {deletedFlash && (
+            <div
+              style={{
+                background: "rgba(16,185,129,0.08)",
+                border: "1px solid rgba(16,185,129,0.3)",
+                borderRadius: 12,
+                padding: "12px 14px",
+                marginBottom: 18,
+                fontSize: 13,
+                color: "#10b981",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+            >
+              <span style={{ fontWeight: 600 }}>✓</span>
+              <span>Your account and all associated data have been permanently deleted.</span>
+            </div>
+          )}
 
           {/* Glass form */}
           <div style={{

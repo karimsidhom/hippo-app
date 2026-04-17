@@ -4,17 +4,19 @@ import { db } from '@/lib/db';
 
 /**
  * GET /api/pd/residents
- * Returns all residents/fellows at the same institution as the requesting PD.
+ * Returns all residents/fellows at the same institution as the
+ * requesting staff member (PD, Attending, or Staff).
  */
 export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  // Verify user is a Program Director
+  const STAFF_ROLES = ['PROGRAM_DIRECTOR', 'ATTENDING', 'STAFF'];
+
   const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!pdProfile || pdProfile.roleType !== 'PROGRAM_DIRECTOR') {
+  if (!pdProfile || !STAFF_ROLES.includes(pdProfile.roleType ?? '')) {
     return NextResponse.json(
-      { error: 'Access denied. Program Director role required.' },
+      { error: 'Access denied. Staff role required.' },
       { status: 403 },
     );
   }

@@ -96,7 +96,15 @@
           "color": "#0a0a0f"
         }
       ],
-      "expo-web-browser"
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "Hippo transcribes your voice locally so you can log a case hands-free after a procedure. Audio is processed on-device; only the resulting text is sent to the server.",
+          "speechRecognitionPermission": "Hippo uses Apple Speech Recognition to turn your dictation into case-log fields. Recognition happens on-device where supported."
+        }
+      ],
+      "expo-web-browser",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

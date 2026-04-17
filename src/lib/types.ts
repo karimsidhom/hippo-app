@@ -8,6 +8,66 @@ export type AgeBin = "UNDER_18" | "AGE_18_30" | "AGE_31_45" | "AGE_46_60" | "AGE
 export type FriendRequestStatus = "PENDING" | "ACCEPTED" | "REJECTED";
 export type MilestoneType = "TOTAL_CASES" | "PROCEDURE_COUNT" | "AUTONOMY_UNLOCK" | "STREAK" | "INDEPENDENT_CASES";
 
+// ─── Programs (shared calendar groups) ────────────────────────────────────────
+export type ProgramMemberRole = "OWNER" | "MEMBER";
+export type ProgramEventType = "GENERAL" | "VACATION" | "MEETING" | "CONFERENCE" | "ROUNDS" | "SOCIAL" | "DOCUMENT";
+export type RecurrenceFrequency = "NONE" | "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY";
+
+export interface Program {
+  id: string;
+  name: string;
+  institution: string | null;
+  specialty: string | null;
+  description: string | null;
+  createdById: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProgramMember {
+  id: string;
+  programId: string;
+  userId: string;
+  role: ProgramMemberRole;
+  joinedAt: string;
+  name?: string | null;
+  email?: string;
+  roleType?: UserRoleType | null;
+}
+
+export interface ProgramInvite {
+  id: string;
+  programId: string;
+  email: string;
+  invitedById: string;
+  createdAt: string;
+  expiresAt: string;
+  acceptedAt: string | null;
+  revokedAt: string | null;
+}
+
+export interface ProgramEvent {
+  id: string;
+  programId: string;
+  title: string;
+  description: string | null;
+  startAt: string;
+  endAt: string | null;
+  allDay: boolean;
+  location: string | null;
+  url: string | null;
+  type: ProgramEventType;
+  recurrence: RecurrenceFrequency;
+  recurrenceUntil: string | null;
+  createdById: string;
+  createdByName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  // For expanded recurring instances:
+  isRecurringInstance?: boolean;
+  originalStartAt?: string;
+}
+
 export interface User {
   id: string;
   email: string;
@@ -34,6 +94,7 @@ export interface Profile {
   allowFriendRequests: boolean;
   allowLeaderboardParticipation: boolean;
   allowBenchmarkSharing: boolean;
+  allowWeeklyDigest: boolean;
   bio: string | null;
   onboardingCompleted: boolean;
   createdAt: Date;

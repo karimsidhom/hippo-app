@@ -31,7 +31,16 @@ export async function PATCH(req: NextRequest) {
 
   const body = await req.json();
 
-  // Whitelist updatable fields
+  // Display name lives on the User model, not Profile.
+  // Handle it separately so it's saved properly.
+  if (typeof body.name === 'string') {
+    await db.user.update({
+      where: { id: user.id },
+      data: { name: body.name.trim() || null },
+    });
+  }
+
+  // Whitelist updatable profile fields
   const {
     roleType,
     specialty,
@@ -45,6 +54,7 @@ export async function PATCH(req: NextRequest) {
     allowFriendRequests,
     allowLeaderboardParticipation,
     allowBenchmarkSharing,
+    allowWeeklyDigest,
     bio,
     onboardingCompleted,
     tier,
@@ -65,6 +75,7 @@ export async function PATCH(req: NextRequest) {
       ...(allowFriendRequests !== undefined && { allowFriendRequests }),
       ...(allowLeaderboardParticipation !== undefined && { allowLeaderboardParticipation }),
       ...(allowBenchmarkSharing !== undefined && { allowBenchmarkSharing }),
+      ...(allowWeeklyDigest !== undefined && { allowWeeklyDigest }),
       ...(bio !== undefined && { bio }),
       ...(onboardingCompleted !== undefined && { onboardingCompleted }),
       ...(tier !== undefined && { tier }),
@@ -83,6 +94,7 @@ export async function PATCH(req: NextRequest) {
       allowFriendRequests,
       allowLeaderboardParticipation,
       allowBenchmarkSharing,
+      allowWeeklyDigest: allowWeeklyDigest ?? true,
       bio,
       onboardingCompleted: onboardingCompleted ?? false,
       tier: tier ?? 'free',

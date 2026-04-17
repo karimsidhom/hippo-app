@@ -8,6 +8,11 @@ import { logAudit } from '@/lib/audit';
 // re-declare CaseCreateSchema here — change it in src/lib/shared.
 import { CaseCreateSchema } from '@/lib/shared/schemas/case';
 
+// Auth-gated per-user data — must never be cached by Next/Vercel/CDN.
+// Being explicit prevents a stale-data-after-deploy class of bug.
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 /**
  * GET /api/cases
  * Returns all cases for the authenticated user, newest first.
@@ -21,7 +26,9 @@ export async function GET() {
     orderBy: { caseDate: 'desc' },
   });
 
-  return NextResponse.json(cases);
+  return NextResponse.json(cases, {
+    headers: { 'Cache-Control': 'no-store, must-revalidate' },
+  });
 }
 
 /**

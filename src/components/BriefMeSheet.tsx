@@ -14,6 +14,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import type { BriefResult, CaseBrief } from "@/lib/brief/types";
+import { PaywallModal } from "@/components/PaywallModal";
 
 // ---------------------------------------------------------------------------
 // BriefMeSheet
@@ -40,6 +41,12 @@ export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BriefResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [paywallOpen, setPaywallOpen] = useState(false);
+  const [usage, setUsage] = useState<{
+    count: number;
+    limit: number | null;
+    tier: "free" | "pro";
+  } | null>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Reset all state whenever the sheet is opened, and focus the textarea
@@ -79,11 +86,23 @@ export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({ input: trimmed }),
       });
+      // 402 = free tier out of briefs this month → show paywall.
+      if (res.status === 402) {
+        const err = (await res.json().catch(() => ({}))) as {
+          usage?: { count: number; limit: number | null; tier: "free" | "pro" };
+        };
+        if (err.usage) setUsage(err.usage);
+        setPaywallOpen(true);
+        return;
+      }
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
         throw new Error(err?.error ?? `Brief failed (${res.status})`);
       }
-      const json = (await res.json()) as BriefResult;
+      const json = (await res.json()) as BriefResult & {
+        usage?: { count: number; limit: number | null; tier: "free" | "pro" };
+      };
+      if (json.usage) setUsage(json.usage);
       setResult(json);
     } catch (err) {
       console.error("Brief failed", err);
@@ -198,8 +217,55 @@ export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
               }}
             />
           )}
+
+          {/* Usage chip — visible only for free-tier users */}
+          {usage && usage.tier === "free" && usage.limit != null && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: "8px 12px",
+                background: "var(--surface2)",
+                border: "1px solid var(--border-mid)",
+                borderRadius: 8,
+                fontSize: 11,
+                color: "var(--text-3)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+              }}
+            >
+              <span>
+                {Math.max(usage.limit - usage.count, 0)} of {usage.limit} free AI Briefs
+                remaining this month
+              </span>
+              <button
+                onClick={() => setPaywallOpen(true)}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "var(--primary)",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  cursor: "pointer",
+                  fontFamily: "inherit",
+                  padding: 0,
+                }}
+              >
+                Go unlimited →
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
+      <PaywallModal
+        open={paywallOpen}
+        onClose={() => setPaywallOpen(false)}
+        feature="aiBrief"
+        headline="Unlimited AI Briefs"
+        body="Your personal OR prep coach — every case, every day. Pro members get unlimited pre-case briefs based on their own logbook and schedule."
+      />
     </div>
   );
 }
@@ -250,9 +316,30 @@ function InputView({
           padding: 12,
           resize: "vertical",
           outline: "none",
-          marginBottom: 12,
+          marginBottom: 8,
         }}
       />
+      <div
+        style={{
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 6,
+          padding: "6px 10px",
+          marginBottom: 12,
+          fontSize: 10.5,
+          lineHeight: 1.45,
+          color: "var(--text-3)",
+          background: "rgba(245,158,11,.06)",
+          border: "1px solid rgba(245,158,11,.18)",
+          borderRadius: 6,
+        }}
+      >
+        <AlertTriangle size={11} style={{ color: "#f59e0b", marginTop: 2, flexShrink: 0 }} />
+        <span>
+          <strong style={{ color: "var(--text-2)" }}>Never include patient identifiers</strong> (names,
+          MRN, DOB, address). This text is sent to a cloud AI model for parsing.
+        </span>
+      </div>
 
       <div
         style={{

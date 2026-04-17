@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2 } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
@@ -16,11 +16,43 @@ import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
 import { DebriefSheet } from "@/components/DebriefSheet";
-import { StaffDashboard } from "@/components/staff/StaffDashboard";
 import { PostComposer } from "@/components/social/PostComposer";
+import { ProgramCalendar } from "@/components/ProgramCalendar";
+import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
 
-// Role types that see the staff/attending dashboard instead of the trainee one.
+// Role types that see staff-specific modules (sign-offs, teaching load).
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
+
+type StaffStats = {
+  pendingSignOffs: number;
+  signedThisMonth: number;
+  signedYtd: number;
+  recentSigned: {
+    id: string;
+    epaId: string;
+    epaTitle: string;
+    signedAt: string | null;
+    entrustmentScore: number | null;
+    residentName: string | null;
+  }[];
+};
+
+type CohortResident = {
+  userId: string;
+  name: string | null;
+  totalCases: number;
+  casesThisWeek: number;
+  casesThisMonth: number;
+  epaTotal: number;
+  epaSigned: number;
+  epaPending: number;
+  lastCaseDate: string | null;
+};
+
+type CohortData = {
+  institution: string;
+  residents: CohortResident[];
+};
 
 function approachColor(approach: string): string {
   const m: Record<string, string> = {
@@ -37,25 +69,70 @@ export default function DashboardPage() {
   const { milestones } = useMilestones();
   const now = new Date();
 
-  // Pre-Op Brief sheet — triggered from the "Brief me" CTA below the
-  // metric row. Closed by default; the sheet handles its own state.
+  const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
+  const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
+  const isResident = !isStaff;
+
+  // Pre-Op Brief sheet
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefPrefill, setBriefPrefill] = useState<string | undefined>();
 
-  // Debrief sheet — triggered from schedule cards whose time has passed.
+  // Debrief sheet
   const [debriefCase, setDebriefCase] = useState<{
     id: string;
     procedureName: string;
     caseDate: string;
   } | null>(null);
 
-  // PostComposer seeded from a recent case — the social flywheel entry point
-  // right from the dashboard. Gemini drafts a pearl from the case server-side.
+  // PostComposer seeded from a recent case
   const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
-  // Returned-EPA alert — residents need prompt visibility of attending feedback.
+  // ── Staff-specific data ────────────────────────────────────────────────
+  const [staffStats, setStaffStats] = useState<StaffStats | null>(null);
+  useEffect(() => {
+    if (!isStaff) return;
+    let cancelled = false;
+    fetch("/api/staff/stats", { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setStaffStats(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isStaff]);
+
+  // ── Staff-specific: cohort / program data ───────────────────────────
+  const [cohortData, setCohortData] = useState<CohortData | null>(null);
+  useEffect(() => {
+    if (!isStaff) return;
+    let cancelled = false;
+    fetch("/api/pd/residents", { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setCohortData(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isStaff]);
+
+  // Cohort KPIs (computed client-side from roster data)
+  const cohortKpis = (() => {
+    if (!cohortData?.residents?.length) return null;
+    const rs = cohortData.residents;
+    const totalResidents = rs.length;
+    const casesThisWeek = rs.reduce((s, r) => s + r.casesThisWeek, 0);
+    const epasPending = rs.reduce((s, r) => s + r.epaPending, 0);
+    const avgEpaCompletion = Math.round(
+      rs.reduce((s, r) => s + (r.epaTotal > 0 ? (r.epaSigned / r.epaTotal) * 100 : 0), 0) / totalResidents
+    );
+    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const silentResidents = rs.filter(r => {
+      if (!r.lastCaseDate) return true;
+      return new Date(r.lastCaseDate).getTime() < twoWeeksAgo;
+    }).length;
+    return { totalResidents, casesThisWeek, epasPending, avgEpaCompletion, silentResidents };
+  })();
+
+  // ── Resident-specific: returned EPA alert ─────────────────────────────
   const [returnedCount, setReturnedCount] = useState<number>(0);
   useEffect(() => {
+    if (!isResident) return;
     let cancelled = false;
     fetch("/api/epa/observations?status=RETURNED", { credentials: "include" })
       .then(r => r.ok ? r.json() : [])
@@ -64,7 +141,7 @@ export default function DashboardPage() {
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [isResident]);
 
   const thisMonth = cases.filter(c => {
     const d = new Date(c.caseDate);
@@ -95,16 +172,72 @@ export default function DashboardPage() {
 
   const firstName = user?.name?.split(" ")[0] ?? "Surgeon";
 
-  // Staff / attending / PD get a different home — personal cases + teaching load.
-  if (profile?.roleType && STAFF_ROLES.has(profile.roleType)) {
-    return <StaffDashboard />;
-  }
+  // Role label for staff identity
+  const roleLabel = profile?.roleType
+    ? profile.roleType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    : "";
 
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
 
-      {/* Returned-EPA alert banner */}
-      {returnedCount > 0 && (
+      {/* ══════════════════════════════════════════════════════════════════
+          SHARED CORE — all roles see everything above the divider
+          ══════════════════════════════════════════════════════════════════ */}
+
+      {/* ── Pending program invites (in-app, self-hides if none) ───────── */}
+      <ProgramInviteBanner />
+
+      {/* ── Staff: EPAs to complete — persistent link to inbox ──────────
+          Always shown for attendings/PDs so the entry point is stable,
+          even when the queue is clear. The visual intensity scales with
+          pendingSignOffs: teal+accent when >0, muted when 0. */}
+      {isStaff && (
+        (() => {
+          const pending = staffStats?.pendingSignOffs ?? 0;
+          const hot = pending > 0;
+          return (
+            <Link
+              href="/inbox"
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 16px", marginBottom: 16,
+                background: hot ? "#0EA5E910" : "var(--surface)",
+                border: hot ? "1px solid #0EA5E930" : "1px solid var(--border)",
+                borderRadius: 10,
+                textDecoration: "none",
+                color: "var(--text-1)",
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: hot ? "#0EA5E920" : "var(--bg-1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: hot ? "#0EA5E9" : "var(--text-3)", flexShrink: 0,
+              }}>
+                <Inbox size={16} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+                  {pending === 0
+                    ? "EPAs to complete"
+                    : pending === 1
+                      ? "1 EPA awaiting your signature"
+                      : `${pending} EPAs awaiting your signature`}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+                  {pending === 0
+                    ? "You're all caught up. Tap to check the inbox."
+                    : "Residents are waiting on your feedback. Tap to review."}
+                </div>
+              </div>
+              <ChevronRight size={16} style={{ color: "var(--text-3)", flexShrink: 0 }} />
+            </Link>
+          );
+        })()
+      )}
+
+      {/* ── Resident: returned-EPA alert banner ──────────────────────────── */}
+      {isResident && returnedCount > 0 && (
         <Link
           href="/analytics?tab=EPAs"
           style={{
@@ -155,8 +288,9 @@ export default function DashboardPage() {
             letterSpacing: ".04em",
             fontFamily: "'Geist', sans-serif",
           }}>
-            {profile?.specialty}
-            {profile?.trainingYearLabel && ` \u00b7 ${profile.trainingYearLabel}`}
+            {isStaff
+              ? [roleLabel, profile?.specialty, profile?.institution].filter(Boolean).join(" \u00b7 ")
+              : [profile?.specialty, profile?.trainingYearLabel].filter(Boolean).join(" \u00b7 ")}
           </div>
           <div style={{
             fontSize: 32,
@@ -170,8 +304,6 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Quick access to Settings — mirrors the typographic scale of the
-            rest of the dashboard (subtle, square, border-only). */}
         <Link
           href="/settings"
           aria-label="Settings"
@@ -232,19 +364,27 @@ export default function DashboardPage() {
       {/* ── Metrics row — monospace numbers, no boxes ─────────────────── */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "1fr 1fr 1fr 1fr",
+        gridTemplateColumns: isStaff ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr",
         gap: 0,
         padding: "20px 0",
         borderTop: "1px solid var(--border)",
         borderBottom: "1px solid var(--border)",
         marginBottom: 28,
       }}>
-        {[
-          { n: String(thisMonth), l: "This mo" },
-          { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
-          { n: `${firstSurgeonRate}%`, l: "Primary" },
-          { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
-        ].map((s, i) => (
+        {(isStaff
+          ? [
+              { n: String(thisMonth), l: "This mo" },
+              { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+              { n: String(staffStats?.signedThisMonth ?? 0), l: "Signed" },
+              { n: String(staffStats?.signedYtd ?? 0), l: "YTD sign" },
+            ]
+          : [
+              { n: String(thisMonth), l: "This mo" },
+              { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+              { n: `${firstSurgeonRate}%`, l: "Primary" },
+              { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
+            ]
+        ).map((s, i) => (
           <div key={i} style={{
             paddingLeft: i > 0 ? 16 : 0,
             borderLeft: i > 0 ? "1px solid var(--border)" : "none",
@@ -278,10 +418,7 @@ export default function DashboardPage() {
         ))}
       </div>
 
-      {/* ── Pre-Op Brief CTA ──────────────────────────────────────────────
-          Single-tap entry point for the "Brief me for tomorrow" flow. Kept
-          as a full-width row so it reads as an action, not a tile, and
-          matches the dashboard's border-only aesthetic. */}
+      {/* ── Pre-Op Brief CTA ──────────────────────────────────────────── */}
       <button
         onClick={() => {
           setBriefPrefill(undefined);
@@ -356,9 +493,6 @@ export default function DashboardPage() {
           setBriefOpen(true);
         }}
         onDebrief={(sc) => {
-          // ScheduledCase doesn't have a CaseLog yet — create a placeholder
-          // that DebriefSheet can use. The actual CaseLog creation happens
-          // elsewhere; for now we just want to be able to open the sheet.
           setDebriefCase({
             id: sc.caseLogId ?? sc.id,
             procedureName: sc.procedureName,
@@ -367,7 +501,195 @@ export default function DashboardPage() {
         }}
       />
 
-      {/* ── Activity ──────────────────────────────────────────────────── */}
+      {/* ── Shared program calendar (self-hides if user in no programs) ── */}
+      <ProgramCalendar />
+
+      {/* ══════════════════════════════════════════════════════════════════
+          ROLE-SPECIFIC MODULES — layered below the shared core
+          ══════════════════════════════════════════════════════════════════ */}
+
+      {/* ── Staff / PD: teaching load section ────────────────────────────── */}
+      {isStaff && staffStats?.recentSigned && staffStats.recentSigned.length > 0 && (
+        <section style={{ marginBottom: 28 }}>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+          }}>
+            <span style={{
+              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "1px",
+            }}>Recent Sign-offs</span>
+            <Link href="/inbox" style={{
+              fontSize: 11, color: "var(--text-3)", textDecoration: "none",
+              display: "flex", alignItems: "center", gap: 2,
+              transition: "color .15s",
+            }}>
+              All <ArrowUpRight size={10} />
+            </Link>
+          </div>
+          {staffStats.recentSigned.slice(0, 4).map((e, i) => (
+            <div key={e.id} style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 0",
+              borderBottom: i < Math.min(staffStats.recentSigned.length, 4) - 1
+                ? "1px solid var(--border)"
+                : "none",
+            }}>
+              <div style={{ paddingTop: 5, flexShrink: 0 }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: "50%",
+                  background: "#10B981",
+                }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{
+                    fontSize: 13, fontWeight: 500, color: "var(--text)",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    flex: 1, minWidth: 0,
+                  }}>{e.epaId} — {e.epaTitle}</span>
+                  {e.signedAt && (
+                    <span style={{
+                      fontSize: 11, color: "var(--text-3)",
+                      fontFamily: "'Geist Mono', monospace",
+                      flexShrink: 0,
+                    }}>
+                      {new Date(e.signedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                    </span>
+                  )}
+                </div>
+                <div style={{
+                  display: "flex", gap: 6, marginTop: 2,
+                  fontSize: 11, color: "var(--text-3)",
+                }}>
+                  <span>{e.residentName ?? "Resident"}</span>
+                  {e.entrustmentScore && (
+                    <>
+                      <span style={{ color: "var(--muted)" }}>&middot;</span>
+                      <span style={{ fontFamily: "'Geist Mono', monospace" }}>O-Score {e.entrustmentScore}</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      )}
+
+      {/* ── PD only: big, obvious PD Dashboard CTA ─────────────────────
+          Intentionally gated to PROGRAM_DIRECTOR. Attendings (ATTENDING/
+          STAFF) don't see this — they don't manage the cohort, just
+          review their residents' sign-offs via the inbox above. */}
+      {isPD && (
+        <section style={{ marginBottom: 28 }}>
+          <Link
+            href="/pd-dashboard"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 14,
+              padding: "18px 18px",
+              background:
+                "linear-gradient(135deg, rgba(14,165,233,0.08), rgba(16,185,129,0.06))",
+              border: "1px solid rgba(14,165,233,0.35)",
+              borderRadius: 12,
+              color: "var(--text)",
+              textDecoration: "none",
+              transition: "background .15s, border-color .15s",
+            }}
+          >
+            <div
+              style={{
+                width: 44,
+                height: 44,
+                borderRadius: 10,
+                background: "rgba(14,165,233,0.15)",
+                border: "1px solid rgba(14,165,233,0.35)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "#0EA5E9",
+                flexShrink: 0,
+              }}
+            >
+              <LayoutDashboard size={20} />
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  letterSpacing: "-0.2px",
+                  marginBottom: 2,
+                }}
+              >
+                Program Director Dashboard
+              </div>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "var(--text-3)",
+                  lineHeight: 1.4,
+                }}
+              >
+                Full cohort view — resident logbooks, EPA progress, and
+                inactivity alerts
+                {cohortKpis
+                  ? ` · ${cohortKpis.totalResidents} resident${cohortKpis.totalResidents === 1 ? "" : "s"}`
+                  : ""}
+                {cohortKpis && cohortKpis.silentResidents > 0 ? (
+                  <span style={{ color: "#F59E0B", fontWeight: 600 }}>
+                    {" · "}
+                    {cohortKpis.silentResidents} silent
+                  </span>
+                ) : null}
+              </div>
+            </div>
+            <ChevronRight
+              size={18}
+              style={{ color: "var(--text-3)", flexShrink: 0 }}
+            />
+          </Link>
+
+          {/* Silent residents — actionable, stays as a top-level alert */}
+          {cohortKpis && cohortKpis.silentResidents > 0 && (
+            <Link
+              href="/pd-dashboard"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
+                padding: "10px 14px",
+                marginTop: 10,
+                background: "#F59E0B10",
+                border: "1px solid #F59E0B25",
+                borderRadius: 8,
+                fontSize: 12,
+                color: "var(--text-2)",
+                textDecoration: "none",
+              }}
+            >
+              <AlertTriangle
+                size={13}
+                style={{ color: "#F59E0B", flexShrink: 0 }}
+              />
+              <span style={{ flex: 1 }}>
+                {cohortKpis.silentResidents === 1
+                  ? "1 resident hasn\u2019t logged a case in 14+ days"
+                  : `${cohortKpis.silentResidents} residents haven\u2019t logged a case in 14+ days`}
+              </span>
+              <ChevronRight size={12} style={{ color: "var(--text-3)" }} />
+            </Link>
+          )}
+        </section>
+      )}
+
+      {/* ── Activity (all roles) ─────────────────────────────────────── */}
       <section style={{ marginBottom: 28 }}>
         <div style={{
           fontSize: 10, fontWeight: 600, color: "var(--text-3)",
@@ -377,7 +699,7 @@ export default function DashboardPage() {
         <VolumeHeatmap data={heatmapData} />
       </section>
 
-      {/* ── Top procedures ────────────────────────────────────────────── */}
+      {/* ── Top procedures (all roles) ───────────────────────────────── */}
       {topProcs.length > 0 && (
         <section style={{ marginBottom: 28 }}>
           <div style={{
@@ -426,8 +748,8 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* ── Learning curve ────────────────────────────────────────────── */}
-      {learningCurve.length >= 3 && (
+      {/* ── Resident: learning curve ─────────────────────────────────── */}
+      {isResident && learningCurve.length >= 3 && (
         <section style={{ marginBottom: 28 }}>
           <div style={{
             fontSize: 10, fontWeight: 600, color: "var(--text-3)",
@@ -438,7 +760,7 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* ── Recent cases ──────────────────────────────────────────────── */}
+      {/* ── Recent cases (all roles) ─────────────────────────────────── */}
       <section>
         <div style={{
           display: "flex",
@@ -494,9 +816,6 @@ export default function DashboardPage() {
                   marginRight: 8, flex: 1, minWidth: 0,
                 }}>{c.procedureName}</span>
                 <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  {/* Share as pearl — opens the composer with a Gemini-drafted
-                      post from this case. The single most important way to
-                      turn a case log into community content. */}
                   <button
                     onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
                     title="Share as pearl"
@@ -546,8 +865,8 @@ export default function DashboardPage() {
         ))}
       </section>
 
-      {/* ── Milestones ────────────────────────────────────────────────── */}
-      {milestones.length > 0 && (
+      {/* ── Resident: milestones ──────────────────────────────────────── */}
+      {isResident && milestones.length > 0 && (
         <section style={{ marginTop: 28 }}>
           <div style={{
             height: 1, background: "var(--border)", marginBottom: 20,
@@ -591,21 +910,19 @@ export default function DashboardPage() {
         </section>
       )}
 
-      {/* Pre-Op Brief sheet — rendered at the end so it overlays everything. */}
+      {/* ── Sheets (rendered at the end so they overlay) ──────────────── */}
       <BriefMeSheet
         open={briefOpen}
         onClose={() => setBriefOpen(false)}
         prefill={briefPrefill}
       />
 
-      {/* Post-Op Debrief sheet — triggered from scheduled case cards. */}
       <DebriefSheet
         open={debriefCase !== null}
         caseLog={debriefCase}
         onClose={() => setDebriefCase(null)}
       />
 
-      {/* Share-as-pearl composer — Gemini drafts from the selected case. */}
       <PostComposer
         open={shareCaseId !== null}
         onClose={() => setShareCaseId(null)}

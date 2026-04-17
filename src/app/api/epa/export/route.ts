@@ -3,6 +3,12 @@ import ExcelJS from 'exceljs';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import {
+  BRAND,
+  addCoverSheet,
+  addCertificationBlock,
+  HIPPO_TRADEMARK_LINE,
+} from '@/lib/export-branding';
 
 /**
  * GET /api/epa/export?format=xlsx|csv&from=YYYY-MM-DD&to=YYYY-MM-DD&status=...
@@ -81,10 +87,32 @@ export async function GET(req: NextRequest) {
 
   // XLSX path
   const wb = new ExcelJS.Workbook();
-  wb.creator = 'Hippo';
+  const residentName = dbUser?.name ?? dbUser?.email ?? 'Hippo user';
+  const residentEmail = dbUser?.email ?? '';
+  wb.creator = 'Hippo Medicine Inc.';
+  wb.company = 'Hippo Medicine Inc.';
+  wb.title = `${residentName} — EPA Observation Record`;
   wb.created = new Date();
 
-  // ── Sheet 1: Observations ──────────────────────────────────────────
+  // ── Sheet 1: Cover ──────────────────────────────────────────────────
+  // Branded title page with trainee identity, signature block, and
+  // certification statement. Must be added FIRST to land at position 1.
+  addCoverSheet(wb, {
+    residentName,
+    residentEmail,
+    pgyYear: profile?.pgyYear ?? null,
+    trainingYearLabel: profile?.trainingYearLabel ?? null,
+    specialty: profile?.specialty ?? null,
+    subspecialty: profile?.subspecialty ?? null,
+    institution: profile?.institution ?? null,
+    trainingCountry: profile?.trainingCountry ?? null,
+    exportType: 'EPA Observation Record',
+    dateRangeFrom: from ? new Date(from) : null,
+    dateRangeTo: to ? new Date(to) : null,
+    totalRecords: observations.length,
+  });
+
+  // ── Sheet 2: Observations ──────────────────────────────────────────
   const ws = wb.addWorksheet('EPA Observations', {
     views: [{ state: 'frozen', ySplit: 1 }],
   });
@@ -127,12 +155,12 @@ export async function GET(req: NextRequest) {
     { header: 'Last Updated',       key: 'updatedAt',         width: 14 },
   ];
 
-  // Header styling
-  ws.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
+  // Header styling — uses shared BRAND tokens so it matches the Cover sheet.
+  ws.getRow(1).font = { bold: true, color: { argb: BRAND.WHITE }, size: 11, name: 'Arial' };
   ws.getRow(1).fill = {
     type: 'pattern',
     pattern: 'solid',
-    fgColor: { argb: 'FF0EA5E9' },
+    fgColor: { argb: BRAND.TEAL },
   };
   ws.getRow(1).height = 22;
   ws.getRow(1).alignment = { vertical: 'middle' };
@@ -209,8 +237,9 @@ export async function GET(req: NextRequest) {
     { header: 'Role Code',      key: 'roleId',       width: 14 },
     { header: 'Rating (1\u20135)', key: 'rating',    width: 8  },
   ];
-  wsRoles.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  wsRoles.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0EA5E9' } };
+  wsRoles.getRow(1).font = { bold: true, color: { argb: BRAND.WHITE }, size: 11, name: 'Arial' };
+  wsRoles.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.TEAL } };
+  wsRoles.getRow(1).height = 22;
 
   for (const o of observations) {
     if (!Array.isArray(o.canmedsRatings)) continue;
@@ -238,8 +267,9 @@ export async function GET(req: NextRequest) {
     { header: 'Entrustment Rating', key: 'entrustmentRating', width: 14 },
     { header: 'Comment',            key: 'comment',           width: 40 },
   ];
-  wsCrit.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  wsCrit.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0EA5E9' } };
+  wsCrit.getRow(1).font = { bold: true, color: { argb: BRAND.WHITE }, size: 11, name: 'Arial' };
+  wsCrit.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.TEAL } };
+  wsCrit.getRow(1).height = 22;
   wsCrit.getColumn('comment').alignment = { wrapText: true, vertical: 'top' };
 
   for (const o of observations) {
@@ -262,8 +292,9 @@ export async function GET(req: NextRequest) {
     { header: 'Field', key: 'field', width: 28 },
     { header: 'Value', key: 'value', width: 40 },
   ];
-  wsSum.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
-  wsSum.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF0EA5E9' } };
+  wsSum.getRow(1).font = { bold: true, color: { argb: BRAND.WHITE }, size: 11, name: 'Arial' };
+  wsSum.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: BRAND.TEAL } };
+  wsSum.getRow(1).height = 22;
 
   const counts = countBy(observations.map(o => STATUS_LABELS[o.status] ?? o.status));
   const epaCounts = countBy(observations.map(o => `${o.epaId} \u2014 ${o.epaTitle}`));
@@ -291,12 +322,29 @@ export async function GET(req: NextRequest) {
     wsSum.addRow({ field: `   ${k}`, value: v });
   }
 
+  // Certification block on the observations sheet — this is the one a PD
+  // reads top-to-bottom, so the signature belongs at its tail.
+  addCertificationBlock(ws, residentName);
+
+  // Short privacy footer on the aux sheets so nothing can be excerpted
+  // without the disclaimer tagging along.
+  for (const sheet of [wsRoles, wsCrit, wsSum]) {
+    sheet.addRow([]);
+    const tm = sheet.addRow([HIPPO_TRADEMARK_LINE]);
+    tm.font = { italic: true, size: 9, color: { argb: BRAND.MUTED }, name: 'Arial' };
+    const site = sheet.addRow(['hippomedicine.com']);
+    site.font = { size: 9, color: { argb: BRAND.TEAL }, name: 'Arial', underline: true };
+  }
+
   const buf = Buffer.from(await wb.xlsx.writeBuffer());
+  const safeName = residentName.replace(/[^a-zA-Z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+  const filename = `Hippo-EPA-${safeName}-${todayStr()}.xlsx`;
   return new NextResponse(buf, {
     status: 200,
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'Content-Disposition': `attachment; filename="hippo-epa-export-${todayStr()}.xlsx"`,
+      'Content-Disposition': `attachment; filename="${filename}"`,
+      'Cache-Control': 'no-store',
     },
   });
 }

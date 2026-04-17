@@ -39,6 +39,7 @@ interface ResidentData {
 
 const MONO = "'Geist Mono', monospace";
 const SILENT_DAYS = 14;
+const PD_STAFF_ROLES = ["PROGRAM_DIRECTOR", "ATTENDING", "STAFF"];
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
@@ -74,8 +75,9 @@ export default function PDDashboardPage() {
     }
   }, []);
 
+
   useEffect(() => {
-    if (profile?.roleType === "PROGRAM_DIRECTOR") {
+    if (profile?.roleType && PD_STAFF_ROLES.includes(profile.roleType)) {
       fetchResidents();
     } else if (profile !== null) {
       setLoading(false);
@@ -120,7 +122,7 @@ export default function PDDashboardPage() {
   }, [residents]);
 
   // ── Role gate ──────────────────────────────────────────────────────────────
-  if (!loading && profile && profile.roleType !== "PROGRAM_DIRECTOR") {
+  if (!loading && profile && !PD_STAFF_ROLES.includes(profile.roleType ?? "")) {
     return (
       <div
         style={{
@@ -155,7 +157,7 @@ export default function PDDashboardPage() {
           Cohort view
         </h1>
         <p style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.6, marginBottom: 16 }}>
-          This page is for Program Directors only. Head back to your dashboard.
+          This page is for staff and program directors. Head back to your dashboard.
         </p>
         <Link
           href="/dashboard"

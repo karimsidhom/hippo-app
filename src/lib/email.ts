@@ -172,3 +172,100 @@ function escapeHtml(str: string): string {
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 }
+
+// ---------------------------------------------------------------------------
+// Program invite email
+// ---------------------------------------------------------------------------
+
+export interface ProgramInviteEmailData {
+  recipientEmail: string;
+  inviterName: string;
+  programName: string;
+  programInstitution: string | null;
+  joinUrl: string;
+  expiresAt: Date;
+}
+
+export function buildProgramInviteEmail(data: ProgramInviteEmailData): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const {
+    inviterName,
+    programName,
+    programInstitution,
+    joinUrl,
+    expiresAt,
+  } = data;
+
+  const expiresFmt = expiresAt.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const subject = `Join ${programName} on Hippo`;
+
+  const text = `${inviterName} invited you to join ${programName} on Hippo.
+
+${programInstitution ? `Institution: ${programInstitution}\n` : ""}
+This gives you access to the program's shared calendar — vacation dates, conferences, grand rounds, Zoom links, shared documents.
+
+Join here:
+${joinUrl}
+
+This invite expires on ${expiresFmt}. If you don't have a Hippo account yet, you'll be prompted to sign up first.
+
+— Hippo (hippomedicine.com)`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">
+        Hippo
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Program Invitation</div>
+    </div>
+
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 8px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(inviterName)}</strong> invited you to join:
+      </p>
+
+      <div style="background:#0e1520;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;margin:14px 0 20px;">
+        <div style="font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">
+          ${escapeHtml(programName)}
+        </div>
+        ${programInstitution ? `<div style="font-size:12px;color:#94a3b8;">${escapeHtml(programInstitution)}</div>` : ""}
+      </div>
+
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 20px;">
+        You'll get access to the program's shared calendar &mdash; vacation dates, grand rounds, conferences,
+        Zoom links, and shared documents.
+      </p>
+
+      <a href="${escapeHtml(joinUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
+        Accept Invitation
+      </a>
+
+      <p style="color:#64748b;font-size:11px;text-align:center;margin:14px 0 0;line-height:1.6;">
+        Expires ${escapeHtml(expiresFmt)}. New to Hippo? You'll be prompted to sign up first.
+      </p>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">
+        <a href="https://hippomedicine.com" style="color:#64748b;">Hippo</a> &mdash; surgical education, simplified.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return { subject, html, text };
+}

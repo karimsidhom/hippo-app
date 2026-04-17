@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { View, Alert } from 'react-native';
-import { Screen, Text, Input, Button, ChipGroup, Card } from '@/components';
+import { useEffect, useState } from 'react';
+import { View, Alert, Pressable } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
+import { Mic, Sparkles } from 'lucide-react-native';
+import { Screen, Text, Input, Button, ChipGroup, Card, VoiceLogSheet, type NormalizedVoiceFields } from '@/components';
 import { EpaSuggestionSheet } from '@/components/EpaSuggestionSheet';
 import { createCase } from '@/lib/cases';
 import { suggestEpas } from '@/lib/epa';
+import { colors, radii } from '@/theme/tokens';
 import {
   AUTONOMY_LEVELS,
   SURGICAL_APPROACHES,
@@ -89,7 +92,50 @@ export default function LogScreen() {
   const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
   const [epaNote, setEpaNote] = useState<string | null>(null);
 
+  const [voiceOpen, setVoiceOpen] = useState(false);
+  const [voicePrefilled, setVoicePrefilled] = useState(false);
+
   const set = <K extends keyof FormState>(k: K, v: FormState[K]) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Merge voice-parsed fields into the form. Only sets a field when the
+  // parser returned a confident value — we never wipe an existing field
+  // the resident already typed.
+  const applyVoiceFields = (v: NormalizedVoiceFields) => {
+    setForm((f) => ({
+      ...f,
+      procedureName: v.procedureName ?? f.procedureName,
+      surgicalApproach: v.surgicalApproach ?? f.surgicalApproach,
+      role: (v.role as FormState['role']) ?? f.role,
+      autonomyLevel: v.autonomyLevel ?? f.autonomyLevel,
+      attendingLabel: v.attendingLabel ?? f.attendingLabel,
+      operativeDurationMinutes:
+        v.operativeDurationMinutes != null
+          ? String(v.operativeDurationMinutes)
+          : f.operativeDurationMinutes,
+      outcomeCategory: v.outcomeCategory ?? f.outcomeCategory,
+      notes: v.notes ?? f.notes,
+    }));
+    setVoicePrefilled(true);
+  };
+
+  // Accept parsed voice fields passed in from the dashboard's mic button.
+  // The dashboard stringifies NormalizedVoiceFields into the `voice` URL
+  // param; we parse + apply once per navigation. Expo-router re-uses the
+  // screen instance, so this effect keys on params.voice to re-run when
+  // the resident runs voice log again from the dashboard.
+  const params = useLocalSearchParams<{ voice?: string }>();
+  useEffect(() => {
+    if (!params.voice) return;
+    try {
+      const parsed = JSON.parse(params.voice) as NormalizedVoiceFields;
+      applyVoiceFields(parsed);
+    } catch {
+      // Malformed param — ignore silently rather than crashing the screen.
+    }
+    // Intentionally only runs when the voice param changes — applyVoiceFields
+    // is a stable closure inside this component.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.voice]);
 
   const runEpaSuggest = async (caseLogId: string | null) => {
     setEpaLoading(true);
@@ -185,6 +231,55 @@ export default function LogScreen() {
           </Text>
           <Text variant="h1">Log a case</Text>
         </View>
+
+        {/* Voice quick-log CTA — the hero mobile-native flow. */}
+        <Pressable
+          onPress={() => setVoiceOpen(true)}
+          style={({ pressed }) => ({
+            opacity: pressed ? 0.85 : 1,
+            marginBottom: 16,
+            borderRadius: radii.md,
+            borderWidth: 1,
+            borderColor: colors.borderGlow,
+            backgroundColor: colors.primaryDim,
+            padding: 14,
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 12,
+          })}
+        >
+          <View
+            style={{
+              width: 40,
+              height: 40,
+              borderRadius: 20,
+              backgroundColor: colors.primaryGlow,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Mic size={18} color={colors.primary} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+              <Text variant="body" weight="600">
+                Voice log
+              </Text>
+              <Sparkles size={11} color={colors.primary} />
+            </View>
+            <Text variant="caption" tone="subtle" style={{ marginTop: 2 }}>
+              Tap, say one sentence, review the form. ~10 seconds.
+            </Text>
+          </View>
+        </Pressable>
+
+        {voicePrefilled ? (
+          <Card variant="elevated" style={{ marginBottom: 12 }}>
+            <Text variant="caption" tone="success" weight="600">
+              Prefilled from your voice log. Review below and save.
+            </Text>
+          </Card>
+        ) : null}
 
         {savedCaseId ? (
           <Card variant="elevated" style={{ marginBottom: 16 }}>
@@ -328,6 +423,12 @@ export default function LogScreen() {
         suggestions={epaSuggestions}
         note={epaNote}
         onClose={() => setEpaSheetOpen(false)}
+      />
+
+      <VoiceLogSheet
+        visible={voiceOpen}
+        onClose={() => setVoiceOpen(false)}
+        onFieldsReady={applyVoiceFields}
       />
     </>
   );
