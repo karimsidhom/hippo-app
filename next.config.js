@@ -27,13 +27,11 @@ try {
   const { withSentryConfig } = require("@sentry/nextjs");
   finalConfig = withSentryConfig(nextConfig, {
     silent: true,
-    // Org + project are set via env in Vercel once the user activates Sentry.
+    // Org + project are set via env in Vercel once Sentry is activated.
     org: process.env.SENTRY_ORG,
     project: process.env.SENTRY_PROJECT,
-    // Hide the Sentry CLI banner in build logs.
     widenClientFileUpload: true,
-    disableLogger: true,
-    // Don't fail the build if upload fails (e.g. DSN not yet set).
+    // Don't fail the build if source-map upload fails (e.g. DSN not yet set).
     errorHandler: (err) => {
       console.warn("[sentry-next-config] upload skipped:", err.message);
     },

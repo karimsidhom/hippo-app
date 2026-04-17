@@ -1,10 +1,26 @@
 // ---------------------------------------------------------------------------
-// Email sending utility — uses Resend
+// Email sending utility — uses Resend.
+//
+// IMPORTANT: the Resend client is lazy-initialised. Previously this module
+// called `new Resend(process.env.RESEND_API_KEY)` at module-load time,
+// which crashed Vercel's page-data collection step when the env var wasn't
+// yet available (Next.js 16 evaluates every imported module during build).
+// A single route importing this file would fail the whole build with
+// "Missing API key. Pass it to the constructor new Resend('re_123')".
+//
+// The lazy getter means callers get a clean null when unconfigured —
+// sendEmail() already treated that as "skip", so the switch is drop-in.
 // ---------------------------------------------------------------------------
 
 import { Resend } from "resend";
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+let _resend: Resend | null = null;
+function getResendClient(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  if (!_resend) _resend = new Resend(key);
+  return _resend;
+}
 
 const FROM_ADDRESS =
   process.env.EMAIL_FROM ?? "Hippo <noreply@hippomedicine.com>";
@@ -21,8 +37,8 @@ export interface SendEmailOptions {
  * Returns true on success, false on failure (never throws).
  */
 export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
+  const resend = getResendClient();
+  if (!resend) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send");
     return false;
   }
