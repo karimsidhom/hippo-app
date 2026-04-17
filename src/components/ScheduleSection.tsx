@@ -7,7 +7,6 @@ import {
   Calendar,
   ChevronRight,
   Sparkles,
-  MessageSquare,
   Trash2,
   ChevronDown,
   ChevronUp,
@@ -41,7 +40,11 @@ interface ScheduleSectionProps {
   onDebrief: (scheduledCase: ScheduledCase) => void;
 }
 
-export function ScheduleSection({ onBrief, onDebrief }: ScheduleSectionProps) {
+export function ScheduleSection({ onBrief }: ScheduleSectionProps) {
+  // NOTE: onDebrief is still accepted in the props type for backwards
+  // compatibility with the dashboard caller — intentionally unused here.
+  // If you want to wire a Debrief CTA back into this section, do it from
+  // the Cases page (post-case) rather than time-switching the button.
   const [items, setItems] = useState<ScheduledCase[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAdd, setShowAdd] = useState(false);
@@ -285,28 +288,13 @@ export function ScheduleSection({ onBrief, onDebrief }: ScheduleSectionProps) {
                   >
                     Done
                   </div>
-                ) : isPast ? (
-                  <button
-                    onClick={() => onDebrief(item)}
-                    title="Debrief this case"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 4,
-                      padding: "4px 10px",
-                      background: "rgba(245,158,11,0.12)",
-                      border: "1px solid rgba(245,158,11,0.3)",
-                      borderRadius: 6,
-                      color: "#fde68a",
-                      fontSize: 10,
-                      fontWeight: 600,
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                    }}
-                  >
-                    <MessageSquare size={10} /> Debrief
-                  </button>
                 ) : (
+                  // Always show Brief (pre-op prep) for any non-done case.
+                  // Debrief happens post-case from the Cases page after the
+                  // case is actually logged — not time-switched here, which
+                  // produced confusing behaviour when clock/timezone math
+                  // made future cases appear "past". The amber background
+                  // above still marks overdue-to-log cases visually.
                   <button
                     onClick={() =>
                       onBrief(
