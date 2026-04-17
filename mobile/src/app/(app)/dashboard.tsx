@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { View, Pressable } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Mic, Sparkles } from 'lucide-react-native';
+import { Mic, Sparkles, Inbox, ChevronRight } from 'lucide-react-native';
+import { z } from 'zod';
 import {
   Screen,
   Text,
@@ -11,7 +12,27 @@ import {
   type NormalizedVoiceFields,
 } from '@/components';
 import { listCases, type CaseLog } from '@/lib/cases';
+import { apiRequest } from '@/lib/api';
 import { colors, radii } from '@/theme/tokens';
+
+const STAFF_ROLES = new Set(['ATTENDING', 'STAFF', 'PROGRAM_DIRECTOR']);
+
+// Minimal shape for the role + pending-count fetches. We intentionally
+// don't share a schema with the inbox — this is two light reads that
+// drive one dashboard card, not a cross-screen contract.
+const ProfileRoleSchema = z
+  .object({
+    profile: z
+      .object({ roleType: z.string().nullable().optional() })
+      .passthrough()
+      .nullable()
+      .optional(),
+  })
+  .passthrough();
+
+const AttendingSummarySchema = z
+  .object({ pendingReview: z.number().default(0) })
+  .passthrough();
 
 interface Stats {
   totalCases: number;
@@ -59,6 +80,45 @@ export default function DashboardScreen() {
   const [cases, setCases] = useState<CaseLog[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [voiceOpen, setVoiceOpen] = useState(false);
+
+  // Role + pending sign-offs — loaded quietly so the staff card appears
+  // only when relevant. Fails silent: residents just never see the card.
+  const [roleType, setRoleType] = useState<string | null>(null);
+  const [pendingSignOffs, setPendingSignOffs] = useState<number | null>(null);
+  const isStaff = !!(roleType && STAFF_ROLES.has(roleType));
+
+  useEffect(() => {
+    let cancelled = false;
+    apiRequest({
+      path: '/api/auth/me',
+      method: 'GET',
+      schema: ProfileRoleSchema,
+    })
+      .then((me) => {
+        if (cancelled) return;
+        const role = me.profile?.roleType ?? null;
+        setRoleType(role);
+        if (role && STAFF_ROLES.has(role)) {
+          apiRequest({
+            path: '/api/attending/summary',
+            method: 'GET',
+            schema: AttendingSummarySchema,
+          })
+            .then((s) => {
+              if (!cancelled) setPendingSignOffs(s.pendingReview ?? 0);
+            })
+            .catch(() => {
+              if (!cancelled) setPendingSignOffs(0);
+            });
+        }
+      })
+      .catch(() => {
+        /* silent */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Voice dictation routes through the dedicated log form so the resident
   // always sees their fields in one place. We hand the parsed fields to
@@ -120,6 +180,64 @@ export default function DashboardScreen() {
           value={stats ? `${stats.primaryRate}%` : '—'}
         />
       </View>
+
+      {/* Staff (attending/PD) EPA sign-off entry point. Always visible
+          for staff, with a hot accent when the queue is non-empty. */}
+      {isStaff ? (
+        <Pressable
+          onPress={() => router.push('/(app)/inbox')}
+          style={({ pressed }) => {
+            const hot = (pendingSignOffs ?? 0) > 0;
+            return {
+              opacity: pressed ? 0.85 : 1,
+              marginBottom: 16,
+              borderRadius: radii.md,
+              borderWidth: 1,
+              borderColor: hot ? colors.borderGlow : colors.border,
+              backgroundColor: hot ? colors.primaryDim : colors.surface,
+              paddingVertical: 14,
+              paddingHorizontal: 14,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: 12,
+            };
+          }}
+        >
+          <View
+            style={{
+              width: 36,
+              height: 36,
+              borderRadius: 18,
+              backgroundColor:
+                (pendingSignOffs ?? 0) > 0 ? colors.primaryGlow : colors.bg1,
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
+            <Inbox
+              size={18}
+              color={(pendingSignOffs ?? 0) > 0 ? colors.primary : colors.text3}
+            />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text variant="body" weight="600">
+              {pendingSignOffs == null
+                ? 'EPAs to complete'
+                : pendingSignOffs === 0
+                  ? 'EPAs to complete'
+                  : pendingSignOffs === 1
+                    ? '1 EPA awaiting your signature'
+                    : `${pendingSignOffs} EPAs awaiting your signature`}
+            </Text>
+            <Text variant="caption" tone="subtle" style={{ marginTop: 2 }}>
+              {(pendingSignOffs ?? 0) === 0
+                ? 'All caught up — tap to review.'
+                : 'Residents waiting on your feedback.'}
+            </Text>
+          </View>
+          <ChevronRight size={16} color={colors.text3} />
+        </Pressable>
+      ) : null}
 
       {/* Primary log row — voice (hero) + manual fallback */}
       <View style={{ flexDirection: 'row', gap: 10, marginBottom: 24 }}>

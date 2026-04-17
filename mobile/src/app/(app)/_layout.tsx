@@ -83,6 +83,15 @@ export default function AppLayout() {
           tabBarIcon: ({ color, size }) => <User color={color} size={size - 2} />,
         }}
       />
+      {/* Inbox exists as a route but is not a tab — staff users reach it
+          from a dashboard card. Residents never see it. Hiding here
+          keeps the tab bar at 5 native slots and matches the web pattern
+          where Inbox lives behind a dashboard CTA, not the bottom nav. */}
+      <Tabs.Screen
+        name="inbox"
+        options={{ href: null }}
+      />
+      {/* Cases detail route — [id].tsx inside cases/ — same treatment. */}
     </Tabs>
   );
 }
