@@ -181,10 +181,18 @@ const serwist = new Serwist({
   },
 });
 
-// ── Push notification handler (Phase 3 scaffold) ─────────────────────
-// Receives a web-push event from the server and shows a notification.
-// No real notifications wired up yet — the PR that builds "EPA awaiting
-// your signature" pushes will add the payload schema + click handler.
+// ── Push notification handler ────────────────────────────────────────
+// Receives a web-push event from the server (createNotification → sendPushToUser)
+// and renders an OS notification. Payload schema matches what the server
+// produces in src/lib/notifications/push.ts:
+//   { title, body, url, tag, data: { type, epaObservationId } }
+//
+// Known caveats:
+//   - iOS does NOT honour `silent`, `vibrate`, `renotify`, or custom sounds.
+//     We still set them because Android + desktop Chrome use them; iOS
+//     just ignores and plays the user's default notification sound.
+//   - On iOS, the notification only fires if the PWA is installed to the
+//     home screen AND iOS 16.4+. Nothing we can do about that here.
 
 self.addEventListener("push", (event) => {
   if (!event.data) return;
@@ -194,6 +202,7 @@ self.addEventListener("push", (event) => {
       body?: string;
       url?: string;
       tag?: string;
+      data?: Record<string, unknown>;
     };
     const title = payload.title ?? "Hippo";
     const options: NotificationOptions = {
@@ -201,7 +210,19 @@ self.addEventListener("push", (event) => {
       icon: "/icons/icon-192.png",
       badge: "/icons/icon-96.png",
       tag: payload.tag,
-      data: { url: payload.url ?? "/dashboard" },
+      // renotify: when a second push arrives with the same tag, still
+      // vibrate + sound (on platforms that honour it) instead of silently
+      // updating in place. Without this, repeated "EPA awaiting review"
+      // pings feel invisible. TS's NotificationOptions doesn't expose
+      // this field yet — cast around it.
+      ...(payload.tag ? { renotify: true } : {}),
+      // Don't require the user to dismiss — it's a notification, not a
+      // dialog. The user will interact when they're ready.
+      requireInteraction: false,
+      data: {
+        url: payload.url ?? "/notifications",
+        ...(payload.data ?? {}),
+      },
     };
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (err) {
@@ -211,6 +232,7 @@ self.addEventListener("push", (event) => {
       self.registration.showNotification("Hippo", {
         body: "Open the app to see what's new.",
         icon: "/icons/icon-192.png",
+        data: { url: "/notifications" },
       }),
     );
   }
@@ -218,23 +240,36 @@ self.addEventListener("push", (event) => {
 
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  const url =
-    (event.notification.data as { url?: string } | undefined)?.url ??
-    "/dashboard";
+  const data = event.notification.data as { url?: string } | undefined;
+  const url = data?.url ?? "/notifications";
+
   event.waitUntil(
     (async () => {
       const clients = await self.clients.matchAll({
         type: "window",
         includeUncontrolled: true,
       });
-      // If the app is already open, focus that window instead of making a
-      // duplicate tab — matches native-app behaviour.
+
+      // Prefer the most-recently-focused existing window. On iOS PWAs,
+      // `navigate()` is flaky — postMessage is more reliable. We send
+      // the URL and let the client-side router handle the transition
+      // with a proper in-SPA navigation (no full reload, no re-auth).
       for (const client of clients) {
         if ("focus" in client) {
-          await (client as WindowClient).navigate(url).catch(() => {});
-          return (client as WindowClient).focus();
+          const windowClient = client as WindowClient;
+          try {
+            // Try postMessage first — the client listens for it and
+            // routes inside the SPA. Falls through to navigate() if
+            // nothing catches it.
+            windowClient.postMessage({ type: "notification-click", url });
+          } catch { /* no-op */ }
+          try {
+            await windowClient.navigate(url);
+          } catch { /* navigate throws on cross-origin; ignore */ }
+          return windowClient.focus();
         }
       }
+      // No window open — spawn one.
       return self.clients.openWindow(url);
     })(),
   );

@@ -17,10 +17,48 @@ import Constants from 'expo-constants';
 // SecureStore has a 2048-byte value limit which is enough for an access
 // token + refresh token. For larger blobs (e.g. offline case drafts)
 // fall through to MMKV elsewhere — never put PHI here.
+//
+// We wrap each call in try/catch because iOS SecureStore can throw a
+// CodedError("Calling the 'getValueWithKeyAsync' function has failed") on
+// unsigned/simulator builds where the keychain-access-groups entitlement
+// isn't present. Without the catch, the rejection propagates up through
+// Supabase's session-restore logic and crashes the initial render — the
+// user sees a blank white screen on first launch. A clean null return
+// means "no stored session yet" which is exactly what a fresh install is.
 const ExpoSecureStoreAdapter = {
-  getItem: (key: string) => SecureStore.getItemAsync(key),
-  setItem: (key: string, value: string) => SecureStore.setItemAsync(key, value),
-  removeItem: (key: string) => SecureStore.deleteItemAsync(key),
+  async getItem(key: string): Promise<string | null> {
+    try {
+      return await SecureStore.getItemAsync(key);
+    } catch (err) {
+      console.warn(
+        `[secure-store] getItem(${key}) failed — treating as no session:`,
+        err instanceof Error ? err.message : err,
+      );
+      return null;
+    }
+  },
+  async setItem(key: string, value: string): Promise<void> {
+    try {
+      await SecureStore.setItemAsync(key, value);
+    } catch (err) {
+      // Can't persist session — the session survives in memory for this
+      // app run but won't survive relaunch. Better than crashing.
+      console.warn(
+        `[secure-store] setItem(${key}) failed:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  },
+  async removeItem(key: string): Promise<void> {
+    try {
+      await SecureStore.deleteItemAsync(key);
+    } catch (err) {
+      console.warn(
+        `[secure-store] removeItem(${key}) failed:`,
+        err instanceof Error ? err.message : err,
+      );
+    }
+  },
 };
 
 const supabaseUrl = (Constants.expoConfig?.extra as { supabaseUrl?: string })?.supabaseUrl

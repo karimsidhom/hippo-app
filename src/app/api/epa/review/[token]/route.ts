@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { createNotification } from '@/lib/notifications/create';
+import { sendResidentOutcomeEmail } from '@/lib/notifications/emails';
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -176,6 +177,14 @@ export async function POST(req: NextRequest, context: RouteContext) {
         epaObservationId: observation.id,
       }).catch(err => console.warn('[review sign] notify failed:', err));
 
+      void sendResidentOutcomeEmail({
+        residentId: observation.userId,
+        kind: 'verified',
+        assessorName: signerName,
+        epaId: observation.epaId,
+        epaTitle: observation.epaTitle,
+      });
+
       return NextResponse.json(updated);
     }
 
@@ -204,6 +213,15 @@ export async function POST(req: NextRequest, context: RouteContext) {
       actionUrl: `/cases?epa=${observation.id}`,
       epaObservationId: observation.id,
     }).catch(err => console.warn('[review return] notify failed:', err));
+
+    void sendResidentOutcomeEmail({
+      residentId: observation.userId,
+      kind: 'returned',
+      assessorName: notification.recipientName ?? 'your attending',
+      epaId: observation.epaId,
+      epaTitle: observation.epaTitle,
+      reason: data.returnedReason ?? null,
+    });
 
     return NextResponse.json(updated);
   } catch (err) {

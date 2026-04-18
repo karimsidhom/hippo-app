@@ -141,6 +141,11 @@ export async function GET(req: NextRequest) {
     { header: 'O-Score (1\u20135)', key: 'entrustmentScore',  width: 10 },
     { header: 'O-Score Label',      key: 'entrustmentLabel',  width: 16 },
     { header: 'Achievement',        key: 'achievement',       width: 12 },
+    // Verified is a fast-scan Y/blank column so PDs reviewing the export
+    // can filter to real, attending-signed EPAs without reading the full
+    // Status column. "Signed" + "Y" is redundant on purpose — some
+    // readers sort on Verified, others on Status.
+    { header: 'Verified',           key: 'verified',          width: 9  },
     { header: 'Status',             key: 'status',            width: 14 },
     { header: 'Signed By',          key: 'signedByName',      width: 22 },
     { header: 'Signed At',          key: 'signedAt',          width: 14 },
@@ -190,6 +195,7 @@ export async function GET(req: NextRequest) {
       entrustmentScore: o.entrustmentScore ?? '',
       entrustmentLabel: o.entrustmentScore ? OSCORE_LABELS[o.entrustmentScore] ?? '' : '',
       achievement: o.achievement === 'ACHIEVED' ? 'Achieved' : 'Not Yet',
+      verified: o.status === 'SIGNED' ? 'Y' : '',
       status: STATUS_LABELS[o.status] ?? o.status,
       signedByName: o.signedByName ?? '',
       signedAt: o.signedAt ? fmtDate(o.signedAt) : '',
@@ -211,7 +217,8 @@ export async function GET(req: NextRequest) {
     if (col) col.alignment = { wrapText: true, vertical: 'top' };
   });
 
-  // Color rows by status
+  // Color rows by status. Signed also gets bold Status + Verified cells
+  // so the academic-record-significant rows jump out in a printed copy.
   ws.eachRow({ includeEmpty: false }, (row, idx) => {
     if (idx === 1) return;
     const status = row.getCell('status').value as string;
@@ -222,6 +229,11 @@ export async function GET(req: NextRequest) {
     else if (status === 'Draft') color = 'FFF1F5F9';     // pale gray
     if (color) {
       row.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: color } };
+    }
+    if (status === 'Signed') {
+      row.getCell('status').font = { bold: true, color: { argb: 'FF0F5132' } };
+      row.getCell('verified').font = { bold: true, color: { argb: 'FF0F5132' } };
+      row.getCell('verified').alignment = { horizontal: 'center' };
     }
   });
 
@@ -425,7 +437,7 @@ function buildCsv(rows: CsvRow[]): string {
     'Assessor Name', 'Assessor Role', 'Assessor Email',
     'Setting', 'Complexity', 'Technique',
     'Procedure', 'Approach', 'Case Date',
-    'O-Score', 'Achievement', 'Status',
+    'O-Score', 'Achievement', 'Verified', 'Status',
     'Signed By', 'Signed At', 'Returned Reason',
     'Observation Notes', 'Strengths', 'For Improvement',
     'Safety Concern', 'Professionalism Concern', 'Concern Details',
@@ -449,6 +461,7 @@ function buildCsv(rows: CsvRow[]): string {
       o.caseLog?.procedureName ?? '', o.caseLog?.surgicalApproach ?? '',
       o.caseLog?.caseDate ? fmtDate(o.caseLog.caseDate as Date) : '',
       o.entrustmentScore ?? '', o.achievement === 'ACHIEVED' ? 'Achieved' : 'Not Yet',
+      o.status === 'SIGNED' ? 'Y' : '',
       STATUS_LABELS[o.status as string] ?? o.status,
       o.signedByName ?? '', o.signedAt ? fmtDate(o.signedAt as Date) : '',
       o.returnedReason ?? '',

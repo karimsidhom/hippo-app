@@ -2,12 +2,28 @@ import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
 
 // Routes that don't need auth
-const PUBLIC_ROUTES = new Set(['/', '/login', '/signup', '/onboarding']);
-const PUBLIC_API_PREFIXES = ['/api/auth/', '/api/stripe/webhook', '/api/cron/'];
+// /install is public so the link works as a shareable "get the app" URL —
+// no login required. The page itself handles already-installed / iOS /
+// unsupported-browser states honestly.
+// /offline is the service-worker fallback — if it requires auth the SW
+// can't serve it to a logged-out user who lost connectivity.
+const PUBLIC_ROUTES = new Set([
+  '/', '/login', '/signup', '/onboarding', '/install', '/offline',
+]);
+const PUBLIC_API_PREFIXES = [
+  '/api/auth/',
+  '/api/stripe/webhook',
+  '/api/cron/',
+  // Review route is a public token link emailed to attendings who may
+  // not have a Hippo account. The API verifies the token.
+  '/api/epa/review/',
+];
 
-// Public page prefixes (e.g., invite acceptance landing uses a token; the page
-// itself is public, though actually joining requires a login).
-const PUBLIC_PAGE_PREFIXES = ['/join/'];
+// Public page prefixes.
+//   /join/:token  — program invites
+//   /review/:token — EPA review flow for attendings without accounts
+//   /legal/*      — privacy / terms / PHIA / etc; must be publicly readable
+const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/'];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;

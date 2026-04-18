@@ -4,6 +4,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
 import { createNotification } from '@/lib/notifications/create';
+import { sendResidentOutcomeEmail } from '@/lib/notifications/emails';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -137,6 +138,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
         epaObservationId: id,
       }).catch(err => console.warn('[sign] resident notify failed:', err));
 
+      // Email the resident too — defence against them missing the push
+      // while post-call. Respects their email-channel preference via
+      // the prefs check below. Fire-and-forget.
+      void sendResidentOutcomeEmail({
+        residentId: existing.userId,
+        kind: 'verified',
+        assessorName: signData.signedByName as string,
+        epaId: existing.epaId,
+        epaTitle: existing.epaTitle,
+      });
+
       return NextResponse.json(updated);
     }
 
@@ -181,6 +193,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
       actionUrl: `/cases?epa=${id}`,
       epaObservationId: id,
     }).catch(err => console.warn('[return] resident notify failed:', err));
+
+    const signerName = (await db.user.findUnique({
+      where: { id: user.id }, select: { name: true, email: true },
+    }))?.name ?? 'your attending';
+
+    void sendResidentOutcomeEmail({
+      residentId: existing.userId,
+      kind: 'returned',
+      assessorName: signerName,
+      epaId: existing.epaId,
+      epaTitle: existing.epaTitle,
+      reason: data.returnedReason ?? null,
+    });
 
     return NextResponse.json(updated);
   } catch (err) {

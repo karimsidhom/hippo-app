@@ -190,6 +190,129 @@ function escapeHtml(str: string): string {
 }
 
 // ---------------------------------------------------------------------------
+// Resident-facing EPA outcome emails
+//
+// Sent to the resident when their attending has acted on an EPA submission.
+// Two variants:
+//   - VERIFIED — "your EPA was signed, here's what the attending said"
+//   - RETURNED — "your EPA needs edits, here's why"
+//
+// These complement the in-app/push notification: the resident gets an
+// email too (unless they've opted out via preferences) so something
+// important doesn't sit unread while they're post-call.
+// ---------------------------------------------------------------------------
+
+export interface EpaOutcomeEmailData {
+  residentName: string;
+  residentEmail: string;
+  assessorName: string;
+  epaId: string;
+  epaTitle: string;
+  /** Attending's comment on return; null on verification unless they added one. */
+  reason?: string | null;
+  appUrl: string;
+}
+
+export function buildEpaVerifiedEmail(data: EpaOutcomeEmailData): {
+  subject: string; html: string; text: string;
+} {
+  const subject = `EPA verified: ${data.epaId} — signed by ${data.assessorName}`;
+  const text = `Hi ${data.residentName},
+
+Good news — ${data.assessorName} signed off on your EPA observation.
+
+EPA: ${data.epaId} — ${data.epaTitle}
+
+This now counts toward your training record. Open Hippo to see the full feedback:
+${data.appUrl}
+
+— Hippo`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">🦛 Hippo</div>
+      <div style="font-size:12px;color:#10b981;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">EPA Verified</div>
+    </div>
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(data.residentName)},</p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(data.assessorName)}</strong> signed off on your EPA observation. This now counts toward your training record.
+      </p>
+      <div style="background:#0e1520;border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.12);padding:2px 8px;border-radius:4px;font-family:monospace;">${escapeHtml(data.epaId)}</span>
+          <span style="font-size:13px;font-weight:600;color:#e2e8f0;">${escapeHtml(data.epaTitle)}</span>
+        </div>
+      </div>
+      <a href="${escapeHtml(data.appUrl)}" style="display:block;text-align:center;background:#10b981;color:#fff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">
+        View in Hippo
+      </a>
+    </div>
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">You can turn these emails off in <a href="${escapeHtml(data.appUrl)}/settings/notifications" style="color:#64748b;">Settings → Notifications</a>.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  return { subject, html, text };
+}
+
+export function buildEpaReturnedEmail(data: EpaOutcomeEmailData): {
+  subject: string; html: string; text: string;
+} {
+  const subject = `EPA needs edits: ${data.epaId} — feedback from ${data.assessorName}`;
+  const reasonBlock = data.reason
+    ? `\nFeedback:\n${data.reason}\n`
+    : "\nThe attending asked for edits but didn't leave a specific reason.\n";
+
+  const text = `Hi ${data.residentName},
+
+${data.assessorName} returned your EPA for edits.
+
+EPA: ${data.epaId} — ${data.epaTitle}
+${reasonBlock}
+Open Hippo to revise and resubmit:
+${data.appUrl}
+
+— Hippo`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">🦛 Hippo</div>
+      <div style="font-size:12px;color:#f59e0b;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">EPA Returned for Edits</div>
+    </div>
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(data.residentName)},</p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(data.assessorName)}</strong> returned your EPA with feedback. Open it, revise, and resubmit — nothing is lost.
+      </p>
+      <div style="background:#0e1520;border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${data.reason ? "12" : "0"}px;">
+          <span style="font-size:11px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.12);padding:2px 8px;border-radius:4px;font-family:monospace;">${escapeHtml(data.epaId)}</span>
+          <span style="font-size:13px;font-weight:600;color:#e2e8f0;">${escapeHtml(data.epaTitle)}</span>
+        </div>
+        ${data.reason ? `<div style="font-size:13px;color:#cbd5e1;line-height:1.55;padding:12px;background:rgba(245,158,11,0.05);border-left:2px solid rgba(245,158,11,0.4);border-radius:4px;white-space:pre-wrap;">${escapeHtml(data.reason)}</div>` : ""}
+      </div>
+      <a href="${escapeHtml(data.appUrl)}" style="display:block;text-align:center;background:#f59e0b;color:#0e1520;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">
+        Revise &amp; Resubmit
+      </a>
+    </div>
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">You can turn these emails off in <a href="${escapeHtml(data.appUrl)}/settings/notifications" style="color:#64748b;">Settings → Notifications</a>.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
 // Program invite email
 // ---------------------------------------------------------------------------
 

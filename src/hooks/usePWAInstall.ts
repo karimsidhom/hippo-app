@@ -43,10 +43,14 @@ declare global {
 }
 
 type InstallKind =
-  | "native"        // beforeinstallprompt captured — one-tap install works
-  | "ios"           // iOS Safari — show the visual guide (no programmatic API)
-  | "installed"     // already running as a PWA — hide install UX entirely
-  | "unavailable";  // not supported here (iOS Chrome, in-app browser, desktop non-Chrome)
+  | "native"           // beforeinstallprompt captured — one-tap install works
+  | "ios"              // iOS Safari — show the visual guide (no programmatic API)
+  | "ios-chrome"       // iOS Chrome/FF/Edge — must open in Safari to install
+  | "chrome-manual"    // On Chrome/Edge but the event didn't fire — show the
+                       // browser-menu path (three-dots → Install Hippo).
+  | "installed"        // already running as a PWA — hide install UX entirely
+  | "in-app-browser"   // Instagram / Twitter / TikTok etc — no install possible
+  | "unsupported";     // Firefox etc — no install API at all
 
 export interface PWAInstallState {
   kind: InstallKind;
@@ -63,7 +67,7 @@ export interface PWAInstallState {
 }
 
 function detectKind(): InstallKind {
-  if (typeof window === "undefined") return "unavailable";
+  if (typeof window === "undefined") return "unsupported";
 
   // Already installed? No more install UX needed.
   const standalone = window.matchMedia("(display-mode: standalone)").matches;
@@ -75,33 +79,47 @@ function detectKind(): InstallKind {
   // Android Chrome / desktop Chrome: the captured event decides it.
   if (window.__hippoInstallPromptEvent) return "native";
 
-  // iOS detection — including iPadOS 13+ that pretends to be Mac.
   const ua = navigator.userAgent.toLowerCase();
+
+  // In-app browsers never install — they don't support Add-to-Home.
+  if (/fban|fbav|instagram|line\/|twitter|tiktok|linkedin/i.test(ua)) {
+    return "in-app-browser";
+  }
+
+  // iOS detection — including iPadOS 13+ that pretends to be Mac.
   const isIpadOS =
     navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1;
   const isIOS = /iphone|ipad|ipod/.test(ua) || isIpadOS;
 
-  if (!isIOS) {
-    // Not iOS and no captured event — could be Firefox, Edge, or a
-    // browser that hasn't fired the event yet. Call it unavailable;
-    // caller can show "Open in your default browser" guidance.
-    return "unavailable";
+  if (isIOS) {
+    // iOS Safari = Add-to-Home-Screen via Share menu. iOS Chrome/Firefox/
+    // Edge share the WebKit engine but hide install inside their own
+    // menus — route those to a dedicated "open in Safari" panel so the
+    // copy is honest ("you're on Chrome for iOS — Apple requires Safari").
+    const isSafari =
+      /safari/.test(ua) && !/crios|fxios|edgios|yabrowser|ucbrowser/.test(ua);
+    return isSafari ? "ios" : "ios-chrome";
   }
 
-  // iOS path — only Safari can Add-to-Home-Screen. iOS Chrome/Firefox/
-  // Edge all share the WebKit engine but hide install inside their own
-  // menus, which we can't control.
-  const isInAppBrowser =
-    /fban|fbav|instagram|line\/|twitter|tiktok|linkedin/i.test(ua);
-  if (isInAppBrowser) return "unavailable";
+  // Non-iOS, no event fired. This happens on:
+  //   - Chrome/Edge on a site that already declined / dismissed once.
+  //   - Chrome on a site the browser considers already "engaged" enough
+  //     that it suppresses the prompt.
+  //   - Android browsers where the event races with our hook mount.
+  //   - Desktop where the user can still install from the menu.
+  // Surface a dedicated "manual install" kind so the UI shows the
+  // three-dot menu guide instead of an incorrect "open in Safari" msg.
+  const isChromium =
+    /chrome|chromium|crios|edge|edg\/|opr\//.test(ua) &&
+    !/firefox|fxios/.test(ua);
+  if (isChromium) return "chrome-manual";
 
-  const isSafari =
-    /safari/.test(ua) && !/crios|fxios|edgios|yabrowser|ucbrowser/.test(ua);
-  return isSafari ? "ios" : "unavailable";
+  // Firefox and anything else — install not supported at all.
+  return "unsupported";
 }
 
 export function usePWAInstall(): PWAInstallState {
-  const [kind, setKind] = useState<InstallKind>("unavailable");
+  const [kind, setKind] = useState<InstallKind>("unsupported");
   const [installing, setInstalling] = useState(false);
 
   useEffect(() => {
@@ -131,7 +149,7 @@ export function usePWAInstall(): PWAInstallState {
     };
   }, []);
 
-  const triggerInstall = useCallback(async () => {
+  const triggerInstall = useCallback(async (): Promise<"accepted" | "dismissed" | "unavailable"> => {
     if (typeof window === "undefined") return "unavailable";
     const evt = window.__hippoInstallPromptEvent;
     if (!evt) return "unavailable";

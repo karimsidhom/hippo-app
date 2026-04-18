@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle,
@@ -323,27 +323,114 @@ export default function InboxPage() {
                   onSignAll={async () => {
                     const toSign = pending.filter(o => bulkScores[o.id]);
                     if (toSign.length === 0) return;
+                    // Summary by resident for the confirmation — PDs signing
+                    // for several residents at once deserve to see who
+                    // they're about to verify before they commit.
+                    const byResident = new Map<string, number>();
+                    for (const o of toSign) {
+                      const key = o.user.name || o.user.email;
+                      byResident.set(key, (byResident.get(key) ?? 0) + 1);
+                    }
+                    const residentSummary = Array.from(byResident.entries())
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([name, n]) => `  • ${n} × ${name}`)
+                      .join("\n");
+                    const extraResidents = byResident.size > 6
+                      ? `\n  …and ${byResident.size - 6} more residents`
+                      : "";
+                    if (!window.confirm(
+                      `Sign ${toSign.length} EPA${toSign.length === 1 ? "" : "s"} as the verifying attending?\n\n` +
+                      `${residentSummary}${extraResidents}\n\n` +
+                      `Residents will be notified immediately. This records your name on the academic record.`
+                    )) return;
                     setBulkSigning(true);
                     try {
-                      // Sequential to keep ordering + error handling simple.
-                      for (const obs of toSign) {
-                        await fetch(`/api/attending/observations/${obs.id}`, {
-                          method: "POST",
-                          headers: { "Content-Type": "application/json" },
-                          body: JSON.stringify({
-                            action: "sign",
-                            entrustmentScore: bulkScores[obs.id],
+                      // One HTTP call instead of N. Much faster for 50+ EPAs,
+                      // and the server returns per-item success so we can
+                      // surface partial failures.
+                      const res = await fetch(`/api/attending/observations/batch`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "sign",
+                          confirmed: true,
+                          items: toSign.map(o => ({
+                            id: o.id,
+                            entrustmentScore: bulkScores[o.id],
                             achievement: "ACHIEVED",
-                            safetyConcern: false,
-                            professionalismConcern: false,
-                          }),
-                        });
+                          })),
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      const data = await res.json() as {
+                        succeeded: number;
+                        failed: number;
+                        total: number;
+                        results: Array<{ id: string; ok: boolean; error?: string }>;
+                      };
+                      if (data.failed > 0) {
+                        // Surface specific failures so the attending knows
+                        // which EPAs still need attention, not just a count.
+                        const failedItems = data.results.filter(r => !r.ok);
+                        const byId = new Map(pending.map(p => [p.id, p]));
+                        const detail = failedItems
+                          .slice(0, 8) // cap the alert so it doesn't wall-of-text
+                          .map(f => {
+                            const obs = byId.get(f.id);
+                            const who = obs ? (obs.user.name || obs.user.email) : f.id;
+                            return `• ${obs?.epaId ?? f.id} (${who}) — ${f.error ?? "unknown"}`;
+                          })
+                          .join("\n");
+                        const extra = failedItems.length > 8 ? `\n…and ${failedItems.length - 8} more.` : "";
+                        alert(
+                          `${data.succeeded} signed. ${data.failed} could not be signed:\n\n${detail}${extra}\n\nThey stay in your inbox.`,
+                        );
+                        fx.toggle();
+                      } else {
+                        fx.log();
                       }
+                    } catch (err) {
+                      fx.error();
+                      alert("Batch sign failed: " + (err instanceof Error ? err.message : String(err)));
                     } finally {
-                      // Batch-signed confirmation — the resident side gets a
-                      // "EPA verified" push per item; here we chirp once for
-                      // the whole run so the attending feels the completion.
-                      fx.log();
+                      setBulkSigning(false);
+                      setBulkScores({});
+                      setBulkMode(false);
+                      await load();
+                    }
+                  }}
+                  onReturnAll={async (reason) => {
+                    const toReturn = pending.filter(o => bulkScores[o.id]);
+                    if (toReturn.length === 0 || !reason.trim()) return;
+                    if (!window.confirm(
+                      `Return ${toReturn.length} EPA${toReturn.length === 1 ? "" : "s"} ` +
+                      `to their residents with the same feedback? This cannot be undone in bulk.`
+                    )) return;
+                    setBulkSigning(true);
+                    try {
+                      const res = await fetch(`/api/attending/observations/batch`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "return",
+                          confirmed: true,
+                          returnedReason: reason,
+                          items: toReturn.map(o => ({ id: o.id })),
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      const data = await res.json();
+                      if (data.failed > 0) {
+                        alert(`${data.succeeded} returned. ${data.failed} failed — check the list.`);
+                        fx.toggle();
+                      } else {
+                        fx.toggle();
+                      }
+                    } catch (err) {
+                      fx.error();
+                      alert("Batch return failed: " + (err instanceof Error ? err.message : String(err)));
+                    } finally {
                       setBulkSigning(false);
                       setBulkScores({});
                       setBulkMode(false);
@@ -987,10 +1074,56 @@ interface BulkQueueProps {
   onScore: (id: string, score: number) => void;
   signing: boolean;
   onSignAll: () => void;
+  onReturnAll: (reason: string) => void;
 }
 
-function BulkQueue({ pending, scores, onScore, signing, onSignAll }: BulkQueueProps) {
+function BulkQueue({ pending, scores, onScore, signing, onSignAll, onReturnAll }: BulkQueueProps) {
+  const [returnMode, setReturnMode] = useState(false);
+  const [returnReasonAll, setReturnReasonAll] = useState("");
+  const [residentFilter, setResidentFilter] = useState<string>("all");
+
+  // Unique list of residents in the pending queue — powers the filter.
+  // Keys by userId so we don't dedupe away two residents named "J. Smith".
+  const residents = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }>();
+    for (const obs of pending) {
+      if (!map.has(obs.user.id)) {
+        map.set(obs.user.id, { id: obs.user.id, label: obs.user.name || obs.user.email });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [pending]);
+
+  const visible = useMemo(() => {
+    if (residentFilter === "all") return pending;
+    return pending.filter(o => o.user.id === residentFilter);
+  }, [pending, residentFilter]);
+
+  const visibleIds = useMemo(() => new Set(visible.map(v => v.id)), [visible]);
+  const visibleReadyCount = visible.filter(o => scores[o.id]).length;
+  // readyCount is still global — the "Sign all N" button signs every
+  // scored EPA, even ones not currently visible. That's intentional:
+  // scoring persists across filter toggles so attendings can score
+  // Dr. Smith's then Dr. Jones's then sign the whole batch.
   const readyCount = pending.filter(o => scores[o.id]).length;
+
+  // Helper — set score on every observation that doesn't yet have one,
+  // within the current filter. If everything's already scored, this
+  // overwrites (common: PD wants to set everyone to 4).
+  const setAllTo = (score: number) => {
+    for (const obs of visible) {
+      onScore(obs.id, score);
+    }
+  };
+
+  // Helper — clear all scores (for the current filter only, so you can
+  // re-pick without wiping other residents' progress).
+  const clearAll = () => {
+    for (const obs of visible) {
+      // Setting to 0 is semantically "not scored" since the picker uses 1-5.
+      onScore(obs.id, 0 as unknown as number);
+    }
+  };
 
   return (
     <div style={{
@@ -1001,14 +1134,97 @@ function BulkQueue({ pending, scores, onScore, signing, onSignAll }: BulkQueuePr
     }}>
       <div style={{
         display: "flex", alignItems: "center", gap: 6,
-        padding: "4px 0 8px",
+        padding: "4px 0 10px",
         fontSize: 11, color: "var(--text-3)",
       }}>
         <Zap size={12} style={{ color: "var(--primary)" }} />
         <span>Pick an O-score for each. Signs as <strong>Achieved</strong>, no concerns flagged.</span>
       </div>
+
+      {/* Bulk actions: filter by resident + set-all shortcuts. These save
+          PDs with 70+ pending EPAs from scoring every one individually. */}
+      {pending.length > 3 && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          paddingBottom: 10,
+          marginBottom: 10,
+          borderBottom: "1px solid var(--border)",
+        }}>
+          {residents.length > 1 && (
+            <select
+              value={residentFilter}
+              onChange={(e) => setResidentFilter(e.target.value)}
+              disabled={signing}
+              className="st-input"
+              style={{
+                fontSize: 11,
+                padding: "6px 24px 6px 8px",
+                width: "auto",
+                minWidth: 140,
+              }}
+            >
+              <option value="all">All residents ({pending.length})</option>
+              {residents.map(r => {
+                const count = pending.filter(o => o.user.id === r.id).length;
+                return (
+                  <option key={r.id} value={r.id}>{r.label} ({count})</option>
+                );
+              })}
+            </select>
+          )}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 4,
+            fontSize: 10, color: "var(--text-3)",
+          }}>
+            <span>Set all to:</span>
+            {[1, 2, 3, 4, 5].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setAllTo(n)}
+                disabled={signing}
+                className="press"
+                title={`Set all ${visible.length} visible to O-${n}`}
+                style={{
+                  width: 24, height: 24, borderRadius: 4,
+                  border: `1px solid ${ENTRUSTMENT_COLORS[n]}40`,
+                  background: `${ENTRUSTMENT_COLORS[n]}15`,
+                  color: ENTRUSTMENT_COLORS[n],
+                  fontSize: 11, fontWeight: 700,
+                  cursor: signing ? "wait" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={signing}
+              className="press"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-3)",
+                fontSize: 10,
+                padding: "4px 6px",
+                cursor: signing ? "wait" : "pointer",
+                fontFamily: "inherit",
+                textDecoration: "underline",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-        {pending.map(obs => {
+        {visible.map(obs => {
           const picked = scores[obs.id];
           return (
             <div
@@ -1081,33 +1297,90 @@ function BulkQueue({ pending, scores, onScore, signing, onSignAll }: BulkQueuePr
         })}
       </div>
       <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
         marginTop: 12, paddingTop: 10,
         borderTop: "1px solid var(--border)",
       }}>
-        <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-          {readyCount} of {pending.length} ready to sign
-        </div>
-        <button
-          onClick={onSignAll}
-          disabled={readyCount === 0 || signing}
-          style={{
-            ...BTN_PRIMARY,
-            opacity: readyCount === 0 || signing ? 0.55 : 1,
-            cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
-          }}
-        >
-          {signing ? (
-            <Loader2 size={13} className="animate-spin" />
-          ) : (
-            <CheckCircle2 size={13} />
-          )}
-          {signing
-            ? `Signing ${readyCount}…`
-            : readyCount > 0
-              ? `Sign all ${readyCount}`
-              : "Pick scores to sign"}
-        </button>
+        {returnMode ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+              Return {readyCount} selected EPA{readyCount === 1 ? "" : "s"} to residents with shared feedback.
+            </div>
+            <textarea
+              value={returnReasonAll}
+              onChange={e => setReturnReasonAll(e.target.value)}
+              placeholder="Reason for return — this message goes to every selected resident."
+              rows={3}
+              disabled={signing}
+              className="st-input"
+              style={{ resize: "vertical", minHeight: 68 }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => { setReturnMode(false); setReturnReasonAll(""); }}
+                disabled={signing}
+                className="st-btn st-btn-secondary st-btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => onReturnAll(returnReasonAll)}
+                disabled={readyCount === 0 || signing || !returnReasonAll.trim()}
+                style={{
+                  ...BTN_PRIMARY,
+                  background: "#f59e0b",
+                  opacity: readyCount === 0 || signing || !returnReasonAll.trim() ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing || !returnReasonAll.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {signing
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <RotateCcw size={13} />}
+                {signing ? `Returning ${readyCount}…` : `Return ${readyCount}`}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+              {readyCount} of {pending.length} selected
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setReturnMode(true)}
+                disabled={readyCount === 0 || signing}
+                className="st-btn st-btn-secondary st-btn-sm"
+                style={{
+                  opacity: readyCount === 0 || signing ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
+                }}
+              >
+                <RotateCcw size={12} />
+                Return {readyCount || ""}
+              </button>
+              <button
+                onClick={onSignAll}
+                disabled={readyCount === 0 || signing}
+                style={{
+                  ...BTN_PRIMARY,
+                  opacity: readyCount === 0 || signing ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
+                }}
+              >
+                {signing
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <CheckCircle2 size={13} />}
+                {signing
+                  ? `Signing ${readyCount}…`
+                  : readyCount > 0
+                    ? `Sign all ${readyCount}`
+                    : "Pick scores to sign"}
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
