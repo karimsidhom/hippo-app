@@ -1,36 +1,34 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Share, Plus, X } from "lucide-react";
+import Link from "next/link";
+import { X } from "lucide-react";
 
 // ---------------------------------------------------------------------------
-// iOS install prompt — the "Add to Home Screen" explainer for iPhone users.
+// iOS install prompt — the small nudge that catches users who SKIPPED the
+// post-onboarding install step (/onboarding/install). That page is the
+// primary install surface now; this banner is the "hey, you missed it"
+// reminder.
 //
-// Android / desktop Chrome show a native `beforeinstallprompt` banner. iOS
-// never will — Apple hides the install flow inside Safari's Share menu
-// and doesn't surface it in any programmatic API. The result is that most
-// iPhone users never install the PWA because they don't know they can.
+// Differences from the old version:
+//   - Routes to /onboarding/install instead of inlining the instructions.
+//     Single source of install UX, no drift between the two.
+//   - Gets dismissed for 30 days, not forever. Surgery is a 5+ year
+//     residency; dropping the prompt once and never again would lose
+//     install opportunities on new devices (new phone, device swap).
 //
-// This component fixes that by:
-//   1. Detecting iOS + Safari + not-already-installed + not-dismissed-before
-//   2. Showing a one-time banner with a visual guide: tap Share → scroll →
-//      "Add to Home Screen"
-//   3. Remembering the dismissal so we never nag the same user twice
-//
-// Deliberate choices:
-//   - Shows ONCE per device. If a user dismissed, they don't see it again.
-//     They can always install manually via Safari's native flow.
-//   - Waits 4 seconds after mount to show up — enough time for the app to
-//     render so the banner doesn't feel ambush-y.
-//   - Uses position: fixed + bottom-inset so it sits above the home bar
-//     on notched iPhones.
-//   - Does NOT appear inside the PWA itself (display-mode: standalone).
-//     That would be useless and weird.
+// Shows only when:
+//   - User is iOS Safari (desktop / Android users install via the native
+//     beforeinstallprompt captured in <InstallCapture/>, so this banner
+//     doesn't fire for them)
+//   - Not already installed (display-mode: standalone)
+//   - Not dismissed in the last 30 days
 // ---------------------------------------------------------------------------
 
-const DISMISS_KEY = "hippo_ios_install_dismissed_v1";
+const DISMISS_KEY = "hippo_ios_install_dismissed_v2";
+const DISMISS_TTL_DAYS = 30;
 
-type Phase = "hidden" | "banner" | "details";
+type Phase = "hidden" | "banner";
 
 /**
  * Detect iOS Safari (or iPadOS Safari posing as desktop).
@@ -89,7 +87,18 @@ export function IOSInstallPrompt() {
     try {
       if (isAlreadyInstalled()) return;
       if (!isInstallableIOS()) return;
-      if (localStorage.getItem(DISMISS_KEY) === "1") return;
+      const raw = localStorage.getItem(DISMISS_KEY);
+      if (raw) {
+        // Dismissal stored as an ISO timestamp — respect only if it's
+        // still within the TTL window. After 30 days, re-surface.
+        const dismissedAt = Date.parse(raw);
+        if (
+          !Number.isNaN(dismissedAt) &&
+          Date.now() - dismissedAt < DISMISS_TTL_DAYS * 86_400_000
+        ) {
+          return;
+        }
+      }
     } catch {
       return;
     }
@@ -101,7 +110,7 @@ export function IOSInstallPrompt() {
 
   const dismiss = () => {
     try {
-      localStorage.setItem(DISMISS_KEY, "1");
+      localStorage.setItem(DISMISS_KEY, new Date().toISOString());
     } catch {
       // storage disabled — memory-only dismissal for this session
     }
@@ -164,8 +173,10 @@ export function IOSInstallPrompt() {
             Get a home-screen icon + offline case logging.
           </div>
         </div>
-        <button
-          onClick={() => setPhase("details")}
+        <Link
+          href="/onboarding/install"
+          prefetch
+          onClick={dismiss}
           style={{
             height: 34,
             padding: "0 14px",
@@ -178,10 +189,13 @@ export function IOSInstallPrompt() {
             cursor: "pointer",
             fontFamily: "inherit",
             whiteSpace: "nowrap",
+            textDecoration: "none",
+            display: "inline-flex",
+            alignItems: "center",
           }}
         >
-          How
-        </button>
+          Install
+        </Link>
         <button
           onClick={dismiss}
           aria-label="Dismiss install prompt"
@@ -210,214 +224,6 @@ export function IOSInstallPrompt() {
     );
   }
 
-  // ── Details: full-screen-ish modal with the 3-step visual guide ─────
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="How to install Hippo"
-      onClick={() => setPhase("banner")}
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.75)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        zIndex: 1001,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "16px",
-      }}
-    >
-      <div
-        onClick={(e) => e.stopPropagation()}
-        style={{
-          width: "100%",
-          maxWidth: 380,
-          background: "#0b131c",
-          border: "1px solid rgba(255,255,255,.06)",
-          borderRadius: 18,
-          overflow: "hidden",
-          boxShadow: "0 25px 60px rgba(0,0,0,.55)",
-          position: "relative",
-          padding: "22px 20px 18px",
-        }}
-      >
-        <button
-          onClick={() => setPhase("banner")}
-          aria-label="Close"
-          style={{
-            position: "absolute",
-            top: 10,
-            right: 10,
-            width: 32,
-            height: 32,
-            background: "transparent",
-            border: "none",
-            color: "#64748B",
-            cursor: "pointer",
-            borderRadius: 6,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          <X size={16} />
-        </button>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, marginBottom: 16 }}>
-          <img
-            src="/icons/icon-180.png"
-            alt=""
-            width={48}
-            height={48}
-            style={{ borderRadius: 11 }}
-          />
-          <div>
-            <div
-              style={{
-                fontSize: 17,
-                fontWeight: 700,
-                color: "#E2E8F0",
-                letterSpacing: "-0.01em",
-              }}
-            >
-              Install Hippo on your iPhone
-            </div>
-            <div style={{ fontSize: 12, color: "#64748B", marginTop: 2 }}>
-              Three taps. Works offline after.
-            </div>
-          </div>
-        </div>
-
-        <ol
-          style={{
-            listStyle: "none",
-            padding: 0,
-            margin: 0,
-            display: "flex",
-            flexDirection: "column",
-            gap: 14,
-          }}
-        >
-          <Step
-            n={1}
-            title="Tap the Share icon"
-            subtitle="At the bottom of Safari (or top on iPad)."
-            icon={<Share size={18} color="#0EA5E9" />}
-          />
-          <Step
-            n={2}
-            title={'Scroll down, tap "Add to Home Screen"'}
-            subtitle='Look for the icon with a "+" symbol.'
-            icon={<Plus size={18} color="#0EA5E9" />}
-          />
-          <Step
-            n={3}
-            title={'Tap "Add" in the top right'}
-            subtitle="Hippo lands on your home screen with its own icon."
-            icon={
-              <img
-                src="/icons/icon-120.png"
-                alt=""
-                width={22}
-                height={22}
-                style={{ borderRadius: 5 }}
-              />
-            }
-          />
-        </ol>
-
-        <button
-          onClick={dismiss}
-          style={{
-            width: "100%",
-            marginTop: 18,
-            padding: "12px 16px",
-            background: "transparent",
-            border: "1px solid rgba(255,255,255,.08)",
-            color: "#94A3B8",
-            borderRadius: 10,
-            fontSize: 13,
-            fontWeight: 500,
-            cursor: "pointer",
-            fontFamily: "inherit",
-          }}
-        >
-          Don&apos;t show again
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function Step({
-  n,
-  title,
-  subtitle,
-  icon,
-}: {
-  n: number;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <li
-      style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "flex-start",
-        padding: "10px 12px",
-        background: "rgba(14,165,233,0.04)",
-        border: "1px solid rgba(14,165,233,0.12)",
-        borderRadius: 10,
-      }}
-    >
-      <div
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: 13,
-          background: "rgba(14,165,233,0.15)",
-          color: "#0EA5E9",
-          fontSize: 12,
-          fontWeight: 700,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {n}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13,
-            fontWeight: 600,
-            color: "#E2E8F0",
-            lineHeight: 1.35,
-            display: "flex",
-            alignItems: "center",
-            gap: 6,
-          }}
-        >
-          {title}
-          <span style={{ flexShrink: 0 }}>{icon}</span>
-        </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: "#64748B",
-            lineHeight: 1.45,
-            marginTop: 2,
-          }}
-        >
-          {subtitle}
-        </div>
-      </div>
-    </li>
-  );
+  // "hidden" is the only other phase — render nothing.
+  return null;
 }
