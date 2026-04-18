@@ -18,6 +18,7 @@ import { VoiceTextarea } from "@/components/VoiceTextarea";
 import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
+import { useInteraction } from "@/hooks/useInteraction";
 
 interface LogFormState {
   specialtySlug: string;
@@ -54,6 +55,7 @@ const STEPS = [
 
 export default function LogCasePage() {
   const router = useRouter();
+  const fx = useInteraction();
   const { cases, addCase, addCaseAsync } = useCases();
   const { milestones, personalRecords, addMilestone } = useMilestones();
   const { user, profile } = useUser();
@@ -362,9 +364,12 @@ export default function LogCasePage() {
         credentials: "include",
       });
 
+      // "Logged and sent" — the most satisfying interaction the app has.
+      fx.log();
       setSelectedEpaSuggestion(null);
       router.push("/cases");
     } catch (err) {
+      fx.error();
       console.error("EPA observation submit failed:", err);
       setSelectedEpaSuggestion(null);
       router.push("/cases");

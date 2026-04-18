@@ -1,6 +1,7 @@
 "use client";
 
-import type { EpaObservation, EpaObservationStatus } from "@/lib/types";
+import type { EpaObservation } from "@/lib/types";
+import { EpaStatusBadge, EpaVerifiedLine, type EpaStatus } from "@/components/epa/EpaStatusBadge";
 
 interface EpaObservationCardProps {
   observation: EpaObservation;
@@ -14,27 +15,6 @@ function getStageColor(epaId: string): string {
   if (id.startsWith("C")) return "#0ea5e9";
   if (id.startsWith("F")) return "#f59e0b";
   return "#0ea5e9";
-}
-
-function getStatusStyle(status: EpaObservationStatus): {
-  label: string;
-  color: string;
-  bg: string;
-} {
-  switch (status) {
-    case "DRAFT":
-      return { label: "Draft", color: "#94a3b8", bg: "#64748b15" };
-    case "SUBMITTED":
-      return { label: "Submitted", color: "#0ea5e9", bg: "#0ea5e915" };
-    case "PENDING_REVIEW":
-      return { label: "Pending", color: "#f59e0b", bg: "#f59e0b15" };
-    case "SIGNED":
-      return { label: "Signed", color: "#10b981", bg: "#10b98115" };
-    case "RETURNED":
-      return { label: "Returned", color: "#ef4444", bg: "#ef444415" };
-    default:
-      return { label: status, color: "#94a3b8", bg: "#64748b15" };
-  }
 }
 
 const ENTRUSTMENT_COLORS: Record<number, string> = {
@@ -58,8 +38,8 @@ export function EpaObservationCard({
   onClick,
 }: EpaObservationCardProps) {
   const stageColor = getStageColor(observation.epaId);
-  const statusStyle = getStatusStyle(observation.status);
   const achieved = observation.achievement === "ACHIEVED";
+  const isSigned = observation.status === "SIGNED";
   const dateStr = new Date(observation.observationDate).toLocaleDateString(
     undefined,
     { month: "short", day: "numeric", year: "numeric" }
@@ -70,8 +50,19 @@ export function EpaObservationCard({
     <div
       onClick={onClick}
       style={{
+        // Signed EPAs get a subtle green left accent rail so they stand out
+        // in a list without needing the reader to parse the badge. Pending
+        // and returned use their own accent colours — anything unsigned
+        // stays muted.
         background: "var(--bg-2)",
         border: "1px solid var(--border-mid)",
+        borderLeft: isSigned
+          ? "3px solid #10b981"
+          : observation.status === "PENDING_REVIEW"
+          ? "3px solid rgba(14,165,233,0.5)"
+          : observation.status === "RETURNED"
+          ? "3px solid rgba(245,158,11,0.5)"
+          : "3px solid transparent",
         borderRadius: 10,
         padding: 14,
         cursor: onClick ? "pointer" : "default",
@@ -105,15 +96,18 @@ export function EpaObservationCard({
         >
           {observation.epaTitle}
         </span>
-        <span
-          style={{
-            fontSize: 10, fontWeight: 600, color: statusStyle.color,
-            background: statusStyle.bg, padding: "2px 7px", borderRadius: 4, flexShrink: 0,
-          }}
-        >
-          {statusStyle.label}
-        </span>
+        <EpaStatusBadge status={observation.status as EpaStatus} size="sm" />
       </div>
+
+      {/* Verified-by line: this is the single highest-impact addition for
+          status clarity. Residents can now see at a glance WHO signed this
+          and WHEN, without opening the card. */}
+      {isSigned && (
+        <EpaVerifiedLine
+          signedAt={observation.signedAt}
+          signedByName={observation.signedByName}
+        />
+      )}
 
       {/* Bottom row: date, assessor, O-score, achievement */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 10 }}>

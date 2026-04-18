@@ -9,6 +9,8 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PaywallModal } from "@/components/PaywallModal";
+import { EpaStatusBadge, type EpaStatus } from "@/components/epa/EpaStatusBadge";
+import { useInteraction } from "@/hooks/useInteraction";
 
 const ENTRUSTMENT_LABELS: Record<number, string> = {
   1: "Had to do",
@@ -71,6 +73,7 @@ interface AttendingSummary {
 export default function InboxPage() {
   const { profile } = useAuth();
   const { isPro } = useSubscription();
+  const fx = useInteraction();
   const roleType = profile?.roleType;
   const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
   const isPD = roleType === "PROGRAM_DIRECTOR";
@@ -175,11 +178,16 @@ export default function InboxPage() {
         body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error(await res.text());
+      // Audible + tactile confirmation. sign = warm success chime,
+      // return = softer downward sweep so attendings can hear the
+      // difference without looking at the screen.
+      if (action === "sign") fx.log(); else fx.toggle();
       setExpanded(null);
       setReturnReasonFor(null);
       setReturnReason("");
       await load();
     } catch (err) {
+      fx.error();
       alert("Action failed: " + (err instanceof Error ? err.message : String(err)));
     } finally {
       setSubmitting(null);
@@ -332,6 +340,10 @@ export default function InboxPage() {
                         });
                       }
                     } finally {
+                      // Batch-signed confirmation — the resident side gets a
+                      // "EPA verified" push per item; here we chirp once for
+                      // the whole run so the attending feels the completion.
+                      fx.log();
                       setBulkSigning(false);
                       setBulkScores({});
                       setBulkMode(false);
@@ -383,14 +395,7 @@ export default function InboxPage() {
                     fontSize: 13,
                   }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
-                      <span style={{
-                        fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 3,
-                        fontFamily: "'Geist Mono', monospace",
-                        background: obs.status === "SIGNED" ? "rgba(34,197,94,.15)" : "rgba(245,158,11,.15)",
-                        color: obs.status === "SIGNED" ? "#22c55e" : "#f59e0b",
-                      }}>
-                        {obs.status === "SIGNED" ? "Signed" : "Returned"}
-                      </span>
+                      <EpaStatusBadge status={obs.status as EpaStatus} size="sm" />
                       <span style={{ color: "var(--text-2)", fontWeight: 500 }}>{obs.epaId}</span>
                       <span style={{ color: "var(--text-3)" }}>·</span>
                       <span style={{ color: "var(--text-2)", minWidth: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
