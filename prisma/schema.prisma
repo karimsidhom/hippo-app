@@ -166,6 +166,9 @@ model User {
   sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
   acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
   createdProgramEvents  ProgramEvent[]
+  notifications         Notification[]
+  pushSubscriptions     PushSubscription[]
+  notificationPreferences UserNotificationPreferences?
 
   @@map("users")
 }
@@ -820,4 +823,115 @@ model ProgramEvent {
   @@index([programId, startAt])
   @@index([createdById])
   @@map("program_events")
+}
+
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Notifications (in-app + web push)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Two separate notification surfaces:
+//
+//  1. `AttendingNotification` (above) — outbound email + token-link for
+//     attendings to review an EPA. Has lived here since before in-app.
+//     We keep it intact: it's the ONLY way we can alert an attending who
+//     doesn't have a Hippo account.
+//
+//  2. `Notification` (below) — in-app notification center for Hippo users.
+//     Written whenever a meaningful event happens (EPA submitted, signed,
+//     returned, milestone unlocked, etc.). Surfaced via the bell icon in
+//     the top nav and the /notifications page. Optional web-push fan-out
+//     delivers the same message to the user's registered devices.
+//
+// Keeping these separate is intentional: the email/token flow has
+// different expiry, per-EPA uniqueness, and legal auditing requirements
+// than the in-app feed.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String   // recipient
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A short machine key so we can switch on it in the UI for icons and
+  // deep-links. Keep it loose (string, not enum) so product can add new
+  // types without a migration. Known values:
+  //   - epa.awaiting_review   (attending: new EPA to sign)
+  //   - epa.verified          (resident: your EPA was signed)
+  //   - epa.returned          (resident: your EPA needs edits)
+  //   - epa.batch_signed      (attending: confirmed N signed)
+  type       String
+
+  title      String
+  body       String?
+  // Where tapping the notification should take the user. Always an in-app
+  // path (`/inbox`, `/cases/[id]`) — never an external URL.
+  actionUrl  String?
+
+  // Links back to the entity when relevant so UI can fetch fresh status.
+  epaObservationId String?
+
+  readAt     DateTime?   // null = unread
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([epaObservationId])
+  @@map("notifications")
+}
+
+// Registered web-push endpoint. One row per (user, endpoint) — a user can
+// have multiple devices (phone, iPad, desktop). We never overwrite; the
+// unique index on endpoint handles duplicate re-subscriptions silently.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Full PushSubscription JSON (endpoint, keys.p256dh, keys.auth). Stored
+  // as-is because the shape is opaque to our code — we hand the whole
+  // thing back to `web-push` when sending.
+  endpoint  String   @unique
+  p256dh    String   // encryption key
+  auth      String   // auth secret
+  userAgent String?  // which device this was registered from
+
+  createdAt DateTime @default(now())
+  lastUsed  DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Per-user opt-in toggles. Default values favour notifications being ON —
+// residents need to know when their EPA is signed. Individual toggles let
+// an attending with 50 residents silence the per-submission flood while
+// keeping batch summaries on.
+model UserNotificationPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Channel master toggles.
+  inAppEnabled          Boolean  @default(true)
+  pushEnabled           Boolean  @default(true)
+  emailEnabled          Boolean  @default(true)
+
+  // Per-event toggles. True = notify. Defaults all-on.
+  notifyOnEpaSubmitted  Boolean  @default(true)   // attending side
+  notifyOnEpaVerified   Boolean  @default(true)   // resident side
+  notifyOnEpaReturned   Boolean  @default(true)   // resident side
+  notifyOnBatchSigned   Boolean  @default(true)   // resident + attending confirm
+
+  // Sound + haptics (read by the client; stored server-side so they
+  // follow the user across devices).
+  soundEnabled          Boolean  @default(true)
+  hapticsEnabled        Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("user_notification_preferences")
 }

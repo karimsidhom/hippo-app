@@ -242,3 +242,99 @@ Nothing in this layer introduces new PHI risk:
 
 None of these are blockers for Phase 1 launch; they're just things to
 remember when users complain.
+
+
+---
+
+## Phase 2-and-a-half: notifications + web push (April 2026)
+
+**Now shipped:**
+- `notifications` table — in-app feed for Hippo users (attendings +
+  residents).
+- `push_subscriptions` + `user_notification_preferences` tables.
+- `/api/notifications/*` routes (list, mark-read, read-all, subscribe,
+  preferences).
+- Bell icon in top-nav with unread count + slide-in sheet.
+- `/notifications` page for full history.
+- `/settings/notifications` for push enable/disable + per-event toggles
+  + sound/haptics toggles.
+- EPA submit/sign/return all write notifications via
+  `src/lib/notifications/create.ts` — no caller needs to know about
+  both in-app and push, the util fans out.
+- Client `useInteraction()` hook wired to log/sign/return with
+  WebAudio-synthesised sound effects.
+
+**What you need to flip before push actually delivers:**
+
+### Generate VAPID keys
+```
+npx web-push generate-vapid-keys
+```
+Produces a `Public Key` and `Private Key` (base64url). Store:
+
+- `VAPID_PUBLIC_KEY` — server-side, used by `web-push` at send time.
+- `VAPID_PRIVATE_KEY` — server-side only, **never expose to the client**.
+- `NEXT_PUBLIC_VAPID_PUBLIC_KEY` — the same public key, exposed to the
+  browser so it can subscribe. (Next bundles anything prefixed
+  `NEXT_PUBLIC_` into the client.)
+- `VAPID_SUBJECT` — `mailto:noreply@hippomedicine.com`. Optional;
+  defaults to this value in `src/lib/notifications/push.ts`.
+
+Add these to Vercel env (Production + Preview). No deploy needed for
+env changes; next request picks them up.
+
+### What happens without VAPID
+- `src/lib/notifications/push.ts` logs a one-time warning and sendPush
+  becomes a no-op.
+- In-app notifications still work (bell icon, `/notifications`).
+- The **Enable push** button in `/settings/notifications` shows
+  "Push not configured" instead of triggering the permission prompt.
+
+### iOS push caveat (important for UX)
+Push on iOS only works **when the PWA is installed to the home screen
+AND iOS 16.4+**. In Safari tabs, `Notification` is undefined, and our
+client code surfaces this as `kind: "ios-needs-install"` with a direct
+link to `/onboarding/install`. Don't tell iOS users "enable push" in
+docs — tell them "install Hippo, then enable push."
+
+On Android / Chrome / desktop Chromium, push works in any context.
+
+### iOS push sound
+Apple **does not** allow PWAs to play custom sounds on push arrival.
+Whatever system sound the user has selected on their iPhone plays.
+We play our own WebAudio sfx (`src/lib/interactions/sfx.ts`) when the
+user interacts *inside* the app — but the "ding when the phone lights
+up" is the OS's call, not ours.
+
+---
+
+## Notification creation patterns
+
+Whenever a meaningful event happens on the server:
+
+```ts
+import { createNotification } from '@/lib/notifications/create';
+
+await createNotification({
+  userId: residentId,
+  type: 'epa.verified',
+  title: `EPA verified by Dr. ${signerName}`,
+  body:  `${epaId} · ${epaTitle}. Counts toward your training record.`,
+  actionUrl: `/cases?epa=${id}`,
+  epaObservationId: id,
+});
+```
+
+`createNotification` reads the user's preferences, writes the in-app
+row if allowed, and fans out via web-push (fire-and-forget). It
+**never throws** — a failed notification must never roll back the
+primary action.
+
+If you're adding a new notification `type`, also add it to:
+
+- `src/lib/notifications/types.ts` — icon/colour metadata.
+- `src/lib/notifications/create.ts` — preference gate switch (add a
+  new per-event toggle to `UserNotificationPreferences` if it should
+  be user-controllable).
+- The client `NOTIFICATION_META` renders the bell + /notifications
+  icons from the type key automatically once it's in the catalogue.
