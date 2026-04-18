@@ -5,7 +5,9 @@ import { db } from "@/lib/db";
 // Surgeon-native structured reactions. One user may leave multiple KINDS on
 // the same pearl (a pearl can be both "clean technique" and "saved me") but
 // not the same kind twice — handled by the unique constraint.
-export const REACTION_KINDS = [
+// Not exported — Next 16 forbids non-standard exports from route files.
+// If another module ever needs this list, move it to src/lib/pearls/.
+const REACTION_KINDS = [
   "technique",
   "saved",
   "teaching",

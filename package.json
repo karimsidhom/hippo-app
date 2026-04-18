@@ -19,7 +19,7 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "prisma generate && next build",
+    "build": "prisma generate && SERWIST_SUPPRESS_TURBOPACK_WARNING=1 next build --webpack",
     "start": "next start",
     "lint": "next lint",
     "db:generate": "prisma generate",
