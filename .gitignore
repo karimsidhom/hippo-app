@@ -18,3 +18,8 @@ dist/
 .DS_Store
 *.log
 .vercel
+
+# Serwist-generated service worker (emitted at build)
+public/sw.js
+public/sw.js.map
+public/workbox-*.js

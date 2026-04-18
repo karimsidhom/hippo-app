@@ -18,14 +18,49 @@ const nextConfig = {
   },
 };
 
+let finalConfig = nextConfig;
+
+// ── Serwist (PWA service worker) ────────────────────────────────────────
+// Feature-flagged via NEXT_PUBLIC_PWA_DISABLED — set to "true" on any
+// deploy where we want to kill the service worker globally (rare, but
+// the escape hatch matters: a broken SW can effectively brick returning
+// users because browsers trust the cached shell over network refreshes).
+// Default: PWA enabled in production builds, disabled in dev to avoid
+// confusing "my changes aren't showing up" debugging sessions.
+const pwaEnabled =
+  process.env.NEXT_PUBLIC_PWA_DISABLED !== "true" &&
+  process.env.NODE_ENV === "production";
+
+try {
+  if (pwaEnabled) {
+    const withSerwist = require("@serwist/next").default;
+    finalConfig = withSerwist({
+      swSrc: "src/app/sw.ts",
+      swDest: "public/sw.js",
+      // Generate sourcemaps for the SW so Sentry can symbolicate runtime
+      // errors inside the worker. Small file, worth it.
+      disable: !pwaEnabled,
+      // Tell Serwist which routes to precache beyond the auto-detected
+      // static assets. The /offline fallback must be precached so it's
+      // available even on the very first offline request.
+      additionalPrecacheEntries: [{ url: "/offline", revision: null }],
+      // Let Serwist auto-reload clients on SW activation. A bad cache
+      // combined with manual reload usually means the user is stuck on
+      // a broken shell until they force-quit.
+      reloadOnOnline: true,
+    })(nextConfig);
+  }
+} catch (err) {
+  console.warn("[next.config] Serwist wrap skipped:", err && err.message);
+}
+
 // Sentry wrapper — only applied when SENTRY_AUTH_TOKEN is set (server-side
 // build-time var). Without the token, @sentry/nextjs falls back to runtime-
 // only init (still works for error capture, just skips source-map upload).
 // The runtime DSN is NEXT_PUBLIC_SENTRY_DSN; without it, Sentry is a no-op.
-let finalConfig = nextConfig;
 try {
   const { withSentryConfig } = require("@sentry/nextjs");
-  finalConfig = withSentryConfig(nextConfig, {
+  finalConfig = withSentryConfig(finalConfig, {
     silent: true,
     // Org + project are set via env in Vercel once Sentry is activated.
     org: process.env.SENTRY_ORG,
