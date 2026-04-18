@@ -53,9 +53,72 @@ function formatDate(iso: string | Date): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+function statusLabel(s: string): string {
+  switch (s) {
+    case "SIGNED":         return "Verified";
+    case "PENDING_REVIEW": return "Pending";
+    case "SUBMITTED":      return "Submitted";
+    case "RETURNED":       return "Returned";
+    case "DRAFT":          return "Draft";
+    default:               return s;
+  }
+}
+
+function statusColor(s: string): string {
+  switch (s) {
+    case "SIGNED":         return "#0f5132"; // deep green
+    case "PENDING_REVIEW": return "#8c5a00"; // warm amber
+    case "SUBMITTED":      return "#1e40af"; // deep blue
+    case "RETURNED":       return "#991b1b"; // deep red
+    case "DRAFT":          return "#64748b"; // slate
+    default:               return "#475569";
+  }
+}
+
+// Matches the shape returned by GET /api/epa/observations — we only pull the
+// columns we'll render, plus signed* for the verified block.
+interface LogbookObservation {
+  id: string;
+  epaId: string;
+  epaTitle: string;
+  observationDate: string;
+  status: "DRAFT" | "SUBMITTED" | "PENDING_REVIEW" | "SIGNED" | "RETURNED";
+  entrustmentScore: number | null;
+  achievement: "NOT_ACHIEVED" | "ACHIEVED";
+  assessorName: string;
+  signedAt: string | null;
+  signedByName: string | null;
+  caseLog?: {
+    id: string;
+    procedureName: string;
+    caseDate: string;
+  } | null;
+}
+
 export default function LogbookPrintPage() {
   const { user, profile, cases, loading } = useAuth();
   const [printed, setPrinted] = useState(false);
+  const [epas, setEpas] = useState<LogbookObservation[]>([]);
+  const [epasLoading, setEpasLoading] = useState(true);
+
+  // Fetch this user's EPA observations once. We show ALL statuses in the
+  // "EPA Assessments" section so reviewers see the full picture — but
+  // the "Verified" column makes it visually unambiguous which ones count
+  // toward the academic record.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch("/api/epa/observations", { cache: "no-store" });
+        if (!res.ok) return;
+        const rows = (await res.json()) as LogbookObservation[];
+        if (!cancelled) setEpas(rows);
+      } finally {
+        if (!cancelled) setEpasLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const safeCases = useMemo(
     () =>
@@ -67,6 +130,29 @@ export default function LogbookPrintPage() {
         .map((c) => exportSafeTransform(c as never)),
     [cases],
   );
+
+  // Sort EPAs newest-first, and group SIGNED at the top of the status
+  // list so reviewers see verified entries immediately. Within each
+  // status, descending by observationDate.
+  const sortedEpas = useMemo(() => {
+    const statusOrder: Record<string, number> = {
+      SIGNED: 0, PENDING_REVIEW: 1, SUBMITTED: 2, RETURNED: 3, DRAFT: 4,
+    };
+    return [...epas].sort((a, b) => {
+      const sa = statusOrder[a.status] ?? 99;
+      const sb = statusOrder[b.status] ?? 99;
+      if (sa !== sb) return sa - sb;
+      return new Date(b.observationDate).getTime() - new Date(a.observationDate).getTime();
+    });
+  }, [epas]);
+
+  const epaStats = useMemo(() => {
+    const total = epas.length;
+    const verified = epas.filter(o => o.status === "SIGNED").length;
+    const pending = epas.filter(o => o.status === "PENDING_REVIEW" || o.status === "SUBMITTED").length;
+    const returned = epas.filter(o => o.status === "RETURNED").length;
+    return { total, verified, pending, returned };
+  }, [epas]);
 
   // Stats for the header summary block.
   const stats = useMemo(() => {
@@ -99,16 +185,17 @@ export default function LogbookPrintPage() {
     return { total, byApproach, byRole, bySpecialty, totalMinutes, firstDate, lastDate };
   }, [cases]);
 
-  // Fire the print dialog once data is loaded. 250ms lets React finish the
-  // initial paint so the dialog shows the correct preview.
+  // Fire the print dialog once both cases and EPAs are loaded. Otherwise
+  // the print preview catches mid-fetch and the user gets a logbook
+  // without their EPA table.
   useEffect(() => {
-    if (loading || printed || cases.length === 0) return;
+    if (loading || epasLoading || printed || cases.length === 0) return;
     const t = setTimeout(() => {
       setPrinted(true);
       window.print();
     }, 450);
     return () => clearTimeout(t);
-  }, [loading, printed, cases.length]);
+  }, [loading, epasLoading, printed, cases.length]);
 
   if (loading) {
     return (
@@ -313,6 +400,80 @@ export default function LogbookPrintPage() {
             ))}
           </tbody>
         </table>
+
+        {/* ── EPA Assessments ──────────────────────────────────
+             Separate table, distinct visual treatment. Verified rows
+             get a solid green tick + bold "Verified by X on DATE"
+             line so a reviewer scanning the printed page can tell
+             academic-record-significant entries from merely logged
+             ones at a glance. */}
+        {sortedEpas.length > 0 && (
+          <>
+            <div className="logbook-section-header" style={{ marginTop: 24 }}>
+              <div className="logbook-section-title">EPA Assessments</div>
+              <div className="logbook-section-stats">
+                <span><strong>{epaStats.verified}</strong> verified</span>
+                {epaStats.pending > 0 && <span> · <strong>{epaStats.pending}</strong> awaiting review</span>}
+                {epaStats.returned > 0 && <span> · <strong>{epaStats.returned}</strong> returned for edits</span>}
+                <span> · <strong>{epaStats.total}</strong> total</span>
+              </div>
+            </div>
+            <table className="logbook-table logbook-epa-table">
+              <thead>
+                <tr>
+                  <th style={{ width: 30 }}>#</th>
+                  <th style={{ width: 44 }}>Verified</th>
+                  <th style={{ width: 78 }}>Date</th>
+                  <th style={{ width: 50 }}>EPA</th>
+                  <th>Title</th>
+                  <th style={{ width: 36 }}>O-Score</th>
+                  <th style={{ width: 70 }}>Status</th>
+                  <th>Verified By</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sortedEpas.map((o, i) => {
+                  const isSigned = o.status === "SIGNED";
+                  return (
+                    <tr key={o.id} className={isSigned ? "logbook-epa-signed" : undefined}>
+                      <td style={{ color: "#999", fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
+                        {sortedEpas.length - i}
+                      </td>
+                      <td style={{ textAlign: "center", fontWeight: 700, color: isSigned ? "#0f5132" : "#94a3b8", fontSize: 11 }}>
+                        {isSigned ? "✓" : "—"}
+                      </td>
+                      <td>{formatDate(o.observationDate)}</td>
+                      <td style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 10 }}>
+                        {o.epaId}
+                      </td>
+                      <td style={{ fontWeight: 500 }}>{o.epaTitle}</td>
+                      <td style={{ textAlign: "center", fontFamily: "ui-monospace, monospace" }}>
+                        {o.entrustmentScore ? `O-${o.entrustmentScore}` : "—"}
+                      </td>
+                      <td style={{ fontSize: 9, fontWeight: isSigned ? 700 : 500, color: statusColor(o.status) }}>
+                        {statusLabel(o.status)}
+                      </td>
+                      <td style={{ fontSize: 9.5, color: isSigned ? "#0f172a" : "#94a3b8" }}>
+                        {isSigned && o.signedByName ? (
+                          <>
+                            <div>{o.signedByName}</div>
+                            {o.signedAt && (
+                              <div style={{ fontSize: 8, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
+                                {formatDate(o.signedAt)}
+                              </div>
+                            )}
+                          </>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </>
+        )}
 
         {/* ── Certification + signature block ─────────────────── */}
         <div className="logbook-certification">
@@ -610,6 +771,44 @@ export default function LogbookPrintPage() {
         }
         .logbook-table tbody tr:nth-child(even) {
           background: #fafbfc;
+        }
+
+        /* EPA section — distinct header + verified-row highlighting. The
+           signed rows get a pale green row background and a solid green
+           left border so a reviewer can see "this was actually verified
+           by an attending" from across the desk. */
+        .logbook-section-header {
+          display: flex;
+          align-items: baseline;
+          justify-content: space-between;
+          gap: 12px;
+          margin: 20px 0 8px;
+          padding-bottom: 6px;
+          border-bottom: 2px solid #0f172a;
+        }
+        .logbook-section-title {
+          font-size: 14px;
+          font-weight: 700;
+          color: #0f172a;
+          letter-spacing: -0.2px;
+        }
+        .logbook-section-stats {
+          font-size: 10px;
+          color: #475569;
+        }
+        .logbook-section-stats strong {
+          color: #0f172a;
+          font-weight: 700;
+        }
+        .logbook-epa-table tbody tr {
+          border-left: 3px solid transparent;
+        }
+        .logbook-epa-table tbody tr.logbook-epa-signed {
+          background: #ecfdf5 !important;
+          border-left-color: #10b981;
+        }
+        .logbook-epa-table tbody tr.logbook-epa-signed td {
+          border-bottom-color: #d1fae5;
         }
 
         .logbook-footer {

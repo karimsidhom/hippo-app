@@ -84,9 +84,29 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }
       `}</style>
       {/* ── Header ─────────────────────────────────────────────────────── */}
+      {/*
+        Installed-PWA safe area: iOS runs the app "black-translucent" so
+        our content renders BEHIND the status bar (time / wifi / battery).
+        Without a top inset, the Hippo logo + Log button sit underneath
+        the clock and are unreachable. Paint the status-bar area in our
+        bg colour and add safe-area-inset-top padding so the actual chrome
+        starts below the clock.
+      */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          top: 0, left: 0, right: 0,
+          height: "env(safe-area-inset-top)",
+          background: "var(--bg)",
+          zIndex: 51,
+          pointerEvents: "none",
+        }}
+      />
       <header className="app-header" style={{
         padding: "0 20px",
-        height: 48,
+        paddingTop: "env(safe-area-inset-top)",
+        height: "calc(48px + env(safe-area-inset-top))",
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",

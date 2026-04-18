@@ -287,6 +287,126 @@ function Toggle({
   );
 }
 
+function SubscribedControls({ busy, onDisable }: { busy: boolean; onDisable: () => void }) {
+  // Local state for the test-push diagnostic. This is the first tool we
+  // reach for when a user says "push didn't fire" — it calls the server,
+  // which reports back: is VAPID set? are there subscriptions? did the
+  // push service actually accept the delivery? No log-diving.
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState<string | null>(null);
+  const [testKind, setTestKind] = useState<"ok" | "warn" | "error" | null>(null);
+
+  const runTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    setTestKind(null);
+    try {
+      const res = await fetch("/api/notifications/test-push", { method: "POST" });
+      const data = await res.json() as {
+        vapidConfigured: boolean;
+        subscriptionCount: number;
+        delivered: number;
+        note: string;
+      };
+      if (!data.vapidConfigured) {
+        setTestKind("error");
+      } else if (data.subscriptionCount === 0 || data.delivered === 0) {
+        setTestKind("warn");
+      } else {
+        setTestKind("ok");
+      }
+      setTestResult(data.note);
+    } catch (err) {
+      setTestKind("error");
+      setTestResult(err instanceof Error ? err.message : "Test request failed");
+    } finally {
+      setTesting(false);
+    }
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        gap: 12, padding: "12px", borderRadius: 8,
+        background: "rgba(16,185,129,0.08)",
+        border: "1px solid rgba(16,185,129,0.25)",
+      }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#10b981" }}>
+          <Check size={14} strokeWidth={2.5} />
+          <span style={{ fontSize: 12, fontWeight: 600 }}>Push enabled on this device</span>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button
+            onClick={runTest}
+            disabled={busy || testing}
+            className="press"
+            style={{
+              background: "var(--primary)",
+              color: "#fff",
+              border: "none",
+              borderRadius: 5,
+              padding: "5px 10px",
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: (busy || testing) ? "wait" : "pointer",
+              opacity: (busy || testing) ? 0.6 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            {testing ? "Testing..." : "Send test"}
+          </button>
+          <button
+            onClick={onDisable}
+            disabled={busy}
+            className="press"
+            style={{
+              background: "transparent",
+              border: "1px solid var(--border-mid)",
+              borderRadius: 5,
+              padding: "5px 10px",
+              fontSize: 11,
+              fontWeight: 500,
+              color: "var(--text-2)",
+              cursor: busy ? "wait" : "pointer",
+              opacity: busy ? 0.6 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            Disable
+          </button>
+        </div>
+      </div>
+      {testResult && (
+        <div
+          role="status"
+          style={{
+            fontSize: 11,
+            lineHeight: 1.5,
+            padding: "10px 12px",
+            borderRadius: 6,
+            background:
+              testKind === "ok"    ? "rgba(16,185,129,0.06)" :
+              testKind === "warn"  ? "rgba(245,158,11,0.06)" :
+                                     "rgba(239,68,68,0.06)",
+            border: "1px solid " + (
+              testKind === "ok"    ? "rgba(16,185,129,0.25)" :
+              testKind === "warn"  ? "rgba(245,158,11,0.25)" :
+                                     "rgba(239,68,68,0.25)"
+            ),
+            color:
+              testKind === "ok"    ? "#10b981" :
+              testKind === "warn"  ? "#f59e0b" :
+                                     "#ef4444",
+          }}
+        >
+          {testResult}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Switch({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
   return (
     <button
@@ -331,38 +451,7 @@ function PushControls({
   onDisable: () => void;
 }) {
   if (status.kind === "subscribed") {
-    return (
-      <div style={{
-        display: "flex", alignItems: "center", justifyContent: "space-between",
-        gap: 12, padding: "12px", borderRadius: 8,
-        background: "rgba(16,185,129,0.08)",
-        border: "1px solid rgba(16,185,129,0.25)",
-      }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, color: "#10b981" }}>
-          <Check size={14} strokeWidth={2.5} />
-          <span style={{ fontSize: 12, fontWeight: 600 }}>Push enabled on this device</span>
-        </div>
-        <button
-          onClick={onDisable}
-          disabled={busy}
-          className="press"
-          style={{
-            background: "transparent",
-            border: "1px solid var(--border-mid)",
-            borderRadius: 5,
-            padding: "5px 10px",
-            fontSize: 11,
-            fontWeight: 500,
-            color: "var(--text-2)",
-            cursor: busy ? "wait" : "pointer",
-            opacity: busy ? 0.6 : 1,
-            fontFamily: "inherit",
-          }}
-        >
-          Disable
-        </button>
-      </div>
-    );
+    return <SubscribedControls busy={busy} onDisable={onDisable} />;
   }
 
   if (status.kind === "ios-needs-install") {
