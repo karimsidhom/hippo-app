@@ -10,6 +10,7 @@ import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
 import { useAuth } from "@/context/AuthContext";
+import { useInteraction } from "@/hooks/useInteraction";
 import {
   hydrateStyleProfile,
   flushStyleProfileWrites,
@@ -20,6 +21,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const { user, profile, loading, onboardingDone, logout } = useAuth();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  const fx = useInteraction();
 
   useEffect(() => {
     if (loading) return;
@@ -109,7 +111,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <button
-            onClick={() => setQuickAddOpen(true)}
+            className="press"
+            onClick={() => { fx.tap(); setQuickAddOpen(true); }}
             style={{
               background: "var(--primary)",
               color: "#fff",
@@ -192,7 +195,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   44×44 hits Apple HIG's minimum tappable target so the
                   most-used primary action never misfires on iPhone. */}
               <button
-                onClick={() => setQuickAddOpen(true)}
+                className="press-key"
+                onClick={() => { fx.tap(); setQuickAddOpen(true); }}
                 aria-label="Log a case"
                 style={{
                   width: 44,
@@ -204,12 +208,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  transition: "transform .15s cubic-bezier(.16,1,.3,1), box-shadow .15s",
+                  // Motion + haptic live in useInteraction() + the .press-key
+                  // class. This button now has a uniform press feel matching
+                  // every other primary action across the app.
+                  transition: "box-shadow .15s cubic-bezier(.16,1,.3,1)",
                   boxShadow: "0 2px 8px rgba(99,102,241,.25)",
                 }}
-                onMouseDown={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(0.92)"; }}
-                onMouseUp={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.transform = "scale(1)"; }}
               >
                 <Plus size={20} color="#fff" strokeWidth={2.5} />
               </button>
@@ -282,6 +286,7 @@ function NavTab({
   return (
     <Link
       href={href}
+      className="press"
       style={{
         display: "flex",
         flexDirection: "column",

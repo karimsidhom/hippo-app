@@ -1091,3 +1091,60 @@ select.st-input {
   position: fixed;
   width: 100%;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INTERACTION FEEL — subtle press-down motion
+   Paired with the useInteraction() hook (audio + haptic). The motion is
+   intentionally tiny: a 4% scale-down for 80ms. Enough that you feel the
+   button receive the press; not so much that the layout visibly shifts.
+   Respects prefers-reduced-motion.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.press,
+.press-soft {
+  transition: transform 0.08s cubic-bezier(.16,1,.3,1),
+              filter     0.08s cubic-bezier(.16,1,.3,1);
+  transform-origin: center;
+  /* Remove the 300ms touch delay that older iOS still applies to links. */
+  touch-action: manipulation;
+}
+
+/* Default press — for ordinary buttons. */
+.press:active {
+  transform: scale(0.96);
+}
+
+/* Softer press — for full-width primary CTAs where 4% feels jumpy. */
+.press-soft:active {
+  transform: scale(0.985);
+  filter: brightness(0.96);
+}
+
+/* Primary-button press that mimics a physical key travel: slight scale
+   plus a subtle inset shadow. Apply to .st-btn-primary or any teal CTA. */
+.press-key:active {
+  transform: translateY(1px) scale(0.99);
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.18);
+}
+
+/* Global — give every <button> a gentle baseline press feel. Applies to
+   any unclassed button; overridden by more specific classes when needed.
+   Scoped loosely enough that it doesn't fight existing .st-btn / chip
+   transitions (they're separate classes on the same element). */
+button:not(:disabled):not([aria-disabled="true"]) {
+  touch-action: manipulation;
+}
+button:not(:disabled):not([aria-disabled="true"]):active {
+  /* Very subtle by default; screens with explicit .press-* override this. */
+  transition: transform 0.06s cubic-bezier(.16,1,.3,1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .press:active,
+  .press-soft:active,
+  .press-key:active,
+  button:active {
+    transform: none !important;
+    filter: none !important;
+  }
+}
