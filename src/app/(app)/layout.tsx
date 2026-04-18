@@ -9,6 +9,7 @@ import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/context/AuthContext";
 import { useInteraction } from "@/hooks/useInteraction";
 import {
@@ -110,6 +111,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          <NotificationBell />
           <button
             className="press"
             onClick={() => { fx.tap(); setQuickAddOpen(true); }}

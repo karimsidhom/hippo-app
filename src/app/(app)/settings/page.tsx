@@ -5,7 +5,7 @@ import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PRICING } from "@/lib/pricing";
 import Link from "next/link";
-import { Shield, Users, BarChart2, Download, Trash2, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles, Sun, Moon, Monitor, Building2, MessageSquare, Send, KeyRound, X, Lock, Eye, EyeOff } from "lucide-react";
+import { Shield, Users, BarChart2, Download, Trash2, User, ChevronRight, Zap, CreditCard, CheckCircle, AlertCircle, Sparkles, Sun, Moon, Monitor, Building2, MessageSquare, Send, KeyRound, X, Lock, Eye, EyeOff, Bell } from "lucide-react";
 import { createClient as createSupabaseBrowser } from "@/lib/supabase";
 import { useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
@@ -28,6 +28,7 @@ const TABS = [
 ];
 
 const SUBROUTES = [
+  { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/dictation", label: "Dictation Style", icon: Sparkles },
   { href: "/settings/audit-log", label: "Activity & Audit Log", icon: Shield },
 ];
