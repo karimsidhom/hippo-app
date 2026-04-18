@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
+import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
@@ -264,6 +265,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
+      <IOSInstallPrompt />
     </div>
   );
 }
