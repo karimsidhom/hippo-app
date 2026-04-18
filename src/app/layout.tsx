@@ -3,6 +3,7 @@ import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
+import { InstallCapture } from "@/components/pwa/InstallCapture";
 
 // All pages require runtime auth — never prerender statically
 export const dynamic = "force-dynamic";
@@ -109,6 +110,10 @@ export default function RootLayout({
         <ThemeProvider>
           <AuthProvider>
             <SubscriptionProvider>
+              {/* Must mount near the root — beforeinstallprompt fires
+                  before most route components mount. See the component
+                  comment for why it's a dedicated element. */}
+              <InstallCapture />
               <div id="app-root">{children}</div>
               <div id="portal-root" />
             </SubscriptionProvider>

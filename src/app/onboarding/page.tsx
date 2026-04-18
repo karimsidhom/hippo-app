@@ -76,7 +76,10 @@ export default function OnboardingPage() {
       trainingCountry: form.trainingCountry || undefined,
     });
     setSaving(false);
-    router.push("/dashboard");
+    // Last onboarding beat: the install step. It knows how to self-skip
+    // when the user is already running as a PWA (re-onboarding inside
+    // an installed app) or when install isn't supported in the browser.
+    router.push("/onboarding/install");
   };
 
   const progress = (step / TOTAL_STEPS) * 100;
@@ -481,7 +484,10 @@ export default function OnboardingPage() {
                   await recordLegalAcceptances();
                   await updateProfile({ ...(skipData as Parameters<typeof updateProfile>[0]), onboardingCompleted: true });
                   setSaving(false);
-                  router.push("/dashboard");
+                  // Same finale as the full-fill path — offer install before
+                  // they land in the app. The install page self-skips if it
+                  // can't offer anything useful.
+                  router.push("/onboarding/install");
                 }}
                 className="w-full py-3 text-[#64748b] hover:text-[#94a3b8] text-sm transition-colors"
               >
