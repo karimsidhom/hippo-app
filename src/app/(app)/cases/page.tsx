@@ -76,7 +76,9 @@ function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: 
         WebkitBackdropFilter: "blur(8px)",
         zIndex: 200,
         display: "flex", alignItems: "center", justifyContent: "center",
-        padding: "20px 16px",
+        // Respect the iPhone notch + home indicator so the modal's top
+        // button row and bottom action row aren't covered by the system UI.
+        padding: "calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))",
       }}
       onClick={onClose}
     >
@@ -953,14 +955,15 @@ export default function CasesPage() {
                     <button
                       onClick={(e) => { e.stopPropagation(); setDebrief(c); }}
                       title={hasDebrief ? "Edit debrief" : "Add debrief"}
+                      aria-label={hasDebrief ? "Edit debrief" : "Add debrief"}
                       style={{
                         background: hasDebrief
                           ? "rgba(168,85,247,0.14)"
                           : "var(--glass)",
                         border: `1px solid ${hasDebrief ? "rgba(168,85,247,0.4)" : "var(--border-mid)"}`,
                         borderRadius: 5,
-                        width: 26,
-                        height: 26,
+                        width: 34,
+                        height: 34,
                         display: "flex",
                         alignItems: "center",
                         justifyContent: "center",
@@ -982,7 +985,7 @@ export default function CasesPage() {
                         }
                       }}
                     >
-                      <MessageSquare size={12} />
+                      <MessageSquare size={14} />
                     </button>
                   );
                 })()}
@@ -990,12 +993,13 @@ export default function CasesPage() {
                 <button
                   onClick={(e) => { e.stopPropagation(); setDictation(c); }}
                   title="Generate dictation"
+                  aria-label="Generate dictation"
                   style={{
                     background: "var(--glass)",
                     border: "1px solid var(--border-mid)",
                     borderRadius: 5,
-                    width: 26,
-                    height: 26,
+                    width: 34,
+                    height: 34,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1013,7 +1017,7 @@ export default function CasesPage() {
                     (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
                   }}
                 >
-                  <FileText size={12} />
+                  <FileText size={14} />
                 </button>
                 {/* Share-as-pearl button — opens the PostComposer seeded from
                     this case. Inline on the row so residents don't have to
@@ -1021,12 +1025,13 @@ export default function CasesPage() {
                 <button
                   onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
                   title="Share as pearl"
+                  aria-label="Share as pearl"
                   style={{
                     background: "var(--glass)",
                     border: "1px solid var(--border-mid)",
                     borderRadius: 5,
-                    width: 26,
-                    height: 26,
+                    width: 34,
+                    height: 34,
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
@@ -1044,7 +1049,7 @@ export default function CasesPage() {
                     (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
                   }}
                 >
-                  <Share2 size={12} />
+                  <Share2 size={14} />
                 </button>
               </div>
             </div>

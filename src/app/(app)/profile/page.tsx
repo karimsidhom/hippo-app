@@ -300,7 +300,7 @@ export default function ProfilePage() {
               onChange={(e) => setEditForm((f) => ({ ...f, institution: e.target.value }))} placeholder="Institution" />
             <input className="st-input" type="text" value={editForm.city}
               onChange={(e) => setEditForm((f) => ({ ...f, city: e.target.value }))} placeholder="City" />
-            <input className="st-input" type="number" min={1} max={8} value={editForm.pgyYear}
+            <input className="st-input" type="number" inputMode="numeric" pattern="[0-9]*" min={1} max={8} value={editForm.pgyYear}
               onChange={(e) => setEditForm((f) => ({ ...f, pgyYear: parseInt(e.target.value) }))} />
             <div style={{
               display: "flex", alignItems: "center", justifyContent: "space-between",

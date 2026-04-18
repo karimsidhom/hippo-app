@@ -824,10 +824,14 @@ export default function DashboardPage() {
                       background: "transparent",
                       border: "1px solid var(--border-mid)",
                       borderRadius: 5,
-                      width: 22, height: 22,
+                      // 30×30 — small enough not to crowd the card footer,
+                      // big enough to hit on mobile without mis-tapping the
+                      // share onto the wrong case.
+                      width: 30, height: 30,
                       display: "flex", alignItems: "center", justifyContent: "center",
                       cursor: "pointer", color: "var(--text-3)",
                       transition: "all .15s",
+                      flexShrink: 0,
                     }}
                     onMouseEnter={e => {
                       (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
@@ -838,7 +842,7 @@ export default function DashboardPage() {
                       (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
                     }}
                   >
-                    <Share2 size={11} />
+                    <Share2 size={13} />
                   </button>
                   <span style={{
                     fontSize: 11, color: "var(--text-3)",

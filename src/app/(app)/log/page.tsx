@@ -717,6 +717,8 @@ export default function LogCasePage() {
                   <label className="block text-sm font-medium text-[#94a3b8] mb-2">Console Time (min)</label>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min={1}
                     max={1440}
                     placeholder="e.g. 155"
@@ -729,6 +731,8 @@ export default function LogCasePage() {
                   <label className="block text-sm font-medium text-[#94a3b8] mb-2">Docking Time (min)</label>
                   <input
                     type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
                     min={1}
                     max={60}
                     placeholder="e.g. 15"
@@ -773,6 +777,8 @@ export default function LogCasePage() {
               <label className="block text-sm font-medium text-[#94a3b8] mb-2">Patient Age</label>
               <input
                 type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
                 min={0}
                 max={120}
                 placeholder="e.g. 58"
@@ -1144,8 +1150,13 @@ export default function LogCasePage() {
                   zIndex: 1003,
                   maxWidth: 720,
                   width: "94vw",
-                  maxHeight: "90vh",
+                  // Cap to 90vh and subtract safe-area-inset-top/bottom so
+                  // the modal's top/bottom edges (and the scroll region
+                  // inside) never slide under the iPhone notch or home
+                  // indicator. WebKit clamps this fine.
+                  maxHeight: "calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
                   overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
                   background: "#0f1825",
                   border: "1px solid rgba(255,255,255,0.08)",
                   borderRadius: 16,

@@ -22,7 +22,13 @@ export function MobileNav({ onQuickAdd }: MobileNavProps) {
   const pathname = usePathname();
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-[#0d0d14]/95 backdrop-blur-md border-t border-[#1e2130] safe-area-pb">
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-[#0d0d14]/95 backdrop-blur-md border-t border-[#1e2130]"
+      // safe-area-inset-bottom pushes the nav above the iPhone home
+      // indicator — without this, the Log / Home / Cases icons sit
+      // directly under the indicator pill and are hard to tap.
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
       <div className="flex items-center justify-around px-2 h-16">
         {MOBILE_NAV.map(({ href, label, icon: Icon, isCenter }) => {
           const isActive = pathname === href;

@@ -1018,3 +1018,76 @@ select.st-input {
     animation: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   MOBILE HARDENING
+   Covers the three PWA-era quirks that silently wreck mobile UX:
+     1. iOS Safari auto-zooms the viewport on focus when an input's computed
+        font-size is < 16px. Many screens use inline styles with
+        fontSize: 14 or .st-input (14px). Rather than touch every file,
+        globally force a 16px minimum on narrow viewports — desktop (≥640px)
+        keeps the compact 14px look where auto-zoom doesn't apply anyway.
+     2. Fixed bars / modals need env(safe-area-inset-*) to clear the iPhone
+        notch and home indicator. Provide utility classes so we don't
+        hand-compute safe-area math at every callsite.
+     3. Touch devices have no :hover. Hover-only affordances (action buttons
+        that appear when you mouse over a card) become invisible. Expose
+        them permanently on coarse pointers.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* 1. iOS input zoom fix — narrow viewports only. */
+@media (max-width: 639px) {
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]):not([type="reset"]),
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  /* Tap-target minimum for anything aria-labelled as a button or marked with
+     .tap-target. Stops "tiny 26×26 icon button" regressions on new code. */
+  .tap-target,
+  button.tap-target {
+    min-width: 44px;
+    min-height: 44px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+}
+
+/* 2. Safe-area helpers. Compose with existing padding — these ADD the
+   inset, they don't replace your padding. E.g. a fixed bottom nav:
+     style={{ paddingBottom: "calc(12px + env(safe-area-inset-bottom))" }}
+   becomes:
+     className="pb-safe-3" — plus the 12px in the class rule. */
+.safe-top    { padding-top:    env(safe-area-inset-top); }
+.safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+.safe-left   { padding-left:   env(safe-area-inset-left); }
+.safe-right  { padding-right:  env(safe-area-inset-right); }
+.safe-inset  {
+  padding-top:    env(safe-area-inset-top);
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left:   env(safe-area-inset-left);
+  padding-right:  env(safe-area-inset-right);
+}
+/* For fixed bottom bars — inset bottom only, ADDED to existing padding. */
+.pb-safe { padding-bottom: calc(env(safe-area-inset-bottom) + 0px); }
+
+/* 3. Always-visible affordance helper — apply to hover-reveal elements so
+   touch devices see them permanently. Fine-pointer (mouse) devices still
+   get the clean hover-reveal. */
+@media (hover: none) {
+  .hover-reveal {
+    opacity: 1 !important;
+    visibility: visible !important;
+    pointer-events: auto !important;
+  }
+}
+
+/* When a modal is open, prevent body scroll leakage on iOS. Toggle via
+   document.body.classList.add('scroll-lock') in your modal open handlers. */
+.scroll-lock {
+  overflow: hidden;
+  position: fixed;
+  width: 100%;
+}
