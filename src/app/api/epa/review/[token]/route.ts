@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import { createNotification } from '@/lib/notifications/create';
 
 type RouteContext = { params: Promise<{ token: string }> };
 
@@ -163,6 +164,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
         req,
       });
 
+      // Resident-facing notification — same whether signed via inbox or
+      // token link. The resident shouldn't care HOW the attending signed.
+      const signerName = (data.signedByName ?? notification.recipientName ?? 'your attending');
+      void createNotification({
+        userId: observation.userId,
+        type: 'epa.verified',
+        title: `EPA verified by ${signerName}`,
+        body: `${observation.epaId} · ${observation.epaTitle} — now counts toward your training record.`,
+        actionUrl: `/cases?epa=${observation.id}`,
+        epaObservationId: observation.id,
+      }).catch(err => console.warn('[review sign] notify failed:', err));
+
       return NextResponse.json(updated);
     }
 
@@ -180,6 +193,17 @@ export async function POST(req: NextRequest, context: RouteContext) {
         data: { respondedAt: new Date() },
       }),
     ]);
+
+    void createNotification({
+      userId: observation.userId,
+      type: 'epa.returned',
+      title: 'EPA returned for edits',
+      body: data.returnedReason
+        ? `${observation.epaId}: "${data.returnedReason.slice(0, 120)}"`
+        : `${observation.epaId} · ${observation.epaTitle}. Tap to see feedback.`,
+      actionUrl: `/cases?epa=${observation.id}`,
+      epaObservationId: observation.id,
+    }).catch(err => console.warn('[review return] notify failed:', err));
 
     return NextResponse.json(updated);
   } catch (err) {

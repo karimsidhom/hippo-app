@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logAudit } from '@/lib/audit';
+import { createNotification } from '@/lib/notifications/create';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -126,6 +127,16 @@ export async function POST(req: NextRequest, context: RouteContext) {
         req,
       });
 
+      // Notify the resident — "your EPA was verified by Dr. X."
+      void createNotification({
+        userId: existing.userId,
+        type: 'epa.verified',
+        title: `EPA verified by ${signData.signedByName as string}`,
+        body: `${existing.epaId} · ${existing.epaTitle} — now counts toward your training record.`,
+        actionUrl: `/cases?epa=${id}`,
+        epaObservationId: id,
+      }).catch(err => console.warn('[sign] resident notify failed:', err));
+
       return NextResponse.json(updated);
     }
 
@@ -158,6 +169,18 @@ export async function POST(req: NextRequest, context: RouteContext) {
       },
       req,
     });
+
+    // Notify the resident that their EPA needs edits.
+    void createNotification({
+      userId: existing.userId,
+      type: 'epa.returned',
+      title: 'EPA returned for edits',
+      body: data.returnedReason
+        ? `${existing.epaId}: "${data.returnedReason.slice(0, 120)}"`
+        : `${existing.epaId} · ${existing.epaTitle}. Tap to see feedback.`,
+      actionUrl: `/cases?epa=${id}`,
+      epaObservationId: id,
+    }).catch(err => console.warn('[return] resident notify failed:', err));
 
     return NextResponse.json(updated);
   } catch (err) {

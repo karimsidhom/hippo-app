@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { sendEmail, buildEpaReviewEmail } from '@/lib/email';
 import { logAudit } from '@/lib/audit';
+import { createNotification } from '@/lib/notifications/create';
 
 type RouteContext = { params: Promise<{ id: string }> };
 
@@ -110,6 +111,19 @@ export async function POST(req: NextRequest, context: RouteContext) {
       }).catch((err) => {
         console.error('[submit] Email send failed (non-fatal):', err);
       });
+
+      // In-app notification for the attending — only when they have a
+      // Hippo account. Non-users are notified via the email above.
+      if (attendingUser) {
+        void createNotification({
+          userId: attendingUser.id,
+          type: 'epa.awaiting_review',
+          title: `${dbUser?.name || 'A resident'} submitted an EPA`,
+          body: `${observation.epaId} · ${observation.epaTitle}. Tap to review and sign.`,
+          actionUrl: `/inbox?epa=${id}`,
+          epaObservationId: id,
+        }).catch(err => console.warn('[submit] in-app notify failed:', err));
+      }
 
       void logAudit({
         userId: user.id,
