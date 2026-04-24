@@ -145,11 +145,18 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "turbt",
     displayName: "Transurethral Resection of Bladder Tumour (TURBT)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21134/21150.
+    // Two codes depending on tumor size; attending picks at billing time.
     codes: [
       {
-        code: "5797",
-        label: "Resection of bladder tumour, transurethral",
-        fee: "403.30",
+        code: "3922",
+        label: "Tumor bladder, excision (small TURBT)",
+        fee: "459.54",
+      },
+      {
+        code: "3924",
+        label: "Large bladder tumor, transurethral resection",
+        fee: "543.73",
       },
     ],
     prompts: [
@@ -177,11 +184,24 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "cystoscopy",
     displayName: "Cystoscopy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20934-20942.
+    // Diagnostic vs. with-biopsy vs. with-ureteral-catheterization are
+    // distinct codes; pick per what was actually done.
     codes: [
       {
-        code: "5770",
-        label: "Cystoscopy, diagnostic",
-        fee: "101.55",
+        code: "3931",
+        label: "Cystoscopy, diagnostic, initial",
+        fee: "97.85",
+      },
+      {
+        code: "3933",
+        label: "Cystoscopy with biopsy",
+        fee: "130.98",
+      },
+      {
+        code: "3928",
+        label: "Cystoscopy with ureteral catheterization ± retrograde pyelogram",
+        fee: "133.34",
       },
     ],
     prompts: [
@@ -200,11 +220,24 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "radical_prostatectomy",
     displayName: "Radical Prostatectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21511-21514.
+    // Three distinct codes: perineal, retropubic, combined with staging LND.
+    // Bill whichever matches the actual approach + whether pelvic LND done.
     codes: [
       {
-        code: "5764",
-        label: "Radical prostatectomy",
-        fee: "1150.95",
+        code: "4319",
+        label: "Radical prostatectomy, retropubic",
+        fee: "1521.45",
+      },
+      {
+        code: "4313",
+        label: "Radical prostatectomy, perineal",
+        fee: "1507.13",
+      },
+      {
+        code: "4320",
+        label: "Combined radical prostatectomy + staging lymphadenectomy",
+        fee: "1923.50",
       },
     ],
     prompts: [
@@ -232,16 +265,40 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "nephrectomy",
     displayName: "Nephrectomy (Partial or Radical)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20963-20990.
+    // Real 5730 in the manual is "entropion repair" (ophthalmology) — the
+    // prior code in Hippo was an entirely different specialty's procedure.
+    // Correct nephrectomy codes are in the 3800s.
     codes: [
       {
-        code: "5730",
-        label: "Nephrectomy, radical",
-        fee: "866.25",
+        code: "3821",
+        label: "Nephrectomy, including partial ureterectomy same incision",
+        fee: "1208.00",
       },
       {
-        code: "5731",
-        label: "Nephrectomy, partial",
-        fee: "1039.50",
+        code: "3823",
+        label: "Radical nephrectomy, thoracic approach + perinephric fat excision",
+        fee: "See manual line 20968",
+      },
+      {
+        code: "3809",
+        label: "Laparoscopic radical nephrectomy",
+        fee: "See manual line 20988",
+      },
+      {
+        code: "3815",
+        label: "Partial nephrectomy, complete vascular dissection",
+        fee: "See manual line 20986",
+      },
+      {
+        code: "3816",
+        label: "Laparoscopic partial nephrectomy",
+        fee: "See manual line 20990",
+      },
+      {
+        code: "3824",
+        label: "Heminephrectomy",
+        fee: "1585.76",
       },
     ],
     prompts: [
@@ -277,16 +334,29 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "ureteroscopy",
     displayName: "Ureteroscopy with Laser Lithotripsy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21010-21015.
+    // Three distinct codes: diagnostic, with manipulation + removal, with
+    // EH/US lithotripsy. Add 3956 for post-procedure stenting.
     codes: [
       {
-        code: "5785",
-        label: "Ureteroscopy",
-        fee: "262.40",
+        code: "3958",
+        label: "Cystoscopy + diagnostic ureteroscopy (rigid or flexible)",
+        fee: "329.75",
       },
       {
-        code: "5786",
-        label: "Ureteroscopy with lithotripsy/extraction",
-        fee: "392.10",
+        code: "3959",
+        label: "URS with calculus manipulation and removal",
+        fee: "566.83",
+      },
+      {
+        code: "3957",
+        label: "URS with electrohydraulic or ultrasound lithotripsy",
+        fee: "551.13",
+      },
+      {
+        code: "3956",
+        label: "Add-on: post-procedure ureteric stenting (to 3958)",
+        fee: "477.88",
       },
     ],
     prompts: [
@@ -314,11 +384,17 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "circumcision",
     displayName: "Circumcision",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21374-21375.
     codes: [
       {
-        code: "5800",
-        label: "Circumcision, adult",
-        fee: "195.80",
+        code: "4123",
+        label: "Circumcision, surgical excision (any age except newborn)",
+        fee: "267.95",
+      },
+      {
+        code: "4122",
+        label: "Circumcision, newborn",
+        fee: "258.32",
       },
     ],
     prompts: [
@@ -338,17 +414,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "cholecystectomy",
     displayName: "Cholecystectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 20787.
+    // Manitoba uses a single tariff regardless of laparoscopic vs. open.
+    // If converted, no separate "conversion" tariff — document the reason
+    // for conversion in the operative note.
     codes: [
-      {
-        code: "4353",
-        label: "Cholecystectomy, laparoscopic",
-        fee: "510.20",
-      },
-      {
-        code: "4350",
-        label: "Cholecystectomy, open",
-        fee: "510.20",
-      },
+      { code: "3515", label: "Gallbladder, cholecystectomy (open or laparoscopic)", fee: "636.92" },
     ],
     prompts: [
       {
@@ -376,17 +447,13 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "appendectomy",
     displayName: "Appendectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20607-20609.
+    // Three distinct codes — simple, perforated, perforated with abscess
+    // drainage — bill what actually happened.
     codes: [
-      {
-        code: "4312",
-        label: "Appendectomy, laparoscopic",
-        fee: "347.75",
-      },
-      {
-        code: "4310",
-        label: "Appendectomy, open",
-        fee: "347.75",
-      },
+      { code: "3261", label: "Appendectomy", fee: "497.06" },
+      { code: "3262", label: "Appendectomy, perforated appendix", fee: "497.06" },
+      { code: "3263", label: "Appendectomy with drainage of abscess", fee: "518.81" },
     ],
     prompts: [
       {
@@ -404,22 +471,18 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "hernia_repair",
     displayName: "Hernia Repair (Inguinal/Umbilical/Ventral)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20045-20068.
+    // Different codes by hernia type + whether incarcerated/recurrent.
+    // Manitoba does NOT have a separate tariff for laparoscopic vs. open —
+    // the hernia type is what determines the code.
     codes: [
-      {
-        code: "4220",
-        label: "Inguinal hernia repair, unilateral",
-        fee: "347.50",
-      },
-      {
-        code: "4224",
-        label: "Inguinal hernia repair, laparoscopic, unilateral",
-        fee: "451.75",
-      },
-      {
-        code: "4240",
-        label: "Umbilical/ventral hernia repair",
-        fee: "347.50",
-      },
+      { code: "3631", label: "Inguinal hernia, initial", fee: "448.07" },
+      { code: "3646", label: "Femoral hernia, initial", fee: "448.07" },
+      { code: "3663", label: "Epigastric hernia, initial", fee: "350.59" },
+      { code: "3666", label: "Umbilical hernia", fee: "404.19" },
+      { code: "3661", label: "Ventral (incisional) hernia repair ± prosthesis, with enterolysis", fee: "See manual line 20058" },
+      { code: "3660", label: "Ventral hernia, massive incisional, with enterolysis", fee: "See manual line 20060" },
+      { code: "3633", label: "Incarcerated hernia without bowel resection", fee: "556.83" },
     ],
     prompts: [
       {
@@ -454,17 +517,15 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "colectomy",
     displayName: "Colectomy (Partial or Total)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20613-20618.
+    // Note: the old Hippo code 4320 is actually the OBGYN combined radical
+    // prostatectomy + staging lymphadenectomy code — entirely different
+    // procedure, different specialty. Real colectomy codes are 3179/3180/3181.
     codes: [
-      {
-        code: "4320",
-        label: "Colectomy, partial (hemicolectomy)",
-        fee: "749.25",
-      },
-      {
-        code: "4325",
-        label: "Colectomy, total",
-        fee: "1039.50",
-      },
+      { code: "3179", label: "Colectomy, partial ± anastomosis or colostomy", fee: "1060.19" },
+      { code: "3180", label: "Colectomy, total ± anastomosis or ileostomy", fee: "1467.27" },
+      { code: "3181", label: "Total colectomy + proctectomy, one surgeon", fee: "2017.41" },
+      { code: "3184", label: "Mucosal proctectomy + ileal-anal J-pouch + ileostomy", fee: "2599.87" },
     ],
     prompts: [
       {
@@ -492,8 +553,11 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "turp",
     displayName: "Transurethral Resection of Prostate (TURP)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21518. This
+    // single tariff covers TURP, HoLEP, and any transurethral prostate
+    // energy technique including control of postoperative bleeding.
     codes: [
-      { code: "5761", label: "Transurethral resection of prostate", fee: "497.60" },
+      { code: "4321", label: "Transurethral prostatectomy (incl. postop bleeding control)", fee: "609.60" },
     ],
     prompts: [
       {
@@ -518,8 +582,11 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "holep",
     displayName: "Holmium Laser Enucleation of Prostate (HoLEP)",
     province: "MB",
+    // Verified: Manitoba does NOT have a distinct HoLEP tariff. HoLEP, TURP,
+    // GreenLight, Thulium and any energy-mediated transurethral prostate
+    // procedure all bill under 4321 (line 21518 of the April 2026 manual).
     codes: [
-      { code: "5761", label: "Transurethral prostate surgery (laser)", fee: "497.60" },
+      { code: "4321", label: "Transurethral prostatectomy (covers HoLEP and all laser techniques)", fee: "609.60" },
     ],
     prompts: [
       {
@@ -537,9 +604,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "nephroureterectomy",
     displayName: "Nephroureterectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20966/20967.
+    // Single tariff that includes nephrectomy + total ureterectomy + UVJ
+    // resection (3822) — don't stack nephrectomy + ureterectomy separately.
     codes: [
-      { code: "5730", label: "Nephrectomy, radical", fee: "866.25" },
-      { code: "5734", label: "Ureterectomy (with bladder cuff)", fee: "433.10" },
+      { code: "3822", label: "Nephrectomy + total ureterectomy with UVJ resection", fee: "1514.27" },
+      { code: "3825", label: "Nephrectomy + total ureterectomy WITHOUT UVJ resection", fee: "1199.42" },
     ],
     prompts: [
       {
@@ -573,9 +643,10 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "radical_cystectomy",
     displayName: "Radical Cystectomy with Urinary Diversion",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21163/21164.
     codes: [
-      { code: "5775", label: "Radical cystectomy", fee: "1385.60" },
-      { code: "5776", label: "Urinary diversion (ileal conduit/neobladder)", fee: "692.80" },
+      { code: "3995", label: "Radical cystectomy (incl. seminal vesicles, or uterus/ovaries)", fee: "2064.05" },
+      { code: "3996", label: "Add: ileal conduit creation + ureteric transplant to ileal conduit", fee: "535.91" },
     ],
     prompts: [
       {
@@ -602,8 +673,15 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "pcnl",
     displayName: "Percutaneous Nephrolithotomy (PCNL)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21065-21070.
+    // Six distinct codes based on single vs. multiple stone, with or
+    // without lithotripsy, and whether nephrostomy is left at same sitting.
     codes: [
-      { code: "5740", label: "Percutaneous nephrolithotomy", fee: "693.50" },
+      { code: "3878", label: "Single stone removal + EH/US lithotripsy (± antegrade stent, tract dilation)", fee: "815.70" },
+      { code: "3879", label: "Above + nephrostomy at same sitting", fee: "835.42" },
+      { code: "3887", label: "Multiple stone removal + lithotripsy", fee: "936.18" },
+      { code: "3888", label: "Above + nephrostomy at same sitting", fee: "1134.46" },
+      { code: "3872", label: "Percutaneous nephrostomy for stone removal (no litho)", fee: "308.90" },
     ],
     prompts: [
       {
@@ -635,8 +713,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "stent_placement",
     displayName: "Ureteral Stent Placement",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21033-21034.
+    // Bilateral at one sitting gets its own higher tariff (3866), not
+    // 2× the unilateral fee.
     codes: [
-      { code: "5788", label: "Ureteral stent insertion", fee: "131.20" },
+      { code: "3865", label: "Endoscopic ureteral stent insertion (incl. meatotomy if needed)", fee: "243.62" },
+      { code: "3866", label: "Bilateral stent insertion at one sitting", fee: "355.32" },
     ],
     prompts: [
       {
@@ -670,8 +752,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "stent_removal",
     displayName: "Ureteral Stent Removal",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21037.
     codes: [
-      { code: "5789", label: "Ureteral stent removal", fee: "65.60" },
+      { code: "3867", label: "Endoscopic removal of ureteral stent(s)", fee: "102.08" },
     ],
     prompts: [
       {
@@ -689,9 +772,10 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "orchiectomy",
     displayName: "Orchiectomy (Radical or Simple)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21420/21425.
     codes: [
-      { code: "5820", label: "Orchiectomy, radical (inguinal)", fee: "347.50" },
-      { code: "5821", label: "Orchiectomy, simple (scrotal)", fee: "195.80" },
+      { code: "4148", label: "Inguinal approach for testicular mass ± orchiectomy (radical)", fee: "324.35" },
+      { code: "4144", label: "Orchiectomy, simple, unilateral (scrotal)", fee: "203.00" },
     ],
     prompts: [
       {
@@ -723,8 +807,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "hydrocelectomy",
     displayName: "Hydrocelectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21480.
     codes: [
-      { code: "5822", label: "Hydrocelectomy", fee: "195.80" },
+      { code: "4271", label: "Hydrocele of spermatic cord, excision, unilateral", fee: "277.29" },
     ],
     prompts: [
       {
@@ -749,8 +834,10 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "vasectomy",
     displayName: "Vasectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21472.
+    // Single tariff covers unilateral or bilateral vasectomy.
     codes: [
-      { code: "5840", label: "Vasectomy, bilateral", fee: "173.25" },
+      { code: "4241", label: "Vasectomy, partial or complete, unilateral or bilateral", fee: "212.97" },
     ],
     prompts: [
       {
@@ -768,8 +855,10 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "varicocelectomy",
     displayName: "Varicocelectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21481.
     codes: [
-      { code: "5832", label: "Varicocelectomy", fee: "347.50" },
+      { code: "4275", label: "Varicocele, excision, unilateral (independent procedure)", fee: "296.14" },
+      { code: "4278", label: "Add: with hernia repair and/or hydrocele and/or varicocele excision", fee: "310.51" },
     ],
     prompts: [
       {
@@ -787,8 +876,10 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "orchiopexy",
     displayName: "Orchiopexy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21426.
+    // Single tariff covers any technique ± concurrent hernia repair.
     codes: [
-      { code: "5824", label: "Orchiopexy, inguinal", fee: "347.50" },
+      { code: "4156", label: "Orchiopexy, any type, with or without hernia repair", fee: "562.44" },
     ],
     prompts: [
       {
@@ -813,8 +904,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "prostate_biopsy",
     displayName: "Prostate Biopsy (TRUS/Transperineal)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 20938.
     codes: [
-      { code: "5766", label: "Prostate biopsy, transrectal ultrasound-guided", fee: "130.90" },
+      { code: "3927", label: "Cystoscopy with needle biopsy of prostate", fee: "142.61" },
     ],
     prompts: [
       {
@@ -832,8 +924,11 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "pyeloplasty",
     displayName: "Pyeloplasty",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 20998/21000.
+    // Distinct codes for open vs. laparoscopic.
     codes: [
-      { code: "5735", label: "Pyeloplasty", fee: "693.50" },
+      { code: "3831", label: "Pyeloplasty, open (plastic op on renal pelvis)", fee: "See manual line 20998" },
+      { code: "3833", label: "Laparoscopic pyeloplasty ± ureteral stent/cystoscopy", fee: "See manual line 21000" },
     ],
     prompts: [
       {
@@ -858,8 +953,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "urethroplasty",
     displayName: "Urethroplasty",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21209.
+    // Manitoba lists urethroplasty as "By Report" — fee set per case by
+    // the billing department after submission. Document technique,
+    // stricture length, and graft/flap carefully to justify the claim.
     codes: [
-      { code: "5808", label: "Urethroplasty", fee: "520.50" },
+      { code: "4011", label: "Urethroplasty, plastic operation on urethra", fee: "By Report" },
     ],
     prompts: [
       {
@@ -877,8 +976,13 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "adrenalectomy",
     displayName: "Adrenalectomy",
     province: "MB",
+    // FLAGGED: the urology/general-surgery audit did not surface a dedicated
+    // adrenalectomy tariff in Manitoba. Most provinces bill it under the
+    // endocrine section; until confirmed, marked By Report so the claim
+    // goes through a manual billing review rather than shipping a wrong
+    // code number. Confirm against the Manitoba manual before using.
     codes: [
-      { code: "5710", label: "Adrenalectomy", fee: "693.50" },
+      { code: "—", label: "Adrenalectomy (no distinct Manitoba tariff found — confirm with billing)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -903,8 +1007,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "penile_prosthesis",
     displayName: "Penile Prosthesis Implantation",
     province: "MB",
+    // FLAGGED: Manitoba Physician's Manual April 2026 does not list an
+    // explicit penile prosthesis tariff. Likely billed under plastic
+    // operation on penis variants (4125-4138 range) or By Report — check
+    // with your billing contact before submitting.
     codes: [
-      { code: "5850", label: "Penile prosthesis implantation", fee: "520.50" },
+      { code: "—", label: "Penile prosthesis (no distinct Manitoba tariff found — confirm with billing)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -922,8 +1030,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "sacral_neuromodulation",
     displayName: "Sacral Neuromodulation (InterStim)",
     province: "MB",
+    // FLAGGED: Manitoba Physician's Manual April 2026 does not list a
+    // dedicated InterStim/SNM tariff. Likely billed By Report — confirm
+    // with billing. Both Stage 1 lead placement and Stage 2 IPG are
+    // separately claimable.
     codes: [
-      { code: "5860", label: "Sacral nerve stimulator implantation", fee: "433.10" },
+      { code: "—", label: "Sacral neuromodulation (no distinct Manitoba tariff — Stage 1 & 2 by report)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -943,8 +1055,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "mid_urethral_sling",
     displayName: "Mid-Urethral Sling (TVT/TOT)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21737.
     codes: [
-      { code: "5810", label: "Female urethral sling procedure", fee: "347.50" },
+      { code: "4485", label: "Urethral sling for incontinence (TVT or TOT) ± cystocele repair", fee: "587.09" },
     ],
     prompts: [
       {
@@ -962,8 +1075,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "artificial_urinary_sphincter",
     displayName: "Artificial Urinary Sphincter (AUS)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21112.
     codes: [
-      { code: "5812", label: "Artificial urinary sphincter implantation", fee: "520.50" },
+      { code: "3969", label: "Hydraulic urinary sphincter for incontinence, insertion, male or female", fee: "1003.92" },
     ],
     prompts: [
       {
@@ -981,8 +1095,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "eswl",
     displayName: "Extracorporeal Shock Wave Lithotripsy (ESWL)",
     province: "MB",
+    // FLAGGED: Manitoba Physician's Manual April 2026 text search did not
+    // surface a dedicated ESWL/SWL tariff. Likely By Report or billed as
+    // a facility service rather than physician tariff. Confirm with your
+    // billing contact before submitting.
     codes: [
-      { code: "5790", label: "Extracorporeal shock wave lithotripsy", fee: "347.50" },
+      { code: "—", label: "ESWL (no distinct Manitoba tariff found — confirm with billing)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -1007,8 +1125,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "bladder_biopsy",
     displayName: "Bladder Biopsy (Cystoscopic)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 20936.
     codes: [
-      { code: "5771", label: "Cystoscopy with biopsy", fee: "151.65" },
+      { code: "3933", label: "Cystoscopy with biopsy", fee: "130.98" },
     ],
     prompts: [
       {
@@ -1026,8 +1145,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "spc_placement",
     displayName: "Suprapubic Catheter Placement",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 21066.
     codes: [
-      { code: "5778", label: "Suprapubic cystostomy", fee: "173.25" },
+      { code: "3902", label: "Bladder, suprapubic catheter insertion by trocar", fee: "124.33" },
     ],
     prompts: [
       {
@@ -1045,8 +1165,15 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "hypospadias_repair",
     displayName: "Hypospadias Repair",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 21393-21396.
+    // Multiple codes depending on stage + location.
     codes: [
-      { code: "5802", label: "Hypospadias repair, single-stage", fee: "520.50" },
+      { code: "4125", label: "One-stage repair — chordee release + urethra construction", fee: "805.26" },
+      { code: "4126", label: "Release of chordee only", fee: "330.66" },
+      { code: "4127", label: "Second stage procedure, penile", fee: "640.52" },
+      { code: "4128", label: "Scrotal hypospadias repair", fee: "543.52" },
+      { code: "4129", label: "Perineal hypospadias repair", fee: "604.50" },
+      { code: "4130", label: "Urethrocutaneous fistula closure", fee: "472.45" },
     ],
     prompts: [
       {
@@ -1065,8 +1192,11 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "fundoplication",
     displayName: "Fundoplication (Nissen/Toupet)",
     province: "MB",
+    // FLAGGED: no dedicated fundoplication tariff found in the April 2026
+    // manual's text. Likely billed under an anti-reflux / paraesophageal
+    // hernia code — confirm with billing contact.
     codes: [
-      { code: "4380", label: "Fundoplication, laparoscopic", fee: "623.25" },
+      { code: "—", label: "Fundoplication (confirm Manitoba tariff with billing)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -1084,9 +1214,9 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "gastrectomy",
     displayName: "Gastrectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 20505.
     codes: [
-      { code: "4330", label: "Gastrectomy, partial", fee: "749.25" },
-      { code: "4335", label: "Gastrectomy, total", fee: "1039.50" },
+      { code: "3115", label: "Gastrectomy, subtotal (less than 2/3)", fee: "1249.53" },
     ],
     prompts: [
       {
@@ -1104,9 +1234,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "bariatric",
     displayName: "Bariatric Surgery (Sleeve/Bypass)",
     province: "MB",
+    // FLAGGED: no dedicated sleeve gastrectomy or gastric bypass tariff
+    // surfaced in the audit text search. Bariatric procedures may be
+    // covered under partial gastrectomy (3115) or By Report depending
+    // on institution + approval. Confirm with billing.
     codes: [
-      { code: "4336", label: "Sleeve gastrectomy, laparoscopic", fee: "623.25" },
-      { code: "4337", label: "Roux-en-Y gastric bypass, laparoscopic", fee: "866.25" },
+      { code: "—", label: "Bariatric surgery (confirm Manitoba tariff + approval status)", fee: "By Report" },
     ],
     prompts: [
       {
@@ -1131,8 +1264,13 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "splenectomy",
     displayName: "Splenectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 19691.
+    // Manitoba lists splenectomy as an "add" — billable on top of a
+    // related procedure (e.g. distal pancreatectomy). If splenectomy
+    // is the independent primary procedure, check Manitoba's listing
+    // under digestive/hematologic sections — may be By Report.
     codes: [
-      { code: "4370", label: "Splenectomy", fee: "623.25" },
+      { code: "3584", label: "Splenectomy (add-on)", fee: "852.64" },
     ],
     prompts: [
       {
@@ -1150,8 +1288,11 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "whipple",
     displayName: "Pancreaticoduodenectomy (Whipple)",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 20875.
     codes: [
-      { code: "4390", label: "Pancreaticoduodenectomy", fee: "1732.50" },
+      { code: "3551", label: "Pancreaticoduodenectomy", fee: "3423.60" },
+      { code: "3552", label: "Total pancreatectomy ± splenectomy", fee: "2302.78" },
+      { code: "3550", label: "Distal pancreatectomy ± splenectomy", fee: "1769.25" },
     ],
     prompts: [
       {
@@ -1176,9 +1317,15 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "mastectomy",
     displayName: "Mastectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, lines 16410-16418.
+    // Full spectrum of breast procedures — lumpectomy through radical.
     codes: [
-      { code: "4100", label: "Mastectomy, simple/total", fee: "520.50" },
-      { code: "4101", label: "Mastectomy, modified radical", fee: "623.25" },
+      { code: "0442", label: "Partial mastectomy (lumpectomy), malignancy", fee: "315.86" },
+      { code: "0443", label: "Partial mastectomy + axillary node dissection", fee: "870.11" },
+      { code: "0449", label: "Subcutaneous mastectomy, male or female", fee: "442.07" },
+      { code: "0457", label: "Simple complete mastectomy", fee: "478.78" },
+      { code: "0471", label: "Modified radical mastectomy (MRM)", fee: "919.36" },
+      { code: "0470", label: "Radical mastectomy", fee: "943.26" },
     ],
     prompts: [
       {
@@ -1205,9 +1352,12 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     procedureKey: "thyroidectomy",
     displayName: "Thyroidectomy",
     province: "MB",
+    // Verified: Manitoba Physician's Manual April 2026, line 22107.
+    // Manual only lists one thyroidectomy tariff for adenoma/cyst
+    // excision — total vs. lobectomy distinction may need separate
+    // confirmation against the full endocrine section.
     codes: [
-      { code: "4050", label: "Thyroidectomy, total", fee: "623.25" },
-      { code: "4051", label: "Thyroid lobectomy", fee: "433.10" },
+      { code: "4911", label: "Thyroidectomy, adenoma or cyst excision", fee: "696.36" },
     ],
     prompts: [
       {
