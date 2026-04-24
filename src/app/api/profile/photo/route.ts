@@ -7,6 +7,53 @@ const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const BUCKET = "avatars";
 
+// Cache the "bucket has been ensured" state in the server-runtime memory so
+// we don't re-check on every upload. Survives as long as the Lambda warm.
+let bucketEnsured = false;
+
+/**
+ * Ensure the avatars bucket exists. Supabase Storage buckets aren't
+ * auto-created by the Dashboard when a new project spins up — each new
+ * environment would otherwise need a manual "create bucket" click. This
+ * makes the first upload self-provision the bucket with public read, so
+ * the feature just works in dev / preview / prod without a separate
+ * setup step.
+ *
+ * Idempotent: if the bucket exists, listBuckets() returns it and we
+ * short-circuit. If not, createBucket() creates it with `public: true`
+ * which matches our getPublicUrl() usage below.
+ */
+async function ensureAvatarsBucket(
+  supabase: ReturnType<typeof createServiceRoleClient>,
+): Promise<void> {
+  if (bucketEnsured) return;
+  try {
+    const { data: buckets } = await supabase.storage.listBuckets();
+    const exists = buckets?.some(b => b.name === BUCKET);
+    if (exists) {
+      bucketEnsured = true;
+      return;
+    }
+    const { error: createErr } = await supabase.storage.createBucket(BUCKET, {
+      public: true,
+      fileSizeLimit: `${MAX_SIZE}`,
+      allowedMimeTypes: ALLOWED_TYPES,
+    });
+    if (createErr) {
+      // Another request might have created it between our list + create.
+      // "already exists" is benign; anything else is worth logging.
+      if (!/already exists|duplicate/i.test(createErr.message)) {
+        console.warn("[avatars] createBucket failed:", createErr.message);
+      }
+    }
+    bucketEnsured = true;
+  } catch (err) {
+    // Don't throw — let the actual upload attempt fail with a cleaner
+    // error than "bucket setup crashed."
+    console.warn("[avatars] ensureBucket failed:", err);
+  }
+}
+
 /**
  * POST /api/profile/photo
  * Upload a profile photo. Accepts multipart/form-data with a "file" field.
@@ -45,6 +92,7 @@ export async function POST(req: NextRequest) {
   }
 
   const supabase = createServiceRoleClient();
+  await ensureAvatarsBucket(supabase);
 
   // Generate a unique path: avatars/{userId}/{timestamp}.{ext}
   const ext = file.type.split("/")[1] === "jpeg" ? "jpg" : file.type.split("/")[1];

@@ -202,6 +202,42 @@ export function BillingOverlayPanel({
       {/* Expanded content */}
       {expanded && (
         <div style={{ padding: "0 20px 14px" }}>
+          {/* ⚠️ Verified-source warning.
+              The tariff codes in this library were compiled in early dev
+              and have NOT been audited against the current Manitoba
+              Physician's Manual. A full rebuild is in progress (see
+              docs/billing-audit.md). Until that lands, treat these codes
+              as a DOCUMENTATION CHECKLIST ONLY — do not submit for
+              billing without cross-checking against the official manual:
+              https://www.gov.mb.ca/health/documents/physmanual.pdf */}
+          {overlay.billableCodes.length > 0 && (
+            <div
+              style={{
+                marginBottom: 12,
+                padding: "8px 10px",
+                background: "rgba(220,38,38,0.08)",
+                border: "1px solid rgba(220,38,38,0.3)",
+                borderRadius: 6,
+                fontSize: 11,
+                color: "#fca5a5",
+                lineHeight: 1.45,
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 2 }}>
+                <AlertTriangle size={11} style={{ color: "#ef4444" }} />
+                <strong style={{ color: "#fca5a5" }}>
+                  Codes pending audit — do not submit without verifying
+                </strong>
+              </div>
+              <div style={{ color: "#fca5a5", opacity: 0.85 }}>
+                The tariff code below is a rough match and has not been
+                cross-checked against the current Manitoba Physician&rsquo;s
+                Manual. Use the documentation prompts as a checklist, but
+                verify the code number and fee against the official
+                source before billing.
+              </div>
+            </div>
+          )}
           {/* Billing codes */}
           {overlay.billableCodes.length > 0 && (
             <div style={{ marginBottom: 10 }}>
@@ -215,7 +251,7 @@ export function BillingOverlayPanel({
                   marginBottom: 6,
                 }}
               >
-                Tariff Codes
+                Suggested codes (unverified)
               </div>
               <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
                 {overlay.billableCodes.map((code) => (
@@ -226,8 +262,10 @@ export function BillingOverlayPanel({
                       alignItems: "center",
                       gap: 6,
                       padding: "5px 10px",
-                      background: "rgba(16,185,129,0.08)",
-                      border: "1px solid rgba(16,185,129,0.25)",
+                      // Amber, not green — these are unverified suggestions,
+                      // not authoritative billing codes. See audit warning above.
+                      background: "rgba(245,158,11,0.08)",
+                      border: "1px dashed rgba(245,158,11,0.4)",
                       borderRadius: 6,
                     }}
                   >
