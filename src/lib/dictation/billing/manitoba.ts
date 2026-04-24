@@ -1378,6 +1378,332 @@ export const MB_PROCEDURE_LIBRARY: Record<string, ProcedureBillingProfile> = {
     footerRules: [],
   },
 
+  // ── OB/GYN procedures ────────────────────────────────────────────────────
+  // All codes verified against Manitoba Physician's Manual April 2026.
+  // Line numbers reference the pdftotext extract at /tmp/hippo-manual/manual.txt.
+
+  cesarean_section: {
+    procedureKey: "cesarean_section",
+    displayName: "Caesarean Section",
+    province: "MB",
+    // Line 21958 — single tariff covers C/S ± sterilization.
+    codes: [
+      { code: "4800", label: "Caesarean section, with or without sterilization", fee: "728.14" },
+      { code: "4803", label: "Caesarean hysterectomy (when hysterectomy performed)", fee: "1052.53" },
+    ],
+    prompts: [
+      {
+        id: "mb-cs-indication",
+        label: "Indication",
+        text: "Document indication clearly (elective repeat, non-reassuring FHR, failure to progress, malpresentation, etc.) — supports the medical necessity if audited.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-cs-apgars",
+        label: "Apgars + cord clamping",
+        text: "Document Apgar scores at 1 and 5 minutes, cord clamping (delayed vs. immediate), cord gas results if sent.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-cs-ebl",
+        label: "EBL",
+        text: "Document estimated blood loss. >1000 mL may qualify for an unusually-complicated premium — contact billing.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+      {
+        id: "mb-cs-sterilization",
+        label: "Sterilization at same sitting",
+        text: "If bilateral tubal ligation / salpingectomy was done at the same C/S, 4800 covers it — do NOT add a separate tubal tariff.",
+        severity: "conditional",
+        color: "#F59E0B",
+        condition: () => true,
+      },
+    ],
+    footerRules: [
+      "Adhesiolysis (3500/3501) IS claimable in addition if performed for >30 min and documented separately.",
+    ],
+  },
+
+  vaginal_delivery: {
+    procedureKey: "vaginal_delivery",
+    displayName: "Vaginal Delivery (incl. VBAC)",
+    province: "MB",
+    // Line 22058 — VBAC add-on.
+    codes: [
+      { code: "4841", label: "Vaginal delivery following previous caesarean section (add)", fee: "144.11" },
+      { code: "4848", label: "Low cavity assisted with forceps/vacuum (add-on)", fee: "49.31" },
+      { code: "4810", label: "Shoulder dystocia (add-on)", fee: "141.71" },
+    ],
+    prompts: [
+      {
+        id: "mb-vag-tear",
+        label: "Tears / episiotomy",
+        text: "Document laceration degree (1st-4th) or episiotomy + repair technique + suture.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "The base vaginal delivery tariff is claimed by the attending who performs it — 4841 is an ADD-ON for VBAC specifically.",
+    ],
+  },
+
+  hysterectomy_abdominal: {
+    procedureKey: "hysterectomy_abdominal",
+    displayName: "Total Abdominal Hysterectomy (TAH)",
+    province: "MB",
+    // Lines 21830-21832.
+    codes: [
+      { code: "4617", label: "Hysterectomy, total, with or without adnexal surgery", fee: "622.73" },
+      { code: "4621", label: "Hysterectomy, sub-total, with or without adnexal surgery", fee: "617.44" },
+      { code: "4627", label: "Hysterectomy, radical + pelvic lymphadenectomy", fee: "1074.34" },
+      { code: "4620", label: "Add: obesity (BMI > 35) OR stage 3-4 endometriosis", fee: "132.24" },
+    ],
+    prompts: [
+      {
+        id: "mb-tah-bmi",
+        label: "BMI / endometriosis docs (4620)",
+        text: "4620 add-on requires documented BMI and weight in the claim (obesity path) OR pathology report for stage 3-4 endo. Include in op note.",
+        severity: "conditional",
+        color: "#F59E0B",
+        condition: () => true,
+      },
+      {
+        id: "mb-tah-adnexa",
+        label: "Adnexal surgery",
+        text: "Document whether ovaries/tubes were removed (BSO) or preserved. Both variants are covered under the base 4617/4621.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  hysterectomy_vaginal: {
+    procedureKey: "hysterectomy_vaginal",
+    displayName: "Vaginal Hysterectomy",
+    province: "MB",
+    // Line 21691.
+    codes: [
+      { code: "4631", label: "Hysterectomy, vaginal, with or without repair", fee: "780.29" },
+      { code: "4607", label: "Add: laparoscopic assist (LAVH) to 4631 or 4621", fee: "249.86" },
+    ],
+    prompts: [
+      {
+        id: "mb-vh-repair",
+        label: "Concurrent repair",
+        text: "Document whether anterior/posterior colporrhaphy or perineorrhaphy was performed — included in 4631 base.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  hysterectomy_laparoscopic: {
+    procedureKey: "hysterectomy_laparoscopic",
+    displayName: "Laparoscopic Hysterectomy (TLH / LAVH)",
+    province: "MB",
+    // LAVH = base 4631 + 4607 add-on. TLH uses the same stack per Manitoba.
+    // Line 21782 for LAVH add-on; 21787 for laparoscopic radical.
+    codes: [
+      { code: "4631", label: "Hysterectomy base (vaginal access, used for TLH/LAVH)", fee: "780.29" },
+      { code: "4607", label: "Add: laparoscopic assist (LAVH/TLH)", fee: "249.86" },
+      { code: "4609", label: "Laparoscopic radical hysterectomy + bilateral pelvic LND", fee: "1819.89" },
+      { code: "4691", label: "Add: intraoperative morcellation ≥30 min", fee: "241.95" },
+    ],
+    prompts: [
+      {
+        id: "mb-tlh-cysto",
+        label: "Post-TLH cystoscopy",
+        text: "Manitoba bills cystoscopy performed post-TLH to confirm ureteric integrity as a SEPARATE cystoscopy tariff (3931 or 3928). Document jets visualized bilaterally.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-tlh-vault",
+        label: "Vault closure technique",
+        text: "Document vault closure technique (V-Loc barbed, Vicryl, etc.) and apical support (uterosacral ligaments incorporated).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "Morcellation ≥30 min (4691) IS claimable in addition to hysterectomy or laparoscopic myomectomy.",
+      "Post-TLH cystoscopy (3931/3928) may be billed separately — document findings.",
+    ],
+  },
+
+  myomectomy: {
+    procedureKey: "myomectomy",
+    displayName: "Myomectomy",
+    province: "MB",
+    // Line 21856.
+    codes: [
+      { code: "4614", label: "Myomectomy", fee: "446.64" },
+      { code: "4691", label: "Add: intraoperative morcellation ≥30 min (laparoscopic)", fee: "241.95" },
+    ],
+    prompts: [
+      {
+        id: "mb-myo-fibroids",
+        label: "Fibroid documentation",
+        text: "Document number and size of fibroids enucleated. State uterine defect closure technique.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  oophorectomy_salpingectomy: {
+    procedureKey: "oophorectomy_salpingectomy",
+    displayName: "Oophorectomy / Salpingectomy / Salpingo-oophorectomy",
+    province: "MB",
+    // Lines 21857, 21863, 21878.
+    codes: [
+      { code: "4583", label: "Oophorectomy, unilateral or bilateral, complete or partial", fee: "406.97" },
+      { code: "4545", label: "Salpingectomy or salpingo-oophorectomy, total, unilateral or bilateral", fee: "See manual line 21863" },
+      { code: "4586", label: "Salpingo-oophorectomy WITH hysterectomy (stacked)", fee: "994.83" },
+      { code: "4582", label: "Torsion of ovary, surgical reduction", fee: "468.62" },
+    ],
+    prompts: [
+      {
+        id: "mb-bso-laterality",
+        label: "Laterality",
+        text: "Document uni- vs. bilateral explicitly. For BSO, state both ovaries and both tubes were removed.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
+  dilatation_curettage: {
+    procedureKey: "dilatation_curettage",
+    displayName: "Dilatation and Curettage (D&C)",
+    province: "MB",
+    // Line 21644.
+    codes: [
+      { code: "4646", label: "Dilatation and curettage", fee: "125.19" },
+      { code: "4870", label: "D&C for post-partum bleeding (re-admission)", fee: "106.80" },
+      { code: "4613", label: "Curettage — aspiration technique (professional only)", fee: "45.44" },
+      { code: "4815", label: "D&C for hydatidiform mole", fee: "132.79" },
+      { code: "4860", label: "Therapeutic abortion by D&C and/or suction", fee: "162.86" },
+      { code: "4862", label: "Therapeutic D&E", fee: "287.16" },
+    ],
+    prompts: [
+      {
+        id: "mb-dc-pathology",
+        label: "Pathology",
+        text: "Document specimen sent to pathology (uterine sounding depth, estimated tissue volume).",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [],
+  },
+
+  endometriosis_treatment: {
+    procedureKey: "endometriosis_treatment",
+    displayName: "Laparoscopic Endometriosis Treatment",
+    province: "MB",
+    // Lines around 21760 + 21765.
+    codes: [
+      { code: "4605", label: "Treatment of endometriosis, first 30 min (independent)", fee: "227.63" },
+      { code: "4606", label: "Add: each additional 15-min period of operating time", fee: "113.82" },
+    ],
+    prompts: [
+      {
+        id: "mb-endo-time",
+        label: "Operating time",
+        text: "Document total operating time for endometriosis treatment separately from other concurrent procedures.",
+        severity: "required",
+        color: "#DC2626",
+      },
+      {
+        id: "mb-endo-stage",
+        label: "Staging documentation",
+        text: "Document visualized endometriosis stage (1-4) per ASRM. Stage 3-4 also unlocks the 4620 hysterectomy add-on.",
+        severity: "recommended",
+        color: "#F59E0B",
+      },
+    ],
+    footerRules: [
+      "Adhesiolysis (3500/3501) may NOT be claimed in addition to 4605/4606 — lysis is considered included.",
+      "4605/4606 are paid at 100% when claimed with additional surgical services (not the usual 50% multi-procedure reduction).",
+    ],
+  },
+
+  diagnostic_laparoscopy: {
+    procedureKey: "diagnostic_laparoscopy",
+    displayName: "Diagnostic Laparoscopy",
+    province: "MB",
+    // Around line 21804.
+    codes: [
+      { code: "3572", label: "Laparoscopy, diagnostic", fee: "201.34" },
+      { code: "3574", label: "Add: when followed by open abdominal op at same sitting", fee: "196.25" },
+      { code: "3579", label: "Add: converted from laparoscopic to open", fee: "196.25" },
+    ],
+    prompts: [
+      {
+        id: "mb-lap-findings",
+        label: "Findings",
+        text: "Document systematic inspection — liver, gallbladder, bowels, pelvic organs, adhesions, peritoneum.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [
+      "3572 may NOT be claimed in addition to 3540 (laparotomy).",
+    ],
+  },
+
+  tubal_ligation: {
+    procedureKey: "tubal_ligation",
+    displayName: "Tubal Ligation / Sterilization",
+    province: "MB",
+    // Around line 21810.
+    codes: [
+      { code: "4561", label: "Sterilization by any method, unilateral or bilateral", fee: "248.19" },
+      { code: "4562", label: "Postpartum sterilization by any method", fee: "243.32" },
+    ],
+    prompts: [
+      {
+        id: "mb-btl-technique",
+        label: "Technique",
+        text: "Document technique (Pomeroy, Filshie clip, bipolar fulguration, salpingectomy). Bilateral confirmation required.",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [
+      "If performed at same sitting as C/S, tariff 4800 includes sterilization — don't stack 4561/4562.",
+    ],
+  },
+
+  ectopic_pregnancy: {
+    procedureKey: "ectopic_pregnancy",
+    displayName: "Ectopic Pregnancy (Surgical)",
+    province: "MB",
+    // Line 21814.
+    codes: [
+      { code: "4811", label: "Extrauterine pregnancy, ectopic, removal by laparotomy", fee: "494.42" },
+    ],
+    prompts: [
+      {
+        id: "mb-ectopic-approach",
+        label: "Approach + findings",
+        text: "Document approach, location of ectopic (tubal, ovarian, interstitial), tube/ovary fate (salpingectomy vs. salpingostomy).",
+        severity: "required",
+        color: "#DC2626",
+      },
+    ],
+    footerRules: [],
+  },
+
   // ── Scaffold for future procedures ────────────────────────────────────────
   open_lysis_example_primary: {
     procedureKey: "open_lysis_example_primary",
@@ -1492,6 +1818,66 @@ const PROCEDURE_NAME_PATTERNS: [RegExp, string][] = [
   [/\bmastectom/i, "mastectomy"],
   [/\bthyroidectom/i, "thyroidectomy"],
   [/\bthyroid\s+lobectom/i, "thyroidectomy"],
+  // ── OB/GYN ──
+  // Cesarean variants
+  [/\bcesarean\b/i, "cesarean_section"],
+  [/\bcaesarean\b/i, "cesarean_section"],
+  [/\bc[-\s]?section\b/i, "cesarean_section"],
+  [/\bc\/s\b/i, "cesarean_section"],
+  [/\blscs\b/i, "cesarean_section"],
+  [/\brepeat\s+lower\s+segment/i, "cesarean_section"],
+  // Vaginal delivery + VBAC
+  [/\bvbac\b/i, "vaginal_delivery"],
+  [/\bvaginal\s+birth.*cesarean/i, "vaginal_delivery"],
+  [/\btolac\b/i, "vaginal_delivery"],
+  [/\bforceps\s+delivery/i, "vaginal_delivery"],
+  [/\bvacuum\s+delivery/i, "vaginal_delivery"],
+  [/\bventouse/i, "vaginal_delivery"],
+  // Hysterectomy — order matters: specific before generic
+  [/\btotal\s+laparoscopic\s+hysterectom/i, "hysterectomy_laparoscopic"],
+  [/\btlh\b/i, "hysterectomy_laparoscopic"],
+  [/\blavh\b/i, "hysterectomy_laparoscopic"],
+  [/\blaparoscopic\s+hysterectom/i, "hysterectomy_laparoscopic"],
+  [/\brobotic\s+hysterectom/i, "hysterectomy_laparoscopic"],
+  [/\bvaginal\s+hysterectom/i, "hysterectomy_vaginal"],
+  [/\bvh\b(?!\w)/i, "hysterectomy_vaginal"],
+  [/\btotal\s+abdominal\s+hysterectom/i, "hysterectomy_abdominal"],
+  [/\btah\b(?!\w)/i, "hysterectomy_abdominal"],
+  [/\babdominal\s+hysterectom/i, "hysterectomy_abdominal"],
+  [/\bradical\s+hysterectom/i, "hysterectomy_abdominal"],
+  [/\bhysterectom/i, "hysterectomy_abdominal"],
+  // Myomectomy
+  [/\bmyomectom/i, "myomectomy"],
+  // Ovary / tube
+  [/\boophorectom/i, "oophorectomy_salpingectomy"],
+  [/\bsalpingectom/i, "oophorectomy_salpingectomy"],
+  [/\bsalpingo.?oophorectom/i, "oophorectomy_salpingectomy"],
+  [/\bbso\b/i, "oophorectomy_salpingectomy"],
+  [/\buso\b/i, "oophorectomy_salpingectomy"],
+  [/\bovarian\s+cystectom/i, "oophorectomy_salpingectomy"],
+  [/\badnexal\s+mass\s+excis/i, "oophorectomy_salpingectomy"],
+  // D&C
+  [/\bd\s*&\s*c\b/i, "dilatation_curettage"],
+  [/\bd\s+and\s+c\b/i, "dilatation_curettage"],
+  [/\bdilation\s+and\s+curettage/i, "dilatation_curettage"],
+  [/\bdilatation\s+and\s+curettage/i, "dilatation_curettage"],
+  [/\bhysteroscopy.*curettage/i, "dilatation_curettage"],
+  // Endometriosis
+  [/\bendometriosis\s+(resect|excis|ablat|treatment)/i, "endometriosis_treatment"],
+  [/\blaparoscopic\s+endometriosis/i, "endometriosis_treatment"],
+  // Diagnostic laparoscopy
+  [/\bdiagnostic\s+laparoscop/i, "diagnostic_laparoscopy"],
+  [/\bexploratory\s+laparoscop/i, "diagnostic_laparoscopy"],
+  // Tubal
+  [/\btubal\s+ligation/i, "tubal_ligation"],
+  [/\bbtl\b/i, "tubal_ligation"],
+  [/\bsterilization/i, "tubal_ligation"],
+  [/\bfilshie\s+clip/i, "tubal_ligation"],
+  [/\bpomeroy/i, "tubal_ligation"],
+  // Ectopic
+  [/\bectopic\s+pregnancy/i, "ectopic_pregnancy"],
+  [/\btubal\s+pregnancy/i, "ectopic_pregnancy"],
+  [/\bsalpingostom/i, "ectopic_pregnancy"],
   // ── Add-ons ──
   [/\badhesiolysis\b/i, "adhesiolysis_add_on"],
   [/\blysis\s+of\s+adhesion/i, "adhesiolysis_add_on"],
