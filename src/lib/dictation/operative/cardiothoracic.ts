@@ -76,6 +76,62 @@ export function cardiothoracicTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: cardiothoracic attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["chest tube", "tube thoracostomy", "pleural drain"])) {
+    return {
+      anesthesia: "Local anesthesia with sedation.",
+      ebl: "Minimal.",
+      drains: "28–32 Fr chest tube to underwater seal ± suction.",
+      specimens: "Pleural fluid sent for cytology, cell count, gram stain, culture, pH, LDH, protein.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for monitoring of drain output and air leak. Plan: serial CXR, drain removal when output < 200 mL/day and no air leak.",
+    };
+  }
+
+  if (includesAny(name, ["esophagectomy", "ivor lewis", "mckeown", "transhiatal"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with double-lumen tube + arterial line + central access + epidural for postoperative analgesia.",
+      ebl: "Approximately 300–500 ml.",
+      drains: "Right pleural drain (Ivor Lewis), neck drain (McKeown), J-tube for enteral feeds.",
+      specimens: "Esophagectomy specimen with regional lymph nodes, oriented for pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the cardiothoracic / surgical ICU. Plan: NG decompression, J-tube feeds advanced per protocol, anastomotic leak surveillance with contrast study POD 5–7, mobilization, multimodal analgesia.",
+    };
+  }
+
+  if (includesAny(name, ["off-pump", "opcab"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, PA catheter, TEE.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "Mediastinal + bilateral pleural drains.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the cardiothoracic ICU. Plan: serial chest tube outputs, hemodynamic monitoring, antiplatelet/statin per service protocol.",
+    };
+  }
+
+  if (includesAny(name, ["decortication"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with double-lumen tube.",
+      ebl: "Approximately 200–500 ml (variable).",
+      drains: "Two large-bore (32 Fr) chest tubes — apical and basal.",
+      specimens: "Pleural rind / fibrinopurulent peel to pathology + culture.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for chest tube management and antibiotics. Plan: tubes to suction, lung re-expansion confirmed on serial CXR, tubes removed when full re-expansion + minimal output.",
+    };
+  }
+
+  if (includesAny(name, ["heller myotomy", "esophageal myotomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None routinely.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight. Plan: clear liquids POD 0, advance over 1 week to soft diet, follow-up barium swallow at 4 weeks.",
+    };
+  }
+
   return {
     anesthesia: "General endotracheal anesthesia with appropriate monitoring.",
     ebl: "Approximately ________ ml.",
@@ -114,6 +170,26 @@ export function cardiothoracicFindings(c: CaseLog): string {
 
   if (includesAny(name, ["pericardial window"])) {
     return `A large pericardial effusion was identified on preoperative echo with tamponade physiology. Upon entering the pericardium, [serous / sanguineous / purulent] fluid was drained under pressure with immediate hemodynamic improvement. A pericardial biopsy was obtained. No gross tumor implants were identified on the pericardium.`;
+  }
+
+  if (includesAny(name, ["chest tube", "tube thoracostomy", "pleural drain"])) {
+    return `[Right / left] [pleural effusion / pneumothorax / hemothorax / empyema] confirmed on preoperative imaging. The pleural space was entered through the [4th/5th] intercostal space at the [mid / anterior / posterior] axillary line. [__] mL of [serous / sanguineous / purulent] fluid was drained. Lung re-expansion was confirmed.`;
+  }
+
+  if (includesAny(name, ["esophagectomy", "ivor lewis", "mckeown", "transhiatal"])) {
+    return `A [distal / mid / cervical] esophageal mass / Barrett's-related adenocarcinoma was identified, consistent with preoperative endoscopy and staging. The tumor was [resectable] with adequate proximal and distal margins. The conduit (gastric tube / colonic interposition) was viable and reached the planned anastomotic site without tension. Anastomotic leak test was negative. Regional lymph node harvest yielded [__] nodes.`;
+  }
+
+  if (includesAny(name, ["off-pump", "opcab"])) {
+    return `Severe coronary artery disease was confirmed on preoperative catheterization. The patient was a candidate for off-pump CABG based on stable hemodynamics, target vessel quality, and surgeon experience. Grafts: LIMA → LAD with stabilizer; saphenous vein graft(s) to [target vessels]. All anastomoses were patent with good Doppler signals. Hemodynamic stability was maintained throughout without conversion to on-pump.`;
+  }
+
+  if (includesAny(name, ["decortication"])) {
+    return `[Right / left] empyema / chronic fibrothorax with a thick fibrinopurulent peel encasing the lung. The pleural rind was systematically stripped from the visceral pleura and the diaphragmatic and mediastinal pleura. Full lung re-expansion was achieved. Cultures were obtained from the pleural fluid + rind. Wound contamination class: III.`;
+  }
+
+  if (includesAny(name, ["heller myotomy", "esophageal myotomy"])) {
+    return `Achalasia confirmed on preoperative manometry (aperistalsis + non-relaxing LES). The lower esophageal sphincter was identified at the GE junction. A myotomy was performed extending [6 cm] proximal to the GE junction and [2 cm] onto the gastric cardia, with all longitudinal and circular muscle fibers divided to expose the underlying mucosa. No mucosal perforation occurred (confirmed with intraoperative endoscopy / methylene blue test). [A partial fundoplication (Dor or Toupet) was added for reflux prophylaxis.]`;
   }
 
   return `Preoperative imaging and catheterization findings were reviewed and were consistent with intraoperative findings. Cardiopulmonary bypass (if used) was established and weaned without complication with documented bypass and cross-clamp times. Post-bypass or end-of-case imaging confirmed satisfactory result.`;
@@ -205,6 +281,57 @@ function ctOpSteps(c: CaseLog): string[] {
       `A subxiphoid incision was made and carried down through the linea alba. The xiphoid process was retracted superiorly and the pericardium identified.`,
       `The pericardium was grasped with Allis clamps, tented up, and opened sharply. Pericardial fluid was encountered and sent for cytology and microbiology. A [5 × 5 cm] rectangular window was excised and sent for pathology.`,
       `A pericardial drain was placed through the window and tunneled through a separate stab incision. The fascia and skin were closed in layers.`,
+    ];
+  }
+
+  // -- Chest tube ------------------------------------------------------------
+  if (includesAny(name, ["chest tube", "tube thoracostomy", "pleural drain"])) {
+    return [
+      `Under sterile conditions and after local anesthesia with 1% lidocaine, a 3 cm transverse incision was made over the [4th/5th] intercostal space at the [mid-axillary] line on the [right/left].`,
+      `Blunt dissection was carried down to the parietal pleura with a Kelly clamp, hugging the superior border of the rib to avoid the neurovascular bundle. A finger sweep confirmed entry into the pleural space.`,
+      `A 28–32 Fr chest tube was advanced into the pleural space, directing the tip apically (for pneumothorax) or posteriorly/inferiorly (for effusion). The tube was secured to the skin with a 0 silk anchoring + air-knot suture and connected to underwater seal ± suction.`,
+      `Post-insertion CXR confirmed appropriate placement and lung re-expansion.`,
+    ];
+  }
+
+  // -- Esophagectomy (Ivor Lewis / McKeown / transhiatal) -------------------
+  if (includesAny(name, ["esophagectomy", "ivor lewis", "mckeown", "transhiatal"])) {
+    return [
+      `The abdomen was entered (laparotomy or laparoscopy) and the gastric conduit prepared: greater curvature mobilised, short gastrics divided, gastric tube created with sequential GIA stapler firings preserving the right gastroepiploic arcade. A pyloroplasty / pyloromyotomy was added per surgeon preference.`,
+      `For Ivor Lewis: a right thoracotomy / VATS was performed. The thoracic esophagus was mobilised. The conduit was passed through the hiatus into the chest. The intrathoracic anastomosis was created (stapled or hand-sewn) above the level of the azygos vein.`,
+      `For McKeown: a left cervical incision was added. The esophagus was mobilised in the neck. The conduit was passed up through the posterior mediastinum and the cervical anastomosis was completed (hand-sewn or stapled).`,
+      `For transhiatal: the esophagus was bluntly mobilised through the hiatus from below and from the cervical incision above. The conduit was passed up and a cervical anastomosis was created.`,
+      `A nasogastric tube was placed and a feeding J-tube was inserted. Drains were positioned. The chest / abdomen / neck were closed.`,
+    ];
+  }
+
+  // -- Off-pump CABG ---------------------------------------------------------
+  if (includesAny(name, ["off-pump", "opcab"])) {
+    return [
+      `Median sternotomy was performed. The pericardium was opened. The LIMA was harvested in a pedicled / skeletonised fashion. Saphenous vein was harvested.`,
+      `Heparin was given to a target ACT > 300. A tissue stabiliser (Octopus / Genzyme) was used to immobilise the target vessel during construction of each anastomosis. Coronary occlusion shunts were placed as needed for distal perfusion.`,
+      `Each distal anastomosis was completed with running 7-0 / 8-0 Prolene. Proximal saphenous vein graft anastomoses to the ascending aorta were created with side-biting clamps. Doppler signals were confirmed in each graft.`,
+      `Protamine was administered. Hemodynamic stability was maintained throughout without conversion to on-pump. Mediastinal and bilateral pleural drains were placed. Sternum closed with stainless steel wires.`,
+    ];
+  }
+
+  // -- Decortication ---------------------------------------------------------
+  if (includesAny(name, ["decortication"])) {
+    return [
+      `A standard posterolateral thoracotomy was performed (or VATS approach). The pleural space was entered through a thickened parietal pleura. A copious empyema cavity was identified.`,
+      `The pleural fluid was suctioned and sent for culture. The fibrinopurulent peel was systematically stripped from the visceral pleura, mediastinum, and diaphragm using a Kittner / blunt finger / Yankauer dissection.`,
+      `Lung re-expansion was confirmed under direct vision. Hemostasis was achieved. Two large-bore (32 Fr) chest tubes were placed: one apical, one basal.`,
+      `The thoracotomy was closed in layers.`,
+    ];
+  }
+
+  // -- Heller myotomy --------------------------------------------------------
+  if (includesAny(name, ["heller myotomy", "esophageal myotomy"])) {
+    return [
+      `Pneumoperitoneum was established and ports placed (12 mm supraumbilical + 5 mm × 3 + Nathanson). The liver was retracted. The GE junction was identified.`,
+      `The phrenoesophageal ligament was incised. The anterior surface of the distal esophagus was exposed for [6 cm] proximal to the GE junction. A myotomy was begun with a hook cautery on low setting, dividing all longitudinal then circular muscle fibres down to but not through the mucosa.`,
+      `The myotomy was extended distally [2 cm] onto the gastric cardia. Intraoperative endoscopy / methylene blue test confirmed no mucosal perforation.`,
+      `[A partial fundoplication: Dor (anterior 180°) or Toupet (posterior 270°) was added] for reflux prophylaxis using interrupted 2-0 Ethibond sutures.`,
     ];
   }
 

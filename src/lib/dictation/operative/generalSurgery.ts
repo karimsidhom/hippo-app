@@ -95,6 +95,83 @@ export function generalSurgeryTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  if (includesAny(name, ["fundoplication", "nissen", "toupet", "anti-reflux"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None routinely (hiatal hernia sac to pathology if excised).",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight on a clear liquid / full liquid diet × 24h, advancing to soft diet over 2 weeks. Anti-reflux lifestyle counselling. Follow-up in 4 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["sleeve gastrectomy", "vsg", "lsg"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal to approximately 50 ml.",
+      drains: "None routinely (per ERAS) — surgeon may place a drain along the staple line.",
+      specimens: "Resected gastric body and fundus.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted on bariatric ERAS pathway: clear liquids POD 0, advance per bariatric dietitian, ambulate immediately, DVT prophylaxis. Discharge POD 1–2 with vitamin supplementation and bariatric follow-up.",
+    };
+  }
+
+  if (includesAny(name, ["roux-en-y", "rygb", "gastric bypass"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 50–100 ml.",
+      drains: "None routinely.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted on bariatric ERAS pathway. Plan: GI series on POD 1 if surgeon protocol, advance diet over weeks per dietitian, DVT prophylaxis, lifelong vitamin/mineral supplementation, multidisciplinary follow-up.",
+    };
+  }
+
+  if (includesAny(name, ["splenectomy"]) && !includesAny(name, ["pancreat"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–200 ml (variable; can be brisk).",
+      drains: "Left subdiaphragmatic Blake drain only if pancreatic tail manipulation.",
+      specimens: "Spleen (note weight + accessory spleens).",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the surgical floor. Plan: post-splenectomy vaccinations confirmed (pneumococcal, meningococcal, Hib) — administered preoperatively or 14 days post-op. Lifelong daily prophylactic penicillin counselled in select cases. Medical alert bracelet recommended.",
+    };
+  }
+
+  if (includesAny(name, ["small bowel resection", "sbr", "enterectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–200 ml.",
+      drains: "None routinely.",
+      specimens: "Diseased small bowel segment with mesentery.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the surgical floor on ERAS pathway. Advance diet as tolerated, NG decompression rarely needed. DVT prophylaxis. Return-of-bowel-function expected POD 2–4.",
+    };
+  }
+
+  if (includesAny(name, ["abscess drainage", "i&d abdominal", "intraabdominal abscess"])) {
+    return {
+      anesthesia: "General anesthesia (or local with sedation for small superficial collections).",
+      ebl: "Minimal.",
+      drains: "Drain to dependent collection (Penrose / 19 Fr Blake / pigtail).",
+      specimens: "Pus to gram stain + culture & sensitivity (aerobic + anaerobic).",
+      disposition:
+        "The patient tolerated the procedure well. Plan: IV antibiotics tailored to cultures, drain output documented, drain removed when output is < 30 mL/day or per imaging.",
+    };
+  }
+
+  if (includesAny(name, ["diagnostic laparoscopy", "exploratory laparotomy", "ex lap"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Variable.",
+      drains: "Per indication.",
+      specimens: "Biopsies / fluid for cytology + culture as indicated.",
+      disposition:
+        "The patient tolerated the procedure well. Plan: monitored on the surgical floor; further intervention based on findings.",
+    };
+  }
+
   // Generic general surgery default
   return {
     anesthesia: "General endotracheal anesthesia.",
@@ -140,6 +217,34 @@ export function generalSurgeryFindings(c: CaseLog): string {
 
   if (includesAny(name, ["thyroid"])) {
     return `The thyroid was [diffusely enlarged / nodular / contained a [__] cm dominant nodule in the [right / left] lobe]. Both recurrent laryngeal nerves were identified and preserved with continuous intraoperative nerve monitoring confirming intact signal pre- and post-resection. All four parathyroid glands were identified and preserved on their vascular pedicles. No evidence of extrathyroidal extension or lymphadenopathy in the central compartment was appreciated. Wound contamination class: I (clean).`;
+  }
+
+  if (includesAny(name, ["fundoplication", "nissen", "toupet"])) {
+    return `A type [I / III] hiatal hernia with [__] cm axial herniation was identified. The crural pillars were healthy and amenable to primary closure. The vagus nerves were identified bilaterally and preserved. The short gastric vessels were taken to mobilise the fundus for a tension-free wrap. The wrap was constructed without esophageal narrowing (a 56 Fr bougie was passed without resistance through the wrap). Wound contamination class: I (clean).`;
+  }
+
+  if (includesAny(name, ["sleeve gastrectomy", "vsg", "lsg"])) {
+    return `The stomach was inspected and was suitable for sleeve gastrectomy. The greater curvature was completely mobilised from the gastrocolic ligament with division of short gastric vessels. The angle of His was fully exposed. A 36 Fr orogastric bougie was passed transorally and positioned along the lesser curvature. The staple line was created [__] cm from the pylorus to the angle of His. The staple line was inspected and was hemostatic with a methylene blue leak test negative. Wound contamination class: II.`;
+  }
+
+  if (includesAny(name, ["roux-en-y", "rygb", "gastric bypass"])) {
+    return `The stomach was inspected and a [25 mL] gastric pouch was created using sequential Endo GIA firings, completely separating the pouch from the gastric remnant. A Roux limb of [100–150 cm] was measured from the ligament of Treitz, and a side-to-side jejunojejunostomy was created with the biliopancreatic limb at [50–100 cm]. The Roux limb was brought antecolic / retrocolic to the gastric pouch and a stapled gastrojejunal anastomosis was created over a [12 mm] EEA stapler. Petersen's defect and the mesenteric defect were closed with non-absorbable sutures. Leak test was negative. Wound contamination class: II.`;
+  }
+
+  if (includesAny(name, ["splenectomy"]) && !includesAny(name, ["pancreat"])) {
+    return `The spleen was identified and was [normal-sized / enlarged at __ × __ × __ cm], consistent with [ITP / hereditary spherocytosis / lymphoma / trauma]. There was no accessory spleen identified after careful inspection of the splenic hilum, gastrosplenic ligament, splenocolic ligament, omentum, mesentery, and presacral region. The splenic hilum was controlled and the spleen removed without spillage. Wound contamination class: I (clean).`;
+  }
+
+  if (includesAny(name, ["small bowel resection", "sbr", "enterectomy"])) {
+    return `The diseased small bowel segment ([__] cm long, located [__] cm from the ligament of Treitz / ileocecal valve) was identified, consistent with [Crohn's disease / mass / ischemia / obstructing adhesion]. The remaining bowel was viable. Mesenteric vessels were normal. The anastomosis was patent, well-perfused, and tension-free with negative air-leak test. Wound contamination class: II.`;
+  }
+
+  if (includesAny(name, ["abscess drainage", "i&d abdominal", "intraabdominal abscess"])) {
+    return `An organised collection of [__] mL of [purulent / serous / faeculent] fluid was identified at the [location], consistent with the preoperative imaging. The cavity was widely opened, evacuated, and irrigated copiously. The cavity walls were inspected; there was no obvious source [or: source was identified as ___ and addressed]. A drain was positioned dependently. Wound contamination class: III–IV depending on contents.`;
+  }
+
+  if (includesAny(name, ["diagnostic laparoscopy", "exploratory laparotomy", "ex lap"])) {
+    return `Systematic abdominal exploration was performed. [Findings: ___]. There was no evidence of unanticipated pathology beyond what was found. Biopsies were taken for permanent section / cytology / culture as indicated. Wound contamination class: [variable per findings].`;
   }
 
   return `The abdomen was entered and the relevant anatomy was identified. There was no evidence of unanticipated pathology. Hemostasis was satisfactory at the conclusion of the case. Wound contamination class: [I / II / III / IV].`;
@@ -213,6 +318,71 @@ function generalSurgeryOpSteps(c: CaseLog): string[] {
       `The strap muscles were separated in the midline and retracted laterally to expose the thyroid. The superior pole was mobilized, identifying and ligating the superior thyroid artery branches on the capsule to protect the external branch of the superior laryngeal nerve. The middle thyroid vein was ligated and divided.`,
       `The recurrent laryngeal nerve was identified in the tracheo-esophageal groove and traced superiorly, preserved throughout. The parathyroid glands were identified and preserved on their vascular pedicles. The inferior thyroid artery was ligated on the capsule and the ligament of Berry divided sharply.`,
       `The thyroid [lobe / gland] was removed. Hemostasis was meticulously confirmed. The strap muscles were re-approximated in the midline with 3-0 Vicryl, the platysma with 3-0 Vicryl, and the skin with 4-0 Monocryl subcuticular and Dermabond.`,
+    ];
+  }
+
+  if (includesAny(name, ["fundoplication", "nissen", "toupet"])) {
+    return [
+      `Pneumoperitoneum was established and ports were placed (Hasson 10 mm subxiphoid + 5 mm × 4 in upper abdomen for retraction). The liver was retracted to expose the GE junction. The hiatal hernia sac was reduced into the abdomen.`,
+      `The pars flaccida was opened and the right crus was identified. The phrenoesophageal ligament was incised and the esophagus was circumferentially mobilised, with both vagi identified and preserved.`,
+      `Short gastric vessels were divided with a vessel-sealing device along the greater curvature to mobilise the fundus completely. A retroesophageal window was created.`,
+      `The crura were re-approximated posteriorly with interrupted 0 Ethibond sutures, sized so a 56 Fr bougie passed without resistance. The fundus was passed posterior to the esophagus and a [Nissen 360° / Toupet 270°] wrap was constructed with three interrupted sutures incorporating partial-thickness esophageal bites and the right and left limbs of the wrap.`,
+      `The bougie was withdrawn and the wrap re-inspected. Pneumoperitoneum was released and the ports closed.`,
+    ];
+  }
+
+  if (includesAny(name, ["sleeve gastrectomy", "vsg", "lsg"])) {
+    return [
+      `Pneumoperitoneum was established and ports placed (12 mm supraumbilical + 5 mm × 3 + 5 mm Nathanson for liver retraction). The liver was elevated.`,
+      `The greater curvature was mobilised from approximately 4–6 cm proximal to the pylorus up to the angle of His using a vessel-sealing device, dividing the short gastric vessels and posterior gastric attachments.`,
+      `A 36 Fr orogastric bougie was passed by anaesthesia and positioned along the lesser curvature against the pyloric channel. A series of Endo GIA staple firings (green/black/buttressed) were used to create the sleeve, beginning [__ cm] proximal to the pylorus and ending [__ cm] lateral to the angle of His.`,
+      `The staple line was inspected for hemostasis and reinforced with bipolar cautery / oversewn with 3-0 Vicryl as needed. A methylene blue leak test was performed and was negative.`,
+      `The resected stomach was placed in an Endo Catch bag and removed through the supraumbilical port. The fascia was closed with 0 Vicryl figure-of-eight and the skin with 4-0 Monocryl subcuticular.`,
+    ];
+  }
+
+  if (includesAny(name, ["roux-en-y", "rygb", "gastric bypass"])) {
+    return [
+      `Pneumoperitoneum was established and 5–6 ports placed (12 mm supraumbilical + 12 mm right paramedian + 5 mm × 3 + Nathanson). The liver was retracted.`,
+      `A small (~25 mL) gastric pouch was created with sequential Endo GIA firings beginning at the lesser curvature distal to the angle of His and extending towards the angle of His, fully transecting the stomach.`,
+      `The ligament of Treitz was identified and a Roux limb of [100–150 cm] was measured. A jejunojejunostomy was created stapled side-to-side with a 60 mm white load, and the common enterotomy closed with running 3-0 Vicryl. The biliopancreatic limb was [50–100 cm].`,
+      `The Roux limb was brought [antecolic / retrocolic] up to the gastric pouch. A stapled gastrojejunostomy was created using a [12 mm] EEA stapler with the anvil pre-placed transorally, or with a linear-stapled technique (60 mm blue load + handsewn closure).`,
+      `Petersen's defect and the mesenteric defect were closed with non-absorbable 0 Ethibond running suture to prevent internal hernia. A methylene blue leak test or upper endoscopy demonstrated no leak.`,
+    ];
+  }
+
+  if (includesAny(name, ["splenectomy"]) && !includesAny(name, ["pancreat"])) {
+    return [
+      `Pneumoperitoneum was established and ports placed (laparoscopic) or a left subcostal/midline incision made (open). The patient was placed in right lateral decubitus for laparoscopic approach.`,
+      `The splenic flexure of the colon was mobilised and reflected medially. The splenocolic and splenorenal ligaments were divided, then the gastrosplenic ligament with the short gastric vessels.`,
+      `The splenic hilum was approached posteriorly. The splenic artery was ligated first (preferable to allow autotransfusion + reduce splenic blood flow), followed by the splenic vein with a vascular load Endo GIA. The pancreatic tail was identified and protected.`,
+      `The spleen was placed in a heavy-duty Endo Catch bag and morcellated within the bag for laparoscopic extraction (or removed intact through the open incision). The bed was inspected for hemostasis. Routine search for accessory spleens was performed.`,
+    ];
+  }
+
+  if (includesAny(name, ["small bowel resection", "sbr", "enterectomy"])) {
+    return [
+      `The abdomen was entered and explored. The diseased small bowel segment was identified and the proximal and distal margins were marked at healthy bowel.`,
+      `The mesentery was divided in a V-shape between the marked transection points, controlling vessels with a vessel-sealing device or sequential ligatures.`,
+      `The bowel was transected proximally and distally with an Endo GIA stapler (white/blue load). The specimen was passed off.`,
+      `A side-to-side, functional end-to-end stapled anastomosis was created with a 60 mm white/blue load, and the common enterotomy closed with a second stapler firing or hand-sewn 3-0 Vicryl. The anastomosis was inspected for patency and hemostasis. The mesenteric defect was closed with running 3-0 silk.`,
+    ];
+  }
+
+  if (includesAny(name, ["abscess drainage", "i&d abdominal", "intraabdominal abscess"])) {
+    return [
+      `The collection was approached [percutaneously under image guidance / transabdominally / via direct extension of a previous incision]. The cavity was unroofed and the contents widely evacuated and sent for culture.`,
+      `The cavity was irrigated copiously with warm saline until the effluent ran clear. The cavity walls were inspected for residual loculations or unaddressed source pathology.`,
+      `A [Penrose / 19 Fr Blake / pigtail] drain was positioned dependently within the cavity and brought out through a separate stab incision, secured to the skin with 2-0 silk.`,
+    ];
+  }
+
+  if (includesAny(name, ["diagnostic laparoscopy", "exploratory laparotomy", "ex lap"])) {
+    return [
+      `Pneumoperitoneum was established (laparoscopic) or a midline incision made (open). The peritoneal cavity was entered.`,
+      `Systematic exploration was performed: liver surfaces, gallbladder, stomach, duodenum, small bowel from the ligament of Treitz to the ileocecal valve, colon and rectum, bilateral adnexa (women), pelvic peritoneum, and retroperitoneum as accessible.`,
+      `Findings were [documented] and intervention performed as appropriate.`,
+      `The abdomen was irrigated and closed in standard fashion.`,
     ];
   }
 

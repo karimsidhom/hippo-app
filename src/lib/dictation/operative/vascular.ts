@@ -60,6 +60,72 @@ export function vascularTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  if (includesAny(name, ["varicose vein", "rfa vein", "evla", "endovenous", "vein stripping", "phlebectomy", "sclerotherapy"])) {
+    return {
+      anesthesia: "Local tumescent anesthesia ± sedation; general for extensive stripping.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Stripped vein segments to pathology if requested.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day in compression stockings × 2 weeks. Plan: ambulate immediately, follow-up duplex at 1 week to confirm closure.",
+    };
+  }
+
+  if (includesAny(name, ["thrombectomy", "embolectomy", "fogarty"])) {
+    return {
+      anesthesia: "General or regional anesthesia depending on urgency.",
+      ebl: "Approximately 100–200 ml.",
+      drains: "None.",
+      specimens: "Thrombus / embolus to pathology and culture.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for monitoring of distal perfusion and reperfusion-injury sequelae (compartment syndrome, hyperkalaemia, myoglobinuria). Therapeutic anticoagulation per service protocol.",
+    };
+  }
+
+  if (includesAny(name, ["ivc filter", "vena cava filter"])) {
+    return {
+      anesthesia: "Local with sedation.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: filter retrieval scheduled at 4–6 weeks if temporary indication is resolved.",
+    };
+  }
+
+  if (includesAny(name, ["below-knee amputation", "bka", "above-knee amputation", "aka", "lower extremity amputation", "transtibial", "transfemoral"])) {
+    return {
+      anesthesia: "General or regional anesthesia.",
+      ebl: "Approximately 200–400 ml.",
+      drains: "None routinely (closed-suction drain may be placed in muscle bed for AKA).",
+      specimens: "Amputation specimen to pathology if indicated.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the surgical floor for stump care and rehabilitation planning. Plan: prosthetic referral, multidisciplinary rehabilitation, vascular optimization of the contralateral limb.",
+    };
+  }
+
+  if (includesAny(name, ["popliteal aneurysm"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–200 ml.",
+      drains: "None routinely.",
+      specimens: "None (aneurysm left in situ if bypassed; specimen if resected).",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for monitoring of graft patency and distal perfusion. Plan: serial pulse checks, duplex at 1 month and 6 months.",
+    };
+  }
+
+  if (includesAny(name, ["distal bypass", "femoral-tibial", "fem-tibial", "fem-pt", "popliteal-pedal", "popliteal-tibial"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line.",
+      ebl: "Approximately 100–300 ml.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the step-down unit for monitoring. Plan: hourly pulse / Doppler checks × 6 hours, then q4h. Therapeutic anticoagulation transitioning to dual antiplatelet per protocol. Duplex at 1 month for graft surveillance.",
+    };
+  }
+
   return {
     anesthesia: "General endotracheal anesthesia.",
     ebl: "Approximately ________ ml.",
@@ -88,6 +154,30 @@ export function vascularFindings(c: CaseLog): string {
 
   if (includesAny(name, ["evar", "tevar"])) {
     return `Aortic anatomy was consistent with preoperative CTA: adequate proximal and distal landing zones, suitable iliac access, and no excessive thrombus at the sealing zones. The aneurysm sac measured approximately [__] cm in maximum diameter. An appropriately sized [Zenith / Endurant / Excluder] endograft was deployed under fluoroscopic guidance with accurate placement at the planned landing zones. Completion angiography demonstrated no type I or type III endoleak, with a small type II endoleak [present / absent] and no target organ compromise.`;
+  }
+
+  if (includesAny(name, ["varicose vein", "rfa vein", "evla", "endovenous", "vein stripping", "phlebectomy"])) {
+    return `${side} symptomatic varicose veins (CEAP class [C2–C6]) with reflux at the saphenofemoral junction confirmed on preoperative duplex (reflux time > 0.5 seconds). The greater saphenous vein was incompetent over the entire thigh. There were [no / minimal] suprafascial varicosities consistent with secondary tributaries. Hemostasis was achieved at all access sites.`;
+  }
+
+  if (includesAny(name, ["thrombectomy", "embolectomy", "fogarty"])) {
+    return `${side} acute limb ischemia (Rutherford [I/IIA/IIB]) was confirmed with absent palpable pulses and Doppler signals at the [DP/PT] preoperatively. A [fresh / organized] embolus / thrombus was retrieved with the Fogarty catheter from the [common femoral / popliteal / brachial] artery. Distal back-bleeding was confirmed after extraction. Restoration of palpable pulses or Doppler signals was achieved post-thrombectomy.`;
+  }
+
+  if (includesAny(name, ["ivc filter"])) {
+    return `Cavogram demonstrated a patent infrarenal IVC measuring approximately [__] mm with normal renal vein anatomy. There was no thrombus in the access vein. The filter was deployed in the infrarenal IVC below the lowest renal vein. Position was confirmed on completion imaging.`;
+  }
+
+  if (includesAny(name, ["below-knee amputation", "bka", "above-knee amputation", "aka", "transtibial", "transfemoral"])) {
+    return `${side} non-salvageable limb ischemia / chronic non-healing wound / necrotizing infection was confirmed. Tissue at the planned amputation level was viable, well-perfused, and free of infection / ischemia. The skin flaps were healthy and tension-free at closure. Hemostasis was satisfactory.`;
+  }
+
+  if (includesAny(name, ["popliteal aneurysm"])) {
+    return `${side} popliteal aneurysm measuring approximately [__] cm with [partial / complete / no] mural thrombus and [patent / occluded] outflow vessels. The greater saphenous vein was suitable as a conduit, measuring > 3 mm. Bypass and exclusion or interposition graft was performed without complication. Distal perfusion was restored.`;
+  }
+
+  if (includesAny(name, ["distal bypass", "fem-tibial", "fem-pt", "popliteal-pedal", "popliteal-tibial"])) {
+    return `${side} chronic limb-threatening ischemia (CLTI Rutherford [4/5/6]) with poor outflow on the angiogram. The target distal vessel ([anterior tibial / posterior tibial / peroneal / pedal]) was identified, dissected free, and was suitable for anastomosis. The reverse / in-situ greater saphenous vein was a satisfactory conduit. After completion of bypass, the foot was warm and well-perfused with restored distal Doppler signals.`;
   }
 
   return `Intraoperative findings were consistent with the preoperative imaging. The target vessel was identified and controlled proximally and distally. The patient was systemically heparinized with adequate ACT. Inflow and outflow were satisfactory. Distal perfusion was restored at the conclusion of the case, confirmed by palpable pulse / Doppler signal / completion imaging.`;
@@ -139,6 +229,69 @@ function vascularOpSteps(c: CaseLog): string[] {
       `Under local anesthesia with sedation, a longitudinal incision was made over the [radiocephalic / brachiocephalic] region. The cephalic vein was identified, dissected free, and controlled with vessel loops. The [radial / brachial] artery was similarly exposed.`,
       `The patient was heparinized (50 units/kg IV). The vein was mobilized adequately to allow a tension-free anastomosis and divided distally. A longitudinal arteriotomy was created and an end-to-side anastomosis between the vein and artery was performed with running 7-0 Prolene.`,
       `Flow was restored and an audible thrill and palpable pulse confirmed through the fistula. The wound was closed in layers with 4-0 Vicryl and 5-0 Monocryl subcuticular.`,
+    ];
+  }
+
+  if (includesAny(name, ["varicose vein", "rfa vein", "evla", "endovenous", "vein stripping", "phlebectomy"])) {
+    return [
+      `Under tumescent local anesthesia, the great saphenous vein was accessed at the level of the medial malleolus / mid-calf under ultrasound guidance and a 5 Fr sheath placed. A guidewire was advanced up to the SFJ and confirmed under ultrasound.`,
+      `An RF / laser fibre was advanced over the guidewire to a position 2 cm distal to the SFJ. Tumescent anesthesia (cold normal saline + lidocaine + epinephrine + bicarbonate) was infused along the saphenous course under ultrasound control to compress the vein around the fibre, provide thermal protection, and anesthetize.`,
+      `The RF / laser was activated with sequential pull-back at the manufacturer-recommended energy settings until the entire incompetent segment was treated. Post-treatment ultrasound confirmed complete closure with no flow signal.`,
+      `[Stab phlebectomies were performed at marked surface varicosities using a phlebectomy hook through 1–2 mm stab incisions, all closed with Steri-strips.] The leg was wrapped in compression and the patient transitioned to a 30–40 mmHg compression stocking.`,
+    ];
+  }
+
+  if (includesAny(name, ["thrombectomy", "embolectomy", "fogarty"])) {
+    return [
+      `A longitudinal incision was made over the [common femoral / brachial / popliteal] artery and the vessel was exposed and encircled with vessel loops. The patient was systemically heparinized (100 units/kg IV) with ACT > 250.`,
+      `A transverse arteriotomy was made and a [3 Fr / 4 Fr / 5 Fr] Fogarty embolectomy catheter was passed proximally then distally, with the balloon gently inflated and withdrawn to extract clot. Multiple passes were performed in each direction until brisk inflow and back-bleeding were confirmed.`,
+      `The arteriotomy was closed primarily with running 6-0 Prolene (or with a vein/bovine pericardial patch if narrowing). Pulses were re-checked distally and Doppler signals confirmed.`,
+      `Protamine was administered. Fasciotomies should be considered for prolonged ischemia or a clinically tense compartment.`,
+    ];
+  }
+
+  if (includesAny(name, ["ivc filter"])) {
+    return [
+      `Right common femoral or right internal jugular vein access was obtained under ultrasound guidance. A 5 Fr sheath was placed and a guidewire advanced up the IVC.`,
+      `A 5 Fr pigtail catheter was advanced and a cavogram performed identifying the renal veins, IVC diameter, and ruling out IVC thrombus.`,
+      `An appropriately sized retrievable IVC filter (Cook Celect / Cordis OptEase / Bard Denali) was deployed in the infrarenal IVC, just below the lowest renal vein. Position was confirmed by post-deployment cavogram.`,
+      `The sheath was withdrawn and hemostasis achieved at the access site by manual pressure.`,
+    ];
+  }
+
+  if (includesAny(name, ["below-knee amputation", "bka", "transtibial"])) {
+    return [
+      `A long posterior musculocutaneous flap and a short anterior flap were marked at the proposed level (typically 12–15 cm distal to the tibial tuberosity). Anterior incision was made, deepened to expose the tibia and fibula.`,
+      `The anterior compartment muscles were transected with electrocautery. The anterior tibial vessels were ligated with 2-0 silk. The tibia and fibula were transected with a sagittal saw, with the fibula transected 2 cm proximal to the tibial cut and the tibia bevelled anteriorly.`,
+      `The posterior compartment was transected at the level of the bone cut, identifying and ligating the peroneal and posterior tibial vessels. The tibial nerve was sharply transected on stretch and allowed to retract.`,
+      `Bony edges were rasped smooth. The posterior musculocutaneous flap was rotated anteriorly and tailored. Myodesis (suturing posterior compartment muscle to anterior tibia) was completed with 2-0 Vicryl. The skin was closed loosely with interrupted 3-0 nylon.`,
+    ];
+  }
+
+  if (includesAny(name, ["above-knee amputation", "aka", "transfemoral"])) {
+    return [
+      `Equal anterior and posterior fishmouth flaps were marked. The incision was made and deepened, transecting the quadriceps anteriorly and the hamstrings posteriorly with electrocautery.`,
+      `The superficial femoral artery and vein were dissected free, double-clamped, transected, and triple-suture-ligated with 2-0 silk. The sciatic nerve was identified, sharply transected on stretch, and allowed to retract.`,
+      `The femur was transected with a sagittal saw at a level approximately 12 cm proximal to the knee joint. Bony edges were rasped smooth.`,
+      `Myodesis of the adductors and quadriceps to the femur was performed with #1 Vicryl through drill holes. The skin and subcutaneous tissue were closed loosely with interrupted 3-0 nylon. A drain was placed in the muscle bed.`,
+    ];
+  }
+
+  if (includesAny(name, ["popliteal aneurysm"])) {
+    return [
+      `A medial thigh and a medial calf incision exposed the above- and below-knee popliteal artery. The aneurysm was identified and proximal/distal control obtained.`,
+      `The greater saphenous vein was harvested for use as a reverse bypass conduit. The patient was systemically heparinized (100 units/kg) with ACT > 250.`,
+      `Proximal and distal anastomoses were created end-to-side with running 6-0 Prolene. The aneurysm was [excluded by ligating proximal and distal of the aneurysm and bypassing / resected with interposition].`,
+      `Flow was restored and distal Doppler signals confirmed. Protamine was administered. The wounds were closed in layers.`,
+    ];
+  }
+
+  if (includesAny(name, ["distal bypass", "fem-tibial", "fem-pt", "popliteal-pedal", "popliteal-tibial"])) {
+    return [
+      `A longitudinal incision was made over the common femoral artery and a separate distal incision exposed the target tibial vessel. Both vessels were dissected free, controlled with vessel loops, and inspected.`,
+      `The greater saphenous vein was harvested in non-reversed (in situ with valvulotomy) or reverse fashion as the conduit, depending on length needed and quality. The patient was systemically heparinized (100 units/kg).`,
+      `A subcutaneous tunnel was created. The proximal anastomosis was created end-to-side to the CFA with running 5-0 Prolene; the distal anastomosis was performed end-to-side to the [tibial vessel] with running 7-0 Prolene over loupes / microscope.`,
+      `Flow was restored and the foot was warm with restored distal Doppler signals. Completion angiography confirmed graft patency and outflow without distal embolization. Protamine was administered. Wounds were closed in layers.`,
     ];
   }
 

@@ -95,6 +95,84 @@ export function orthopedicsTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: orthopaedic attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["revision arthroplasty", "revision tha", "revision tka", "rev tha", "rev tka"])) {
+    return {
+      anesthesia: "General or regional anesthesia. Plan for higher EBL than primary arthroplasty.",
+      ebl: "Approximately 500–1500 ml (variable).",
+      drains: "15 Fr Hemovac closed-suction drain × 24h.",
+      specimens: "Removed prosthesis components + tissue cultures (gram stain + aerobic + anaerobic + fungal + AFB) + frozen for periprosthetic infection assessment.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for monitoring. Plan: weight-bearing per intraoperative stability, antibiotic regimen pending cultures, DVT prophylaxis.",
+    };
+  }
+
+  if (includesAny(name, ["achilles tendon repair", "achilles rupture", "achilles tendon"])) {
+    return {
+      anesthesia: "Regional (popliteal block) ± sedation, or general.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None routinely.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day in plantarflexion splint. Plan: non-weight-bearing × 2 weeks, then transition to walking boot with heel wedges and gradual ROM/strengthening over 12 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["distal radius fracture", "distal radius orif", "colles", "smith"])) {
+    return {
+      anesthesia: "Regional (Bier or supraclavicular block) ± sedation, or general.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day in volar splint × 2 weeks, then transition to short-arm cast or splint. Plan: hand therapy referral, OT for early finger ROM.",
+    };
+  }
+
+  if (includesAny(name, ["dupuytren", "fasciectomy"])) {
+    return {
+      anesthesia: "Regional or general anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Resected fascia to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day in plaster splint × 1 week. Plan: hand therapy at 1 week for ROM and night extension splint × 6 months.",
+    };
+  }
+
+  if (includesAny(name, ["tendon repair", "flexor tendon", "extensor tendon"])) {
+    return {
+      anesthesia: "Regional (Bier) or general.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day in dorsal blocking splint. Plan: hand therapy referral within 3–5 days for early controlled motion (Duran or Kleinert protocol).",
+    };
+  }
+
+  if (includesAny(name, ["meniscus repair", "meniscectomy"]) && !includesAny(name, ["arthroscopy"])) {
+    return {
+      anesthesia: "General or regional.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Meniscal tissue (partial meniscectomy) to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: WBAT for partial meniscectomy / TDWB for repair × 4 weeks, ROM as tolerated, return to sports at 4–12 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["hip resurfacing"])) {
+    return {
+      anesthesia: "General or regional.",
+      ebl: "Approximately 300–500 ml.",
+      drains: "15 Fr closed-suction drain.",
+      specimens: "Femoral head bone for pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for monitoring. Plan: WBAT, PT, DVT prophylaxis, hip precautions.",
+    };
+  }
+
   return {
     anesthesia: "General or regional anesthesia.",
     ebl: "Approximately ________ ml.",

@@ -62,6 +62,83 @@ export function obgynTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  if (includesAny(name, ["ectopic", "salpingostomy for ectopic"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 100–500 ml (variable; can be brisk if rupture).",
+      drains: "None.",
+      specimens: "Products of conception ± fallopian tube to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for observation if hemodynamically affected. Plan: serial βhCG to negativity, anti-D immunoglobulin if Rh-negative.",
+    };
+  }
+
+  if (includesAny(name, ["endometriosis", "lap endo"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Approximately 50–200 ml.",
+      drains: "None.",
+      specimens: "Endometriotic implants ± deep nodules to pathology, labelled by location.",
+      disposition:
+        "The patient tolerated the procedure well. Recovery as outpatient or short admission. Plan: post-op pelvic pain management, hormonal suppression discussion at 2-week follow-up.",
+    };
+  }
+
+  if (includesAny(name, ["hysteroscopy", "hysteroscopic", "essure removal", "endometrial ablation", "novasure", "thermachoice"])) {
+    return {
+      anesthesia: "Monitored anesthesia care or general anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Endometrial polypectomy / fibroid resection specimens / ablation tissue to pathology where applicable.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day with return precautions for fevers, severe cramping, or heavy bleeding.",
+    };
+  }
+
+  if (includesAny(name, ["leep", "cervical conisation", "cone biopsy", "cold knife cone"])) {
+    return {
+      anesthesia: "Local anesthesia with sedation (LEEP) or general anesthesia (cold knife cone).",
+      ebl: "Minimal to approximately 100 ml.",
+      drains: "None.",
+      specimens: "Cervical cone specimen oriented (12 o'clock stitch) to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: pelvic rest × 4 weeks, follow-up Pap and colposcopy at 6 months per ASCCP guidelines.",
+    };
+  }
+
+  if (includesAny(name, ["perineal laceration", "perineal repair", "episiotomy"])) {
+    return {
+      anesthesia: "Local anesthesia (lidocaine) ± epidural top-up; general for 4th-degree.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Standard postpartum care. Plan: stool softeners, sitz baths, pelvic-floor physiotherapy referral for 3rd/4th-degree tears.",
+    };
+  }
+
+  if (includesAny(name, ["ovarian cystectomy", "ovarian cyst"]) && !includesAny(name, ["oophorectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal to approximately 100 ml.",
+      drains: "None.",
+      specimens: "Cyst wall to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Recovery as outpatient or short admission. Plan: hormonal contraception consideration for cyst recurrence prevention.",
+    };
+  }
+
+  if (includesAny(name, ["bilateral salpingectomy", "bilateral salpingo-oophorectomy", "bso", "salpingectomy", "salpingo-oophorectomy"]) && !includesAny(name, ["hysterectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Tubes ± ovaries to pathology, labelled by side.",
+      disposition:
+        "The patient tolerated the procedure well. Recovery as outpatient. Plan: counseling regarding surgical menopause when bilateral oophorectomy performed on premenopausal patient (HRT discussion).",
+    };
+  }
+
   if (includesAny(name, ["salping", "oophorectom", "cystectomy", "tubal"])) {
     return {
       anesthesia: "General endotracheal anesthesia.",
@@ -99,6 +176,34 @@ export function obgynFindings(c: CaseLog): string {
 
   if (includesAny(name, ["myomectomy"])) {
     return `The uterus contained [__] intramural / subserosal / submucosal leiomyomata, the largest measuring approximately [__] cm at the [anterior / posterior / fundal] wall. The myomata were enucleated within their capsules. The myometrial defect was closed in layers with absorbable suture. The tubes and ovaries were inspected and were normal.`;
+  }
+
+  if (includesAny(name, ["ectopic"])) {
+    return `A [left / right] tubal ectopic pregnancy was identified at the [ampullary / isthmic / fimbrial] portion, measuring approximately [__] cm with [no / active] hemoperitoneum (estimated [__] mL). The contralateral tube and bilateral ovaries were normal. There was no other intra-abdominal pathology.`;
+  }
+
+  if (includesAny(name, ["endometriosis"])) {
+    return `Stage [I / II / III / IV] endometriosis was confirmed: [superficial peritoneal implants / deep infiltrating endometriosis / endometrioma]. Implants were noted in the [pouch of Douglas / bladder peritoneum / uterosacral ligaments / ovarian fossae]. There was [no / partial / complete] obliteration of the cul-de-sac. The ureters were identified and protected throughout dissection.`;
+  }
+
+  if (includesAny(name, ["hysteroscopy", "hysteroscopic", "endometrial ablation"])) {
+    return `Hysteroscopy demonstrated [a normal endometrial cavity / endometrial polyp(s) / submucosal fibroid(s) / synechiae]. The cervical canal was patent. Both tubal ostia were identified bilaterally. The endometrium was [proliferative / secretory / atrophic in appearance]. [Description of pathology and treatment performed.]`;
+  }
+
+  if (includesAny(name, ["leep", "cervical conisation", "cone biopsy"])) {
+    return `Colposcopy prior to excision demonstrated [acetowhite changes / mosaicism / punctation] in the [transformation zone / endocervix]. The lesion was visualised in its entirety with the SCJ visible. The cone specimen was oriented at 12 o'clock with a stitch and submitted to pathology. Hemostasis was achieved at the cone bed.`;
+  }
+
+  if (includesAny(name, ["perineal laceration", "perineal repair", "episiotomy"])) {
+    return `Examination demonstrated a [first / second / third / fourth-degree] perineal laceration extending from [the introitus / through the anal sphincter complex / into the rectal mucosa]. The vaginal mucosa, perineal body, [external anal sphincter, internal anal sphincter, and rectal mucosa] were identified. There was no extension into surrounding structures.`;
+  }
+
+  if (includesAny(name, ["ovarian cystectomy"]) && !includesAny(name, ["oophorectomy"])) {
+    return `A [__] cm [simple / hemorrhagic / dermoid / endometriotic] ovarian cyst was identified on the [left / right / bilateral] ovary. The contralateral ovary and bilateral tubes were normal. The cyst wall was completely excised with preservation of normal ovarian cortex. There was no spillage [or minimal controlled spillage with copious irrigation].`;
+  }
+
+  if (includesAny(name, ["bilateral salpingectomy", "bilateral salpingo-oophorectomy", "bso", "salpingectomy", "salpingo-oophorectomy"]) && !includesAny(name, ["hysterectomy"])) {
+    return `The [bilateral / left / right] fallopian tubes ± ovaries were identified. The pelvic anatomy was otherwise normal. The ureters were identified bilaterally and protected. There was no evidence of carcinomatosis or peritoneal implants. The specimen(s) were removed without spillage and submitted to pathology by side.`;
   }
 
   if (includesAny(name, ["salping", "oophorectom", "cystectomy", "tubal"])) {
@@ -194,6 +299,70 @@ function obgynOpSteps(c: CaseLog): string[] {
     return [
       `Under adequate anesthesia, one hand was placed on the fundus abdominally for support. The other hand was introduced through the vagina and into the uterine cavity. The placental edge was identified and the placenta was manually separated from the uterine wall using the ulnar edge of the hand in a sweeping motion.`,
       `The placenta was removed in its entirety and inspected for completeness. The uterine cavity was re-explored to confirm no retained products. Uterotonics were administered and uterine tone was confirmed.`,
+    ];
+  }
+
+  if (includesAny(name, ["ectopic"])) {
+    return [
+      `Pneumoperitoneum was established and ports were placed (10 mm umbilical + two 5 mm lower-quadrant working ports). The pelvis was inspected and a [left / right] tubal ectopic was confirmed at the [ampullary / isthmic] portion. Hemoperitoneum was suctioned and quantified.`,
+      `For [salpingectomy: the affected tube was grasped at the cornual end and serially sealed/divided with a vessel-sealing device down to the fimbriated end, taking the mesosalpinx. The tube was placed in an Endo Catch bag and removed.]`,
+      `For [salpingostomy (when desired for fertility preservation): a 1.5–2 cm linear incision was made along the antimesenteric border over the ectopic. The products of conception extruded and were removed; the tube was left to heal by secondary intention with hemostasis confirmed.]`,
+      `The pelvis was irrigated, suctioned dry, and re-inspected for hemostasis. βhCG should be followed to negativity post-op.`,
+    ];
+  }
+
+  if (includesAny(name, ["endometriosis"])) {
+    return [
+      `Pneumoperitoneum was established and ports were placed (10 mm umbilical + 5 mm right and left lower quadrants + 5 mm suprapubic if needed). The pelvis was systematically inspected and Stage [I/II/III/IV] endometriosis was confirmed.`,
+      `Superficial peritoneal implants were treated with bipolar coagulation or excision and submitted to pathology to document tissue diagnosis. Deep infiltrating endometriosis nodules in [the rectovaginal septum / uterosacral ligaments / bladder peritoneum] were carefully excised, with mobilisation of the rectum and identification + protection of the ureters bilaterally throughout.`,
+      `Endometriomas were stripped: the cyst was opened, drained, and the cyst wall stripped from healthy ovarian cortex with traction-counter-traction, then bipolar haemostasis at the cyst bed kept low-thermal to preserve ovarian reserve.`,
+      `The pelvis was copiously irrigated. An anti-adhesion barrier was applied per surgeon preference. Operative time totalled [__] minutes (relevant for tariff 4605 first 30 min + 4606 each additional 15 min in Manitoba billing).`,
+    ];
+  }
+
+  if (includesAny(name, ["hysteroscopy", "hysteroscopic", "endometrial ablation"])) {
+    return [
+      `The patient was placed in dorsal lithotomy. A weighted speculum was placed and the cervix grasped with a single-tooth tenaculum. The cervical canal was sounded and serially dilated with Hegar dilators to [__ mm].`,
+      `A [diagnostic / operative] hysteroscope was introduced under continuous fluid distension ([normal saline / 1.5% glycine for monopolar / sorbitol]). Fluid deficit was monitored carefully; total fluid balance was [__] mL.`,
+      `For [polypectomy / submucosal myoma resection: the lesion was identified, transected at its base with the loop electrode or morcellator, and removed for pathology.]`,
+      `For [endometrial ablation: the NovaSure / ThermaChoice device was deployed per manufacturer guidelines, with energy delivery for the prescribed duration. Cavity was re-inspected post-treatment to confirm uniform treatment.]`,
+      `The hysteroscope was withdrawn and hemostasis confirmed. Discharge home the same day.`,
+    ];
+  }
+
+  if (includesAny(name, ["leep", "cervical conisation", "cone biopsy", "cold knife cone"])) {
+    return [
+      `The patient was placed in dorsal lithotomy. A weighted speculum was placed and the cervix was visualised. Lugol's solution / acetic acid was applied to delineate the lesion.`,
+      `For [LEEP: a wire loop electrode was used in cutting current to excise the transformation zone in a single specimen, oriented at 12 o'clock with a stitch. Endocervical curettage was performed if endocervical involvement was suspected.]`,
+      `For [cold-knife cone: under spinal/general anesthesia, a circumferential incision was made with a #15 blade and the cone deepened with electrocautery. The specimen was oriented at 12 o'clock and submitted en bloc.]`,
+      `Hemostasis was achieved with Monsel's solution / electrocoagulation / running figure-of-eight 2-0 Vicryl sutures at the cone bed. The patient was advised regarding pelvic rest × 4 weeks.`,
+    ];
+  }
+
+  if (includesAny(name, ["perineal laceration", "perineal repair", "episiotomy"])) {
+    return [
+      `Examination identified the laceration extent: [first-degree (vaginal mucosa only) / second-degree (perineal body) / third-degree (anal sphincter complex) / fourth-degree (through rectal mucosa)].`,
+      `For [4th-degree: the rectal mucosa was approximated with running 4-0 Vicryl in a submucosal fashion (no full-thickness sutures). The internal anal sphincter was identified and re-approximated with interrupted 3-0 Vicryl. The external anal sphincter was repaired with end-to-end (or overlapping) 2-0 PDS sutures.]`,
+      `The vaginal mucosa was approximated with running 2-0 Vicryl, then the perineal body was rebuilt with interrupted 2-0 Vicryl, ensuring no dead space. The perineal skin was closed with subcuticular 3-0 Vicryl Rapide.`,
+      `A digital rectal exam was performed at the conclusion to confirm no inadvertent rectal stitches. The patient was counselled regarding stool softeners, sitz baths, and pelvic-floor physiotherapy referral.`,
+    ];
+  }
+
+  if (includesAny(name, ["ovarian cystectomy"]) && !includesAny(name, ["oophorectomy"])) {
+    return [
+      `Pneumoperitoneum was established and ports were placed. The pelvis was inspected and a [__] cm [type] ovarian cyst was identified on the [left / right] ovary.`,
+      `An incision was made on the antimesenteric ovarian cortex over the cyst with a monopolar hook. The plane between the cyst wall and ovarian cortex was developed with traction-counter-traction using two atraumatic graspers. The cyst was completely shelled out without spillage.`,
+      `The cyst wall was placed in an Endo Catch bag and removed. The ovarian bed was inspected and gently bipolar-coagulated for haemostasis with low-energy short bursts to preserve ovarian reserve. The ovarian cortex was re-approximated with 4-0 Vicryl interrupted sutures if a large defect.`,
+      `The pelvis was irrigated. The contralateral adnexa were re-inspected and confirmed normal.`,
+    ];
+  }
+
+  if (includesAny(name, ["bilateral salpingectomy", "bilateral salpingo-oophorectomy", "bso", "salpingectomy", "salpingo-oophorectomy"]) && !includesAny(name, ["hysterectomy"])) {
+    return [
+      `Pneumoperitoneum was established and ports were placed. The pelvis was inspected. The [bilateral / left / right] fallopian tube was lifted anteriorly to expose the mesosalpinx.`,
+      `For salpingectomy: a vessel-sealing device was used to serially seal and divide the mesosalpinx working from the fimbriated end towards the cornual end, taking care to avoid the ovarian blood supply through the utero-ovarian ligament.`,
+      `For salpingo-oophorectomy: the IP ligament was identified, the ureter was visualised on the pelvic sidewall with peristalsis confirmed, and the IP was sealed and divided in three overlapping bites. The mesosalpinx and utero-ovarian ligament were then sealed and divided.`,
+      `The specimen(s) were placed in an Endo Catch bag and removed. The pelvis was irrigated and re-inspected for hemostasis. The contralateral side was completed in the same fashion (when bilateral).`,
     ];
   }
 

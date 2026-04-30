@@ -76,6 +76,62 @@ export function neurosurgeryTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: neurosurgery attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["aneurysm clipping", "cerebral aneurysm"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central access, neuromonitoring, mannitol, and burst suppression.",
+      ebl: "Approximately 200–500 ml (variable; can be brisk if intraoperative rupture).",
+      drains: "Subgaleal drain.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Neuro-ICU admission for hourly neuro checks, BP control (avoid HTN), nimodipine, vasospasm surveillance with TCDs, repeat CTA at 7 days.",
+    };
+  }
+
+  if (includesAny(name, ["avm resection", "arteriovenous malformation"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central access, neuromonitoring, controlled hypotension during dissection.",
+      ebl: "Approximately 300–800 ml (variable).",
+      drains: "Subgaleal drain.",
+      specimens: "AVM specimen to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Neuro-ICU. Plan: BP control, hourly neuro checks, MRI/MRA at 24h to confirm complete resection.",
+    };
+  }
+
+  if (includesAny(name, ["dbs", "deep brain stimulator"])) {
+    return {
+      anesthesia: "Local anesthesia with sedation (awake) for lead placement; general for IPG.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight. Plan: postoperative CT/MRI to confirm lead position. IPG activation in clinic at 2–4 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["acdf", "anterior cervical discectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with neuromonitoring.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "Penrose / 7 Fr Jackson-Pratt drain × 24h.",
+      specimens: "Disc + osteophyte fragments + structural allograft (or trough cage) for pathology if indicated.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for 24h neuro and dysphagia monitoring. Soft cervical collar × 4–6 weeks. Soft diet, advance per dysphagia screen.",
+    };
+  }
+
+  if (includesAny(name, ["kyphoplasty", "vertebroplasty"])) {
+    return {
+      anesthesia: "Local with sedation or general.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Bone biopsy if indicated.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: gradual mobilisation, bone-density assessment, anti-osteoporotic therapy.",
+    };
+  }
+
   return {
     anesthesia: "General endotracheal anesthesia with arterial line and neuromonitoring.",
     ebl: "Approximately ________ ml.",
@@ -106,6 +162,26 @@ export function neurosurgeryFindings(c: CaseLog): string {
 
   if (includesAny(name, ["microdiscectomy", "laminectomy", "decompression"])) {
     return `Preoperative MRI demonstrated [central / paracentral / foraminal] disc herniation / severe central canal stenosis at [__] causing compression of the traversing / exiting nerve root. Preoperative neurologic exam showed [radicular symptoms in the __ distribution / motor weakness of __]. Intraoperative fluoroscopy confirmed the correct level. The nerve root was identified, decompressed, and mobilized without injury. Hemostasis within the epidural space was meticulously confirmed.`;
+  }
+
+  if (includesAny(name, ["aneurysm clipping", "cerebral aneurysm"])) {
+    return `Preoperative CTA / DSA demonstrated a [__] mm saccular aneurysm at the [ACOM / PCOM / MCA / ICA / PICA] with a [narrow / wide] neck and a [__]:1 dome-to-neck ratio. The aneurysm was identified intraoperatively under the microscope after wide Sylvian fissure dissection. Temporary clipping was used for [__] minutes during permanent clip placement. A [Yasargil / Sugita] [__] mm clip was placed across the neck with full obliteration confirmed on intraoperative ICG videoangiography. Parent vessels and perforators were patent.`;
+  }
+
+  if (includesAny(name, ["avm resection", "arteriovenous malformation"])) {
+    return `Preoperative DSA / MRI defined a Spetzler-Martin grade [__] AVM in the [location] with feeders from [arteries] and drainage into [veins]. Intraoperative findings confirmed the angio-architecture. Feeders were systematically coagulated and divided. The nidus was circumferentially mobilised and the major draining vein taken last. Postoperative ICG videoangiography confirmed complete resection without residual nidus.`;
+  }
+
+  if (includesAny(name, ["dbs", "deep brain stimulator"])) {
+    return `Stereotactic frame was placed and target coordinates calculated from preoperative MRI fused with stereotactic CT. Microelectrode recordings confirmed appropriate firing patterns at the [STN / GPi / VIM] target. Test stimulation produced expected motor improvement / minimal side effects. The lead was secured at the burr hole with a Stim-Loc device. The IPG was connected through a subcutaneous tunnel to the infraclavicular pocket.`;
+  }
+
+  if (includesAny(name, ["acdf", "anterior cervical discectomy"])) {
+    return `Preoperative MRI demonstrated cervical disc herniation / spondylotic disease at [C5–6 / C6–7 / __] with foraminal narrowing and cord / root compression. Intraoperative fluoroscopy confirmed the correct level. The disc and posterior osteophytes were removed under microscope, decompressing the cord and bilateral nerve roots. A [structural allograft / PEEK cage] filled with cancellous bone was inserted, secured with an anterior cervical plate and screws.`;
+  }
+
+  if (includesAny(name, ["kyphoplasty", "vertebroplasty"])) {
+    return `Preoperative MRI / CT demonstrated [acute / subacute] vertebral compression fracture at [__] with [__]% loss of vertebral height. Bilateral transpedicular access was achieved under fluoroscopic guidance. [Kyphoplasty: balloon tamps were inflated bilaterally restoring [__]% of vertebral height.] PMMA cement was injected under continuous fluoroscopy with no extravasation into the spinal canal or paravertebral veins.`;
   }
 
   return `Preoperative imaging was reviewed and intraoperative findings were consistent. Preoperative GCS and neurologic exam were documented. Intraoperative neuromonitoring was intact throughout. Hemostasis was meticulously achieved and the dura was closed in a watertight fashion.`;
@@ -196,7 +272,57 @@ function neuroOpSteps(c: CaseLog): string[] {
     ];
   }
 
-  // -- Carotid endarterectomy is vascular, not neurosurgery — skip
+  // -- Aneurysm clipping -----------------------------------------------------
+  if (includesAny(name, ["aneurysm clipping", "cerebral aneurysm"])) {
+    return [
+      `The patient was positioned supine with the head turned 30° contralaterally and fixed in a Mayfield head holder. A pterional skin incision was made and the temporalis muscle reflected. A standard pterional craniotomy was performed and the dura opened.`,
+      `Under the microscope, the Sylvian fissure was widely split sharply, releasing CSF for relaxation. The arachnoid was opened to gain access to the supracarotid cistern. The carotid bifurcation, A1, M1, and the aneurysm were identified.`,
+      `Temporary clips were placed on the parent artery for proximal control. Permanent clip(s) were applied across the aneurysm neck under direct vision. Temporary clips were released; total temporary occlusion time was [__] minutes.`,
+      `Indocyanine green videoangiography confirmed complete obliteration of the aneurysm with patent parent and perforating vessels. Hemostasis was achieved. Dura was closed watertight, bone flap secured, and skin closed in standard layers.`,
+    ];
+  }
+
+  // -- AVM resection ---------------------------------------------------------
+  if (includesAny(name, ["avm resection", "arteriovenous malformation"])) {
+    return [
+      `The patient was positioned and a craniotomy planned over the AVM nidus, guided by neuronavigation. The dura was opened.`,
+      `The arterial feeders were identified and systematically coagulated/divided in sequence (from proximal to distal). Care was taken not to injure adjacent en passage vessels.`,
+      `The nidus was mobilised circumferentially in the gliotic plane around its periphery. The major draining vein(s) were preserved until the very end and taken last when the nidus was fully isolated.`,
+      `ICG videoangiography confirmed no residual nidus and patent normal vessels. Hemostasis was meticulous. Closure was performed.`,
+    ];
+  }
+
+  // -- DBS placement ---------------------------------------------------------
+  if (includesAny(name, ["dbs", "deep brain stimulator"])) {
+    return [
+      `The Leksell stereotactic frame was applied under local anesthesia. The patient underwent stereotactic CT (fused with preoperative MRI) for target coordinate calculation in the [STN / GPi / VIM].`,
+      `The patient was awake. A small frontal incision was made and a 14 mm burr hole drilled. A trajectory was planned. The dura and pia were sharply incised. A microelectrode recording cannula was advanced to target with continuous neuronal recordings confirming target nucleus identification.`,
+      `Test stimulation through the macroelectrode was performed at incremental currents, with the patient assessed by the movement-disorder neurologist for symptomatic benefit and absence of capsular / oculomotor side effects. The optimal contact was selected.`,
+      `The DBS lead (Medtronic 3389 / Boston Scientific Vercise) was passed to target depth and secured at the burr hole with a Stim-Loc / Navigus.`,
+      `[For Stage 2 IPG: under general anaesthesia, an IPG pocket was developed in the infraclavicular subcutaneous tissue. The lead was tunneled subcutaneously, connected to the IPG, and impedances confirmed.]`,
+    ];
+  }
+
+  // -- ACDF ------------------------------------------------------------------
+  if (includesAny(name, ["acdf", "anterior cervical discectomy"])) {
+    return [
+      `The patient was positioned supine with the neck in slight extension. A right-sided transverse skin crease incision was made over the target level (confirmed by fluoroscopy). Subplatysmal flaps were raised.`,
+      `The medial border of the SCM and the carotid sheath were retracted laterally; the trachea/oesophagus medially. The longus colli muscles were dissected off the anterior vertebral bodies and retractor blades placed underneath them.`,
+      `The disc space was opened with a #15 blade and a Caspar distractor placed for vertebral body distraction. Under the microscope, the disc and posterior osteophytes were removed; the posterior longitudinal ligament was opened and the cord and bilateral roots decompressed.`,
+      `A trial spacer was placed for sizing. A [structural allograft / PEEK cage filled with cancellous autograft / DBM] was placed in the disc space. An anterior cervical plate was sized, contoured, and secured with locking screws into each vertebral body.`,
+      `Fluoroscopic confirmation of plate, screw, and graft position was obtained. A 7 Fr Jackson-Pratt drain was placed. Platysma was closed with 3-0 Vicryl, skin with 4-0 Monocryl subcuticular.`,
+    ];
+  }
+
+  // -- Kyphoplasty / vertebroplasty ------------------------------------------
+  if (includesAny(name, ["kyphoplasty", "vertebroplasty"])) {
+    return [
+      `Under fluoroscopic guidance, the target vertebral body was identified. Bilateral transpedicular trocars were advanced into the vertebral body, taking care to stay within the medial pedicle wall.`,
+      `[For kyphoplasty: balloon tamps were introduced through the working cannulas and slowly inflated under continuous fluoroscopy until appropriate cavity creation and partial restoration of vertebral height. Balloons were deflated and removed.]`,
+      `PMMA cement was prepared and injected slowly under continuous lateral fluoroscopy to monitor for any extravasation into the spinal canal, paravertebral veins, or soft tissues. Cement filled the vertebral body cavity / interstices appropriately.`,
+      `The cannulas were removed after cement hardening. Hemostasis was achieved at the skin incisions, which were closed with a single Steri-Strip each.`,
+    ];
+  }
 
   // Generic neurosurgery fallback
   return [
