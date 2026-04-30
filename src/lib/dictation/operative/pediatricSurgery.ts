@@ -84,6 +84,73 @@ export function pediatricSurgeryTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: pediatric surgery attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["gastroschisis", "omphalocele"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and central access.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to NICU. Plan: TPN until enteral feeds tolerated, watch for compartment syndrome and intestinal ischemia, ventilation as needed for primary closure pressures.",
+    };
+  }
+
+  if (includesAny(name, ["nec", "necrotizing enterocolitis"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and central access.",
+      ebl: "Approximately 50–200 ml (variable).",
+      drains: "Penrose drain optional in stoma site.",
+      specimens: "Necrotic bowel + lymph nodes to pathology and culture.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to NICU on TPN, antibiotics, ventilation. Plan: stoma care, bowel rest, contrast study before reanastomosis at 6–12 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["congenital diaphragmatic hernia", "cdh", "bochdalek"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line, central access; HFOV / ECMO availability.",
+      ebl: "Approximately 50–100 ml.",
+      drains: "Chest tube to underwater seal.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to NICU. Plan: gentle ventilation, permissive hypercapnia, pulmonary hypertension management with iNO/sildenafil, gradual feeding advancement.",
+    };
+  }
+
+  if (includesAny(name, ["pectus", "nuss", "ravitch"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with thoracic epidural for pain management.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "Chest tube on the side(s) of dissection × 24h.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for 3–5 days for pain management with thoracic epidural. Plan: incentive spirometry, gradual return to activity, bar removal at 2–3 years.",
+    };
+  }
+
+  if (includesAny(name, ["wilms", "neuroblastoma", "pediatric tumor"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with arterial line and central access.",
+      ebl: "Approximately 100–300 ml.",
+      drains: "None routinely.",
+      specimens: "Tumor specimen + regional lymph nodes oriented for pathology + tissue for biobank.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to PICU / surgical floor. Plan: postoperative pain management, advance diet as tolerated, oncology follow-up for adjuvant therapy.",
+    };
+  }
+
+  if (includesAny(name, ["hirschsprung", "pull-through", "soave", "swenson", "duhamel"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with caudal block.",
+      ebl: "Approximately 50–150 ml.",
+      drains: "None routinely.",
+      specimens: "Resected aganglionic bowel + transition zone for pathology + frozen sections.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted for postoperative care. Plan: stool softeners, anal dilations starting at 2 weeks, follow-up for enterocolitis surveillance.",
+    };
+  }
+
   return {
     anesthesia: "General anesthesia.",
     ebl: "Minimal.",

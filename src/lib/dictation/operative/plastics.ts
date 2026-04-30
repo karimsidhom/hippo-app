@@ -88,6 +88,73 @@ export function plasticsTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: plastics attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["cleft lip", "cleft palate", "cleft repair"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with oral RAE tube.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight for airway and pain monitoring. Plan: arm restraints, soft diet/cup feeding, follow-up in clinic at 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["dupuytren", "fasciectomy"]) && !includesAny(name, ["palmar"])) {
+    return {
+      anesthesia: "Regional (Bier or supraclavicular) ± sedation; general for extensive cases.",
+      ebl: "Minimal.",
+      drains: "Penrose drain × 24h.",
+      specimens: "Resected fascia to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home in plaster splint. Plan: hand therapy at 1 week, night extension splint × 6 months.",
+    };
+  }
+
+  if (includesAny(name, ["lipoma excision"])) {
+    return {
+      anesthesia: "Local anesthesia ± sedation.",
+      ebl: "Minimal.",
+      drains: "None routinely (Penrose for large excisions).",
+      specimens: "Lipoma to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day with wound care instructions. Suture removal at 7–14 days.",
+    };
+  }
+
+  if (includesAny(name, ["facial trauma", "le fort", "zygomatic", "mandible fracture"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia (nasal RAE for mandible).",
+      ebl: "Approximately 100–300 ml.",
+      drains: "None routinely.",
+      specimens: "Tooth fragments / bone fragments to pathology if indicated.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight for airway monitoring (especially for mandibular fixation). Plan: soft / pureed diet, antibiotics, MMF as indicated, follow-up at 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["nasal reconstruction", "rhinoplasty", "septorhinoplasty"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia.",
+      ebl: "Minimal.",
+      drains: "Nasal packing for 24–48h.",
+      specimens: "Cartilage / bone for pathology if structural changes made.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day with nasal cast × 1 week, head elevation, no nose blowing × 4 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["scar revision", "z-plasty", "w-plasty"])) {
+    return {
+      anesthesia: "Local with sedation; general for large/multiple revisions.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Excised scar to pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: scar massage starting at 2 weeks, silicone-gel sheets, sun protection × 6 months.",
+    };
+  }
+
   return {
     anesthesia: "General or local anesthesia with sedation.",
     ebl: "Approximately ________ ml.",

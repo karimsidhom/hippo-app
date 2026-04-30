@@ -96,6 +96,62 @@ export function entTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // REVIEW: ENT attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["cochlear implant"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with facial nerve monitoring.",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "None.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight. Plan: device activation at 3–4 weeks in audiology clinic, antibiotic ointment to incision, no water exposure × 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["mastoidectomy", "tympanomastoidectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with facial nerve monitoring.",
+      ebl: "Minimal.",
+      drains: "Penrose × 24h optional.",
+      specimens: "Cholesteatoma / granulation tissue / mastoid specimen for pathology and culture.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted overnight. Plan: postoperative antibiotic drops, dry ear precautions, follow-up in clinic at 1 week.",
+    };
+  }
+
+  if (includesAny(name, ["laryngectomy", "total laryngectomy"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia (later trach), arterial line + central access.",
+      ebl: "Approximately 200–500 ml.",
+      drains: "Two closed-suction drains in the neck.",
+      specimens: "Larynx + thyroid + neck nodes oriented for pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Admitted to the ICU / step-down for airway, NG / J-tube feeds, voice rehabilitation referral. Tracheoesophageal puncture for voice prosthesis at 2 weeks if planned.",
+    };
+  }
+
+  if (includesAny(name, ["microdirect", "microlaryngoscopy", "vocal cord", "phonosurgery"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia (small endotracheal tube or jet ventilation).",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: "Vocal cord lesion / cyst / polyp for pathology.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day. Plan: voice rest × 7–14 days, voice therapy referral, follow-up scope at 4 weeks.",
+    };
+  }
+
+  if (includesAny(name, ["salivary stone", "sialolithiasis", "sialendoscopy", "submandibular gland"])) {
+    return {
+      anesthesia: "General endotracheal anesthesia with nerve monitoring (for gland excision).",
+      ebl: "Minimal.",
+      drains: "Penrose drain × 24h for gland excision.",
+      specimens: "Stone / gland for pathology + culture.",
+      disposition:
+        "The patient tolerated the procedure well. Discharge home the same day (sialendoscopy) or next day (gland excision). Plan: warm compresses, hydration, sialagogues.",
+    };
+  }
+
   return {
     anesthesia: "General endotracheal anesthesia.",
     ebl: "Minimal.",
