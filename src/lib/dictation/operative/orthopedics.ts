@@ -214,6 +214,35 @@ export function orthopedicsFindings(c: CaseLog): string {
     return `Preoperative imaging showed degenerative disc disease / spondylolisthesis / central canal stenosis at [__]. Intraoperative fluoroscopy confirmed the correct levels. Adequate decompression was achieved with restoration of the neural foramen / central canal. Pedicle screws were placed under fluoroscopic guidance with intact neuromonitoring signals throughout. Interbody graft was placed with satisfactory alignment. Preoperative and postoperative neurologic exam was documented.`;
   }
 
+  // REVIEW: ortho attending sign-off needed before residents bill from these.
+  if (includesAny(name, ["revision arthroplasty", "revision tha", "revision tka", "rev tha", "rev tka"])) {
+    return `${lat} [hip/knee] revision arthroplasty was performed for [aseptic loosening / periprosthetic infection / instability / peri-prosthetic fracture / wear and osteolysis]. Intraoperative tissue cultures were obtained from [5+ sites] and frozen sections sent. Bone defects were classified as [Paprosky / AORI grade __] with [contained / uncontained] cavitary loss. Components removed: [acetabular cup / poly liner / femoral stem / femoral head / tibial tray / patellar button]. Replacement constructs: [revision shell ± augments / metal augments / cones or sleeves / revision stem / constrained liner if instability]. Final reduction was stable through full ROM with no impingement. Pre- and post-operative neurovascular exam intact.`;
+  }
+
+  if (includesAny(name, ["achilles tendon repair", "achilles rupture", "achilles tendon"])) {
+    return `${lat} acute Achilles tendon rupture confirmed intraoperatively, with the rupture site approximately [__] cm proximal to the calcaneal insertion. The tendon ends were [mop-end frayed / sharply transected]. After debridement of degenerative tissue, the ends were re-approximated in equinus with the foot resting at neutral. Repair was performed using a [Krackow / Bunnell] core suture with [#2 FiberWire] reinforced by an epitenon running suture. Intraoperative Thompson test confirmed appropriate tension and resting plantarflexion comparable to the contralateral side.`;
+  }
+
+  if (includesAny(name, ["distal radius fracture", "distal radius orif", "colles", "smith"])) {
+    return `${lat} distal radius fracture confirmed by intraoperative fluoroscopy with [__] mm dorsal angulation, [__] mm radial shortening, and [__] degrees of inclination loss. Articular [step-off / gap] of [__] mm was reduced anatomically under direct visualization. Volar plate (DVR / variable-angle) was applied with [3] proximal cortical screws and [__] distal locking screws under fluoroscopy. Final imaging confirmed restoration of radial inclination, volar tilt, and ulnar variance. Median nerve in the carpal tunnel was inspected and free of compression.`;
+  }
+
+  if (includesAny(name, ["dupuytren", "fasciectomy"])) {
+    return `${lat} hand demonstrated Dupuytren contracture with [Tubiana stage __] involvement of the [ring / small / middle] finger MCP and PIP joints. Pretendinous, spiral, and central cords were identified. The neurovascular bundles were under direct vision throughout dissection — the spiral cord course was carefully identified and the digital nerves and arteries protected at all times. Following fasciectomy, full passive extension was restored at the MCP and improved at the PIP. No iatrogenic injury occurred.`;
+  }
+
+  if (includesAny(name, ["tendon repair", "flexor tendon", "extensor tendon"])) {
+    return `${lat} hand demonstrated a Zone [I/II/III/IV/V] [flexor / extensor] tendon laceration of the [__] finger / thumb. Both ends of the tendon were retrieved without aggressive trauma to the sheath. The tendon was repaired with a [4-strand modified Kessler] core suture using [4-0 Ethibond / FiberWire] and a circumferential epitenon running 6-0 nylon. Active and passive ROM testing intraoperatively demonstrated tendon glide without gapping. Concomitant injuries: [neurovascular structures intact / digital nerve repair performed].`;
+  }
+
+  if (includesAny(name, ["meniscus repair", "meniscectomy"]) && !includesAny(name, ["arthroscopy"])) {
+    return `${lat} knee arthroscopy demonstrated a [__] cm [bucket-handle / longitudinal / radial / horizontal cleavage / complex] tear in the [medial / lateral] meniscus, located in the [red-red / red-white / white-white] zone. Tear was [reducible / irreducible]. ${includesAny(name, ["repair"]) ? "Tear was located in the vascular zone with reducible morphology, suitable for repair. Inside-out / all-inside repair with [__] vertical mattress sutures was performed." : "Partial meniscectomy was performed with conservative resection back to a stable rim, preserving as much functional meniscus as possible."} Articular surfaces and ACL were [intact / Outerbridge __ chondral changes].`;
+  }
+
+  if (includesAny(name, ["hip resurfacing"])) {
+    return `${lat} hip showed degenerative arthritis with adequate femoral head bone stock and acceptable femoral neck quality, suitable for resurfacing in this [young / active] patient. Acetabular bone was [normal / mildly cystic but adequate]. Final components: [Birmingham / Conserve+ / ADEPT] [size]/[size]. Trial reduction was stable through full range of motion without impingement. Leg lengths were equal. Pre- and post-op neurovascular exam intact.`;
+  }
+
   return `The ${lat} operative limb and relevant joint were identified and prepped under tourniquet. Neurovascular examination was intact preoperatively. Fluoroscopic imaging confirmed anatomy and alignment throughout. Postoperative neurovascular exam was intact with 2+ distal pulses and normal sensation/motor function.`;
 }
 
@@ -337,6 +366,87 @@ function orthoOpSteps(c: CaseLog): string[] {
       `The previous incision was opened and dissection carried down to the hardware, with careful identification and preservation of surrounding neurovascular structures.`,
       `The hardware was identified and removed systematically: [screws, plate, nail, etc.]. Any bony overgrowth was curetted to facilitate removal. Fluoroscopy confirmed complete removal.`,
       `The wound was irrigated and closed in layers. A sterile dressing was applied.`,
+    ];
+  }
+
+  // -- Revision arthroplasty -------------------------------------------------
+  if (includesAny(name, ["revision arthroplasty", "revision tha", "revision tka", "rev tha", "rev tka"])) {
+    return [
+      `The previous skin incision was used and extended as needed. Dissection was carried down through scar tissue carefully identifying neurovascular structures.`,
+      `Tissue cultures were obtained from [≥5 sites] (synovium, capsule, fluid, bone-implant interface) prior to extensive debridement. Tissue and fluid sent for frozen section, gram stain, aerobic + anaerobic + fungal + AFB cultures.`,
+      `Existing components were systematically removed: [acetabular cup with curved osteotome / explant system; femoral stem with cement osteotomes if cemented or extraction handle if cementless]. Bone-cement interface was preserved when possible. Femur / tibia was inspected for cortical perforation.`,
+      `Bone defects were classified intraoperatively (Paprosky / AORI). Defects were managed with [impaction grafting / structural allograft / metal augments / cones / sleeves] as appropriate.`,
+      `New components were trialed and reduced. Stability was tested through full range of motion. [Constrained liner used if instability concerns.] Final implants placed.`,
+      `The wound was irrigated copiously and closed in layers over a 15 Fr Hemovac drain. Compressive dressing applied.`,
+    ];
+  }
+
+  // -- Achilles tendon repair ------------------------------------------------
+  if (includesAny(name, ["achilles tendon repair", "achilles rupture"])) {
+    return [
+      `The patient was placed prone with the operative leg slightly elevated. A longitudinal incision was made just medial to the Achilles tendon, slightly off-midline to avoid sural nerve and to keep the scar away from shoe wear.`,
+      `The paratenon was incised longitudinally, identifying and protecting the sural nerve. The tendon ends were exposed and freshened of mop-end frayed tissue.`,
+      `With the foot in resting equinus, a Krackow whip-stitch was placed in each tendon end using #2 FiberWire. The sutures were tied snugly to approximate the tendon ends, restoring physiologic tension matching the contralateral side.`,
+      `An epitenon running 3-0 Vicryl reinforcement was placed circumferentially. Thompson test confirmed appropriate plantarflexion response. The paratenon was closed with 3-0 Vicryl, the subcutaneous tissue with 3-0 Monocryl, and the skin with 4-0 nylon interrupted.`,
+      `The patient was placed in a plantarflexed plaster splint.`,
+    ];
+  }
+
+  // -- Distal radius fracture ORIF -------------------------------------------
+  if (includesAny(name, ["distal radius fracture", "distal radius orif", "colles", "smith"])) {
+    return [
+      `The arm was exsanguinated and the tourniquet inflated to 250 mmHg. A volar Henry approach was used: incision over the FCR tendon sheath, opening the FCR sheath and retracting the FCR tendon ulnarly to protect the median nerve.`,
+      `The pronator quadratus was elevated subperiosteally from radial to ulnar to expose the volar distal radius. Fracture site was identified and hematoma evacuated.`,
+      `Reduction was achieved by traction, dorsal-to-volar pressure, and ulnar deviation. Anatomic reduction was confirmed by direct visualisation of the volar cortex and intraoperative AP and lateral fluoroscopy.`,
+      `A volar locking plate (DVR / Acumed Acu-Loc / Synthes VA-LCP) was applied. Three proximal cortical screws and [__] distal locking screws (subchondral, parallel to articular surface) were placed. Final fluoroscopy confirmed restoration of radial inclination, volar tilt, and ulnar variance with no intra-articular screw penetration.`,
+      `Pronator quadratus was approximated over the plate with 3-0 Vicryl. The wound was closed in layers. Volar splint applied.`,
+    ];
+  }
+
+  // -- Dupuytren fasciectomy -------------------------------------------------
+  if (includesAny(name, ["dupuytren", "fasciectomy"])) {
+    return [
+      `The hand was exsanguinated and tourniquet inflated to 250 mmHg. A Brunner zigzag incision was marked over the affected ray(s). Skin flaps were elevated carefully — the diseased fascia is densely adherent to dermis in many places.`,
+      `The pretendinous, spiral, and central cords were systematically identified. The neurovascular bundles were sought first using the spiral cord as a guide — the cord forces the digital nerve and artery to corkscrew around it. Both bundles were dissected free over the entire course before any cord was excised.`,
+      `Diseased fascia was excised piecewise from proximal to distal, releasing MCP and PIP contractures. Passive joint extension was tested at each step.`,
+      `Hemostasis was achieved after tourniquet release. Skin was closed loosely with 5-0 nylon — Z-plasties were used at flexion creases to prevent recurrent web contracture and skin compromise.`,
+      `Plaster splint applied with the digit in extension.`,
+    ];
+  }
+
+  // -- Tendon repair (flexor / extensor) ------------------------------------
+  if (includesAny(name, ["tendon repair", "flexor tendon", "extensor tendon"])) {
+    return [
+      `The hand was exsanguinated and tourniquet inflated. The skin laceration was extended in a Brunner zigzag fashion as needed for adequate exposure.`,
+      `The tendon sheath was identified and the proximal and distal tendon ends located. The proximal end was retrieved using a milking technique or a tendon retriever passed through a separate proximal incision when needed.`,
+      `A 4-strand modified Kessler core suture using 4-0 looped Ethibond / FiberWire was placed across the repair site, ensuring symmetric grasp on each tendon end and avoiding gapping under tension.`,
+      `A circumferential epitenon running suture using 6-0 nylon was placed to smooth the repair surface and add ~30% strength.`,
+      `Active and passive ROM testing intraoperatively confirmed tendon glide without gapping. Tendon sheath was loosely closed if intact. Skin was closed with 5-0 nylon. Dorsal blocking splint applied.`,
+    ];
+  }
+
+  // -- Meniscus repair / meniscectomy ----------------------------------------
+  if (includesAny(name, ["meniscus repair", "meniscectomy"]) && !includesAny(name, ["arthroscopy"])) {
+    const repair = includesAny(name, ["repair"]);
+    return [
+      `Standard knee arthroscopy was performed via anterolateral viewing portal and anteromedial working portal. Diagnostic survey was completed.`,
+      `The [medial / lateral] meniscus tear was characterized: [longitudinal / radial / horizontal cleavage / bucket-handle / complex] morphology, located in the [red-red / red-white / white-white] zone, length [__] cm.`,
+      repair
+        ? `Tear was reducible and located in vascular zone, suitable for repair. Tear edges were freshened with a rasp. [Inside-out repair with vertical mattress sutures using 2-0 PDS / All-inside repair with [__] FasT-Fix devices] was performed across the tear, achieving stable reduction.`
+        : `Tear was located in the avascular zone or had irreparable morphology. Partial meniscectomy was performed using punch and shaver, conservatively resecting back to a stable rim while preserving as much functional meniscus as possible.`,
+      `Articular cartilage and ACL were re-inspected. Hemostasis confirmed. Portals closed with 4-0 nylon. Compressive dressing applied.`,
+    ];
+  }
+
+  // -- Hip resurfacing -------------------------------------------------------
+  if (includesAny(name, ["hip resurfacing"])) {
+    return [
+      `The patient was placed in lateral decubitus. A posterior approach was used. The short external rotators were released and the posterior capsule incised.`,
+      `The hip was dislocated by internal rotation and adduction. The femoral head was inspected and confirmed adequate for resurfacing (sufficient bone stock, no avascular necrosis).`,
+      `The femoral head and neck were templated and a guide pin placed centrally up the femoral neck under fluoroscopic guidance. Sequential reaming and milling prepared the femoral head for the resurfacing component.`,
+      `The acetabulum was exposed and reamed sequentially to prepare for a press-fit cup. The cementless acetabular component was impacted in [40°/15°] inclination/anteversion.`,
+      `The femoral resurfacing component was cemented onto the prepared head with bone cement, ensuring complete seating without cement extrusion. Trial reduction confirmed stability through full ROM.`,
+      `Hip was reduced. Posterior capsule and external rotators were repaired. Standard layered closure.`,
     ];
   }
 

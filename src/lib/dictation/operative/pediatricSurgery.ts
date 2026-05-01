@@ -183,6 +183,31 @@ export function pediatricSurgeryFindings(c: CaseLog): string {
     return `Malrotation was confirmed with a narrow-based mesentery and duodenal obstruction by Ladd's bands. [No / Segmental] volvulus was present. The bowel was viable throughout. The Ladd's bands were divided, the mesentery was widened, and an incidental appendectomy was performed. The bowel was returned to the abdomen in non-rotation position.`;
   }
 
+  // REVIEW: pediatric surgery attending sign-off needed
+  if (includesAny(name, ["gastroschisis", "omphalocele"])) {
+    return `${name.includes("gastroschisis") ? "Gastroschisis with herniated bowel +/- stomach through a defect to the right of the umbilicus, [edematous / inflamed / matted]" : "Omphalocele containing [bowel only / liver]; size [__] cm; covering membrane [intact / ruptured]"}. The herniated viscera were inspected and viable. Bowel anatomy was normal with no atresias / perforations. ${name.includes("gastroschisis") ? "Primary closure was [achievable / required silo placement and staged reduction]" : "Primary closure was [achievable / required staged closure with prosthetic patch and skin closure]"} based on intra-abdominal volume tolerance and ventilatory pressures.`;
+  }
+
+  if (includesAny(name, ["nec", "necrotizing enterocolitis"])) {
+    return `Necrotising enterocolitis with [pneumatosis, portal venous gas, perforation] confirmed. Intraoperative findings: [__] cm of [duodenum/jejunum/ileum/colon] involved with [necrosis / pneumatosis / frank perforation]. Bowel viability assessed: [grossly necrotic segment requires resection; remaining bowel viable]. Total residual bowel length post-resection: [__] cm. ${includesAny(name, ["primary anastomosis"]) ? "Primary anastomosis performed." : "Stoma created; mucous fistula brought up adjacent."}`;
+  }
+
+  if (includesAny(name, ["congenital diaphragmatic hernia", "cdh", "bochdalek"])) {
+    return `${name.includes("right") ? "Right" : "Left"}-sided Bochdalek-type CDH with herniation of [stomach / spleen / colon / small bowel] into the chest. Lung was [severely / moderately] hypoplastic. The diaphragmatic defect was [__] × [__] cm with [presence of / absence of] hernia sac. ${includesAny(name, ["patch"]) ? "Defect was too large for primary closure; a synthetic patch (Gore-Tex / PTFE) or muscle flap was used." : "Defect was closable primarily."}`;
+  }
+
+  if (includesAny(name, ["pectus", "nuss", "ravitch"])) {
+    return `Pectus excavatum with Haller index of [__] confirmed preoperatively. Sternum was [moderately / severely] depressed with [symmetric / asymmetric] morphology. Cardiac compression was [absent / present] on preoperative echo. Costal cartilages were [normal / abnormal-deformed]. ${includesAny(name, ["nuss"]) ? "A pre-bent Lorenz pectus bar was passed beneath the sternum and rotated into corrective position with restoration of anterior chest contour." : "Affected costal cartilages were resected and the sternum osteotomized and stabilised in corrected position."}`;
+  }
+
+  if (includesAny(name, ["wilms", "neuroblastoma", "pediatric tumor"])) {
+    return `${name.includes("wilms") ? "Wilms tumor" : name.includes("neuroblastoma") ? "Neuroblastoma" : "Pediatric tumor"} confirmed at [location] measuring [__] × [__] cm. There was no gross [contralateral involvement / vascular invasion / extracapsular extension on initial inspection]. ${name.includes("wilms") ? "Renal vein, IVC, and contralateral kidney were inspected; no thrombus identified." : "Tumor was [encasing / abutting] [vascular structure]; resectability was confirmed."} Regional lymph nodes were sampled / dissected for pathologic staging.`;
+  }
+
+  if (includesAny(name, ["hirschsprung", "pull-through", "soave", "swenson", "duhamel"])) {
+    return `Hirschsprung disease confirmed by preoperative biopsy showing aganglionosis. Intraoperative seromuscular biopsies from sequential proximal levels confirmed transition zone at [rectosigmoid / sigmoid / descending colon]. Aganglionic segment length: [__] cm. Bowel proximal to transition zone was [moderately / severely] dilated. Distal aganglionic bowel was resected and ganglionic bowel was anastomosed [coloanally / Duhamel-style retrorectal pouch].`;
+  }
+
   return `Intraoperative findings were consistent with the preoperative diagnosis. The patient tolerated the procedure well with stable vital signs and maintained thermoregulation throughout.`;
 }
 
@@ -281,6 +306,77 @@ function pedsOpSteps(c: CaseLog): string[] {
       `The skin was prepped and a small stab incision was made at the selected site. A trocar and sheath were inserted into the stomach under endoscopic visualization. A guidewire was passed through the sheath into the stomach and grasped with an endoscopic snare.`,
       `The wire was pulled out through the mouth. A PEG tube was attached and pulled back antegrade through the esophagus and stomach until its internal bolster seated gently against the gastric mucosa. The external bolster was secured without excessive tension.`,
       `Endoscopy confirmed correct position of the internal bolster without tension. The tube was flushed with saline to confirm patency.`,
+    ];
+  }
+
+  // -- Gastroschisis / omphalocele closure -----------------------------------
+  if (includesAny(name, ["gastroschisis", "omphalocele"])) {
+    return [
+      `${name.includes("gastroschisis") ? "The gastroschisis defect to the right of the umbilicus was inspected. Herniated bowel was eviscerated, examined, and any matted areas gently lysed." : "The omphalocele sac was inspected. The covering membrane was [intact and protected / had ruptured]."}`,
+      `Bowel viability was confirmed throughout. ${name.includes("gastroschisis") ? "The umbilical cord was preserved or trimmed. " : "The omphalocele sac was excised carefully, preserving the umbilical vessels for closure planning. "}`,
+      `Reduction was attempted. If intra-abdominal pressure remained acceptable (peak inspiratory pressure tolerable, no compromise of inferior vena caval flow), primary closure was performed.`,
+      `${includesAny(name, ["silo"]) ? "If reduction was not feasible: a preformed Silastic silo was placed and gradually reduced over 3–7 days, followed by definitive closure." : "Primary closure was performed: the abdominal wall fascia was approximated with interrupted 3-0 PDS. Skin closed with absorbable subcuticular suture."}`,
+      `Final closure was inspected; intra-abdominal pressure was within acceptable range. The neonate was returned to NICU on appropriate ventilatory support.`,
+    ];
+  }
+
+  // -- NEC laparotomy --------------------------------------------------------
+  if (includesAny(name, ["nec", "necrotizing enterocolitis"])) {
+    return [
+      `A transverse supraumbilical incision was made and the peritoneum entered. Free [feculent / serosanguinous] fluid was suctioned and sent for culture.`,
+      `The bowel was systematically inspected from the ligament of Treitz to the rectum. Necrotic / perforated segments were identified at [location]. Marginally viable segments were noted for re-look planning.`,
+      `${includesAny(name, ["primary anastomosis"]) ? "Necrotic bowel was resected and a primary end-to-end anastomosis was created with interrupted 5-0 PDS in single layer." : "Necrotic bowel was resected. Proximal end was matured to the skin as an end stoma; distal end was brought up adjacent as a mucous fistula (or closed and tagged for later anastomosis)."}`,
+      `Abdomen was irrigated copiously. ${includesAny(name, ["second look"]) ? "A planned second-look laparotomy was scheduled for 24–48 hours." : "Closure was performed in single-layer fashion with skin only / fascia + skin given peritoneal contamination."}`,
+    ];
+  }
+
+  // -- CDH repair ------------------------------------------------------------
+  if (includesAny(name, ["congenital diaphragmatic hernia", "cdh", "bochdalek"])) {
+    return [
+      `${name.includes("right") ? "Right" : "Left"} subcostal incision (or thoracoscopic / abdominal laparoscopic approach for selected stable patients).`,
+      `The herniated viscera (stomach, spleen, colon, small bowel for left CDH; liver, bowel for right CDH) were carefully reduced into the abdomen. The hernia sac, if present, was excised.`,
+      `The diaphragmatic defect was inspected. ${includesAny(name, ["patch"]) ? "Defect was too large for primary closure (>30% of hemidiaphragm). A Gore-Tex / Surgisis patch was sized and sutured to the diaphragmatic edges and chest wall with non-absorbable sutures." : "The diaphragm was repaired primarily with non-absorbable interrupted sutures (2-0 Ethibond)."}`,
+      `A chest tube was placed in the affected hemithorax to underwater seal. The abdomen was closed in layers; in cases of inadequate domain, ventral hernia or skin-only closure with planned silo reduction was used.`,
+    ];
+  }
+
+  // -- Pectus repair (Nuss / Ravitch) ----------------------------------------
+  if (includesAny(name, ["pectus", "nuss", "ravitch"])) {
+    if (includesAny(name, ["nuss"])) {
+      return [
+        `Bilateral lateral chest incisions were marked at the deepest points of the pectus deformity, in line with the planned bar pathway. A subcutaneous tunnel was developed bilaterally.`,
+        `Under thoracoscopic visualisation, an introducer was passed from the right intercostal space, beneath the sternum, and out the contralateral intercostal space, taking care to remain in the substernal mediastinal plane and avoid the pericardium.`,
+        `The pre-bent Lorenz pectus bar was attached to the introducer and passed across the mediastinum, then rotated 180° to elevate the sternum into corrected position. A second bar was placed cranially or caudally if needed for stability.`,
+        `Stabilisers were attached to the lateral ends of the bar and secured to the ribs with heavy non-absorbable suture. Thoracic incisions closed in layers.`,
+      ];
+    }
+    return [
+      `A vertical or transverse anterior chest incision was made and pectoralis muscles were elevated bilaterally to expose the costal cartilages.`,
+      `The deformed costal cartilages (typically 3rd–6th bilaterally) were resected subperichondrially. The perichondrium was preserved for cartilage regrowth.`,
+      `A transverse osteotomy of the sternum was performed at the level of the deformity. The sternum was elevated and stabilised in corrected position with internal fixation (titanium plate or pectus bar).`,
+      `Pectoralis muscles were re-approximated to the midline. Drains placed. Closure in layers.`,
+    ];
+  }
+
+  // -- Pediatric tumor resection (Wilms / neuroblastoma) ---------------------
+  if (includesAny(name, ["wilms", "neuroblastoma", "pediatric tumor"])) {
+    return [
+      `Through a transverse abdominal / thoracoabdominal incision, the tumor was approached. The contralateral kidney / structures were inspected first to confirm operability.`,
+      `${name.includes("wilms") ? "Renal hilum was approached early. Renal vein and IVC were inspected for thrombus. Renal artery was identified, isolated, and ligated with 2-0 silk. Renal vein was similarly controlled." : "Tumor was carefully dissected from surrounding vital structures (great vessels, spinal cord, organs). Vessel encasement assessed."}`,
+      `The tumor was mobilised within Gerota's fascia (Wilms) / its surrounding fat (neuroblastoma) and removed en bloc. Specimen was inked and oriented for pathology and tissue banking.`,
+      `Regional lymph nodes were systematically sampled / dissected from peri-aortic, peri-caval, and renal hilum stations. Specimens labelled separately by station.`,
+      `The wound was irrigated. Hemostasis was meticulously confirmed. Standard layered closure.`,
+    ];
+  }
+
+  // -- Hirschsprung pull-through ---------------------------------------------
+  if (includesAny(name, ["hirschsprung", "pull-through", "soave", "swenson", "duhamel"])) {
+    return [
+      `Approach: [transanal Soave / laparoscopic-assisted / open Duhamel / Swenson]. Initial seromuscular biopsies were obtained at sequential proximal levels and frozen sections confirmed transition zone.`,
+      `${includesAny(name, ["soave"]) ? "Transanal mucosal cuff was developed by mucosectomy of the rectum. Aganglionic bowel was pulled through the mucosal cuff and resected." : includesAny(name, ["swenson"]) ? "Aganglionic rectum and sigmoid were resected with full-thickness pull-through and coloanal anastomosis." : "Duhamel: aganglionic rectum was retained as a stump. Ganglionic colon was pulled retrorectally and anastomosed to a posterior rectal opening with stapled or hand-sewn anastomosis."}`,
+      `Pulled-through bowel was confirmed to have ganglion cells on frozen section at the planned anastomotic level.`,
+      `Anastomosis was created with interrupted 4-0 absorbable sutures. The anastomosis was tested with gentle dilation and was patent.`,
+      `Wound closure performed; perineal sutures placed appropriately.`,
     ];
   }
 

@@ -199,6 +199,31 @@ export function plasticsFindings(c: CaseLog): string {
     return `The defect measured approximately [__] × [__] cm on the [forehead / cheek / nasal / ear / scalp / lip / extremity] region and was [superficial / deep to fascia / full thickness]. Margins had been confirmed clear by the Mohs surgeon. Adjacent skin was of [good / scarred / actinically damaged] quality with adequate laxity for local coverage. A [rotation / advancement / rhomboid / bilobed] flap was designed and elevated in the subdermal plane with preservation of perforators. Perfusion of the flap was excellent at the conclusion of inset.`;
   }
 
+  // REVIEW: plastics attending sign-off needed
+  if (includesAny(name, ["cleft lip", "cleft palate", "cleft repair"])) {
+    return `${includesAny(name, ["palate"]) ? "Cleft palate (Veau type [I/II/III/IV])" : "Unilateral / bilateral cleft lip and primary nasal deformity"} was confirmed. The ${includesAny(name, ["palate"]) ? "soft and hard palate clefts were marked. Surrounding tissues were of good quality with adequate flaps for two-layer closure (oral and nasal mucosa, with palatal muscle reconstruction)." : "skin, vermilion, white roll, philtral column, and Cupid's bow were marked according to Millard rotation-advancement / Fisher anatomic principles. The orbicularis oris muscle was identified for repair."} Hemostasis was achieved with bipolar cautery. The neonate tolerated the procedure well.`;
+  }
+
+  if (includesAny(name, ["dupuytren", "fasciectomy"]) && !includesAny(name, ["palmar"])) {
+    return `Dupuytren contracture (Tubiana stage [__]) of the [ring/small/middle] finger with MCP and PIP contractures of [__]° and [__]° respectively. Pretendinous, central, and spiral cords were identified. Digital nerves and arteries were identified and protected throughout the dissection — spiral cord course was carefully traced with the bundles always protected. Following fasciectomy, full passive extension was restored at the MCP and substantially improved at the PIP.`;
+  }
+
+  if (includesAny(name, ["lipoma excision"])) {
+    return `A subcutaneous lipoma measuring approximately [__] cm at the [location] was identified. The lesion was [encapsulated / lobular] and dissected sharply / bluntly from surrounding subcutaneous tissue without violating its capsule. Adjacent neurovascular structures were preserved. Hemostasis was achieved with bipolar cautery.`;
+  }
+
+  if (includesAny(name, ["facial trauma", "le fort", "zygomatic", "mandible fracture"])) {
+    return `[Mandible / zygomatic / Le Fort I/II/III / orbital floor / nasoorbitoethmoid] fracture was confirmed by CT and intraoperative inspection. Fracture displacement / comminution was [__]. Reduction was achieved by direct visualization and manual manipulation. Anatomic restoration of pre-injury facial proportions and dental occlusion was confirmed. Hardware applied: [titanium miniplates / lag screws / mandibular reconstruction plates] with [__] screws per side. Post-fixation occlusion was [class I / matched preoperative occlusion].`;
+  }
+
+  if (includesAny(name, ["rhinoplasty", "septorhinoplasty", "nasal reconstruction"])) {
+    return `Nasal deformity confirmed: [dorsal hump / bulbous tip / over-projection / under-projection / asymmetric nostrils / deviated septum]. ${includesAny(name, ["septo"]) ? "Septal deviation [__] degrees with [obstruction at the valve / mid-septum]." : ""} Lower lateral cartilages, upper lateral cartilages, and dorsal aesthetic lines were addressed. Final nasal shape was assessed for symmetric brow-tip aesthetic line, supratip break, and tip-defining points before final closure.`;
+  }
+
+  if (includesAny(name, ["scar revision", "z-plasty", "w-plasty"])) {
+    return `Hypertrophic / contracted / aesthetically poor scar at [location] measuring [__] cm in length, oriented [against / along] relaxed skin tension lines. The scar was excised with a [__] mm margin of healthy tissue. Surrounding tissue was healthy and of adequate quality for re-approximation in a Z-plasty / W-plasty / direct elliptical closure pattern.`;
+  }
+
   return `The wound bed was [healthy / debrided] with viable surrounding tissue. Margins of prior resection were inspected and were [clear on intraoperative assessment]. Adjacent tissue was of adequate quality for the planned coverage. Vascularity was confirmed by capillary refill and dermal bleeding at the wound edges.`;
 }
 
@@ -337,6 +362,60 @@ function plasticsOpSteps(c: CaseLog): string[] {
   }
 
   // Generic plastics fallback
+  // -- Dupuytren fasciectomy (plastics-side) ---------------------------------
+  if (includesAny(name, ["dupuytren", "fasciectomy"]) && !includesAny(name, ["palmar"])) {
+    return [
+      `Hand exsanguinated and tourniquet inflated to 250 mmHg. Brunner zigzag incisions marked over affected ray(s). Skin flaps elevated cautiously — diseased fascia is densely adherent to dermis.`,
+      `Pretendinous, central, and spiral cords identified. Digital nerves and arteries traced and protected first; spiral cord course followed carefully (the cord forces the bundles to corkscrew around it).`,
+      `Diseased fascia excised piecewise from proximal to distal. MCP and PIP joint releases tested and additional excision performed until full passive extension restored.`,
+      `Tourniquet released, hemostasis achieved with bipolar cautery. Skin closed loosely with 5-0 nylon — Z-plasties at flexion creases to prevent recurrent web contracture.`,
+      `Plaster splint applied with the digit in extension.`,
+    ];
+  }
+
+  // -- Lipoma excision -------------------------------------------------------
+  if (includesAny(name, ["lipoma excision"])) {
+    return [
+      `The lesion was marked and infiltrated with 1% lidocaine with epinephrine. A skin incision was made over the lesion in line with relaxed skin tension lines.`,
+      `Dissection was carried down to the lesion, identifying its capsule. The lipoma was bluntly + sharply dissected from surrounding tissue, preserving the capsule when possible. Adjacent neurovascular structures were identified and preserved.`,
+      `The specimen was removed intact and sent to pathology. Hemostasis was achieved with bipolar cautery.`,
+      `Closure: deep dermis with 4-0 Monocryl interrupted, skin with 5-0 Monocryl subcuticular ± Steri-Strips. Sterile dressing applied.`,
+    ];
+  }
+
+  // -- Facial trauma ORIF ----------------------------------------------------
+  if (includesAny(name, ["facial trauma", "le fort", "zygomatic", "mandible fracture"])) {
+    return [
+      `${includesAny(name, ["mandible"]) ? "Maxillomandibular fixation was applied with arch bars / IMF screws to establish pre-injury occlusion." : ""} Surgical access was planned via [intraoral / transconjunctival / subciliary / coronal / pre-auricular] approach to expose the fracture.`,
+      `Soft tissue dissection was carried down to the fracture, identifying and preserving the [infraorbital nerve / facial nerve branches / mental nerve] in the field.`,
+      `Fracture reduction was achieved by direct manipulation under visualization. Anatomic restoration of facial buttresses, dental occlusion, and orbital volume confirmed.`,
+      `Titanium miniplates / locking plates were contoured and applied across the fracture lines using monocortical screws (or bicortical at load-bearing mandible). Final positioning confirmed by direct visualization and intraoperative imaging if available.`,
+      `${includesAny(name, ["mandible"]) ? "MMF released. Occlusion verified with patient breathing through nose." : ""} Wounds closed in layers with attention to muscle approximation, water-tight mucosa (intraoral), and meticulous skin closure.`,
+    ];
+  }
+
+  // -- Rhinoplasty / septorhinoplasty ----------------------------------------
+  if (includesAny(name, ["rhinoplasty", "septorhinoplasty"])) {
+    return [
+      `The nose was infiltrated with 1% lidocaine with epinephrine in standard injection points. Cocaine-soaked pledgets were placed intranasally for vasoconstriction.`,
+      `An [open / closed] approach was used. For open: a transcolumellar inverted-V incision was made connecting bilateral marginal incisions, and the soft tissue envelope was elevated to expose the lower lateral cartilages, upper lateral cartilages, and bony dorsum.`,
+      `[For septoplasty: a Killian / hemitransfixion incision was made and a submucoperichondrial flap raised on one side, then the contralateral side. The deviated cartilaginous and bony septum was resected, preserving an L-strut of >= 1 cm dorsal and caudal cartilage.]`,
+      `Dorsal modifications (hump reduction with osteotome and rasp), tip refinement (cephalic trim, suture techniques — interdomal, intradomal, lateral crural overlay), and osteotomies (medial + lateral) were performed as planned.`,
+      `Septal cartilage was harvested for grafts (spreader, columellar strut, batten, alar contour) as needed and placed precisely.`,
+      `Soft tissue envelope was redraped. Open incisions closed with 5-0 nylon (skin) and 5-0 chromic (intranasal). Doyle splints placed intranasally; an external nasal cast was applied.`,
+    ];
+  }
+
+  // -- Scar revision ---------------------------------------------------------
+  if (includesAny(name, ["scar revision", "z-plasty", "w-plasty"])) {
+    return [
+      `The existing scar was marked and infiltrated with 1% lidocaine with epinephrine. The planned [Z-plasty / W-plasty / direct elliptical excision] geometry was marked along relaxed skin tension lines.`,
+      `The scar was excised with sharp dissection, including a margin of healthy tissue. Underlying fibrosis was undermined to allow tension-free re-approximation.`,
+      `${includesAny(name, ["z-plasty"]) ? "Z-plasty flaps were transposed at 60° angles, lengthening the scar axis and reorienting it along skin tension lines. Flaps were inset without tension." : includesAny(name, ["w-plasty"]) ? "W-plasty triangles were marked at uniform [60°] angles, then excised and approximated, breaking up the scar line." : "Direct elliptical excision performed with 4:1 length-to-width ratio."}`,
+      `Hemostasis was achieved. Deep dermal closure with 4-0 Monocryl interrupted to take all tension. Skin closure with 5-0 nylon interrupted (face) or 5-0 Monocryl subcuticular (body), with Steri-Strips reinforcement.`,
+    ];
+  }
+
   return [
     `The operative field was prepped and draped in the usual sterile fashion. Local anesthetic with epinephrine was infiltrated. The planned ${c.procedureName} was performed with attention to tension-free closure, preservation of perfusion, and aesthetic subunit alignment. [Expand with procedure-specific technical steps.]`,
     ``,

@@ -196,6 +196,27 @@ export function entFindings(c: CaseLog): string {
     return `The trachea was identified between the second and third tracheal rings. A Bjork flap / vertical tracheal incision was made and a [__] Shiley cuffed tracheostomy tube was placed without difficulty, with immediate capnography confirming airway position and bilateral breath sounds auscultated.`;
   }
 
+  // REVIEW: ENT attending sign-off needed
+  if (includesAny(name, ["cochlear implant"])) {
+    return `Severe-to-profound bilateral sensorineural hearing loss confirmed preoperatively. ${name.includes("right") ? "Right" : name.includes("left") ? "Left" : "[Right/left]"} ear targeted. Mastoid anatomy was [normal / aberrant facial nerve location]. The facial recess was widely opened and the round window was identified. Electrode array was inserted atraumatically with all [22 / 24] electrodes in scala tympani; impedance and integrity testing post-insertion were within normal limits. Facial nerve function was preserved and confirmed at the conclusion of the case.`;
+  }
+
+  if (includesAny(name, ["mastoidectomy", "tympanomastoidectomy"])) {
+    return `${name.includes("right") ? "Right" : name.includes("left") ? "Left" : "[Right/left]"} ear demonstrated [chronic otitis media with cholesteatoma / mastoiditis / chronic granulation tissue]. Cholesteatoma sac extended into [attic / antrum / sinus tympani / facial recess]. Ossicular chain was [intact / partially eroded — incus body lost]. Facial nerve was identified along its tympanic and mastoid segments; integrity confirmed. Disease was completely removed and tympanic membrane reconstructed.`;
+  }
+
+  if (includesAny(name, ["laryngectomy", "total laryngectomy"])) {
+    return `Advanced laryngeal squamous cell carcinoma confirmed pre-operatively (T[__]N[__]). Tumor extended through [supraglottic / glottic / subglottic] subsites with [no / suspected] cartilage invasion. Bilateral neck dissection nodal yield: [__] level II, [__] level III, [__] level IV nodes. Tracheoesophageal puncture for voice prosthesis was [performed primarily / deferred to secondary procedure]. Margins were oriented and submitted to pathology.`;
+  }
+
+  if (includesAny(name, ["microdirect", "microlaryngoscopy", "vocal cord", "phonosurgery"])) {
+    return `Microlaryngoscopy demonstrated [vocal cord polyp / nodule / cyst / leukoplakia / Reinke's edema / subepithelial lesion] of the [right / left / bilateral] true vocal cord(s). The lesion was [pedunculated / sessile] and [__] mm in size. The contralateral cord was [normal / also affected]. The arytenoids, false cords, and subglottis were normal. Pathology was sent for permanent section.`;
+  }
+
+  if (includesAny(name, ["salivary stone", "sialolithiasis", "sialendoscopy", "submandibular gland"])) {
+    return `${name.includes("submandibular") ? "Submandibular" : "Parotid"} sialolithiasis on the [right / left] side. Stone burden: [single / multiple] stones, the largest measuring [__] mm at the [proximal / mid / distal] [Wharton's / Stensen's] duct. ${includesAny(name, ["sialendoscopy"]) ? "Sialendoscopy demonstrated the stone in the lumen and was successfully extracted. Distal duct strictures and gland inflammation noted." : "Gland was [chronically inflamed / fibrotic] with normal facial nerve relationship preserved."}`;
+  }
+
   return `Intraoperative findings were consistent with the preoperative diagnosis. The airway was secured and relevant cranial nerves were identified and preserved. Hemostasis was satisfactory at the conclusion of the case.`;
 }
 
@@ -296,6 +317,67 @@ function entOpSteps(c: CaseLog): string[] {
       `After induction of general anesthesia and with the head in the sniffing position, a tooth guard was placed over the upper dentition. A [Dedo / Lindholm] laryngoscope was introduced and suspended on a Mayo stand, exposing the larynx.`,
       `The operating microscope was brought in. A systematic examination of the oropharynx, hypopharynx, supraglottis, glottis, subglottis, and proximal trachea was performed. [Findings: describe.] Biopsies were taken with cup forceps from [locations] and sent for pathology.`,
       `Hemostasis was confirmed. The laryngoscope was removed. The patient was turned back to anesthesia and awakened in the OR.`,
+    ];
+  }
+
+  // -- Cochlear implant ------------------------------------------------------
+  if (includesAny(name, ["cochlear implant"])) {
+    return [
+      `A retroauricular incision was made and a subperiosteal pocket developed for the receiver/stimulator. A bony seat was drilled in the calvarium for the receiver to lie flush.`,
+      `Cortical mastoidectomy was performed identifying the antrum, lateral semicircular canal, short process of incus, and the digastric ridge. The facial recess was opened between the chorda tympani and facial nerve under continuous facial nerve monitoring.`,
+      `The round window membrane was identified through the facial recess and a cochleostomy created just anterior-inferior to the round window (or round window approach used directly).`,
+      `The electrode array was inserted atraumatically through the round window / cochleostomy until full insertion was achieved. The electrode entrance was sealed with a small piece of muscle / fat. The lead wire was tucked into a bony groove drilled across the mastoid.`,
+      `The receiver/stimulator was placed in the bony seat and secured. Intraoperative impedance + neural response telemetry confirmed device function. The wound was closed in layers with absorbable suture.`,
+    ];
+  }
+
+  // -- Mastoidectomy ---------------------------------------------------------
+  if (includesAny(name, ["mastoidectomy", "tympanomastoidectomy"])) {
+    return [
+      `A postauricular incision was made and the temporalis fascia was harvested for tympanic membrane grafting. A vascular strip was elevated and the external auditory canal entered.`,
+      `Cortical mastoidectomy was performed under continuous facial nerve monitoring, identifying the antrum, lateral semicircular canal, short process of incus, sigmoid sinus, and tegmen.`,
+      `${name.includes("canal wall down") || name.includes("modified radical") ? "Canal wall was taken down to the level of the facial nerve, creating a cavity. Meatoplasty was created widely." : "Canal wall was preserved (intact canal wall mastoidectomy)."}`,
+      `Cholesteatoma was systematically removed from [attic / antrum / facial recess / sinus tympani] under direct visualization. Ossicular chain integrity was assessed and reconstructed with [PORP / TORP / autologous incus] as needed.`,
+      `Tympanic membrane was reconstructed with the harvested temporalis fascia (underlay technique). The vascular strip was returned. Postauricular wound closed in layers.`,
+    ];
+  }
+
+  // -- Total laryngectomy ----------------------------------------------------
+  if (includesAny(name, ["laryngectomy", "total laryngectomy"])) {
+    return [
+      `A horizontal cervical incision (Sistrunk-style or apron) was marked. Subplatysmal flaps were elevated. Bilateral selective neck dissections (levels II–IV) were performed first.`,
+      `The strap muscles were divided. The thyroid isthmus was divided ± hemithyroidectomy on the involved side. Tracheal entry was made below the level of the cricoid and the patient transitioned to direct tracheal intubation through the new tracheostome.`,
+      `The hyoid was skeletonised, supra- and infra-hyoid muscles divided. The pharynx was entered above and below the larynx, and the larynx was removed en bloc.`,
+      `Pharyngeal closure was performed in 2–3 layers (T-closure or vertical), tested for water-tightness with saline.`,
+      `The tracheostome was matured to the skin with absorbable interrupted sutures. Drains placed bilaterally. Wound closed in layers. ${includesAny(name, ["tep", "voice prosthesis"]) ? "Primary tracheoesophageal puncture for voice prosthesis was created at this time." : ""}`,
+    ];
+  }
+
+  // -- Microlaryngoscopy / phonosurgery --------------------------------------
+  if (includesAny(name, ["microdirect", "microlaryngoscopy", "phonosurgery"])) {
+    return [
+      `A tooth guard was placed. A [Dedo / Lindholm] laryngoscope was introduced and suspended on a Mayo stand to expose the glottis.`,
+      `The operating microscope was positioned at 400 mm focal length. Vocal cords were inspected and the lesion identified. ${name.includes("polyp") || name.includes("nodule") || name.includes("cyst") ? "Microflap technique: an incision was made at the lateral edge of the lesion, the lesion was elevated off Reinke's space carefully preserving the vocal ligament, and the lesion was removed sharply." : "Lesion biopsied or excised under microscopic precision with cold instruments to preserve mucosal integrity."}`,
+      `Hemostasis was achieved with topical epinephrine pledgets. The cord was inspected for symmetry and absence of adhesion. Pathology specimens labelled and sent.`,
+      `Laryngoscope removed atraumatically. Patient awakened in the OR.`,
+    ];
+  }
+
+  // -- Sialendoscopy / submandibular gland excision --------------------------
+  if (includesAny(name, ["salivary stone", "sialolithiasis", "sialendoscopy", "submandibular gland"])) {
+    if (includesAny(name, ["submandibular gland"])) {
+      return [
+        `A 4 cm transverse incision was made 2 fingerbreadths below the mandibular angle. Subplatysmal flaps were elevated.`,
+        `The marginal mandibular nerve was identified and protected (low elevation of facial vein, retracted superiorly). The submandibular gland was identified and dissected from surrounding structures.`,
+        `The facial artery was identified, clipped, and divided ± preserved depending on plane. The mylohyoid was retracted and the gland delivered. The lingual nerve and hypoglossal nerve were identified and preserved as the gland was rotated.`,
+        `Wharton's duct was identified and ligated/divided. The gland was removed intact and submitted to pathology.`,
+        `Hemostasis confirmed. Penrose drain placed. Platysma closed with 3-0 Vicryl, skin with 5-0 Monocryl subcuticular.`,
+      ];
+    }
+    return [
+      `Sialendoscopy: papillotomy was performed at Wharton's / Stensen's papilla and a sialendoscope (1.1 mm or 0.8 mm) advanced into the duct.`,
+      `Lithotripsy was performed mechanically (basket extraction) and / or with intraductal laser (holmium). Stone fragments were retrieved with wire baskets through the working channel.`,
+      `Distal duct strictures were dilated. Saline irrigation cleared residual debris. A self-retaining catheter was left in place to maintain duct patency for 1 week.`,
     ];
   }
 
