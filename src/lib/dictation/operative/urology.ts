@@ -225,6 +225,27 @@ export function urologyTopMatter(c: CaseLog): TopMatter {
     };
   }
 
+  // Acute torsion / scrotal exploration top-matter — distinct from
+  // pediatric cryptorchidism orchiopexy. Matched FIRST so torsion cases
+  // get the urgent-emergency framing instead of the elective dispostion.
+  if (
+    includesAny(name, [
+      "torsion",
+      "scrotal exploration",
+      "testicular torsion",
+      "spermatic cord torsion",
+    ])
+  ) {
+    return {
+      anesthesia: "General endotracheal anesthesia (urgent — expedited consent given suspected testicular torsion).",
+      ebl: "Minimal.",
+      drains: "None.",
+      specimens: name.includes("orchiectom") ? "Non-viable testis to pathology." : "None.",
+      disposition:
+        "The patient tolerated the procedure well and was transferred to the recovery area in stable condition. Plan: overnight observation with discharge in the morning if clinically well, scrotal support × 1 week, ice over the first 48 hours, NSAIDs for pain control. The salvaged testis will be followed by ultrasound at 6–12 weeks to assess for atrophy. Return precautions for fever, increasing scrotal pain, or wound concerns.",
+    };
+  }
+
   if (includesAny(name, ["orchiopexy", "orchidopexy"])) {
     return {
       anesthesia: "General anesthesia with caudal block.",
@@ -443,6 +464,19 @@ export function urologyFindings(c: CaseLog): string {
 
   if (includesAny(name, ["varicocele", "varicocelectomy"])) {
     return `A ${lat} grade [II / III] varicocele was identified, consistent with preoperative ultrasound. [No artery / a healthy testicular artery was identified and preserved.] The lymphatic vessels were preserved when possible. There was no testicular pathology. The patient should be advised regarding postoperative scrotal swelling and hydrocele risk.`;
+  }
+
+  // Torsion findings come BEFORE the elective orchiopexy findings so a
+  // case named "scrotal exploration" / "torsion" gets the right narrative.
+  if (
+    includesAny(name, [
+      "torsion",
+      "scrotal exploration",
+      "testicular torsion",
+      "spermatic cord torsion",
+    ])
+  ) {
+    return `${lat} testis noted to be torsed approximately [360° / 540° / 720°]. The testis was markedly edematous, firm, and [purple / dusky / black] in colour, extending proximally toward the spermatic cord. Following detorsion and warm saline-soaked gauze application, there was [gradual / rapid / no] return of perfusion with [improvement in colour, particularly of the spermatic cord, and partial improvement in testicular appearance / no return of viable colour despite reperfusion]. The contralateral testis appeared normal. ${lat === "right" ? "The right" : lat === "left" ? "The left" : "The"} hydrocele fluid was [serous / serosanguinous / dark] and reactive in character.`;
   }
 
   if (includesAny(name, ["orchiopexy", "orchidopexy"])) {
@@ -811,6 +845,31 @@ function urologyOpSteps(c: CaseLog): string[] {
 
   // -- Orchiopexy ------------------------------------------------------------
   if (includesAny(name, ["orchiopexy", "orchidopexy"])) {
+    // Acute torsion / scrotal exploration variant — distinct technique
+    // (midline scrotal incision, manual detorsion, warm saline reperfusion,
+    // 3-point fixation BILATERALLY, no inguinal canal opening). The pattern
+    // matches first because urgent torsion is the operative emergency and
+    // any case named "torsion" or "scrotal exploration" should never fall
+    // through to the cryptorchidism block.
+    if (
+      includesAny(name, [
+        "torsion",
+        "scrotal exploration",
+        "testicular torsion",
+        "spermatic cord torsion",
+      ])
+    ) {
+      return [
+        `The patient was brought to the operating room and placed in the supine position. After induction of general endotracheal anesthesia, the genitalia were prepped with chlorhexidine and draped in the usual sterile fashion. Antibiotic prophylaxis (cefazolin 2 g IV) was administered within 60 minutes of incision. Given the urgency of suspected testicular torsion — every additional hour of warm ischemia drops salvage rates by ~10% (Visser series), with > 80% salvage at < 6 h vs < 20% at > 24 h — the case was expedited from consent to incision.`,
+        `A midline scrotal raphe incision was made with a #15 blade and carried down through the dartos muscle layer to expose the [left / right] hemiscrotum. The tunica vaginalis was identified, opened, and a small amount of [serous / serosanguinous / dark] reactive hydrocele fluid was released. The testis was delivered into the wound by gentle traction.`,
+        `The affected testis was confirmed to be torsed approximately [360° / 540° / 720°] in the [counterclockwise (most common, on the left) / clockwise (more common on the right)] direction. The testis was [significantly dusky and firm / purple and edematous / black-mottled with no surface bleed], with the spermatic cord twisted at the level of the [internal ring / mid-cord / scrotal entry]. Manual detorsion was performed by rotating the testis in the opposite direction (typically "open like a book" — outward for both sides), and the cord was confirmed to be untwisted by visual inspection.`,
+        `The testis was wrapped in warm-saline-soaked gauze and left in situ to reperfuse for 5–10 minutes. ${name.includes("right") ? "Attention was then turned to the contralateral (left) testis" : "Attention was then turned to the contralateral (right) testis"} for prophylactic orchiopexy — bell-clapper deformity is bilateral in 80% of patients and contralateral fixation is mandatory at any torsion exploration regardless of presenting laterality.`,
+        `A subdartos pouch was developed on the contralateral side by elevating scrotal skin off the dartos with sharp dissection, creating a subdermal pocket. The contralateral testis was delivered, inspected, and secured with a 3-point orchiopexy using 4-0 PDS interrupted sutures placed through the tunica albuginea at the medial, lateral, and inferior aspects of the testis, and anchored to the dartos within the subdartos pouch. This technique secures the testis against future torsion without compromising arterial supply through the spermatic cord.`,
+        `Attention was returned to the originally torsed testis and reassessed after the [5–10 minute] reperfusion interval. ${name.includes("orchiectom") ? "The testis remained black, firm, with no return of pink color or surface bleed despite warm saline application — non-viable. The decision was made to proceed with orchiectomy: the spermatic cord was double-clamped, divided sharply between the clamps, and triple suture-ligated with 0 silk on the proximal stump. The non-viable testis was removed and submitted to pathology." : "Significant improvement in the appearance of the spermatic cord was noted with return of healthy pink color, and the testis itself, while [slightly dusky / partially improved], demonstrated clear improvement compared to the initial presentation. Given this improvement, the decision was made to proceed with orchiopexy rather than orchiectomy. A subdartos pouch was developed on this side, and a 3-point orchiopexy was performed using 4-0 PDS sutures in the medial, lateral, and inferior positions, securing the testis to the dartos within the pouch."}`,
+        `The dartos layer was closed with running 3-0 Vicryl, approximating from the lateral aspects toward the midline to ensure hemostasis along the closure. The skin was closed with interrupted 5-0 Monocryl sutures. A scrotal support was applied with a scrotal weight for approximately 2 hours postoperatively for compression hemostasis.`,
+        `The patient tolerated the procedure well and was transferred to the recovery area in stable condition. Plan: overnight observation with discharge in the morning if clinically well, scrotal support × 1 week, ice over the first 48 hours, NSAIDs for pain control, return precautions for fever > 38.5°C, increasing scrotal pain or swelling, or any concern for wound dehiscence. ${name.includes("orchiectom") ? "Counselling regarding hormonal status (the contralateral testis is sufficient for normal testosterone production) and prosthesis discussion deferred to a clinic visit." : "The salvaged testis will be followed by ultrasound at 6–12 weeks to assess for atrophy (atrophy rate after late presentation > 6 h ranges 30–50%). Future fertility counselling deferred to clinic."}`,
+      ];
+    }
     return [
       `The pediatric patient was placed supine on the operating table with appropriate warming measures (forced-air warmer, warming mattress) given the high surface-area-to-mass ratio of pediatric patients. After induction of general anesthesia with caudal block (or local infiltration), the abdomen and ipsilateral scrotum were prepped with chlorhexidine. The contralateral testicular position was first confirmed under anesthesia (when the patient was relaxed) — this examination is critical, as up to 30% of clinically suspected undescended testes will be found to be retractile (descending into the scrotum) under anesthesia and would not require surgery.`,
       `A 2-3 cm transverse incision was made over the inguinal canal, in line with a natural skin crease, just superior to the pubic tubercle and lateral. The incision was deepened through the subcutaneous tissue (Camper's fascia and Scarpa's fascia in the pediatric patient — these layers are robust enough to identify clearly). The external oblique aponeurosis was identified and incised in the line of its fibres, taking care to preserve the ilioinguinal nerve which runs along the anterior surface of the cord.`,
@@ -877,15 +936,35 @@ function urologyOpSteps(c: CaseLog): string[] {
     ];
   }
 
-  // -- Stent placement -------------------------------------------------------
+  // -- Stent exchange through ileal conduit ----------------------------------
+  // Distinct workflow from cystoscopic stent placement: the conduit stoma
+  // gives direct access so we skip cystoscopy entirely. Pattern matched
+  // before the generic stent placement so it wins.
+  if (
+    includesAny(name, [
+      "stent exchange",
+      "ureteral stent exchange",
+      "ureteric stent exchange",
+    ]) ||
+    (includesAny(name, ["ileal conduit"]) && includesAny(name, ["stent"]))
+  ) {
+    return [
+      `The patient was brought into the procedure suite and positioned supine, with the ileal conduit site prepped and draped in normal sterile fashion. Antibiotic prophylaxis was administered per institutional protocol. The indwelling ureteric stent was identified protruding from the stoma approximately 1 cm beyond the conduit edge, and was therefore directly graspable without the need for cystoscopy.`,
+      `Under fluoroscopic guidance, a Sensor (PTFE-coated, 0.038\") guidewire was passed retrograde alongside the existing stent up the ureter and confirmed within the right renal pelvis. A retrograde pyelogram was performed with [5 mL] of Omnipaque diluted contrast injected through a 5 Fr open-tip ureteric catheter to confirm wire position within the renal pelvis and document upper-tract anatomy.`,
+      `Once intrarenal wire position was confirmed, the existing indwelling stent was removed, leaving the Sensor wire in place. A new ${name.includes("8") ? "8 Fr × 20 cm" : "[size] Fr × [length] cm"} double-J ureteric stent (Boston Scientific Polaris Loop or institution-equivalent) was then advanced over the Sensor wire under fluoroscopic guidance and deployed with the proximal coil within the renal pelvis and the distal coil exteriorised through the conduit stoma. Final fluoroscopic imaging confirmed appropriate proximal coil position within the renal pelvis.`,
+      `The patient tolerated the procedure well, with no concerns. Plan: clinic follow-up in approximately 6 months for a repeat stent exchange. Return precautions: fevers > 38.5°C, flank pain suggesting obstruction, gross hematuria persisting > 48 h, or change in conduit output character.`,
+    ];
+  }
+
+  // -- Stent placement (cystoscopic, retrograde) -----------------------------
   if (includesAny(name, ["stent placement", "stent insertion"]) && !includesAny(name, ["removal"])) {
     return [
-      `The patient was positioned in dorsal lithotomy with the legs in candy-cane stirrups and the perineum and genitalia prepped with chlorhexidine. Antibiotic prophylaxis (cefazolin 2 g IV or per culture) was administered within 60 minutes. The indication for stent placement was reviewed: relief of obstructive uropathy (acute on stone, malignant compression, ureteral stricture, post-operative anastomotic edema), pre-treatment for ESWL of obstructing stone in solitary kidney, or post-ureteroscopy stenting after laser lithotripsy.`,
-      `A 22 Fr cystoscope with 30° lens (Storz) was advanced per urethra under direct vision through the irrigation flow. The urethra was inspected en route, the bladder was filled with 200 mL of irrigation, and the affected ureteral orifice was identified at the trigone. The orifice was characterised: patent and clearly visualised, edematous from prior instrumentation, distorted by tumor or stone, or partially obscured.`,
-      `An open-tip 5 Fr ureteric catheter (Cook or Bard) was advanced through the cystoscope working channel and gently engaged in the orifice. A 0.038" sensor or hybrid guidewire (Sensor PTFE-coated, Boston Scientific; or hydrophilic-tipped Glidewire if difficulty negotiating the orifice or stricture) was advanced through the catheter under fluoroscopic guidance up the ureter to the renal pelvis. The wire was confirmed to curl in the renal pelvis on AP fluoroscopic imaging — this confirms intrarenal position and avoids the catastrophic complication of subureteric submucosal placement or ureteral perforation.`,
-      `If obstruction or stricture prevented easy wire passage, options included: (1) gentle saline-flush "wire-pumping" to find a path through edema or thrombus; (2) substitution of a hydrophilic-tipped Glidewire which navigates angulated or strictured segments more readily; (3) coaxial catheter-and-wire technique with a 4 Fr Kumpe angled catheter to direct the wire across an obstruction; (4) retrograde antegrade-percutaneous combined approach if retrograde access fails ("rendezvous procedure"). With wire access secured, a retrograde ureteropyelogram was performed using contrast injection through a 5 Fr open-tip catheter to confirm anatomy, identify any extravasation, and document the level and length of any stricture.`,
-      `A 6 Fr × ${name.includes("long") ? "30" : "26"} cm double-J ureteric stent (Boston Scientific Polaris Loop, or Cook Resonance for long-term metal-ureter for malignant obstruction) was selected based on patient height (< 5'6": 22-24 cm; 5'6"-6': 24-26 cm; > 6': 26-28 cm) and ureter length. The stent was advanced over the wire using the stent pusher, with continuous fluoroscopic guidance. The proximal coil was deployed into the renal pelvis (confirmed by fluoroscopic imaging of the curled coil within the pelvic shadow), and the distal coil was deployed into the bladder under direct cystoscopic vision (confirming the coil curling within the bladder lumen — failure to deploy the distal coil correctly results in distal stent migration into the ureter, requiring removal and replacement).`,
-      `The wire was removed once the stent was confirmed in correct position both fluoroscopically (proximal coil) and cystoscopically (distal coil). Stent position was documented on AP fluoroscopy with both coils visible. The cystoscope was removed under direct vision. A 16 Fr Foley catheter was placed if the patient could not void or had hematuria from instrumentation; otherwise voiding trial was performed in the recovery area. Discharge instructions included: expected stent symptoms (urinary frequency, urgency, suprapubic discomfort, mild hematuria, occasional flank pain on voiding from reflux up the stent), alpha-blocker (tamsulosin) for symptomatic relief, hydration, and timing of stent removal (typically 2-4 weeks for stone-related stents, 4-6 weeks for stricture or post-pyeloplasty, longer for malignant obstruction with periodic exchange every 3-6 months). Forgotten stents are catastrophic — encrustation, infection, and renal damage occur after 6+ months — so the removal date was documented in the chart and the patient was given a stent card with the removal date.`,
+      `The patient was brought to the endoscopy suite and placed in the dorsal lithotomy position with the legs in well-padded candy-cane stirrups. ${name.includes("ga") || name.includes("general") ? "General endotracheal anesthesia was administered." : "IV sedation was administered."} The genitalia and perineum were prepped with chlorhexidine and draped in the usual sterile fashion. Antibiotic prophylaxis (cefazolin 2 g IV or per culture-directed regimen) was administered within 60 minutes per AUA pre-instrumentation guidelines.`,
+      `A 17 Fr flexible cystoscope was advanced per meatus into the urethra under direct vision. The urethra was inspected en route, including the prostatic urethra in male patients. The bladder was systematically inspected, and the [right / left] ureteric orifice was identified at the trigone. Attention was then turned to the affected ureteric orifice.`,
+      `A Sensor (PTFE-coated, 0.038") guidewire was advanced through the cystoscope working channel and engaged in the ureteric orifice, then passed up the ureter under fluoroscopic guidance. Intrarenal position was confirmed by visualisation of the wire curling within the renal pelvis on AP fluoroscopy. ${name.includes("malrotation") || name.includes("ectopic") ? "Note was made of the malrotated and inferiorly-positioned kidney with anteriorly-directed renal pelvis — wire trajectory was adjusted accordingly." : ""}`,
+      `The cystoscope was de-instrumented, leaving the Sensor wire in place. A 5 Fr open-tip ureteric catheter was then advanced over the wire. A retrograde pyelogram was performed with [5 mL] of Omnipaque diluted contrast injected through the catheter (with the Sensor wire withdrawn for the pyelogram and replaced afterwards), and fluoroscopic imaging confirmed appropriate intrarenal position with no extravasation. The Sensor wire was then re-advanced and the 5 Fr ureteric catheter was withdrawn, the wire remaining in place throughout.`,
+      `A 6 Fr × ${name.includes("long") ? "30" : name.includes("22") ? "22" : "26"} cm double-J ureteric stent (Boston Scientific Polaris Loop or institution-equivalent) was advanced over the Sensor wire and deployed with the proximal coil seated in the renal pelvis (confirmed by fluoroscopic visualisation of the curled coil) and the distal coil seated in the bladder under direct cystoscopic vision. Final fluoroscopic and cystoscopic imaging confirmed appropriate proximal and distal coil position. The wire was withdrawn.`,
+      `${name.includes("foley") ? "A 16 Fr Foley catheter was placed for postoperative drainage." : "The bladder was emptied and the cystoscope withdrawn under direct vision. A Foley catheter was not placed; voiding trial was deferred to recovery."} The patient tolerated the procedure well. Plan: continue current antibiotic regimen as appropriate (e.g., amoxicillin/clavulanic acid for febrile UTI), with future definitive management of the underlying pathology to be coordinated with the responsible attending. Patient counselled regarding expected stent symptoms (frequency, urgency, suprapubic discomfort, mild hematuria, occasional flank pain on voiding from reflux up the stent), tamsulosin 0.4 mg daily for symptomatic relief, hydration, and clinic follow-up for stent removal at the appropriate interval (typically 1–6 weeks depending on indication).`,
     ];
   }
 

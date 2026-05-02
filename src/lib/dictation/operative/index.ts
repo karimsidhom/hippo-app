@@ -402,13 +402,18 @@ export function buildOperativeNote(
   lines.push(complications);
   lines.push("");
 
-  // ── Indications ──
+  // ── Clinical Preamble ──
+  // Real attending dictations frame this as "CLINICAL PREAMBLE" — a short
+  // patient-specific narrative explaining who they are, what brought them
+  // here, and the decision to operate. Replaces the older "INDICATIONS"
+  // section header (the body content is the same shape, just with the
+  // header attendings actually use).
   const procArticle = article(c.procedureName);
-  lines.push("INDICATIONS:");
+  lines.push("CLINICAL PREAMBLE:");
   lines.push(
     `The patient is a [age]-year-old [male/female] (age group: ${AGE_BIN_LABELS[c.patientAgeBin]}) with ${
       c.diagnosisCategory?.trim() || "[clinical diagnosis]"
-    } who presented for ${procArticle} ${c.procedureName.toLowerCase()}. The risks, benefits, and alternatives of the procedure were discussed with the patient in detail, and informed consent was obtained. The patient was brought to the operating room for definitive operative management.`,
+    }. [Add patient-specific history: relevant past medical / surgical history, prior imaging findings, recent labs, and how this presentation evolved.] The decision was made to proceed with ${procArticle} ${c.procedureName.toLowerCase()}. The risks, benefits, and alternatives of the procedure were discussed with the patient in detail, and informed consent was obtained. The patient was brought to the operating room for definitive operative management.`,
   );
   lines.push("");
 
