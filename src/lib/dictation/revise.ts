@@ -5,6 +5,7 @@ import { applyStyleProfile } from "./style/apply";
 import { learnFromCorrection } from "./style/learn";
 import { getPlaybook } from "./services/playbooks";
 import { callClaude, LlmUnavailableError, DICTATION_MODEL } from "./llm";
+import { assessDictationQuality } from "./quality";
 
 // ---------------------------------------------------------------------------
 // Revision engine — operative notes only.
@@ -59,14 +60,35 @@ function buildSystemPrompt(
         ? "Produce a concise operative note — keep essentials only, strip redundancy, no filler."
         : `Produce a FULL, complete, textbook-grade operative note suitable for the medical record. This must read like a passage from a major surgical textbook (Campbell-Walsh-Wein, Schwartz, Rockwood, Bailey & Love).
 
-You MUST produce a complete operative dictation containing every standard section. For the Description of Procedure section: include positioning + rationale, anesthesia, prep + drape, time-out, full step-by-step operative narrative with eponymous anatomy, named instruments and brand names, suture sizes, named techniques, classification systems where applicable, decision rationale at branch points, pearls/pitfalls, hemostasis confirmation, and explicit closure.
+The polished output MUST contain every one of these section headers, in this order, each with substantive body content:
 
-ABSOLUTE LENGTH RULES:
+  PREOPERATIVE DIAGNOSIS
+  POSTOPERATIVE DIAGNOSIS
+  PROCEDURE PERFORMED
+  DATE OF PROCEDURE
+  SURGEON
+  ASSISTANT
+  ANESTHESIA
+  ESTIMATED BLOOD LOSS
+  DRAINS
+  SPECIMENS
+  COMPLICATIONS
+  INDICATIONS
+  FINDINGS  (≥ 3 sentences of operative findings)
+  DESCRIPTION OF PROCEDURE  (≥ 6 paragraphs of operative narrative, textbook depth)
+  DISPOSITION
+
+For DESCRIPTION OF PROCEDURE specifically: include positioning + rationale, anesthesia confirmation, prep + drape, surgical time-out / WHO checklist, full step-by-step operative narrative with eponymous anatomy, named instruments and brand names, suture sizes, named techniques, classification systems where applicable, decision rationale at branch points, pearls/pitfalls, hemostasis confirmation, and explicit closure. Do not collapse this into a single paragraph.
+
+ABSOLUTE LENGTH AND COMPLETENESS RULES:
+- Do NOT drop, merge, or rename any section header listed above. The output must be parseable as a complete operative note by a downstream quality engine that checks for these exact headers.
 - Do NOT shorten, summarise, or consolidate the rough input. Treat it as the FLOOR for detail, not the ceiling.
 - Every numbered step in the rough must remain a distinct, fully fleshed-out step in the polished output. Do not collapse 8 steps into 4.
-- Preserve every clinical detail, eponym, brand name, suture size, classification system, decision criterion, and trial-grade evidence reference present in the rough input. If the rough mentions Lich-Gregoir, Paquin 4:1, Sultan overlap, Yasargil pterional, CROSS regimen, etc. — the polished output MUST keep those by name.
+- Preserve every clinical detail, eponym, brand name, suture size, classification system, decision criterion, and trial-grade evidence reference present in the rough input. If the rough mentions Lich-Gregoir, Paquin 4:1, Sultan overlap, Yasargil pterional, CROSS regimen, Spetzler-Martin, Strasberg CVS, FIGO, AJCC, ISAT, ASMBS, AAGL, ACOG 219 — the polished output MUST keep those by name.
 - The polished output MUST be at least as long as the rough input. Expand thin sections rather than compress rich ones.
-- If the rough is already textbook-depth, your only job is to fix grammar, normalise formatting, and apply the user's style preferences. Leave the substance alone.`;
+- If the rough is already textbook-depth, your only job is to fix grammar, normalise formatting, and apply the user's style preferences. Leave the substance alone.
+
+A response that drops a section header or compresses Description of Procedure below the rough's length will be REJECTED by an automated guard and replaced with the rough verbatim. Match or exceed the rough on every dimension.`;
 
   const stylePrefs = [
     profile.global.brevity === "concise" && length !== "full"
@@ -141,15 +163,55 @@ export async function reviseDictation(input: ReviseInput): Promise<ReviseResult>
       maxTokens: length === "handover" ? 1024 : length === "concise" ? 2048 : 8192,
     });
 
-    // Length safety net: if the LLM compressed the rough input by more than
-    // 25% in full mode, treat it as a summarisation regression and fall back
-    // to the rough input (which is already structured and complete).
+    // ── Multi-tier safety nets to catch summarisation regressions ──
+    //
+    // The LLM (especially smaller models like Gemini Flash on the free tier)
+    // can occasionally compress or drop sections from a textbook-depth rough.
+    // We have THREE checks now, and any one of them triggers a fallback to
+    // the deterministic rough — which is itself textbook-depth.
     let polished = result.text;
-    if (length === "full") {
+    let fellBackToRough = false;
+
+    if (length === "full" && input.rough.length > 600) {
       const roughLen = input.rough.length;
       const polishedLen = polished.length;
-      if (roughLen > 600 && polishedLen < roughLen * 0.75) {
+
+      // Tier 1: gross length compression (≥ 15% shrink)
+      if (polishedLen < roughLen * 0.85) {
         polished = input.rough;
+        fellBackToRough = true;
+      }
+
+      // Tier 2: any critical section that the rough satisfies but the
+      // polished version does not. We use the same quality engine that the
+      // UI uses, so "complete" rough → "missing critical" polished can
+      // never reach the user.
+      if (!fellBackToRough) {
+        const roughQ = assessDictationQuality(input.rough);
+        const polishedQ = assessDictationQuality(polished);
+        const lostCritical = polishedQ.missingCritical.filter(
+          (sec) => !roughQ.missingCritical.includes(sec),
+        );
+        if (lostCritical.length > 0) {
+          polished = input.rough;
+          fellBackToRough = true;
+        }
+      }
+
+      // Tier 3: explicit Description-of-Procedure shrinkage. Even if length
+      // and section counts pass, a substantially shorter operative narrative
+      // means detail was dropped. We require the polished DoP to be ≥ 80%
+      // of the rough's. Easier to compare from the assessment word counts.
+      if (!fellBackToRough) {
+        const roughQ = assessDictationQuality(input.rough);
+        const polishedQ = assessDictationQuality(polished);
+        if (
+          roughQ.wordCount > 200 &&
+          polishedQ.wordCount < roughQ.wordCount * 0.8
+        ) {
+          polished = input.rough;
+          fellBackToRough = true;
+        }
       }
     }
 
