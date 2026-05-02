@@ -267,6 +267,30 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         {children}
       </main>
 
+      {/* ── Bottom Nav backdrop ────────────────────────────────────────── */}
+      {/*
+        Full-viewport-width backdrop sits BEHIND the centred nav content.
+        Without this, capping the nav at 480px on desktop made the border-top
+        and bg only span 480px — the rest of the bottom edge showed empty,
+        producing a "weird dash" effect against the page background.
+        Backdrop renders the bar as a full-width strip; the nav content
+        centres on top of it inside its 480px column.
+      */}
+      <div
+        aria-hidden
+        style={{
+          position: "fixed",
+          bottom: 0,
+          left: 0,
+          right: 0,
+          height: "calc(56px + max(6px, env(safe-area-inset-bottom)) + 4px)",
+          background: "var(--bg)",
+          borderTop: "1px solid var(--border)",
+          zIndex: 49,
+          pointerEvents: "none",
+        }}
+      />
+
       {/* ── Bottom Nav ─────────────────────────────────────────────────── */}
       <nav className="app-nav" style={{
         position: "fixed",
@@ -284,12 +308,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         paddingBottom: "max(6px, env(safe-area-inset-bottom))",
         paddingTop: 4,
         zIndex: 50,
-        background: "var(--bg)",
-        borderTop: "1px solid var(--border)",
-        // Wrap the rounded edges on desktop where the nav is capped at 480px
-        // — the bar shouldn't extend full-bleed on a wide screen.
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: 0,
+        // No background or border on the nav itself — the backdrop above
+        // owns those so the bar reads as full-width on every viewport.
+        background: "transparent",
       }}>
         {inClinic ? (
           <>

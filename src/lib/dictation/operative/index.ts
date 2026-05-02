@@ -84,6 +84,30 @@ const IMPLICIT_APPROACH_TOKENS: Record<SurgicalApproach, RegExp[]> = {
   ],
 };
 
+/**
+ * Split a procedureName like "Cystoscopy and right ureteric stent insertion"
+ * or "Scrotal exploration with bilateral orchiopexy" into individual
+ * procedures so the operative note can render them as a numbered list under
+ * "PROCEDURES PERFORMED" — the way attendings dictate multi-procedure cases.
+ *
+ * Splits on " with ", " and ", " + ", semicolons, and the literal "/".
+ * Keeps the first capitalisation; trims whitespace; drops empty fragments.
+ * Always returns at least one element (the original name) when nothing splits.
+ */
+function splitProcedures(name: string): string[] {
+  if (!name) return [""];
+  const parts = name
+    .split(/\s+with\s+|\s+and\s+|\s*\+\s*|\s*;\s*|\s*\/\s*/i)
+    .map((s) => s.trim())
+    .filter(Boolean);
+  if (parts.length <= 1) return [name.trim()];
+  // Capitalise each fragment so "right ureteric stent insertion" → "Right
+  // ureteric stent insertion" when it appears in a numbered list.
+  return parts.map((p) =>
+    p.length > 0 ? p[0].toUpperCase() + p.slice(1) : p,
+  );
+}
+
 function buildProcedureHeader(
   approach: SurgicalApproach,
   procedureName: string,
@@ -363,57 +387,53 @@ export function buildOperativeNote(
           c.conversionOccurred ? " Conversion to open approach was required." : ""
         }`;
 
-  // ── Header ──
-  lines.push("OPERATIVE REPORT");
-  lines.push("=".repeat(60));
+  // ── Multi-procedure detection ──
+  // When the user types e.g. "Scrotal exploration with bilateral orchiopexy"
+  // or "Cystoscopy and right ureteric stent insertion", split on common
+  // joiners and render as a numbered list under PROCEDURES PERFORMED, the
+  // way an attending dictates a multi-procedure case (see example #3).
+  const procedureList = splitProcedures(procedurePerformed);
+  const isMulti = procedureList.length > 1;
+
+  // ── Header block: DATE / SURGEON / ASSISTANT ──
+  // Matches the order that attendings actually dictate at the top of a note
+  // (examples #1 + #3). No "OPERATIVE REPORT" banner — no real dictation
+  // includes one.
+  lines.push(`DATE OF PROCEDURE: ${formatDate(c.caseDate)}.`);
+  lines.push("");
+  lines.push(`SURGEON: ${surgeon}`);
+  lines.push("");
+  lines.push(`ASSISTANT: ${assistant}`);
   lines.push("");
 
-  lines.push("PREOPERATIVE DIAGNOSIS:");
-  lines.push(preopDx);
+  // ── Diagnoses ──
+  lines.push(`PREOPERATIVE DIAGNOSIS: ${preopDx}.`);
   lines.push("");
-  lines.push("POSTOPERATIVE DIAGNOSIS:");
-  lines.push(postopDx);
+  lines.push(`POSTOPERATIVE DIAGNOSIS: ${postopDx === "Same." ? "Same as above." : postopDx}`);
   lines.push("");
-  lines.push("PROCEDURE PERFORMED:");
-  lines.push(procedurePerformed + ".");
-  lines.push("");
-  lines.push("DATE OF PROCEDURE:");
-  lines.push(formatDate(c.caseDate));
-  lines.push("");
-  lines.push("SURGEON:");
-  lines.push(surgeon);
-  lines.push("");
-  lines.push("ASSISTANT:");
-  lines.push(assistant);
-  lines.push("");
-  lines.push("ANESTHESIA:");
-  lines.push(anesthesia);
-  lines.push("");
-  lines.push("ESTIMATED BLOOD LOSS:");
-  lines.push(ebl);
-  lines.push("");
-  lines.push("DRAINS:");
-  lines.push(drains);
-  lines.push("");
-  lines.push("SPECIMENS:");
-  lines.push(specimens);
-  lines.push("");
-  lines.push("COMPLICATIONS:");
-  lines.push(complications);
+
+  // ── Procedure(s) Performed ──
+  if (isMulti) {
+    lines.push("PROCEDURES PERFORMED:");
+    for (let i = 0; i < procedureList.length; i++) {
+      lines.push(`${i + 1}. ${procedureList[i]}.`);
+    }
+  } else {
+    lines.push(`PROCEDURE PERFORMED: ${procedureList[0]}.`);
+  }
   lines.push("");
 
   // ── Clinical Preamble ──
-  // Real attending dictations frame this as "CLINICAL PREAMBLE" — a short
-  // patient-specific narrative explaining who they are, what brought them
-  // here, and the decision to operate. Replaces the older "INDICATIONS"
-  // section header (the body content is the same shape, just with the
-  // header attendings actually use).
+  // Patient-specific narrative. Kept short — the bracketed "add history"
+  // prompt is the trainee's cue to dictate the case-specific story (no
+  // PHIA-safe way for the engine to write that for them, and an
+  // over-templated preamble feels worse than a clean prompt).
   const procArticle = article(c.procedureName);
   lines.push("CLINICAL PREAMBLE:");
   lines.push(
     `The patient is a [age]-year-old [male/female] (age group: ${AGE_BIN_LABELS[c.patientAgeBin]}) with ${
       c.diagnosisCategory?.trim() || "[clinical diagnosis]"
-    }. [Add patient-specific history: relevant past medical / surgical history, prior imaging findings, recent labs, and how this presentation evolved.] The decision was made to proceed with ${procArticle} ${c.procedureName.toLowerCase()}. The risks, benefits, and alternatives of the procedure were discussed with the patient in detail, and informed consent was obtained. The patient was brought to the operating room for definitive operative management.`,
+    }. [Add relevant history: past medical / surgical history, prior imaging, recent labs, presentation evolution that led to this OR.] The decision was made to proceed with ${procArticle} ${c.procedureName.toLowerCase()}. The risks, benefits, and alternatives of the procedure were discussed with the patient and informed consent was obtained.`,
   );
   lines.push("");
 
@@ -428,11 +448,30 @@ export function buildOperativeNote(
   }
   lines.push("");
 
-  // ── Description of Procedure ──
-  lines.push("DESCRIPTION OF PROCEDURE:");
+  // ── Specimen ── (singular when the top-matter says "None" or a single
+  // specimen string; pluralised when multiple specimens are listed)
+  const specimensIsList = /;|\band\b/i.test(specimens) && !/none/i.test(specimens);
+  lines.push(`${specimensIsList ? "SPECIMENS" : "SPECIMEN"}: ${specimens}`);
+  lines.push("");
+
+  // ── Estimated Blood Loss / Drains / Anesthesia / Complications ──
+  lines.push(`ESTIMATED BLOOD LOSS: ${ebl}`);
+  lines.push("");
+  lines.push(`DRAINS: ${drains}`);
+  lines.push("");
+  lines.push(`ANESTHESIA: ${anesthesia}`);
+  lines.push("");
+  lines.push(`COMPLICATIONS: ${complications}`);
+  lines.push("");
+
+  // ── Operative Procedure ──
+  // Real attendings dictate this as "OPERATIVE PROCEDURE" or just
+  // "PROCEDURE" — never "DESCRIPTION OF PROCEDURE" (an EHR template
+  // artifact). Use OPERATIVE PROCEDURE since example #3 does.
+  lines.push("OPERATIVE PROCEDURE:");
   if (length === "handover") {
     lines.push(
-      `Summary: ${procedurePerformed}. Surgeon: ${surgeon}. Assistant: ${assistant}. Autonomy: ${AUTONOMY_LABELS[c.autonomyLevel]}. EBL ${ebl.toLowerCase()} Drains ${drains.toLowerCase()} Specimens ${specimens.toLowerCase()} Complications: ${complications.toLowerCase()}`,
+      `Summary: ${procedurePerformed}. Surgeon: ${surgeon}. Assistant: ${assistant}. Autonomy: ${AUTONOMY_LABELS[c.autonomyLevel]}. EBL ${ebl.toLowerCase()} Drains ${drains.toLowerCase()} Specimen ${specimens.toLowerCase()} Complications: ${complications.toLowerCase()}`,
     );
   } else {
     const body = bodyForCase(c, service);
