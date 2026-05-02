@@ -169,6 +169,8 @@ model User {
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
   notificationPreferences UserNotificationPreferences?
+  caseLogImportBatches  CaseLogImportBatch[]
+  caseLogImportRows     CaseLogImportRow[]
 
   @@map("users")
 }
@@ -309,6 +311,14 @@ model CaseLog {
   isPublic                Boolean              @default(false)
   benchmarkOptIn          Boolean              @default(true)
   caseDate                DateTime
+
+  // ── Import provenance ────────────────────────────────────────────────────
+  importedFromLog   Boolean              @default(false)
+  importBatchId     String?
+  importBatch       CaseLogImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  originalRowNumber Int?
+  importedMetadata  Json?
+
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
 
@@ -317,7 +327,78 @@ model CaseLog {
 
   @@index([userId])
   @@index([userId, caseDate(sort: Desc)])
+  @@index([importBatchId])
   @@map("case_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Case-log import provenance
+//
+// CaseLogImportBatch stores one upload (Excel / CSV / PDF / text). The
+// CaseLogImportRow table stores the raw row → mapped fields trail per row,
+// so the user can review or roll back an import.
+// ---------------------------------------------------------------------------
+
+enum CaseLogImportStatus {
+  PARSED      // upload parsed, awaiting preview / commit
+  PREVIEW     // preview generated, awaiting user commit
+  COMMITTED   // cases inserted into the user's log
+  ROLLED_BACK // user undid the import
+  FAILED
+}
+
+model CaseLogImportBatch {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename          String
+  fileType          String              // "xlsx" | "csv" | "pdf" | "txt"
+  sheetName         String?             // for multi-sheet xlsx
+  importedAt        DateTime            @default(now())
+  status            CaseLogImportStatus @default(PARSED)
+
+  totalRows         Int                 @default(0)
+  importedCount     Int                 @default(0)
+  skippedCount      Int                 @default(0)
+  duplicateCount    Int                 @default(0)
+  missingFieldCount Int                 @default(0)
+
+  rawColumnNames    String[]            @default([])
+  columnMapping     Json?               // { hippoField: sourceColumn }
+  warnings          String[]            @default([])
+
+  rows              CaseLogImportRow[]
+  cases             CaseLog[]
+
+  @@index([userId])
+  @@map("case_log_import_batches")
+}
+
+enum CaseLogImportRowStatus {
+  PENDING
+  IMPORTED
+  SKIPPED
+  DUPLICATE
+  FAILED
+}
+
+model CaseLogImportRow {
+  id                String                 @id @default(cuid())
+  batchId           String
+  batch             CaseLogImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalRowNumber Int
+  mappedCaseId      String?                // CaseLog.id once committed
+  rawRowJson        Json
+  mappedFieldsJson  Json?
+  unmappedFieldsJson Json?
+  status            CaseLogImportRowStatus @default(PENDING)
+  warnings          String[]               @default([])
+
+  @@index([batchId])
+  @@index([userId])
+  @@map("case_log_import_rows")
 }
 
 model Milestone {
