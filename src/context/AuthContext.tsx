@@ -21,6 +21,8 @@ export interface AuthResult {
   error: string;
 }
 
+export type SsoProvider = "google" | "apple" | "azure";
+
 interface AuthContextValue {
   // Auth state
   user:    AuthUser | null;
@@ -28,6 +30,17 @@ interface AuthContextValue {
   // Auth actions
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   login:    (email: string, password: string) => Promise<AuthResult>;
+  /**
+   * Start an OAuth sign-in flow with the given provider. The browser is
+   * redirected to the provider's consent screen. On return, the user lands
+   * at /auth/callback which exchanges the code for a Supabase session and
+   * routes them to /onboarding or /dashboard based on profile state.
+   *
+   * Caller does not get a Promise<AuthResult> for success — the page
+   * unloads as part of the redirect. The Promise resolves with `ok: false`
+   * only when Supabase refused to start the flow (config / network error).
+   */
+  signInWithProvider: (provider: SsoProvider, redirectTo?: string) => Promise<AuthResult>;
   logout:   () => void;
   // Profile
   profile:        Profile | null;
@@ -285,6 +298,59 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [supabase, router]);
 
+  /**
+   * SSO via Supabase Auth. Returns ok:false only if Supabase refused
+   * to initiate the redirect (misconfiguration / network failure) —
+   * on success the page unloads to the provider's consent screen.
+   */
+  const signInWithProvider = useCallback(
+    async (provider: SsoProvider, redirectTo?: string): Promise<AuthResult> => {
+      try {
+        const origin =
+          typeof window !== 'undefined' ? window.location.origin : '';
+        const callback = `${origin}/auth/callback${
+          redirectTo ? `?next=${encodeURIComponent(redirectTo)}` : ''
+        }`;
+
+        // Provider-specific scopes:
+        //   google   — openid email profile (Supabase default)
+        //   apple    — name email (Apple only sends name on first auth)
+        //   azure    — openid email profile + offline_access for refresh tokens
+        const scopes =
+          provider === 'azure'
+            ? 'openid email profile offline_access'
+            : provider === 'apple'
+              ? 'name email'
+              : undefined;
+
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider,
+          options: {
+            redirectTo: callback,
+            scopes,
+            // For Apple we need the implicit-flow prompt because Apple
+            // does not support PKCE the same way Google/Azure do.
+            queryParams:
+              provider === 'google'
+                ? { access_type: 'offline', prompt: 'consent' }
+                : undefined,
+          },
+        });
+
+        if (error) {
+          return { ok: false, error: error.message };
+        }
+        return { ok: true, error: '' };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'SSO sign-in failed.',
+        };
+      }
+    },
+    [supabase],
+  );
+
   const logout = useCallback(async () => {
     await supabase.auth.signOut();
     // onAuthStateChange will clear the state
@@ -475,7 +541,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     user, loading,
-    register, login, logout,
+    register, login, signInWithProvider, logout,
     profile, updateProfile, onboardingDone,
     cases, addCase, addCaseAsync, updateCase, deleteCase,
     milestones, addMilestone,

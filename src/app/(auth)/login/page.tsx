@@ -18,6 +18,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
+import { SsoButtons } from "@/components/SsoButtons";
 
 const TEAL = "#0EA5E9";
 const EASE = "cubic-bezier(.16,1,.3,1)";
@@ -190,6 +191,18 @@ export default function LoginPage() {
     if (params.get("deleted") === "1") {
       setDeletedFlash(true);
       params.delete("deleted");
+      const q = params.toString();
+      window.history.replaceState(
+        null,
+        "",
+        window.location.pathname + (q ? `?${q}` : ""),
+      );
+    }
+    // Surface SSO callback errors that bounced back via /auth/callback.
+    const ssoError = params.get("error");
+    if (ssoError) {
+      setError(decodeURIComponent(ssoError));
+      params.delete("error");
       const q = params.toString();
       window.history.replaceState(
         null,
@@ -399,6 +412,28 @@ export default function LoginPage() {
               height: 1,
               background: "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)",
             }} />
+
+            {/* SSO providers — Google / Apple / Microsoft */}
+            <SsoButtons onError={(msg) => setError(msg)} />
+
+            {/* Divider */}
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 10,
+              margin: "20px 0 16px",
+            }}>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+              <span style={{
+                fontSize: 10,
+                color: "rgba(255,255,255,0.3)",
+                letterSpacing: "0.08em",
+                textTransform: "uppercase",
+              }}>
+                or
+              </span>
+              <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+            </div>
 
             <form onSubmit={handleSubmit}>
               {error && (

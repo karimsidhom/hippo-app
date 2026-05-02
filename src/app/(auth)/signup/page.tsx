@@ -10,6 +10,7 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff, Check } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
+import { SsoButtons } from "@/components/SsoButtons";
 
 const TEAL = "#0EA5E9";
 const EASE = "cubic-bezier(.16,1,.3,1)";
@@ -206,6 +207,32 @@ export default function SignupPage() {
               "linear-gradient(90deg, transparent, rgba(255,255,255,0.05), transparent)",
           }}
         />
+
+        {/* SSO providers — Google / Apple / Microsoft */}
+        <SsoButtons onError={(msg) => setError(msg)} />
+
+        {/* Divider */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            margin: "20px 0 16px",
+          }}
+        >
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+          <span
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.3)",
+              letterSpacing: "0.08em",
+              textTransform: "uppercase",
+            }}
+          >
+            or sign up with email
+          </span>
+          <div style={{ flex: 1, height: 1, background: "rgba(255,255,255,0.06)" }} />
+        </div>
 
         <form onSubmit={handleSubmit}>
           {error && (
