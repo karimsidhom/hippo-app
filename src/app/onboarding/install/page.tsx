@@ -40,7 +40,7 @@ export default function InstallPage() {
   // has nothing to say to an already-installed user.
   useEffect(() => {
     if (kind === "installed" && !installing) {
-      const t = setTimeout(() => router.replace("/dashboard"), 400);
+      const t = setTimeout(() => router.replace("/welcome"), 400);
       return () => clearTimeout(t);
     }
   }, [kind, installing, router]);
@@ -50,11 +50,11 @@ export default function InstallPage() {
     setTriedInstall(result === "accepted" ? "accepted" : "dismissed");
     if (result === "accepted") {
       // Give the browser a moment to show the install animation, then go.
-      setTimeout(() => router.replace("/dashboard"), 800);
+      setTimeout(() => router.replace("/welcome"), 800);
     }
   };
 
-  const handleSkip = () => router.replace("/dashboard");
+  const handleSkip = () => router.replace("/welcome");
 
   return (
     <div
