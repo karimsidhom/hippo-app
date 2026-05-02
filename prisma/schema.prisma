@@ -231,6 +231,18 @@ model Profile {
   onboardingCompleted           Boolean      @default(false)
   acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
   tier                          String       @default("free")
+
+  // ── Dictation preferences ─────────────────────────────────────────────────
+  // Controls the dictation engine: length, tone, billing overlay, teaching
+  // pearls, and missing-field prompts. All editable from /settings/dictation.
+  dictationLength               String       @default("complete")  // "complete" | "extra-detailed" | "brief"
+  dictationTone                 String       @default("standard")  // "standard" | "academic" | "concise-attending" | "resident-teaching"
+  billingEnabled                Boolean      @default(false)       // gated default — see app code
+  billingRegion                 String?                            // "MB" | "AB" | "BC" | "SK" | "ON" | "QC" | "NS" | "NB" | "PE" | "NL" | "YT" | "NT" | "NU" — null = unset
+  teachingPearlsEnabled         Boolean      @default(false)
+  missingFieldPromptsEnabled    Boolean      @default(true)
+  postopPlanInclusion           String       @default("always")    // "always" | "if-entered"
+
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
 

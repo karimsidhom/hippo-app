@@ -57,10 +57,21 @@ function buildSystemPrompt(
       ? "Produce a one-screen summary: terse bullets, no narrative, suitable for verbal sign-out."
       : length === "concise"
         ? "Produce a concise operative note — keep essentials only, strip redundancy, no filler."
-        : "Produce a full-length formal operative note suitable for the medical record.";
+        : `Produce a FULL, complete, textbook-grade operative note suitable for the medical record. This must read like a passage from a major surgical textbook (Campbell-Walsh-Wein, Schwartz, Rockwood, Bailey & Love).
+
+You MUST produce a complete operative dictation containing every standard section. For the Description of Procedure section: include positioning + rationale, anesthesia, prep + drape, time-out, full step-by-step operative narrative with eponymous anatomy, named instruments and brand names, suture sizes, named techniques, classification systems where applicable, decision rationale at branch points, pearls/pitfalls, hemostasis confirmation, and explicit closure.
+
+ABSOLUTE LENGTH RULES:
+- Do NOT shorten, summarise, or consolidate the rough input. Treat it as the FLOOR for detail, not the ceiling.
+- Every numbered step in the rough must remain a distinct, fully fleshed-out step in the polished output. Do not collapse 8 steps into 4.
+- Preserve every clinical detail, eponym, brand name, suture size, classification system, decision criterion, and trial-grade evidence reference present in the rough input. If the rough mentions Lich-Gregoir, Paquin 4:1, Sultan overlap, Yasargil pterional, CROSS regimen, etc. — the polished output MUST keep those by name.
+- The polished output MUST be at least as long as the rough input. Expand thin sections rather than compress rich ones.
+- If the rough is already textbook-depth, your only job is to fix grammar, normalise formatting, and apply the user's style preferences. Leave the substance alone.`;
 
   const stylePrefs = [
-    profile.global.brevity === "concise" ? "Prefer terse phrasing." : "",
+    profile.global.brevity === "concise" && length !== "full"
+      ? "Prefer terse phrasing where consistent with the length target."
+      : "",
     profile.global.preferredPhrases.length
       ? `Favor these phrases the user has approved: ${profile.global.preferredPhrases.slice(0, 15).join(" | ")}`
       : "",
@@ -83,9 +94,10 @@ Phrasing pearls: ${playbook.phrasingPearls.join(" ")}`
 Hard rules:
 - Do NOT invent clinical facts. If a field is missing, leave a bracketed placeholder like [specific finding] or [value].
 - Preserve every specific number, name, time, and dose exactly as written in the rough input.
-- Write in the voice of a senior resident — concise, specific, organized, practical. No AI filler, no hedging, no "as an AI", no "I hope this helps".
+- Write in the voice of a senior resident — specific, organized, practical. No AI filler, no hedging, no "as an AI", no "I hope this helps".
 - Use standard medical abbreviations and formal section headers (Preoperative Diagnosis, Postoperative Diagnosis, Procedure, Indications, Description of Procedure, Findings, Specimens, EBL, Complications, Disposition).
 - NEVER reproduce copyrighted text or fabricate citations.
+- If the rough input has a "--- BILLING / DOCUMENTATION SUPPORT ---" section or any "--- ... ---" trailer block, copy it through verbatim into the polished output. Do NOT rewrite, summarise, or relocate billing or trailer content.
 
 ${brevity}
 
@@ -124,12 +136,26 @@ export async function reviseDictation(input: ReviseInput): Promise<ReviseResult>
       system: buildSystemPrompt(service, length, profile),
       user: buildUserPrompt(input.rough, service, length),
       temperature: 0.2,
-      maxTokens: length === "handover" ? 1024 : length === "concise" ? 2048 : 4096,
+      // 8192 for full-length so textbook-depth templates survive the polish
+      // pass without truncation. Smaller envelopes for the shorter modes.
+      maxTokens: length === "handover" ? 1024 : length === "concise" ? 2048 : 8192,
     });
+
+    // Length safety net: if the LLM compressed the rough input by more than
+    // 25% in full mode, treat it as a summarisation regression and fall back
+    // to the rough input (which is already structured and complete).
+    let polished = result.text;
+    if (length === "full") {
+      const roughLen = input.rough.length;
+      const polishedLen = polished.length;
+      if (roughLen > 600 && polishedLen < roughLen * 0.75) {
+        polished = input.rough;
+      }
+    }
 
     // Final local pass: enforce profile-level brevity / banned phrases /
     // header casing in case the model let any slip through.
-    const polished = applyStyleProfile(result.text, profile);
+    polished = applyStyleProfile(polished, profile);
 
     return {
       noteType: "operative",

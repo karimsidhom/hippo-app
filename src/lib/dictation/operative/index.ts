@@ -22,8 +22,17 @@ import { cardiothoracicBody, cardiothoracicFindings, cardiothoracicTopMatter } f
 import { genericProcedureBody, genericFindings, genericTopMatter } from "./generic";
 import { getStyleProfile } from "../style/store";
 import { applyStyleProfile } from "../style/apply";
-import { resolveBillingKeys, buildDictationBillingSection } from "../billing";
+import {
+  resolveBillingKeys,
+  buildDictationBillingSection,
+  buildBillingSupportSection,
+} from "../billing";
 import type { DictationContext } from "../billing";
+import {
+  DEFAULT_DICTATION_PREFERENCES,
+  shouldRenderBilling,
+} from "../preferences";
+import type { DictationPreferences } from "../preferences";
 
 // Re-export so `import { TopMatter } from "@/lib/dictation/operative"` keeps
 // working for any consumer that was relying on it being here.
@@ -329,9 +338,11 @@ function resolveSurgeonRoles(c: CaseLog): { surgeon: string; assistant: string }
 
 export function buildOperativeNote(
   c: CaseLog,
-  opts: { length?: LengthLevel } = {},
+  opts: { length?: LengthLevel; preferences?: DictationPreferences } = {},
 ): string {
   const length = opts.length ?? "full";
+  const preferences: DictationPreferences =
+    opts.preferences ?? DEFAULT_DICTATION_PREFERENCES;
   const service = resolveServiceFromCase(c);
   const top = topMatterForCase(c, service);
   const { surgeon, assistant } = resolveSurgeonRoles(c);
@@ -443,17 +454,31 @@ export function buildOperativeNote(
     lines.push(c.reflection);
   }
 
-  // ── Manitoba Billing Codes (appended when applicable) ──
-  const billingKeys = resolveBillingKeys(c.procedureName || "");
-  if (billingKeys.length > 0) {
+  // ── Billing / Documentation Support (gated on preferences) ──
+  // Only renders when:
+  //   - the user has billing turned ON
+  //   - they have selected a province/region
+  //   - the region has a verified procedure library or matching global rules
+  // Otherwise the dictation stays a clean operative note.
+  if (shouldRenderBilling(preferences)) {
+    const billingKeys = resolveBillingKeys(c.procedureName || "");
     const billingCtx: DictationContext = {
-      procedureKey: billingKeys[0],
+      procedureKey: billingKeys[0] ?? "",
       totalCaseMinutes: c.operativeDurationMinutes ?? undefined,
       laterality: undefined,
     };
-    const billingSection = buildDictationBillingSection(billingKeys, billingCtx);
-    if (billingSection) {
-      lines.push(billingSection);
+    const supportSection = buildBillingSupportSection({
+      region: preferences.billingRegion,
+      procedureKeys: billingKeys,
+      ctx: billingCtx,
+    });
+    if (supportSection) {
+      lines.push(supportSection);
+    } else if (preferences.billingRegion === "MB" && billingKeys.length > 0) {
+      // Legacy fallback for Manitoba so the original verified output stays
+      // identical for users who already relied on it.
+      const legacy = buildDictationBillingSection(billingKeys, billingCtx);
+      if (legacy) lines.push(legacy);
     }
   }
 
@@ -468,8 +493,14 @@ export function buildOperativeNote(
 
 /**
  * Legacy entry point — preserved so existing consumers keep working.
- * Produces the full-length operative report.
+ * Produces the full-length operative report. Pass preferences when the
+ * caller has them (e.g., the case-log page hydrated them from the
+ * /api/dictation/preferences endpoint) so the billing overlay respects
+ * the user's province + on/off toggle.
  */
-export function generateDictation(c: CaseLog): string {
-  return buildOperativeNote(c, { length: "full" });
+export function generateDictation(
+  c: CaseLog,
+  preferences?: DictationPreferences,
+): string {
+  return buildOperativeNote(c, { length: "full", preferences });
 }

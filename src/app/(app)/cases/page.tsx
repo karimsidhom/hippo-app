@@ -16,6 +16,8 @@ import { CaseLog } from "@/lib/types";
 // engine (revise.ts → llm.ts) which has no business in a client bundle.
 // Going direct keeps the client graph small and avoids hydration surprises.
 import { generateDictation, resolveServiceFromCase } from "@/lib/dictation/operative";
+import { useDictationPreferences } from "@/lib/dictation/use-preferences";
+import { assessDictationQuality, qualityStatusLabel, qualityStatusColor } from "@/lib/dictation/quality";
 import { applyUserCorrection } from "@/lib/dictation/style/learn";
 import { BillingOverlayPanel } from "@/components/dictation/BillingOverlayPanel";
 
@@ -245,20 +247,25 @@ function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: 
 function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
   const [saved, setSaved] = useState(false);
+  const { preferences } = useDictationPreferences();
   // Guard the generator so a malformed case can never crash the whole
   // page tree. Falls back to a bracketed placeholder the user can edit.
   const draft = useMemo(() => {
     try {
-      return generateDictation(c);
+      return generateDictation(c, preferences);
     } catch (err) {
       console.error("generateDictation failed for case", c?.id, err);
       return `[Unable to generate dictation for this case — ${
         err instanceof Error ? err.message : "unknown error"
       }]`;
     }
-  }, [c]);
+  }, [c, preferences]);
   const [value, setValue] = useState(draft);
   const [editing, setEditing] = useState(false);
+
+  // Dictation quality indicator — recomputed against the current value, so it
+  // stays accurate while the user edits.
+  const quality = useMemo(() => assessDictationQuality(value), [value]);
 
   // Claude Opus 4.6 polish — server route holds the API key.
   const [polishing, setPolishing] = useState(false);
@@ -424,8 +431,31 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
               <FileText size={14} style={{ color: "var(--primary)" }} />
               Operative Dictation
             </div>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
-              {c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+              <span>{c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+              <span
+                title={
+                  quality.missingCritical.length > 0
+                    ? `Missing: ${quality.missingCritical.join(", ")}`
+                    : quality.missingOptional.length > 0
+                      ? `Optional missing: ${quality.missingOptional.join(", ")}`
+                      : "All required sections present."
+                }
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  padding: "1px 6px",
+                  borderRadius: 999,
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: qualityStatusColor(quality.status),
+                  background: `${qualityStatusColor(quality.status)}1a`,
+                  border: `1px solid ${qualityStatusColor(quality.status)}55`,
+                }}
+              >
+                ● {qualityStatusLabel(quality.status)}
+              </span>
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>

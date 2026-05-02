@@ -13,6 +13,44 @@ import type { NoteType, LengthLevel, ServiceKey, BuildResult } from "./types";
 // Operative entry points
 export { generateDictation, buildOperativeNote, resolveServiceFromCase } from "./operative";
 
+// Quality engine
+export {
+  assessDictationQuality,
+  qualityStatusLabel,
+  qualityStatusColor,
+} from "./quality";
+export type {
+  DictationQualityStatus,
+  DictationQualityResult,
+} from "./quality";
+
+// Preferences
+export {
+  DEFAULT_DICTATION_PREFERENCES,
+  defaultPreferencesForRole,
+  shouldRenderBilling,
+  preferencesFromProfile,
+  BILLING_DISCLAIMER,
+} from "./preferences";
+export type {
+  DictationPreferences,
+  DictationLength,
+  DictationTone,
+  PostopPlanInclusion,
+  RoleType,
+} from "./preferences";
+
+// Billing region registry
+export {
+  ALL_REGIONS,
+  getRegionMeta,
+  getRegionDisclaimer,
+  isRegionCode,
+  buildBillingSupportSection,
+  REGION_REGISTRY,
+} from "./billing";
+export type { BillingRegion } from "./billing";
+
 // Service playbooks
 export { PLAYBOOKS, getPlaybook } from "./services/playbooks";
 export type { Playbook } from "./services/playbooks";

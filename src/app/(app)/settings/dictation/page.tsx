@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ArrowLeft, RotateCcw, Trash2, Info, X, Plus, Sparkles } from "lucide-react";
+import { ArrowLeft, RotateCcw, Trash2, Info, X, Plus, Sparkles, AlertTriangle, Receipt } from "lucide-react";
 import {
   getStyleProfile,
   hydrateStyleProfile,
@@ -11,6 +11,18 @@ import {
   setStyleProfile,
 } from "@/lib/dictation/style/store";
 import type { StyleProfile } from "@/lib/dictation/style/profile";
+import {
+  ALL_REGIONS,
+  type BillingRegion,
+} from "@/lib/dictation/billing";
+import {
+  DEFAULT_DICTATION_PREFERENCES,
+  BILLING_DISCLAIMER,
+  type DictationPreferences,
+  type DictationLength,
+  type DictationTone,
+  type PostopPlanInclusion,
+} from "@/lib/dictation/preferences";
 
 // ---------------------------------------------------------------------------
 // /settings/dictation — inspect and edit the learned StyleProfile.
@@ -32,6 +44,12 @@ export default function DictationSettingsPage() {
   const [newSubFrom, setNewSubFrom] = useState("");
   const [newSubTo, setNewSubTo] = useState("");
 
+  // Dictation preferences (length, tone, billing toggle + region, teaching pearls).
+  const [prefs, setPrefs] = useState<DictationPreferences>(
+    DEFAULT_DICTATION_PREFERENCES,
+  );
+  const [prefsLoading, setPrefsLoading] = useState(true);
+
   // Pull latest from server once.
   useEffect(() => {
     let cancelled = false;
@@ -49,6 +67,42 @@ export default function DictationSettingsPage() {
       cancelled = true;
     };
   }, []);
+
+  // Pull preferences once.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/dictation/preferences")
+      .then((r) => (r.ok ? r.json() : DEFAULT_DICTATION_PREFERENCES))
+      .then((p: DictationPreferences) => {
+        if (!cancelled) setPrefs(p);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelled) setPrefsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  async function patchPrefs(patch: Partial<DictationPreferences>) {
+    // Optimistic UI
+    setPrefs((p) => ({ ...p, ...patch }));
+    flash();
+    try {
+      const res = await fetch("/api/dictation/preferences", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (res.ok) {
+        const fresh = (await res.json()) as DictationPreferences;
+        setPrefs(fresh);
+      }
+    } catch {
+      // Non-fatal — keep optimistic state.
+    }
+  }
 
   function flash() {
     setSaved(true);
@@ -205,6 +259,173 @@ export default function DictationSettingsPage() {
           </div>
         </div>
       </div>
+
+      {/* Dictation preferences */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#f1f5f9]">Dictation Output</h2>
+        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-5">
+          {prefsLoading && (
+            <p className="text-[10px] text-[#64748b]">Loading preferences…</p>
+          )}
+
+          {/* Length */}
+          <div>
+            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+              Default dictation length
+            </label>
+            <div className="grid grid-cols-3 gap-2">
+              {(["complete", "extra-detailed", "brief"] as const).map((l) => (
+                <button
+                  key={l}
+                  onClick={() => patchPrefs({ length: l as DictationLength })}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium capitalize transition-all ${
+                    prefs.length === l
+                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
+                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                  }`}
+                >
+                  {l === "extra-detailed" ? "Extra detailed" : l}
+                </button>
+              ))}
+            </div>
+            <p className="text-[10px] text-[#64748b] mt-1.5">
+              Default is &quot;complete&quot; — full operative note. &quot;Brief&quot; is reserved for handover/sign-out.
+            </p>
+          </div>
+
+          {/* Tone */}
+          <div>
+            <label className="block text-xs font-medium text-[#94a3b8] mb-2">Tone</label>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["standard", "Standard hospital"],
+                  ["academic", "Academic detailed"],
+                  ["concise-attending", "Concise attending"],
+                  ["resident-teaching", "Resident teaching"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => patchPrefs({ tone: key as DictationTone })}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                    prefs.tone === key
+                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
+                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Postop plan */}
+          <div>
+            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+              Postoperative plan
+            </label>
+            <div className="grid grid-cols-2 gap-2">
+              {(
+                [
+                  ["always", "Always include"],
+                  ["if-entered", "Only if entered"],
+                ] as const
+              ).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => patchPrefs({ postopPlanInclusion: key as PostopPlanInclusion })}
+                  className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
+                    prefs.postopPlanInclusion === key
+                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
+                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Toggles */}
+          <div className="space-y-2.5">
+            <ToggleRow
+              label="Teaching pearls"
+              hint="Append a short pearls / common pitfalls block after the operative note."
+              value={prefs.teachingPearlsEnabled}
+              onChange={(v) => patchPrefs({ teachingPearlsEnabled: v })}
+            />
+            <ToggleRow
+              label="Missing-field prompts"
+              hint="Show what's missing before generating (laterality, stent size, specimen status, etc.)."
+              value={prefs.missingFieldPromptsEnabled}
+              onChange={(v) => patchPrefs({ missingFieldPromptsEnabled: v })}
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* Billing — province + toggle */}
+      <section className="space-y-3">
+        <h2 className="text-base font-semibold text-[#f1f5f9] flex items-center gap-2">
+          <Receipt className="w-4 h-4 text-[#3b82f6]" />
+          Billing / Documentation Support
+        </h2>
+        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-5">
+          {/* Province selector */}
+          <div>
+            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+              Province / Region
+            </label>
+            <select
+              value={prefs.billingRegion ?? ""}
+              onChange={(e) => {
+                const v = e.target.value;
+                patchPrefs({
+                  billingRegion: v === "" ? null : (v as BillingRegion),
+                });
+              }}
+              className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+            >
+              <option value="">— Not selected —</option>
+              {ALL_REGIONS.map((r) => (
+                <option key={r.code} value={r.code}>
+                  {r.name} {r.status === "verified" ? "" : "(coming soon)"}
+                </option>
+              ))}
+            </select>
+            {prefs.billingRegion && (
+              <p className="text-[10px] text-[#64748b] mt-1.5">
+                {ALL_REGIONS.find((r) => r.code === prefs.billingRegion)?.feeScheduleName}
+                {ALL_REGIONS.find((r) => r.code === prefs.billingRegion)?.status === "scaffolded" && (
+                  <span className="text-[#f59e0b]"> · library not yet populated for this region</span>
+                )}
+              </p>
+            )}
+          </div>
+
+          {/* Billing toggle */}
+          <ToggleRow
+            label="Append billing codes to dictations"
+            hint={
+              !prefs.billingRegion
+                ? "Pick a province above first."
+                : "When on, every generated dictation gets a Billing / Documentation Support section."
+            }
+            value={prefs.billingEnabled && !!prefs.billingRegion}
+            onChange={(v) => patchPrefs({ billingEnabled: v })}
+            disabled={!prefs.billingRegion}
+          />
+
+          {/* Disclaimer */}
+          <div className="flex items-start gap-2 p-3 bg-[#1a1500] border border-[#f59e0b]/30 rounded-lg">
+            <AlertTriangle className="w-3.5 h-3.5 text-[#f59e0b] mt-0.5 flex-shrink-0" />
+            <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+              {BILLING_DISCLAIMER}
+            </p>
+          </div>
+        </div>
+      </section>
 
       {/* Brevity & formatting */}
       <section className="space-y-3">
@@ -569,6 +790,47 @@ export default function DictationSettingsPage() {
           </div>
         </div>
       </section>
+    </div>
+  );
+}
+
+function ToggleRow({
+  label,
+  hint,
+  value,
+  onChange,
+  disabled,
+}: {
+  label: string;
+  hint?: string;
+  value: boolean;
+  onChange: (v: boolean) => void;
+  disabled?: boolean;
+}) {
+  return (
+    <div
+      className={`flex items-start justify-between gap-3 ${
+        disabled ? "opacity-50" : ""
+      }`}
+    >
+      <div className="flex-1 min-w-0">
+        <p className="text-sm text-[#f1f5f9]">{label}</p>
+        {hint && <p className="text-[10px] text-[#64748b] mt-0.5">{hint}</p>}
+      </div>
+      <button
+        onClick={() => !disabled && onChange(!value)}
+        disabled={disabled}
+        aria-pressed={value}
+        className={`relative flex-shrink-0 h-6 w-10 rounded-full transition-colors ${
+          value ? "bg-[#2563eb]" : "bg-[#1e2130]"
+        } ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
+      >
+        <span
+          className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
+            value ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </button>
     </div>
   );
 }
