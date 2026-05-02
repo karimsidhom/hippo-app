@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
@@ -63,24 +63,62 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     );
   }
 
+  // Module-scoped theme: /clinic routes paint with the red Hippo Clinic accent.
+  // Pure CSS-variable swap (see globals.css [data-module="clinic"]) — no logic
+  // or component changes needed elsewhere in the app.
+  const inClinic = pathname.startsWith("/clinic");
+  const moduleAttr = inClinic ? "clinic" : undefined;
+
   return (
-    <div style={{ background: "var(--bg)", minHeight: "100vh" }}>
+    <div
+      data-module={moduleAttr}
+      style={{
+        background: "var(--bg)",
+        minHeight: "100dvh",
+        width: "100%",
+        maxWidth: "100vw",
+        overflowX: "hidden",
+        // Center the entire app shell on wide screens so header / main / nav
+        // share the same horizontal axis instead of each centering itself.
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
       <ShadowRecordBanner />
       <SubprocessorBanner />
-      {/* Responsive breakpoint styles */}
+      {/* Responsive breakpoint styles.
+       *
+       * Width strategy:
+       *   - Mobile (< 768): viewport-wide content with a comfortable 640px
+       *     reading column cap. 16px side padding so content breathes
+       *     without crowding safe-area edges.
+       *   - Tablet (768–1199): 720px column.
+       *   - Desktop (≥ 1200): 880px column.
+       *
+       * Bottom-nav is capped at 480px on every breakpoint so on desktop it
+       * stays a phone-feel thumb-reachable element instead of stretching
+       * across half the screen.
+       */}
       <style>{`
-        .app-header { max-width: 640px; }
-        .app-main { max-width: 640px; padding: 20px 20px 88px; }
-        .app-nav { max-width: 640px; }
+        .app-header, .app-main {
+          width: 100%;
+          max-width: 640px;
+          margin-left: auto;
+          margin-right: auto;
+        }
+        .app-main { padding: 20px 16px 96px; }
+        .app-nav {
+          width: 100%;
+          max-width: 480px;
+        }
         @media (min-width: 768px) {
-          .app-header { max-width: 960px; }
-          .app-main { max-width: 960px; padding: 24px 32px 88px; }
-          .app-nav { max-width: 960px; }
+          .app-header, .app-main { max-width: 720px; }
+          .app-main { padding: 24px 28px 96px; }
         }
         @media (min-width: 1200px) {
-          .app-header { max-width: 1120px; }
-          .app-main { max-width: 1120px; padding: 28px 40px 88px; }
-          .app-nav { max-width: 1120px; }
+          .app-header, .app-main { max-width: 880px; }
+          .app-main { padding: 28px 36px 96px; }
         }
       `}</style>
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -117,7 +155,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         background: "var(--bg)",
         borderBottom: "1px solid var(--border)",
       }}>
-        <Link href="/dashboard" style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}>
+        <Link
+          href={inClinic ? "/clinic" : "/dashboard"}
+          style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
+        >
           <HippoMark size={22} />
           <span style={{
             fontSize: 15,
@@ -128,33 +169,78 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           }}>
             Hippo
           </span>
+          {inClinic && (
+            <span style={{
+              marginLeft: 2,
+              padding: "2px 6px",
+              fontSize: 9,
+              fontWeight: 600,
+              letterSpacing: ".08em",
+              textTransform: "uppercase",
+              color: "var(--primary)",
+              background: "var(--primary-dim)",
+              border: "1px solid var(--border-glow)",
+              borderRadius: 4,
+              fontFamily: "'Geist', sans-serif",
+            }}>
+              Clinic
+            </span>
+          )}
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
           <NotificationBell />
-          <button
-            className="press"
-            onClick={() => { fx.tap(); setQuickAddOpen(true); }}
-            style={{
-              background: "var(--primary)",
-              color: "#fff",
-              border: "none",
-              borderRadius: 5,
-              padding: "6px 12px",
-              fontSize: 11,
-              fontWeight: 600,
-              cursor: "pointer",
-              display: "flex",
-              alignItems: "center",
-              gap: 3,
-              fontFamily: "'Geist', sans-serif",
-              letterSpacing: ".01em",
-              transition: "all .15s cubic-bezier(.16,1,.3,1)",
-            }}
-          >
-            <Plus size={12} strokeWidth={2.5} />
-            Log
-          </button>
+          {inClinic ? (
+            <Link
+              href="/clinic/new"
+              className="press"
+              style={{
+                background: "var(--primary)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 5,
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontFamily: "'Geist', sans-serif",
+                letterSpacing: ".01em",
+                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+                textDecoration: "none",
+              }}
+              onClick={() => fx.tap()}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+              Note
+            </Link>
+          ) : (
+            <button
+              className="press"
+              onClick={() => { fx.tap(); setQuickAddOpen(true); }}
+              style={{
+                background: "var(--primary)",
+                color: "#fff",
+                border: "none",
+                borderRadius: 5,
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: "pointer",
+                display: "flex",
+                alignItems: "center",
+                gap: 3,
+                fontFamily: "'Geist', sans-serif",
+                letterSpacing: ".01em",
+                transition: "all .15s cubic-bezier(.16,1,.3,1)",
+              }}
+            >
+              <Plus size={12} strokeWidth={2.5} />
+              Log
+            </button>
+          )}
           <button
             onClick={() => { logout(); router.replace("/login"); }}
             title="Log out"
@@ -187,15 +273,104 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         bottom: 0,
         left: "50%",
         transform: "translateX(-50%)",
-        width: "100%",
         display: "flex",
         justifyContent: "space-around",
-        alignItems: "flex-end",
-        padding: "0 0 max(4px, env(safe-area-inset-bottom))",
+        // Center vertically so the elevated + button (negative margin-top)
+        // doesn't drag the other tabs upward via flex-end alignment.
+        alignItems: "center",
+        // Reserve enough vertical space for the elevated + button to sit
+        // 12px above the bar without being clipped at the top.
+        minHeight: 56,
+        paddingBottom: "max(6px, env(safe-area-inset-bottom))",
+        paddingTop: 4,
         zIndex: 50,
         background: "var(--bg)",
         borderTop: "1px solid var(--border)",
+        // Wrap the rounded edges on desktop where the nav is capped at 480px
+        // — the bar shouldn't extend full-bleed on a wide screen.
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
       }}>
+        {inClinic ? (
+          <>
+            <NavTab href="/clinic" label="Home" icon={LayoutDashboard} active={pathname === "/clinic"} />
+            <NavTab href="/clinic/patients" label="Patients" icon={Users} active={pathname.startsWith("/clinic/patients")} />
+            {/* Center new-note button — anchors the action like the surgical Log nav */}
+            {(() => {
+              const newActive = pathname.startsWith("/clinic/new") || pathname.startsWith("/clinic/encounters");
+              return (
+                <div style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: "center",
+                  position: "relative",
+                  marginTop: -12,
+                }}>
+                  <Link
+                    href="/clinic/new"
+                    className="press-key"
+                    onClick={() => fx.tap()}
+                    aria-label="New clinic note"
+                    style={{
+                      width: 44,
+                      height: 44,
+                      borderRadius: 14,
+                      background: "var(--primary)",
+                      border: "3px solid var(--bg)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      cursor: "pointer",
+                      transition: "box-shadow .15s cubic-bezier(.16,1,.3,1)",
+                      boxShadow: "0 2px 8px rgba(220,38,38,.25)",
+                      textDecoration: "none",
+                    }}
+                  >
+                    <FilePlus size={20} color="#fff" strokeWidth={2.5} />
+                  </Link>
+                  <Link
+                    href="/clinic/new"
+                    style={{
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      gap: 1,
+                      paddingTop: 2,
+                      paddingBottom: 4,
+                      textDecoration: "none",
+                      color: newActive ? "var(--text)" : "var(--muted)",
+                      transition: "color .15s",
+                      position: "relative",
+                    }}
+                  >
+                    {newActive && (
+                      <div style={{
+                        position: "absolute",
+                        top: -2,
+                        left: "50%",
+                        transform: "translateX(-50%)",
+                        width: 16,
+                        height: 1.5,
+                        borderRadius: 1,
+                        background: "var(--primary)",
+                      }} />
+                    )}
+                    <span style={{
+                      fontSize: 9,
+                      fontWeight: 500,
+                      letterSpacing: ".06em",
+                      textTransform: "uppercase",
+                      fontFamily: "'Geist', sans-serif",
+                    }}>New Note</span>
+                  </Link>
+                </div>
+              );
+            })()}
+            <NavTab href="/clinic/follow-ups" label="Follow-ups" icon={CalendarClock} active={pathname.startsWith("/clinic/follow-ups")} />
+            <NavTab href="/clinic/settings" label="Settings" icon={SettingsIcon} active={pathname.startsWith("/clinic/settings")} />
+          </>
+        ) : (
+        <>
         {/* ── Home ── */}
         <NavTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
 
@@ -288,6 +463,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
         {/* ── Community ── */}
         <NavTab href="/social" label="Community" icon={Users} active={pathname === "/social"} />
+        </>
+        )}
       </nav>
 
       <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />

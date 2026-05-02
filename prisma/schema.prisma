@@ -1028,3 +1028,380 @@ model UserNotificationPreferences {
 
   @@map("user_notification_preferences")
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HIPPO CLINIC — Outpatient AI scribe module
+// ───────────────────────────────────────────────────────────────────────────
+// Additive: parallel namespace prefixed `clinic_*`. Reuses User/Profile.
+// Every patient row is institution-scoped; finalize is gated on clinician
+// review. Raw transcripts are preserved even if generation fails.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum ClinicNoteType {
+  NEW_CONSULT
+  FOLLOW_UP
+  POST_OP
+  CANCER_SURVEILLANCE
+  RESULTS_REVIEW
+  PROCEDURE_COUNSELLING
+  MEDICATION_FOLLOW_UP
+  DISCHARGE_FOLLOW_UP
+  CUSTOM
+}
+
+enum ClinicInputMode {
+  AMBIENT
+  DICTATION
+  TYPED
+  PASTED
+  UPLOADED
+}
+
+enum ClinicNoteStatus {
+  DRAFT
+  RECORDING
+  UPLOADING
+  TRANSCRIBING
+  GENERATING
+  NEEDS_REVIEW
+  FINALIZED
+  FAILED
+}
+
+enum ClinicConsentMode {
+  VERBAL
+  WRITTEN
+  DECLINED
+  NOT_REQUIRED
+}
+
+enum ClinicFollowUpStatus {
+  DUE_SOON
+  OVERDUE
+  WAITING_RESULTS
+  NEEDS_CALL
+  NEEDS_LETTER
+  NEEDS_BOOKING
+  COMPLETED
+  CANCELLED
+}
+
+enum ClinicChunkStatus {
+  PENDING
+  UPLOADED
+  TRANSCRIBED
+  FAILED
+}
+
+// ── Patient ───────────────────────────────────────────────────────────────
+// Institution-scoped lightweight patient record. PHI lives here; never in
+// social/community tables. `mrn` is hashed on save (see lib/clinic/phi.ts).
+model ClinicPatient {
+  id               String   @id @default(cuid())
+  ownerUserId      String
+  institutionLabel String?
+  mrnHash          String?  // SHA-256 of clinic-specific MRN
+  givenName        String
+  familyName       String
+  dateOfBirth      DateTime?
+  sex              String?
+  contactPhone     String?
+  contactEmail     String?
+  pronouns         String?
+  preferredName    String?
+  externalId       String?
+  notes            String?
+  isTemporary      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  encounters ClinicEncounter[]
+
+  @@index([ownerUserId, familyName, givenName])
+  @@index([ownerUserId, createdAt(sort: Desc)])
+  @@index([ownerUserId, mrnHash])
+  @@map("clinic_patients")
+}
+
+// ── Encounter ─────────────────────────────────────────────────────────────
+// One outpatient visit. Owns the recording session, transcript, note.
+model ClinicEncounter {
+  id                  String              @id @default(cuid())
+  clinicianId         String
+  patientId           String?
+  patient             ClinicPatient?      @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  institutionLabel    String?
+  noteType            ClinicNoteType      @default(NEW_CONSULT)
+  inputMode           ClinicInputMode     @default(AMBIENT)
+  templateKey         String?             // e.g. "urology.elevated-psa", "general.new-consult"
+  visitReason         String?             // free-text "what brought them in"
+  scheduledFor        DateTime?
+  encounterDate       DateTime            @default(now())
+  recordingStartedAt  DateTime?
+  recordingStoppedAt  DateTime?
+  durationSeconds     Int                 @default(0)
+  consentMode         ClinicConsentMode?
+  consentText         String?
+  consentRecordedAt   DateTime?
+  status              ClinicNoteStatus    @default(DRAFT)
+  failureReason       String?
+  finalizedAt         DateTime?
+  finalizedById       String?
+  signedBy            String?
+  signatureText       String?
+  retainAudio         Boolean             @default(false)
+  audioDeletedAt      DateTime?
+  metadata            Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  chunks       ClinicRecordingChunk[]
+  transcripts  ClinicTranscript[]
+  notes        ClinicNote[]
+  noteVersions ClinicNoteVersion[]
+  exports      ClinicExport[]
+  followUps    ClinicFollowUpTask[]
+  audioStatus  ClinicAudioStatus?
+  consents     ClinicConsentRecord[]
+  aiAuditLogs  ClinicAiAuditLog[]
+  markers      ClinicEncounterMarker[]
+
+  @@index([clinicianId, encounterDate(sort: Desc)])
+  @@index([clinicianId, status])
+  @@index([patientId, encounterDate(sort: Desc)])
+  @@map("clinic_encounters")
+}
+
+// ── Audio chunks ──────────────────────────────────────────────────────────
+// Continuous chunked uploads from the phone. Resumable. We never delete
+// until transcription is confirmed (or the user/admin explicitly purges).
+model ClinicRecordingChunk {
+  id            String              @id @default(cuid())
+  encounterId   String
+  encounter     ClinicEncounter     @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  chunkIndex    Int
+  startMs       Int                 // offset from recording start
+  durationMs    Int
+  sizeBytes     Int                 @default(0)
+  mimeType      String?
+  storagePath   String?             // Supabase Storage path
+  storageBucket String              @default("clinic-audio")
+  status        ClinicChunkStatus   @default(PENDING)
+  uploadedAt    DateTime?
+  transcribedAt DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@unique([encounterId, chunkIndex])
+  @@index([encounterId, status])
+  @@map("clinic_recording_chunks")
+}
+
+// ── Transcript ────────────────────────────────────────────────────────────
+// Streaming transcript segments. Multiple rows per encounter, ordered by
+// startMs. Each segment retains who-said-what when speaker labels are
+// available and a `provenance` tag separating "said" from "AI inferred".
+model ClinicTranscript {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  chunkId     String?
+  startMs     Int      @default(0)
+  endMs       Int      @default(0)
+  speaker     String?  // "clinician" | "patient" | null
+  text        String
+  isFinal     Boolean  @default(true)
+  confidence  Float?
+  provenance  String   @default("said") // "said" | "ai-inferred"
+  source      String   @default("whisper") // "whisper" | "browser-stt" | "manual"
+  createdAt   DateTime @default(now())
+
+  @@index([encounterId, startMs])
+  @@map("clinic_transcripts")
+}
+
+// ── Encounter markers ─────────────────────────────────────────────────────
+// In-recording bookmarks the clinician taps: Important, Exam, Plan, etc.
+model ClinicEncounterMarker {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  kind        String   // "important" | "exam" | "plan" | "medication" | "follow-up" | "patient-instruction"
+  atMs        Int
+  label       String?
+  createdAt   DateTime @default(now())
+
+  @@index([encounterId, atMs])
+  @@map("clinic_encounter_markers")
+}
+
+// ── Note ──────────────────────────────────────────────────────────────────
+// The structured 4-paragraph clinical note + letter + patient instructions.
+// Sections are stored as JSON so any section can be regenerated independently
+// without touching the rest. Highlights array marks AI-uncertain spans.
+model ClinicNote {
+  id                  String   @id @default(cuid())
+  encounterId         String
+  encounter           ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  templateKey         String?
+  paragraphs          Json     // { p1, p2, p3, p4 } — the 4-paragraph model
+  structured          Json?    // template-specific structured fields (PSA, IPSS, etc)
+  letter              String?  // referrer letter version
+  patientInstructions String?
+  shortSummary        String?  // longitudinal chart line
+  uncertainSpans      Json?    // [{section, start, end, reason}]
+  inferredFlags       Json?    // sections marked AI-inferred vs said
+  generationModel     String?
+  generationPromptHash String?
+  reviewedAt          DateTime?
+  reviewedById        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions ClinicNoteVersion[]
+
+  @@index([encounterId])
+  @@map("clinic_notes")
+}
+
+// ── Note version history ──────────────────────────────────────────────────
+// Every save (clinician edit OR AI regeneration) emits a snapshot. This is
+// the audit trail: who changed what, was it AI or human?
+model ClinicNoteVersion {
+  id          String   @id @default(cuid())
+  noteId      String
+  note        ClinicNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  versionIdx  Int
+  source      String   // "ai-initial" | "ai-regen-section" | "clinician-edit" | "finalize"
+  section     String?  // null = whole note
+  paragraphs  Json
+  letter      String?
+  patientInstructions String?
+  shortSummary String?
+  authorId    String?
+  authorKind  String   @default("clinician") // "clinician" | "ai"
+  createdAt   DateTime @default(now())
+
+  @@unique([noteId, versionIdx])
+  @@index([encounterId, createdAt])
+  @@map("clinic_note_versions")
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────
+// Specialty- and topic-aware templates. Built-ins live in code; user
+// customizations live here and override by key.
+model ClinicTemplate {
+  id           String   @id @default(cuid())
+  ownerUserId  String?  // null = built-in / institution-shared
+  scope        String   @default("user") // "user" | "institution" | "builtin"
+  templateKey  String   // e.g. "urology.elevated-psa"
+  name         String
+  specialty    String?
+  noteType     ClinicNoteType @default(NEW_CONSULT)
+  description  String?
+  sections     Json     // [{ key, label, required, hint }]
+  structuredFields Json? // [{ key, label, type, options }]
+  letterStyle  String?
+  systemPrompt String?  // override of base AI prompt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerUserId, templateKey])
+  @@index([scope, templateKey])
+  @@map("clinic_templates")
+}
+
+// ── Follow-up tasks ───────────────────────────────────────────────────────
+model ClinicFollowUpTask {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  patientId   String?
+  kind        String   // "investigation" | "imaging" | "lab" | "referral" | "med-change" | "instruction" | "callback" | "letter" | "booking"
+  title       String
+  detail      String?
+  dueAt       DateTime?
+  intervalLabel String? // "6 weeks", "3 months"
+  status      ClinicFollowUpStatus @default(DUE_SOON)
+  completedAt DateTime?
+  completedNotes String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId, status, dueAt])
+  @@index([encounterId])
+  @@map("clinic_followup_tasks")
+}
+
+// ── Consent records ───────────────────────────────────────────────────────
+model ClinicConsentRecord {
+  id           String   @id @default(cuid())
+  encounterId  String
+  encounter    ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  patientId    String?
+  mode         ClinicConsentMode
+  text         String   // wording shown
+  capturedById String
+  capturedAt   DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([encounterId])
+  @@map("clinic_consent_records")
+}
+
+// ── Exports ───────────────────────────────────────────────────────────────
+model ClinicExport {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  kind        String   // "clinic-note" | "letter" | "patient-instructions" | "summary" | "pdf" | "ehr-paste"
+  format      String   // "txt" | "html" | "pdf" | "docx"
+  storagePath String?
+  generatedAt DateTime @default(now())
+
+  @@index([encounterId])
+  @@index([ownerUserId, generatedAt(sort: Desc)])
+  @@map("clinic_exports")
+}
+
+// ── Audio status ──────────────────────────────────────────────────────────
+model ClinicAudioStatus {
+  id              String   @id @default(cuid())
+  encounterId     String   @unique
+  encounter       ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  state           String   @default("idle") // idle | recording | paused | uploading | transcribing | done | failed
+  qualityWarning  String?
+  chunksTotal     Int      @default(0)
+  chunksUploaded  Int      @default(0)
+  chunksTranscribed Int    @default(0)
+  lastUpdate      DateTime @default(now())
+
+  @@map("clinic_audio_status")
+}
+
+// ── AI audit ──────────────────────────────────────────────────────────────
+model ClinicAiAuditLog {
+  id             String   @id @default(cuid())
+  encounterId    String
+  encounter      ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId    String
+  action         String   // "transcribe" | "generate-note" | "regenerate-section" | "shorten" | "letter" | "patient-friendly" | "extract-followups"
+  model          String?
+  promptHash     String?
+  inputCharCount Int      @default(0)
+  outputCharCount Int     @default(0)
+  ok             Boolean  @default(true)
+  errorMessage   String?
+  durationMs     Int?
+  createdAt      DateTime @default(now())
+
+  @@index([encounterId, createdAt])
+  @@map("clinic_ai_audit_logs")
+}

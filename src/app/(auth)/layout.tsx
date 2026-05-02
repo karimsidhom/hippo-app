@@ -21,13 +21,19 @@ export default function AuthLayout({
     <div
       style={{
         position: "relative",
-        minHeight: "100vh",
+        // 100dvh respects iOS Safari's collapsing URL bar; falls back to 100vh
+        // on browsers that don't support it. Avoids the "form pushed off
+        // screen when toolbar appears" jump on mobile Safari.
+        minHeight: "100dvh",
+        width: "100%",
+        maxWidth: "100vw",
         background: "#060d13",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: "24px 16px",
-        overflow: "hidden",
+        padding:
+          "max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom))",
+        overflowX: "hidden",
         fontFamily:
           "'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
       }}
