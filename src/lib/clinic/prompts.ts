@@ -16,7 +16,7 @@ import type {
   ClinicTemplateDefinition,
 } from "./types";
 
-const CORE_RULES = `
+export const CORE_RULES = `
 You are Hippo Clinic — a clinic-note generator for licensed clinicians. The
 clinician will REVIEW and edit your output before it becomes the medical
 record. You are not the final authority.

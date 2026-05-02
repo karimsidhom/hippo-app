@@ -34,6 +34,12 @@ import {
 } from "../preferences";
 import type { DictationPreferences } from "../preferences";
 import { buildTeachingPearlsBlock } from "../teaching-pearls";
+import {
+  findTemplate,
+  renderTemplate,
+  scoreGenericness,
+  logTemplateGap,
+} from "../templates";
 
 // Re-export so `import { TopMatter } from "@/lib/dictation/operative"` keeps
 // working for any consumer that was relying on it being here.
@@ -369,6 +375,47 @@ export function buildOperativeNote(
   const preferences: DictationPreferences =
     opts.preferences ?? DEFAULT_DICTATION_PREFERENCES;
   const service = resolveServiceFromCase(c);
+
+  // ── Template-first dispatch ───────────────────────────────────────────
+  // Procedure-specific templates (src/lib/dictation/templates/) are the
+  // source of truth when one exists. Each template carries its own
+  // procedure-specific findings, devices, steps, specimens, drains, and
+  // postop plan, so the output reads like an attending dictation rather
+  // than a generic specialty note.
+  //
+  // We only template-route the FULL dictation length — short modes still
+  // use the prose builder for their summary shapes.
+  if (length === "full") {
+    const match = findTemplate(c.procedureName);
+    if (match) {
+      const baseNote = renderTemplate(match.template, c);
+      // Genericness self-check: if the rendered template scored too generic
+      // for any reason we fall through to the prose builder rather than
+      // ship a thin note. Should never trigger for the rich templates but
+      // catches future stub additions that aren't fleshed out yet.
+      const score = scoreGenericness(baseNote);
+      if (score.score <= 0.5) {
+        return appendOptionalSections(baseNote, c, preferences);
+      }
+      logTemplateGap({
+        procedureName: c.procedureName,
+        specialty: service,
+        reason: `Rendered note scored too generic (${score.score.toFixed(2)}); falling back to prose builder. ${score.reason.join("; ")}`,
+        observedAt: new Date().toISOString(),
+      });
+    } else {
+      // No rich template — log the gap so we can build one later, then
+      // fall through to the prose builder which is still procedure-aware
+      // at the specialty level (won't produce a bare-bones note).
+      logTemplateGap({
+        procedureName: c.procedureName,
+        specialty: service,
+        reason: "No procedure-specific template registered.",
+        observedAt: new Date().toISOString(),
+      });
+    }
+  }
+
   const top = topMatterForCase(c, service);
   const { surgeon, assistant } = resolveSurgeonRoles(c);
   const lines: string[] = [];
@@ -533,9 +580,60 @@ export function buildOperativeNote(
     }
   }
 
-  lines.push("");
-  lines.push("=".repeat(60));
-  lines.push("END OF OPERATIVE REPORT");
+  // Apply the learned style profile (if any) as the last step.
+  const profile = getStyleProfile();
+  return applyStyleProfile(lines.join("\n"), profile);
+}
+
+/**
+ * Append the trailing "optional sections" (notes / reflection / teaching
+ * pearls / billing) to a base note that was rendered by either the
+ * template registry or the prose builder. Keeps both code paths producing
+ * the same trailers and keeps the user-preference gating in one place.
+ */
+function appendOptionalSections(
+  baseNote: string,
+  c: CaseLog,
+  preferences: DictationPreferences,
+): string {
+  const lines: string[] = [baseNote];
+
+  if (c.notes) {
+    lines.push("");
+    lines.push("--- OPERATIVE NOTES ---");
+    lines.push(c.notes);
+  }
+
+  if (c.reflection) {
+    lines.push("");
+    lines.push("--- TRAINEE REFLECTION ---");
+    lines.push(c.reflection);
+  }
+
+  if (preferences.teachingPearlsEnabled) {
+    const pearls = buildTeachingPearlsBlock(c);
+    if (pearls) lines.push(pearls);
+  }
+
+  if (shouldRenderBilling(preferences)) {
+    const billingKeys = resolveBillingKeys(c.procedureName || "");
+    const billingCtx: DictationContext = {
+      procedureKey: billingKeys[0] ?? "",
+      totalCaseMinutes: c.operativeDurationMinutes ?? undefined,
+      laterality: undefined,
+    };
+    const supportSection = buildBillingSupportSection({
+      region: preferences.billingRegion,
+      procedureKeys: billingKeys,
+      ctx: billingCtx,
+    });
+    if (supportSection) {
+      lines.push(supportSection);
+    } else if (preferences.billingRegion === "MB" && billingKeys.length > 0) {
+      const legacy = buildDictationBillingSection(billingKeys, billingCtx);
+      if (legacy) lines.push(legacy);
+    }
+  }
 
   // Apply the learned style profile (if any) as the last step.
   const profile = getStyleProfile();

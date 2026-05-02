@@ -1387,6 +1387,61 @@ model ClinicAudioStatus {
 }
 
 // ── AI audit ──────────────────────────────────────────────────────────────
+// ── Billing codes ─────────────────────────────────────────────────────────
+// Province-specific fee schedule rows. Empty by default — populated only
+// when a verified fee schedule has been ingested. The clinical UI checks
+// `clinic_billing_codes` for the user's province and shows
+// "billing module not configured" if the table is empty.
+//
+// Every row carries a `source` citation (e.g. "MB-MMC-2024-04") so the
+// audit trail can show which manual / version we matched against. We
+// never invent fees; if a clinician needs a code we don't have, they
+// add it manually and we record `source = "user-added"`.
+model ClinicBillingCode {
+  id            String   @id @default(cuid())
+  province      String   // "MB" | "AB" | "BC" | "ON" | "SK" | "QC" | ...
+  code          String
+  shortLabel    String
+  description   String?
+  modifier      String?
+  feeCents      Int?
+  noteTypes     String[] @default([])  // optional applicability filter
+  specialties   String[] @default([])  // optional applicability filter
+  source        String                 // citation (manual + version) or "user-added"
+  isActive      Boolean  @default(true)
+  ownerUserId   String?                // null = global / institution-shared; set = user-added
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([province, code, ownerUserId])
+  @@index([province, isActive])
+  @@index([ownerUserId, province])
+  @@map("clinic_billing_codes")
+}
+
+// ── Billing suggestions ───────────────────────────────────────────────────
+// One row per code suggested for an encounter. The clinician confirms or
+// dismisses; the audit table picks both up. Fee values are denormalised
+// at suggestion-time so a later fee change doesn't rewrite history.
+model ClinicBillingSuggestion {
+  id            String   @id @default(cuid())
+  encounterId   String
+  ownerUserId   String
+  province      String
+  code          String
+  shortLabel    String
+  feeCents      Int?
+  rationale     String?  // why this code matched (template, note type, keywords)
+  status        String   @default("suggested") // "suggested" | "accepted" | "dismissed"
+  reviewedAt    DateTime?
+  reviewedById  String?
+  createdAt     DateTime @default(now())
+
+  @@index([encounterId])
+  @@index([ownerUserId, status, createdAt])
+  @@map("clinic_billing_suggestions")
+}
+
 model ClinicAiAuditLog {
   id             String   @id @default(cuid())
   encounterId    String

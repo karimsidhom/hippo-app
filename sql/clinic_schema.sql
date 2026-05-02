@@ -75,6 +75,8 @@ alter table clinic_consent_records   enable row level security;
 alter table clinic_exports           enable row level security;
 alter table clinic_audio_status      enable row level security;
 alter table clinic_ai_audit_logs     enable row level security;
+alter table clinic_billing_codes       enable row level security;
+alter table clinic_billing_suggestions enable row level security;
 
 -- Patients
 create policy clinic_patients_owner_all on clinic_patients
@@ -185,3 +187,17 @@ create policy clinic_audio_status_owner_all on clinic_audio_status
 
 create policy clinic_ai_audit_logs_owner_select on clinic_ai_audit_logs
   for select using (auth.uid()::text = "ownerUserId");
+
+-- Billing codes: global rows (ownerUserId IS NULL) are readable by every
+-- authenticated clinician (they're just fee-schedule reference data, not
+-- patient PHI). User-added rows are owner-only.
+create policy clinic_billing_codes_read on clinic_billing_codes
+  for select using ("ownerUserId" is null or auth.uid()::text = "ownerUserId");
+create policy clinic_billing_codes_owner_write on clinic_billing_codes
+  for all using ("ownerUserId" is not null and auth.uid()::text = "ownerUserId")
+  with check ("ownerUserId" is not null and auth.uid()::text = "ownerUserId");
+
+-- Billing suggestions are per-encounter, owner-only.
+create policy clinic_billing_suggestions_owner_all on clinic_billing_suggestions
+  for all using (auth.uid()::text = "ownerUserId")
+  with check (auth.uid()::text = "ownerUserId");
