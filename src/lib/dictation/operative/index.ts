@@ -33,6 +33,7 @@ import {
   shouldRenderBilling,
 } from "../preferences";
 import type { DictationPreferences } from "../preferences";
+import { buildTeachingPearlsBlock } from "../teaching-pearls";
 
 // Re-export so `import { TopMatter } from "@/lib/dictation/operative"` keeps
 // working for any consumer that was relying on it being here.
@@ -452,6 +453,12 @@ export function buildOperativeNote(
     lines.push("");
     lines.push("--- TRAINEE REFLECTION ---");
     lines.push(c.reflection);
+  }
+
+  // ── Teaching Pearls (gated on preferences) ──
+  if (preferences.teachingPearlsEnabled) {
+    const pearls = buildTeachingPearlsBlock(c);
+    if (pearls) lines.push(pearls);
   }
 
   // ── Billing / Documentation Support (gated on preferences) ──
