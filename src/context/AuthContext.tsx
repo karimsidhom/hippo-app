@@ -21,7 +21,7 @@ export interface AuthResult {
   error: string;
 }
 
-export type SsoProvider = "google" | "apple" | "azure";
+export type SsoProvider = "google" | "azure";
 
 interface AuthContextValue {
   // Auth state
@@ -313,23 +313,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }`;
 
         // Provider-specific scopes:
-        //   google   — openid email profile (Supabase default)
-        //   apple    — name email (Apple only sends name on first auth)
-        //   azure    — openid email profile + offline_access for refresh tokens
+        //   google — openid email profile (Supabase default)
+        //   azure  — openid email profile + offline_access for refresh tokens
         const scopes =
           provider === 'azure'
             ? 'openid email profile offline_access'
-            : provider === 'apple'
-              ? 'name email'
-              : undefined;
+            : undefined;
 
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
             redirectTo: callback,
             scopes,
-            // For Apple we need the implicit-flow prompt because Apple
-            // does not support PKCE the same way Google/Azure do.
             queryParams:
               provider === 'google'
                 ? { access_type: 'offline', prompt: 'consent' }

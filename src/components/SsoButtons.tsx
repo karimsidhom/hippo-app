@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useAuth, type SsoProvider } from "@/context/AuthContext";
 
 // ---------------------------------------------------------------------------
-// SsoButtons — Google / Apple / Microsoft sign-in buttons.
+// SsoButtons — Google + Microsoft sign-in buttons.
 //
 // Used on /login and /signup. Each button starts an OAuth redirect via
 // Supabase. The page unloads on click (browser navigates to the provider's
@@ -12,9 +12,7 @@ import { useAuth, type SsoProvider } from "@/context/AuthContext";
 // just an in-flight loading spinner up until the redirect happens.
 //
 // Design:
-//   - Brand-correct: Google multicolor G, Apple white-on-black logo,
-//     Microsoft 4-color squares.
-//   - Single column on narrow screens; 3-up on wider.
+//   - Brand-correct: Google multicolor G, Microsoft 4-color squares.
 //   - Disabled while another provider's flow is starting.
 // ---------------------------------------------------------------------------
 
@@ -58,13 +56,6 @@ export function SsoButtons({ redirectTo, layout = "vertical", onError }: Props) 
         onClick={() => start("google")}
       />
       <SsoButton
-        provider="apple"
-        label="Continue with Apple"
-        loading={pending === "apple"}
-        disabled={!!pending && pending !== "apple"}
-        onClick={() => start("apple")}
-      />
-      <SsoButton
         provider="azure"
         label="Continue with Microsoft"
         loading={pending === "azure"}
@@ -97,15 +88,9 @@ function SsoButton({ provider, label, loading, disabled, onClick }: ButtonProps)
     fontWeight: 500,
     cursor: loading || disabled ? "not-allowed" : "pointer",
     opacity: disabled ? 0.45 : 1,
-    border:
-      provider === "apple"
-        ? "1px solid rgba(255,255,255,0.12)"
-        : "1px solid rgba(255,255,255,0.06)",
-    background:
-      provider === "apple"
-        ? "#000"
-        : "rgba(255,255,255,0.96)",
-    color: provider === "apple" ? "#fff" : "#1f2937",
+    border: "1px solid rgba(255,255,255,0.06)",
+    background: "rgba(255,255,255,0.96)",
+    color: "#1f2937",
     transition: "transform 0.15s, box-shadow 0.2s",
   };
 
@@ -153,13 +138,6 @@ function ProviderIcon({ provider }: { provider: SsoProvider }) {
           fill="#1976D2"
           d="M43.6 20.5H42V20H24v8h11.3c-.7 2-2.1 3.7-3.9 5l6.5 5.4C42.3 35.5 44.5 30.2 44.5 24c0-1.2-.1-2.4-.4-3.5z"
         />
-      </svg>
-    );
-  }
-  if (provider === "apple") {
-    return (
-      <svg width="18" height="18" viewBox="0 0 384 512" aria-hidden="true" fill="#fff">
-        <path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zm-56.6-164.2c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/>
       </svg>
     );
   }
