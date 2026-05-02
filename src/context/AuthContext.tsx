@@ -21,8 +21,6 @@ export interface AuthResult {
   error: string;
 }
 
-export type SsoProvider = "google";
-
 interface AuthContextValue {
   // Auth state
   user:    AuthUser | null;
@@ -31,16 +29,10 @@ interface AuthContextValue {
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
   login:    (email: string, password: string) => Promise<AuthResult>;
   /**
-   * Start an OAuth sign-in flow with the given provider. The browser is
-   * redirected to the provider's consent screen. On return, the user lands
-   * at /auth/callback which exchanges the code for a Supabase session and
-   * routes them to /onboarding or /dashboard based on profile state.
-   *
-   * Caller does not get a Promise<AuthResult> for success — the page
-   * unloads as part of the redirect. The Promise resolves with `ok: false`
-   * only when Supabase refused to start the flow (config / network error).
+   * Send a password-reset email via Supabase Auth. The reset link in the
+   * email lands on /reset-password where the user can set a new password.
    */
-  signInWithProvider: (provider: SsoProvider, redirectTo?: string) => Promise<AuthResult>;
+  sendPasswordReset: (email: string) => Promise<AuthResult>;
   logout:   () => void;
   // Profile
   profile:        Profile | null;
@@ -299,37 +291,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, router]);
 
   /**
-   * SSO via Supabase Auth. Returns ok:false only if Supabase refused
-   * to initiate the redirect (misconfiguration / network failure) —
-   * on success the page unloads to the provider's consent screen.
+   * Send a password-reset email. The link in the email points the user
+   * to /reset-password where they can set a new password.
+   *
+   * Always returns { ok: true } regardless of whether the email exists,
+   * to avoid leaking which addresses are registered (Supabase already
+   * does this server-side, but we mirror it client-side for safety).
    */
-  const signInWithProvider = useCallback(
-    async (provider: SsoProvider, redirectTo?: string): Promise<AuthResult> => {
+  const sendPasswordReset = useCallback(
+    async (email: string): Promise<AuthResult> => {
       try {
         const origin =
           typeof window !== 'undefined' ? window.location.origin : '';
-        const callback = `${origin}/auth/callback${
-          redirectTo ? `?next=${encodeURIComponent(redirectTo)}` : ''
-        }`;
-
-        // Google scopes are openid + email + profile (Supabase default).
-        // access_type=offline + prompt=consent ensure we get refresh tokens.
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider,
-          options: {
-            redirectTo: callback,
-            queryParams: { access_type: 'offline', prompt: 'consent' },
-          },
-        });
-
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          { redirectTo: `${origin}/reset-password` },
+        );
         if (error) {
+          // We deliberately do not surface "user not found" here to avoid
+          // leaking enumeration. Network / config errors do surface.
+          if (/not found|invalid email/i.test(error.message)) {
+            return { ok: true, error: '' };
+          }
           return { ok: false, error: error.message };
         }
         return { ok: true, error: '' };
       } catch (err) {
         return {
           ok: false,
-          error: err instanceof Error ? err.message : 'SSO sign-in failed.',
+          error: err instanceof Error ? err.message : 'Reset request failed.',
         };
       }
     },
@@ -526,7 +516,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextValue = {
     user, loading,
-    register, login, signInWithProvider, logout,
+    register, login, sendPasswordReset, logout,
     profile, updateProfile, onboardingDone,
     cases, addCase, addCaseAsync, updateCase, deleteCase,
     milestones, addMilestone,
