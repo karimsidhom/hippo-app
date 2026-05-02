@@ -21,7 +21,7 @@ export interface AuthResult {
   error: string;
 }
 
-export type SsoProvider = "google" | "azure";
+export type SsoProvider = "google";
 
 interface AuthContextValue {
   // Auth state
@@ -312,23 +312,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           redirectTo ? `?next=${encodeURIComponent(redirectTo)}` : ''
         }`;
 
-        // Provider-specific scopes:
-        //   google — openid email profile (Supabase default)
-        //   azure  — openid email profile + offline_access for refresh tokens
-        const scopes =
-          provider === 'azure'
-            ? 'openid email profile offline_access'
-            : undefined;
-
+        // Google scopes are openid + email + profile (Supabase default).
+        // access_type=offline + prompt=consent ensure we get refresh tokens.
         const { error } = await supabase.auth.signInWithOAuth({
           provider,
           options: {
             redirectTo: callback,
-            scopes,
-            queryParams:
-              provider === 'google'
-                ? { access_type: 'offline', prompt: 'consent' }
-                : undefined,
+            queryParams: { access_type: 'offline', prompt: 'consent' },
           },
         });
 
