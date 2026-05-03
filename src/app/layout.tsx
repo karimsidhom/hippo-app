@@ -2,29 +2,29 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider } from "@/context/ThemeContext";
+import { ThemeProvider, ThemeBootstrapScript } from "@/context/ThemeContext";
 import { InstallCapture } from "@/components/pwa/InstallCapture";
 
 // All pages require runtime auth — never prerender statically
 export const dynamic = "force-dynamic";
 
+// Module-aware metadata: when NEXT_PUBLIC_DEFAULT_MODULE=clinic, every
+// icon, splash, manifest, title, and description swaps to the Hippo
+// Clinic identity. The teal Hippo Log identity is the default for all
+// other deployments. Both sets of assets ship in /public so a new
+// deployment can flip this with a single env var.
+const isClinic = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic";
+
 export const metadata: Metadata = {
-  title: {
-    default: "Hippo — Strava for Surgeons",
-    template: "%s | Hippo",
-  },
-  description:
-    "Hippo is the premier surgical case logging platform for residents, fellows, and staff surgeons. Track your operative volume, learning curves, milestones, and benchmarks — with full PHIA/HIPAA privacy compliance.",
-  keywords: [
-    "surgical case log",
-    "surgery tracker",
-    "resident case log",
-    "operative log",
-    "RCSPC",
-    "urology",
-    "surgical training",
-    "milestone tracking",
-  ],
+  title: isClinic
+    ? { default: "Hippo Clinic — AI Clinic Scribe", template: "%s | Hippo Clinic" }
+    : { default: "Hippo — Strava for Surgeons", template: "%s | Hippo" },
+  description: isClinic
+    ? "Hippo Clinic is an outpatient AI scribe for clinicians — ambient or dictated capture, structured clinic notes, follow-up tracking, PHIA/HIPAA-aware."
+    : "Hippo is the premier surgical case logging platform for residents, fellows, and staff surgeons. Track your operative volume, learning curves, milestones, and benchmarks — with full PHIA/HIPAA privacy compliance.",
+  keywords: isClinic
+    ? ["clinic scribe","ai scribe","ambient scribe","clinic note","outpatient documentation","ehr","urology","family medicine","internal medicine"]
+    : ["surgical case log","surgery tracker","resident case log","operative log","RCSPC","urology","surgical training","milestone tracking"],
   authors: [{ name: "Hippo" }],
   creator: "Hippo",
   publisher: "Hippo",
@@ -32,19 +32,32 @@ export const metadata: Metadata = {
     index: false, // Private medical app — don't index
     follow: false,
   },
-  icons: {
-    icon: [
-      { url: "/favicon.ico", rel: "icon" },
-      { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
-      { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
-    ],
-    apple: [
-      { url: "/apple-touch-icon.png", sizes: "180x180" },
-      { url: "/icons/icon-152.png", sizes: "152x152" },
-      { url: "/icons/icon-120.png", sizes: "120x120" },
-    ],
-  },
-  manifest: "/manifest.json",
+  icons: isClinic
+    ? {
+        icon: [
+          { url: "/clinic/favicon.ico", rel: "icon" },
+          { url: "/clinic/favicon-16.png", sizes: "16x16", type: "image/png" },
+          { url: "/clinic/favicon-32.png", sizes: "32x32", type: "image/png" },
+        ],
+        apple: [
+          { url: "/clinic/apple-touch-icon.png", sizes: "180x180" },
+          { url: "/clinic/icons/icon-152.png", sizes: "152x152" },
+          { url: "/clinic/icons/icon-120.png", sizes: "120x120" },
+        ],
+      }
+    : {
+        icon: [
+          { url: "/favicon.ico", rel: "icon" },
+          { url: "/favicon-16.png", sizes: "16x16", type: "image/png" },
+          { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },
+        ],
+        apple: [
+          { url: "/apple-touch-icon.png", sizes: "180x180" },
+          { url: "/icons/icon-152.png", sizes: "152x152" },
+          { url: "/icons/icon-120.png", sizes: "120x120" },
+        ],
+      },
+  manifest: isClinic ? "/manifest-clinic.json" : "/manifest.json",
   // iOS Safari honours these via the legacy apple-mobile-web-app-* meta
   // set (still required in 2026 even though the PWA manifest's display
   // field covers most platforms — iOS is perpetually one spec behind).
@@ -100,13 +113,30 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Whole-deployment Hippo Clinic mode. When NEXT_PUBLIC_DEFAULT_MODULE is
+  // set to "clinic" (e.g. on the v0-heidi-clone Vercel project), we tag the
+  // <html> root with data-module="clinic" so the red theme + red Hippo logo
+  // gradient apply on EVERY page — login, onboarding, splash, and clinic
+  // routes alike. Other deployments leave the var unset and stay teal.
+  const moduleScope = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic" ? "clinic" : undefined;
   return (
-    <html lang="en" className="dark" suppressHydrationWarning>
+    <html lang="en" className="dark" suppressHydrationWarning data-module={moduleScope}>
       <head>
+        {/* Sync the user's stored theme onto <html> BEFORE React hydrates.
+            Without this, ThemeProvider's useEffect would mutate <html> after
+            the first paint, producing a tree-level mismatch (React error
+            #418) and a one-frame flash of the wrong theme. The script is a
+            single self-invoking function — see ThemeBootstrapScript in
+            src/context/ThemeContext.tsx. */}
+        <ThemeBootstrapScript />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
-      <body className="min-h-screen antialiased" style={{ background: "var(--bg)", color: "var(--text)" }}>
+      <body
+        className="min-h-screen antialiased"
+        suppressHydrationWarning
+        style={{ background: "var(--bg)", color: "var(--text)" }}
+      >
         <ThemeProvider>
           <AuthProvider>
             <SubscriptionProvider>
