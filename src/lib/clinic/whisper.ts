@@ -11,6 +11,23 @@
 // We keep this provider-flexible by reading the URL/model from env so a
 // self-hosted Whisper deployment (faster-whisper, whisper.cpp server) can
 // drop in without code changes.
+//
+// ─── PREMIUM-TIER TODO ──────────────────────────────────────────────────────
+// When Hippo Clinic gets a paid tier, revisit transcription:
+//
+//   - Free tier today: Groq's whisper-large-v3-turbo (free, but rate-limited
+//     to ~7,200 audio-seconds/min per org). When the 429 hits, the recorder
+//     falls back to the browser/phone's native SpeechRecognition — no
+//     transcripts are lost, but accuracy degrades on noisy clinics.
+//   - Paid tier should add: dedicated OpenAI Whisper ($0.006/audio-min) or a
+//     self-hosted faster-whisper instance, so high-volume clinicians never
+//     get downgraded to browser STT.
+//   - Also: speaker diarisation (Deepgram Nova / AssemblyAI) becomes worth
+//     the $$ once medico-legal scrutiny goes up — knowing exactly which
+//     sentence came from clinician vs. patient sharpens the audit trail.
+//
+// Search for "PREMIUM-TIER TODO" across this repo to find every spot where
+// paid features could improve a free-tier experience.
 
 import { requireAiAllowed } from "@/lib/ai-gate";
 import { ClinicLlmError } from "./llm";
@@ -91,6 +108,17 @@ export async function transcribeAudio(input: TranscribeInput): Promise<Transcrib
   }
   if (!res.ok) {
     const text = await res.text().catch(() => "");
+    // 429 = rate-limited. Surface a specific code so the caller can treat
+    // it as "soft fallback" — keep the audio chunk, don't mark it FAILED,
+    // and let the parallel browser-STT path carry the transcript instead.
+    // This keeps clinicians on the free tier productive when Groq throttles.
+    if (res.status === 429) {
+      throw new ClinicLlmError(
+        `Whisper rate-limited (429): falling back to browser dictation. Detail: ${text.slice(0, 200)}`,
+        429,
+        "WHISPER_RATE_LIMITED",
+      );
+    }
     throw new ClinicLlmError(
       `Whisper returned ${res.status}: ${text.slice(0, 400)}`,
       res.status,
