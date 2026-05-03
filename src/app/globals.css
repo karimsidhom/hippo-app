@@ -133,6 +133,12 @@
 
   --border-glass: rgba(220,38,38,0.08);
   --border-glow:  rgba(220,38,38,0.16);
+
+  /* HippoMark gradient stops — same shape, swapped to medical red. The
+     SVG reads var(--hippo-mark-stop-1 / -2) with teal fallbacks, so this
+     block is the ONLY place where Clinic deviates from the teal mark. */
+  --hippo-mark-stop-1: #F87171;  /* lighter red — top-left of gradient */
+  --hippo-mark-stop-2: #DC2626;  /* deeper red — bottom-right */
 }
 
 [data-theme="light"][data-module="clinic"],
@@ -149,6 +155,10 @@
 
   --border-glass: rgba(220,38,38,0.12);
   --border-glow:  rgba(220,38,38,0.20);
+
+  /* Slightly deeper logo gradient on white for legibility. */
+  --hippo-mark-stop-1: #EF4444;
+  --hippo-mark-stop-2: #B91C1C;
 }
 
 /* Selection + scrollbar inherit the red within the clinic scope. */
@@ -255,8 +265,27 @@
 
 /* ─── Reset ─────────────────────────────────────────────────────────────── */
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+/* SCROLL ARCHITECTURE
+ * ──────────────────────────────────────────────────────────────────────
+ * The viewport is the scroll container. Both <html> and <body> stay
+ * `overflow: visible` (the default) so that body's overflow propagates
+ * to the viewport — the standard CSS "body propagation" rule. The window
+ * scrolls naturally when content overflows.
+ *
+ * Why this matters: any explicit `overflow` value (auto/scroll/hidden)
+ * on either <html> or <body> turns that element into its own scroll
+ * container and BREAKS propagation. Combined with `html { height: 100% }`
+ * (which we previously had), this caused desktop scroll to silently
+ * lock — body would size to its content instead of overflowing the
+ * viewport, so the page had no scrollbar. Mobile worked anyway because
+ * iOS address-bar dynamics kept body sized correctly.
+ *
+ * Horizontal-overflow guard: applied via #app-root and #portal-root
+ * further down (see the `#app-root, #portal-root { overflow-x: hidden }`
+ * rule) instead of here, so it doesn't break body propagation.
+ */
 html {
-  height: 100%;
   /* Disable iOS text-size auto-adjust which can otherwise inflate labels
      when the user rotates or zooms — breaks our compact nav/chips. */
   -webkit-text-size-adjust: 100%;
@@ -265,39 +294,35 @@ html {
      handled by the OS. Honors prefers-reduced-motion via the @media block
      further down. */
   scroll-behavior: smooth;
-  /* Belt-and-braces horizontal-overflow guard: if any descendant accidentally
-     exceeds viewport width, clamp at <html> so the user never gets a full-page
-     left-right rubber-band. (Individual scroll containers can opt back in.) */
-  overflow-x: hidden;
-  /* Lock the html box to the viewport width so a wide child cannot extend
-     the document width via a side margin/padding combination. */
-  width: 100%;
-  max-width: 100vw;
 }
 
 body {
-  min-height: 100%;
-  /* Mirror the html-level guards so any wide child element clips at the body
-     edge instead of producing a horizontal scroll. iOS Safari respects
-     overflow-x on body more reliably than on html alone. */
-  width: 100%;
-  max-width: 100vw;
-  overflow-x: hidden;
+  /* min-height is dvh-aware so the body always covers the visible viewport
+     even as the iOS URL bar collapses. min-height (not height) lets content
+     grow past viewport — the viewport then scrolls (because we leave both
+     html and body at overflow: visible, body propagation works correctly). */
+  min-height: 100dvh;
   background: var(--bg);
   color: var(--text);
   font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  overflow-y: scroll;
   /* Smooth, native-feel momentum on iOS (deprecated but harmless on modern
-     iOS, improves older WKWebView) and Android. Combined with the html-level
-     scroll-behavior we get smooth anchor jumps + smooth touch scroll. */
+     iOS, improves older WKWebView) and Android. Affects inner scroll
+     containers (modals, carousels) since the viewport handles the page
+     scroll itself. */
   -webkit-overflow-scrolling: touch;
   /* Contain overscroll so pull-to-refresh on iOS doesn't fire on top of
-     in-app pull gestures (e.g. inside scrollable modals, carousels). */
+     in-app pull gestures (e.g. inside scrollable modals, carousels).
+     Applied to body — propagates to viewport behaviour. */
   overscroll-behavior-y: none;
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
+}
+
+/* Older browsers that don't support 100dvh — fall back to 100vh. */
+@supports not (min-height: 100dvh) {
+  body { min-height: 100vh; }
 }
 
 /* Honor reduced-motion preference — not all users want smooth scroll. */
