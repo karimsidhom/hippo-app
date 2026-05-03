@@ -192,10 +192,34 @@ export async function POST(req: NextRequest, ctxArg: { params: Promise<{ id: str
       });
     } catch (err) {
       transcriptError = (err as Error).message;
-      await db.clinicRecordingChunk.update({
-        where: { id: chunk.id },
-        data: { status: "FAILED" },
-      });
+      // Distinguish soft fallback (rate-limited free tier) from a hard
+      // failure. On 429, we keep the chunk as UPLOADED — the audio is fine,
+      // and the recorder is already feeding parallel browser-STT segments
+      // into clinic_transcripts. We surface a quality warning so the UI
+      // can tell the clinician "server transcription paused — using
+      // device dictation". This keeps free-tier sessions productive.
+      // PREMIUM-TIER TODO: a paid tier should bypass Groq's free-tier
+      // 429 by routing to a dedicated Whisper instance.
+      const code = (err as { code?: string }).code;
+      const isRateLimit = code === "WHISPER_RATE_LIMITED" || /429/.test(transcriptError);
+      if (isRateLimit) {
+        await db.clinicRecordingChunk.update({
+          where: { id: chunk.id },
+          data: { status: "UPLOADED" }, // audio is preserved for retry
+        });
+        await db.clinicAudioStatus.update({
+          where: { encounterId },
+          data: {
+            qualityWarning: "Server transcription rate-limited — using device dictation",
+            lastUpdate: new Date(),
+          },
+        });
+      } else {
+        await db.clinicRecordingChunk.update({
+          where: { id: chunk.id },
+          data: { status: "FAILED" },
+        });
+      }
       void logClinicAi({
         encounterId,
         ownerUserId: ctx.user.id,
