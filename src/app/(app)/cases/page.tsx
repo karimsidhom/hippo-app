@@ -17,7 +17,9 @@ import { CaseLog } from "@/lib/types";
 // Going direct keeps the client graph small and avoids hydration surprises.
 import { generateDictation, resolveServiceFromCase } from "@/lib/dictation/operative";
 import { useDictationPreferences } from "@/lib/dictation/use-preferences";
-import { assessDictationQuality, qualityStatusLabel, qualityStatusColor } from "@/lib/dictation/quality";
+// Note: dictation quality assessment was removed from the UI but the engine
+// is preserved in @/lib/dictation/quality for internal use by the LLM
+// polish step's safety net (see src/lib/dictation/revise.ts).
 import { applyUserCorrection } from "@/lib/dictation/style/learn";
 import { BillingOverlayPanel } from "@/components/dictation/BillingOverlayPanel";
 
@@ -263,9 +265,9 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [value, setValue] = useState(draft);
   const [editing, setEditing] = useState(false);
 
-  // Dictation quality indicator — recomputed against the current value, so it
-  // stays accurate while the user edits.
-  const quality = useMemo(() => assessDictationQuality(value), [value]);
+  // Dictation quality assessment is no longer surfaced in the UI; the
+  // polish-step safety net inside reviseDictation() still uses it
+  // internally to detect summarisation regressions.
 
   // Claude Opus 4.6 polish — server route holds the API key.
   const [polishing, setPolishing] = useState(false);
@@ -433,29 +435,14 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
             </div>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
               <span>{c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
-              <span
-                title={
-                  quality.missingCritical.length > 0
-                    ? `Missing: ${quality.missingCritical.join(", ")}`
-                    : quality.missingOptional.length > 0
-                      ? `Optional missing: ${quality.missingOptional.join(", ")}`
-                      : "All required sections present."
-                }
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  padding: "1px 6px",
-                  borderRadius: 999,
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: qualityStatusColor(quality.status),
-                  background: `${qualityStatusColor(quality.status)}1a`,
-                  border: `1px solid ${qualityStatusColor(quality.status)}55`,
-                }}
-              >
-                ● {qualityStatusLabel(quality.status)}
-              </span>
+              {/*
+                Quality-status pill removed per user request — the new
+                template registry guarantees every templated procedure
+                produces a complete operative note, and the prose-builder
+                fallback is itself textbook-grade. The "missing critical
+                details" banner was a leftover from an older era of the
+                engine and was creating noise rather than signal.
+              */}
             </div>
           </div>
           <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
