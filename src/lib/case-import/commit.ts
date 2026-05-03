@@ -19,18 +19,8 @@ import type {
   OutcomeCategory,
   ComplicationCategory,
 } from "@prisma/client";
-import type {
-  HippoField,
-} from "./mapping";
-import {
-  coerceApproach,
-  coerceAutonomy,
-  coerceDate,
-  coerceMinutes,
-  coerceAgeBin,
-  coerceComplication,
-  coerceOutcome,
-} from "./mapping";
+import type { HippoField } from "./mapping";
+import { extractRowsBatch, type NormalisedRow } from "./llm-normalize";
 
 export type DuplicateDecision = "skip" | "import" | "merge";
 
@@ -97,45 +87,28 @@ interface CoercedRow {
   hasMissing: boolean;
 }
 
-function coerceRow(
+// NOTE: the legacy `coerceRow` helper that lived here was removed when
+// the LLM normaliser shipped. The deterministic per-cell coerce*
+// functions in mapping.ts are still used — they're called inside
+// llm-normalize.ts as the fallback path when the LLM is unavailable.
+// All commit-time row coercion now flows through
+// `mergeNormalisedIntoCoerced` below, which trusts the pre-normalised
+// rows from `extractRowsBatch`.
+
+/**
+ * Bridge from llm-normalize's `NormalisedRow` (clean Hippo schema, correct
+ * enum values) into the legacy `CoercedRow` shape that `commitImport`
+ * downstream expects. Also packages unmapped columns into metadata + the
+ * notes-tail block, mirroring the original `coerceRow` behaviour.
+ */
+function mergeNormalisedIntoCoerced(
+  normalised: NormalisedRow,
   raw: Record<string, unknown>,
   mapping: Partial<Record<HippoField, string>>,
   redactColumns?: Set<string>,
 ): CoercedRow {
-  const get = (field: HippoField): unknown => {
-    const sourceCol = mapping[field];
-    if (!sourceCol) return undefined;
-    return raw[sourceCol];
-  };
+  const warnings = [...normalised.warnings];
 
-  const warnings: string[] = [];
-  const dateRaw = get("caseDate");
-  const date = coerceDate(dateRaw);
-  if (!date) {
-    warnings.push("Missing or unparseable case date — defaulting to import time.");
-  }
-
-  const procedureRaw = get("procedureName");
-  const procedureName =
-    typeof procedureRaw === "string" && procedureRaw.trim().length > 0
-      ? procedureRaw.trim()
-      : null;
-  if (!procedureName) {
-    warnings.push("Missing procedure name.");
-  }
-
-  const role =
-    (get("role") as string)?.toString()?.trim() ||
-    "Trainee";
-
-  const autonomy = coerceAutonomy(get("autonomyLevel"));
-  const approach = coerceApproach(get("surgicalApproach"));
-  const ageBin = coerceAgeBin(get("patientAgeBin"));
-  const complication = coerceComplication(get("complicationCategory"));
-  const outcome = coerceOutcome(get("outcomeCategory"));
-  const duration = coerceMinutes(get("operativeDurationMinutes"));
-
-  // Pack unmapped columns into metadata.
   const usedCols = new Set(Object.values(mapping).filter(Boolean) as string[]);
   const unmapped: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(raw)) {
@@ -145,10 +118,9 @@ function coerceRow(
     unmapped[k] = v;
   }
 
-  // Append unmapped to notes per spec — the UI can display them inline,
-  // and we save the structured form to importedMetadata.
-  let notes =
-    typeof get("notes") === "string" ? (get("notes") as string).trim() : null;
+  // Notes: prefer the LLM's normalised notes; append the unmapped extras
+  // as a structured block so nothing is lost.
+  let notes = normalised.notes;
   if (Object.keys(unmapped).length > 0) {
     const extras = Object.entries(unmapped)
       .map(([k, v]) => `- ${k}: ${String(v)}`)
@@ -157,40 +129,25 @@ function coerceRow(
     notes = notes ? `${notes}\n\n${block}` : block;
   }
 
-  const hasMissing = !date || !procedureName;
+  const hasMissing = !normalised.caseDate || !normalised.procedureName;
 
   return {
     mapped: {
-      caseDate: date ?? new Date(),
-      procedureName: procedureName ?? "[Imported procedure name missing]",
-      specialtyId:
-        typeof get("specialtyId") === "string"
-          ? (get("specialtyId") as string).trim().toLowerCase().replace(/\s+/g, "-")
-          : null,
-      procedureCategory:
-        typeof get("procedureCategory") === "string"
-          ? (get("procedureCategory") as string).trim()
-          : null,
-      role,
-      autonomyLevel: autonomy,
-      attendingLabel:
-        typeof get("attendingLabel") === "string"
-          ? (get("attendingLabel") as string).trim()
-          : null,
-      institutionSite:
-        typeof get("institutionSite") === "string"
-          ? (get("institutionSite") as string).trim()
-          : null,
-      surgicalApproach: approach,
-      diagnosisCategory:
-        typeof get("diagnosisCategory") === "string"
-          ? (get("diagnosisCategory") as string).trim()
-          : null,
-      outcomeCategory: outcome,
-      complicationCategory: complication,
+      caseDate: normalised.caseDate ?? new Date(),
+      procedureName: normalised.procedureName ?? "[Imported procedure name missing]",
+      specialtyId: normalised.specialtyId,
+      procedureCategory: normalised.procedureCategory,
+      role: normalised.role && normalised.role.length > 0 ? normalised.role : "Trainee",
+      autonomyLevel: normalised.autonomyLevel,
+      attendingLabel: normalised.attendingLabel,
+      institutionSite: normalised.institutionSite,
+      surgicalApproach: normalised.surgicalApproach,
+      diagnosisCategory: normalised.diagnosisCategory,
+      outcomeCategory: normalised.outcomeCategory,
+      complicationCategory: normalised.complicationCategory,
       notes,
-      operativeDurationMinutes: duration,
-      patientAgeBin: ageBin,
+      operativeDurationMinutes: normalised.operativeDurationMinutes,
+      patientAgeBin: normalised.patientAgeBin,
     },
     unmapped,
     warnings,
@@ -285,6 +242,15 @@ export interface CommitInput {
 export async function commitImport(input: CommitInput): Promise<ImportSummary> {
   const { db, userId, batchId, parsedRows, mapping, redactColumns, rowDecisions } = input;
 
+  // ─── Pre-pass: LLM-normalised rows ───────────────────────────────────
+  // Run the LLM normaliser over the entire batch once, up front. This
+  // gives us per-row clean Hippo records with correct enum values, even
+  // when the user's source columns are messy free text. The function
+  // falls back to deterministic coercion silently on any failure, so the
+  // commit logic below can always trust `llmRows[i]` is populated.
+  const llmRows = await extractRowsBatch(parsedRows, mapping);
+  const normalised: NormalisedRow[] = llmRows.rows;
+
   let importedCount = 0;
   let skippedCount = 0;
   let duplicateCount = 0;
@@ -313,7 +279,12 @@ export async function commitImport(input: CommitInput): Promise<ImportSummary> {
 
     let coerced: CoercedRow;
     try {
-      coerced = coerceRow(raw, mapping, redactColumns);
+      coerced = mergeNormalisedIntoCoerced(
+        normalised[i],
+        raw,
+        mapping,
+        redactColumns,
+      );
     } catch (err) {
       rowOutcomes.push({
         rowNumber,

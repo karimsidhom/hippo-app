@@ -6,8 +6,11 @@ import {
   detectFileType,
   type ParseResult,
 } from "@/lib/case-import/parser";
-import { autoMapColumns } from "@/lib/case-import/mapping";
 import { detectPii } from "@/lib/case-import/pii";
+import {
+  inferColumnMapping,
+  extractRowsBatch,
+} from "@/lib/case-import/llm-normalize";
 
 // ---------------------------------------------------------------------------
 // /api/case-import/preview
@@ -96,8 +99,37 @@ export async function POST(req: NextRequest) {
     });
   }
 
-  const { mapping, unmappedColumns } = autoMapColumns(sheet.headers);
+  // ─── Column mapping ─────────────────────────────────────────────────
+  // Run the deterministic substring matcher first as a baseline, then
+  // hand the LLM the headers + a few sample values per column to either
+  // confirm the mapping or override it. The LLM call is silently skipped
+  // if no GROQ_API_KEY / OPENAI_API_KEY is set, and any LLM failure
+  // falls through to the deterministic baseline.
+  const llmMapping = await inferColumnMapping(sheet.headers, sheet.rows.slice(0, 8));
+  const mapping = llmMapping.mapping;
+  const unmappedColumns = llmMapping.unmappedColumns;
+  const mappingConfidence = llmMapping.confidence;
+  const mappingRationale = llmMapping.rationale;
+  const llmMappingWarnings = llmMapping.warnings;
+
   const piiFlags = detectPii(sheet.headers, sheet.rows);
+
+  // ─── Per-row LLM normalisation (preview-only sample) ────────────────
+  // Coerce up to the first 12 rows with the LLM so the user sees what
+  // will actually be imported. The full set is re-coerced at commit.
+  const previewRowCount = Math.min(12, sheet.rows.length);
+  const llmRows = await extractRowsBatch(
+    sheet.rows.slice(0, previewRowCount),
+    mapping,
+  );
+  const previewCoerced = llmRows.rows.map((r, i) => ({
+    rowNumber: i + 1,
+    raw: sheet.rows[i],
+    coerced: {
+      ...r,
+      caseDate: r.caseDate ? r.caseDate.toISOString().slice(0, 10) : null,
+    },
+  }));
 
   // Persist a batch row in PARSED state so we can commit later.
   const batch = await db.caseLogImportBatch.create({
@@ -110,7 +142,11 @@ export async function POST(req: NextRequest) {
       totalRows: sheet.rows.length,
       rawColumnNames: sheet.headers,
       columnMapping: mapping as object,
-      warnings: parsed.warnings,
+      warnings: [
+        ...parsed.warnings,
+        ...llmMappingWarnings,
+        ...llmRows.warnings,
+      ],
     },
   });
 
@@ -122,10 +158,20 @@ export async function POST(req: NextRequest) {
     headers: sheet.headers,
     mapping,
     unmappedColumns,
-    // Preview the first 50 rows only — the full parse is re-done at commit.
+    mappingConfidence,
+    mappingRationale,
+    usedLlmForMapping: llmMapping.usedLlm,
+    usedLlmForRows: llmRows.usedLlm,
+    // Old-shape preview (kept for back-compat / unredacted raw view).
     previewRows: sheet.rows.slice(0, 50),
+    // New-shape preview: rows the way Hippo will store them.
+    previewCoerced,
     totalRows: sheet.rows.length,
     piiFlags,
-    warnings: parsed.warnings,
+    warnings: [
+      ...parsed.warnings,
+      ...llmMappingWarnings,
+      ...llmRows.warnings,
+    ],
   });
 }

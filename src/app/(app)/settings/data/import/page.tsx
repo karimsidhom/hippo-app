@@ -10,6 +10,8 @@ import {
   FileSpreadsheet,
   Shield,
   Loader2,
+  Sparkles,
+  HelpCircle,
 } from "lucide-react";
 
 // ---------------------------------------------------------------------------
@@ -51,6 +53,30 @@ const HIPPO_FIELD_LABELS: Record<HippoField, string> = {
   patientAgeBin: "Patient age",
 };
 
+interface CoercedPreviewRow {
+  rowNumber: number;
+  raw: Record<string, unknown>;
+  coerced: {
+    caseDate: string | null;
+    procedureName: string | null;
+    specialtyId: string | null;
+    procedureCategory: string | null;
+    role: string | null;
+    autonomyLevel: string;
+    attendingLabel: string | null;
+    institutionSite: string | null;
+    surgicalApproach: string;
+    diagnosisCategory: string | null;
+    outcomeCategory: string;
+    complicationCategory: string;
+    notes: string | null;
+    operativeDurationMinutes: number | null;
+    patientAgeBin: string;
+    uncertain: string[];
+    warnings: string[];
+  };
+}
+
 interface PreviewResponse {
   batchId: string;
   fileType: string;
@@ -59,7 +85,17 @@ interface PreviewResponse {
   headers: string[];
   mapping: Partial<Record<HippoField, string>>;
   unmappedColumns: string[];
+  /** 0..1 per Hippo field — only present when the mapper is sure. */
+  mappingConfidence?: Partial<Record<HippoField, number>>;
+  /** One-line LLM rationale per Hippo field. */
+  mappingRationale?: Partial<Record<HippoField, string>>;
+  /** True when the LLM produced the mapping; false when we fell back. */
+  usedLlmForMapping?: boolean;
+  /** True when LLM coerced the per-row preview. */
+  usedLlmForRows?: boolean;
   previewRows: Array<Record<string, unknown>>;
+  /** Hippo-shaped preview rows (clean enums, parsed dates, autonomy guess). */
+  previewCoerced?: CoercedPreviewRow[];
   totalRows: number;
   piiFlags: Array<{ kind: string; column?: string; example?: string; rowNumber?: number }>;
   warnings: string[];
@@ -269,13 +305,24 @@ export default function ImportLogPage() {
       {preview && !summary && (
         <>
           <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-6 space-y-4">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-3 flex-wrap">
               <h2 className="text-base font-semibold text-[#f1f5f9]">
                 2. Preview &amp; column mapping
               </h2>
-              <span className="text-xs text-[#94a3b8]">
-                {preview.totalRows} rows · {preview.headers.length} columns
-              </span>
+              <div className="flex items-center gap-2 text-xs text-[#94a3b8]">
+                {(preview.usedLlmForMapping || preview.usedLlmForRows) && (
+                  <span
+                    className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0c1f3d] border border-[#3b82f6]/30 text-[#93c5fd] rounded-full text-[10px]"
+                    title="Hippo used the AI normaliser to read your messy log."
+                  >
+                    <Sparkles className="w-3 h-3" />
+                    AI assisted
+                  </span>
+                )}
+                <span>
+                  {preview.totalRows} rows · {preview.headers.length} columns
+                </span>
+              </div>
             </div>
 
             {preview.warnings.length > 0 && (
@@ -287,27 +334,42 @@ export default function ImportLogPage() {
             )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {(Object.keys(HIPPO_FIELD_LABELS) as HippoField[]).map((field) => (
-                <div key={field} className="space-y-1">
-                  <label className="text-[10px] text-[#64748b] uppercase tracking-wider">
-                    {HIPPO_FIELD_LABELS[field]}
-                  </label>
-                  <select
-                    value={mapping[field] ?? ""}
-                    onChange={(e) =>
-                      setMap(field, e.target.value === "" ? null : e.target.value)
-                    }
-                    className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                  >
-                    <option value="">— Not mapped —</option>
-                    {preview.headers.map((h) => (
-                      <option key={h} value={h}>
-                        {h}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              ))}
+              {(Object.keys(HIPPO_FIELD_LABELS) as HippoField[]).map((field) => {
+                const conf = preview.mappingConfidence?.[field];
+                const reason = preview.mappingRationale?.[field];
+                return (
+                  <div key={field} className="space-y-1">
+                    <label className="text-[10px] text-[#64748b] uppercase tracking-wider flex items-center gap-1">
+                      <span>{HIPPO_FIELD_LABELS[field]}</span>
+                      {mapping[field] && conf !== undefined && (
+                        <ConfidenceBadge value={conf} />
+                      )}
+                      {reason && (
+                        <span
+                          title={reason}
+                          className="inline-flex text-[#475569]"
+                        >
+                          <HelpCircle className="w-3 h-3" />
+                        </span>
+                      )}
+                    </label>
+                    <select
+                      value={mapping[field] ?? ""}
+                      onChange={(e) =>
+                        setMap(field, e.target.value === "" ? null : e.target.value)
+                      }
+                      className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                    >
+                      <option value="">— Not mapped —</option>
+                      {preview.headers.map((h) => (
+                        <option key={h} value={h}>
+                          {h}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                );
+              })}
             </div>
 
             {preview.unmappedColumns.length > 0 && (
@@ -384,40 +446,127 @@ export default function ImportLogPage() {
             </section>
           )}
 
-          {/* Preview rows */}
-          <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-4 overflow-auto">
-            <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider mb-2 px-2">
-              Preview (first 10 rows)
-            </p>
-            <table className="w-full text-xs">
-              <thead>
-                <tr className="text-left text-[#64748b]">
-                  {preview.headers.map((h) => (
-                    <th key={h} className="px-2 py-1 whitespace-nowrap">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {preview.previewRows.slice(0, 10).map((row, i) => (
-                  <tr key={i} className="text-[#cbd5e1] border-t border-[#1e2130]">
-                    {preview.headers.map((h) => (
-                      <td
-                        key={h}
-                        className="px-2 py-1 max-w-[200px] truncate"
-                        title={String(row[h] ?? "")}
-                      >
-                        {row[h] === null || row[h] === undefined
-                          ? ""
-                          : String(row[h])}
+          {/* Coerced preview — what Hippo will actually store */}
+          {preview.previewCoerced && preview.previewCoerced.length > 0 && (
+            <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-4 overflow-auto">
+              <div className="flex items-center justify-between mb-2 px-2">
+                <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">
+                  Hippo preview — first {preview.previewCoerced.length} rows the way they&apos;ll land in your log
+                </p>
+                {preview.usedLlmForRows && (
+                  <span className="inline-flex items-center gap-1 text-[10px] text-[#93c5fd]">
+                    <Sparkles className="w-3 h-3" />
+                    AI-normalised
+                  </span>
+                )}
+              </div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[#64748b]">
+                    <th className="px-2 py-1 whitespace-nowrap">#</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Date</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Procedure</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Approach</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Autonomy</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Outcome</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Complication</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Age</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Duration</th>
+                    <th className="px-2 py-1 whitespace-nowrap">Site / Attending</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {preview.previewCoerced.map((p) => (
+                    <tr
+                      key={p.rowNumber}
+                      className="text-[#cbd5e1] border-t border-[#1e2130] align-top"
+                    >
+                      <td className="px-2 py-1 text-[#64748b]">{p.rowNumber}</td>
+                      <td className="px-2 py-1 whitespace-nowrap font-mono text-[#94a3b8]">
+                        {p.coerced.caseDate ?? <span className="text-[#ef4444]">—</span>}
                       </td>
+                      <td
+                        className="px-2 py-1 max-w-[260px] truncate"
+                        title={p.coerced.procedureName ?? ""}
+                      >
+                        {p.coerced.procedureName ?? <span className="text-[#ef4444]">missing</span>}
+                      </td>
+                      <td className="px-2 py-1 text-[10px] uppercase">
+                        <EnumPill value={p.coerced.surgicalApproach} uncertain={p.coerced.uncertain.includes("surgicalApproach")} />
+                      </td>
+                      <td className="px-2 py-1 text-[10px] uppercase">
+                        <EnumPill value={p.coerced.autonomyLevel} uncertain={p.coerced.uncertain.includes("autonomyLevel")} />
+                      </td>
+                      <td className="px-2 py-1 text-[10px] uppercase">
+                        <EnumPill value={p.coerced.outcomeCategory} uncertain={p.coerced.uncertain.includes("outcomeCategory")} />
+                      </td>
+                      <td className="px-2 py-1 text-[10px] uppercase">
+                        <EnumPill value={p.coerced.complicationCategory} uncertain={p.coerced.uncertain.includes("complicationCategory")} />
+                      </td>
+                      <td className="px-2 py-1 text-[10px] uppercase">
+                        <EnumPill value={p.coerced.patientAgeBin} uncertain={p.coerced.uncertain.includes("patientAgeBin")} />
+                      </td>
+                      <td className="px-2 py-1 text-[#94a3b8] whitespace-nowrap">
+                        {p.coerced.operativeDurationMinutes !== null
+                          ? `${p.coerced.operativeDurationMinutes}m`
+                          : "—"}
+                      </td>
+                      <td
+                        className="px-2 py-1 max-w-[220px] truncate text-[#94a3b8]"
+                        title={[p.coerced.institutionSite, p.coerced.attendingLabel]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      >
+                        {[p.coerced.institutionSite, p.coerced.attendingLabel]
+                          .filter(Boolean)
+                          .join(" · ") || "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-[10px] text-[#64748b] mt-2 px-2">
+                Pills with a dashed border were guessed by the AI — double-check before merging.
+              </p>
+            </section>
+          )}
+
+          {/* Raw preview rows (collapsed by default) */}
+          <details className="bg-[#111118] border border-[#1e2130] rounded-xl overflow-hidden">
+            <summary className="cursor-pointer px-4 py-3 text-[10px] text-[#94a3b8] uppercase tracking-wider hover:text-[#cbd5e1]">
+              Raw spreadsheet preview (first 10 rows)
+            </summary>
+            <div className="p-4 overflow-auto border-t border-[#1e2130]">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-[#64748b]">
+                    {preview.headers.map((h) => (
+                      <th key={h} className="px-2 py-1 whitespace-nowrap">
+                        {h}
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </section>
+                </thead>
+                <tbody>
+                  {preview.previewRows.slice(0, 10).map((row, i) => (
+                    <tr key={i} className="text-[#cbd5e1] border-t border-[#1e2130]">
+                      {preview.headers.map((h) => (
+                        <td
+                          key={h}
+                          className="px-2 py-1 max-w-[200px] truncate"
+                          title={String(row[h] ?? "")}
+                        >
+                          {row[h] === null || row[h] === undefined
+                            ? ""
+                            : String(row[h])}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </details>
 
           {/* Commit */}
           <section className="flex items-center justify-end gap-2">
@@ -521,5 +670,51 @@ function Stat({
         {value}
       </p>
     </div>
+  );
+}
+
+/**
+ * Inline confidence chip rendered next to a mapped Hippo field.
+ * 0.85+  high (green)
+ * 0.6+   medium (blue)
+ * 0.0-0.6 low (amber) — UI nudge to confirm the mapping manually
+ */
+function ConfidenceBadge({ value }: { value: number }) {
+  let label = "low";
+  let cls = "bg-[#1a1500] text-[#fbbf24] border-[#f59e0b]/30";
+  if (value >= 0.85) {
+    label = "high";
+    cls = "bg-[#0a1f12] text-[#34d399] border-[#10b981]/30";
+  } else if (value >= 0.6) {
+    label = "medium";
+    cls = "bg-[#0c1f3d] text-[#93c5fd] border-[#3b82f6]/30";
+  }
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wider ${cls}`}
+      title={`Mapping confidence ${(value * 100).toFixed(0)}%`}
+    >
+      {label}
+    </span>
+  );
+}
+
+/**
+ * Enum value rendered as a tight pill — solid border by default, dashed
+ * border when the LLM flagged this cell as uncertain so the user knows
+ * which values to spot-check.
+ */
+function EnumPill({ value, uncertain }: { value: string; uncertain?: boolean }) {
+  return (
+    <span
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-[9px] tracking-wider ${
+        uncertain
+          ? "bg-[#1a1500] text-[#fbbf24] border-[#f59e0b]/40 border-dashed"
+          : "bg-[#16161f] text-[#cbd5e1] border-[#1e2130]"
+      }`}
+      title={uncertain ? "AI was uncertain about this value — please verify." : undefined}
+    >
+      {value}
+    </span>
   );
 }

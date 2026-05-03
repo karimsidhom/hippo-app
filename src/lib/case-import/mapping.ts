@@ -366,60 +366,93 @@ export function coerceMinutes(v: unknown): number | null {
   return null;
 }
 
-const AGE_BIN_MAP: Record<string, string> = {
-  pediatric: "PEDIATRIC",
-  paediatric: "PEDIATRIC",
-  child: "PEDIATRIC",
-  infant: "INFANT",
-  neonate: "NEONATE",
-  newborn: "NEONATE",
-  adult: "ADULT",
-  adolescent: "ADOLESCENT",
-  geriatric: "GERIATRIC",
-  elderly: "GERIATRIC",
-  unknown: "UNKNOWN",
-};
+// NOTE: enum values below MUST match prisma/schema.prisma's AgeBin /
+// ComplicationCategory / OutcomeCategory enums. An earlier version of
+// this file emitted values that didn't exist in the schema (e.g.
+// "INFANT", "PEDIATRIC", "INJURY", "COMPLICATED", "MORTALITY") which
+// made any non-default import row crash at the Prisma insert. The maps
+// here are authoritative — the LLM normaliser also re-validates against
+// the same enum lists in src/lib/case-import/llm-normalize.ts.
+
+const AGE_BIN_KEYWORDS: Array<[RegExp | string, string]> = [
+  ["under 18", "UNDER_18"],
+  ["pediatric", "UNDER_18"],
+  ["paediatric", "UNDER_18"],
+  ["child", "UNDER_18"],
+  ["infant", "UNDER_18"],
+  ["neonate", "UNDER_18"],
+  ["newborn", "UNDER_18"],
+  ["adolescent", "UNDER_18"],
+  ["18-30", "AGE_18_30"],
+  ["31-45", "AGE_31_45"],
+  ["46-60", "AGE_46_60"],
+  ["61-75", "AGE_61_75"],
+  ["over 75", "OVER_75"],
+  ["75+", "OVER_75"],
+  ["geriatric", "OVER_75"],
+  ["elderly", "OVER_75"],
+  ["unknown", "UNKNOWN"],
+];
+
+function ageNumberToBin(n: number): string {
+  if (n < 18) return "UNDER_18";
+  if (n <= 30) return "AGE_18_30";
+  if (n <= 45) return "AGE_31_45";
+  if (n <= 60) return "AGE_46_60";
+  if (n <= 75) return "AGE_61_75";
+  return "OVER_75";
+}
 
 export function coerceAgeBin(v: unknown): string {
   if (v === null || v === undefined) return "UNKNOWN";
-  if (typeof v === "number") {
-    if (v < 1) return "INFANT";
-    if (v < 18) return "PEDIATRIC";
-    if (v < 65) return "ADULT";
-    return "GERIATRIC";
-  }
+  if (typeof v === "number" && !isNaN(v)) return ageNumberToBin(v);
   if (typeof v === "string") {
     const lower = v.trim().toLowerCase();
-    for (const [k, val] of Object.entries(AGE_BIN_MAP)) {
-      if (lower.includes(k)) return val;
+    if (!lower) return "UNKNOWN";
+    for (const [needle, val] of AGE_BIN_KEYWORDS) {
+      if (typeof needle === "string" ? lower.includes(needle) : needle.test(lower)) {
+        return val;
+      }
     }
     const n = parseFloat(lower);
-    if (!isNaN(n)) {
-      return coerceAgeBin(n);
-    }
+    if (!isNaN(n)) return ageNumberToBin(n);
   }
   return "UNKNOWN";
 }
 
 const COMPLICATION_MAP: Record<string, string> = {
   none: "NONE",
+  nil: "NONE",
   "no complication": "NONE",
   "no complications": "NONE",
   bleeding: "BLEEDING",
   hemorrhage: "BLEEDING",
+  haemorrhage: "BLEEDING",
   infection: "INFECTION",
   ssi: "INFECTION",
-  injury: "INJURY",
-  "organ injury": "INJURY",
-  conversion: "OTHER",
+  abscess: "INFECTION",
+  "wound infection": "INFECTION",
+  "organ injury": "ORGAN_INJURY",
+  "iatrogenic injury": "ORGAN_INJURY",
+  injury: "ORGAN_INJURY",
+  perforation: "ORGAN_INJURY",
+  leak: "ANASTOMOTIC_LEAK",
+  "anastomotic leak": "ANASTOMOTIC_LEAK",
+  dvt: "DVT_PE",
+  pe: "DVT_PE",
+  "pulmonary embolism": "DVT_PE",
+  ileus: "ILEUS",
+  conversion: "CONVERSION",
+  "conversion to open": "CONVERSION",
+  readmission: "READMISSION",
+  readmit: "READMISSION",
   other: "OTHER",
-  death: "DEATH",
-  mortality: "DEATH",
 };
 
 export function coerceComplication(v: unknown): string {
   if (v === null || v === undefined || v === "") return "NONE";
   const lower = String(v).trim().toLowerCase();
+  if (!lower) return "NONE";
   for (const [k, val] of Object.entries(COMPLICATION_MAP)) {
     if (lower === k || lower.includes(k)) return val;
   }
@@ -430,16 +463,25 @@ const OUTCOME_MAP: Record<string, string> = {
   uncomplicated: "UNCOMPLICATED",
   successful: "UNCOMPLICATED",
   routine: "UNCOMPLICATED",
-  complicated: "COMPLICATED",
-  difficult: "COMPLICATED",
-  death: "MORTALITY",
-  mortality: "MORTALITY",
-  died: "MORTALITY",
+  uneventful: "UNCOMPLICATED",
+  "minor complication": "MINOR_COMPLICATION",
+  minor: "MINOR_COMPLICATION",
+  "major complication": "MAJOR_COMPLICATION",
+  major: "MAJOR_COMPLICATION",
+  reoperation: "REOPERATION",
+  "return to or": "REOPERATION",
+  "back to or": "REOPERATION",
+  death: "DEATH",
+  mortality: "DEATH",
+  died: "DEATH",
+  demised: "DEATH",
+  unknown: "UNKNOWN",
 };
 
 export function coerceOutcome(v: unknown): string {
   if (v === null || v === undefined || v === "") return "UNCOMPLICATED";
   const lower = String(v).trim().toLowerCase();
+  if (!lower) return "UNCOMPLICATED";
   for (const [k, val] of Object.entries(OUTCOME_MAP)) {
     if (lower === k || lower.includes(k)) return val;
   }
