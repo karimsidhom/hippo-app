@@ -38,6 +38,24 @@ export async function POST(req: NextRequest, ctxArg: { params: Promise<{ id: str
     );
   }
 
+  // Idempotency guard (audit finding M4): the encounter page auto-fires
+  // generate() the moment a recording stops + transcripts exist + no
+  // note. If two requests race (e.g. the auto-effect and a manual tap),
+  // the second arrival should NOT silently overwrite the first. We allow
+  // overwrites only when the caller passes ?force=1 — manual regenerate
+  // hits this path explicitly. Auto-fire never sets the flag.
+  const forceParam = req.nextUrl.searchParams.get("force") === "1";
+  const preExistingNote = await db.clinicNote.findFirst({
+    where: { encounterId },
+    select: { id: true },
+  });
+  if (preExistingNote && !forceParam) {
+    return NextResponse.json(
+      { error: "A note already exists for this encounter. Use the Regenerate button to overwrite." },
+      { status: 409 },
+    );
+  }
+
   // Mark generating so realtime listeners can update status.
   await db.clinicEncounter.update({
     where: { id: encounterId },
@@ -66,12 +84,19 @@ export async function POST(req: NextRequest, ctxArg: { params: Promise<{ id: str
   }
 
   const template = findTemplate(encounter.templateKey);
+  // Prior context is stored on encounter.metadata.priorContext (PUT'd
+  // via /api/clinic/encounters/[id]/prior-context). Pass it through so
+  // the model sees the background. The prompt-side guardrails ensure
+  // it's used as reference, not copied into today's note.
+  const meta = (encounter.metadata as { priorContext?: string } | null) ?? {};
+  const priorContext = meta.priorContext ?? null;
   const promptInput = {
     noteType: encounter.noteType as never,
     template,
     clinician: ctx.clinician,
     transcript: transcriptText,
     visitReason: encounter.visitReason ?? undefined,
+    priorContext,
   };
   const system = buildNoteSystemPrompt(promptInput);
   const user = buildUserPrompt(promptInput);
@@ -116,12 +141,14 @@ export async function POST(req: NextRequest, ctxArg: { params: Promise<{ id: str
   }
 
   // Upsert the note. We use updateMany so we don't crash if a note row
-  // doesn't yet exist.
-  const existingNote = await db.clinicNote.findFirst({ where: { encounterId } });
+  // doesn't yet exist. (Distinct local var from the earlier idempotency
+  // existence check at the top of this handler — that one only selected
+  // `id`, this one fetches the full row for the update branch.)
+  const existingNoteRow = await db.clinicNote.findFirst({ where: { encounterId } });
   let noteId: string;
-  if (existingNote) {
+  if (existingNoteRow) {
     const updated = await db.clinicNote.update({
-      where: { id: existingNote.id },
+      where: { id: existingNoteRow.id },
       data: {
         paragraphs: content.paragraphs as never,
         letter: content.letter ?? null,
