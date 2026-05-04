@@ -15,7 +15,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  ArrowLeft, Sparkles, FileSignature, AlertTriangle, RefreshCcw, Trash2, Copy, Loader2, Download, ClipboardCheck,
+  ArrowLeft, Sparkles, FileSignature, AlertTriangle, RefreshCcw, Trash2, Copy, Loader2, Download, ClipboardCheck, Pencil, Check,
 } from "lucide-react";
 import { formatNoteForEmr } from "@/lib/clinic/emr-export";
 import { Recorder } from "@/components/clinic/Recorder";
@@ -78,6 +78,14 @@ export default function EncounterPage() {
   const [typedDraft, setTypedDraft] = useState("");
   const [savingTyped, setSavingTyped] = useState(false);
   const [consentOpen, setConsentOpen] = useState(false);
+  // Inline patient editor state — lets the clinician attach or rename a
+  // patient post-hoc. Typing a name in here either creates a new
+  // temporary patient (if none is attached) or renames the existing
+  // one. The dictation can drive the patient record without forcing the
+  // clinician to add a patient before they start.
+  const [patientEditOpen, setPatientEditOpen] = useState(false);
+  const [patientNameDraft, setPatientNameDraft] = useState("");
+  const [savingPatient, setSavingPatient] = useState(false);
   // Brief "Copied" feedback state for the two clipboard buttons. Distinct
   // states so each button shows its own check independently.
   const [copiedKind, setCopiedKind] = useState<"plain" | "emr" | null>(null);
@@ -180,6 +188,54 @@ export default function EncounterPage() {
     }
   }
 
+  async function savePatientName() {
+    const trimmed = patientNameDraft.trim();
+    if (!trimmed) return;
+    setSavingPatient(true);
+    try {
+      const parts = trimmed.split(/\s+/);
+      const givenName = parts.slice(0, -1).join(" ") || parts[0] || trimmed;
+      const familyName = parts.length > 1 ? parts[parts.length - 1] : "";
+      if (data?.patient?.id) {
+        // Rename the existing attached patient.
+        await fetch(`/api/clinic/patients/${data.patient.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            givenName: givenName || trimmed,
+            familyName: familyName || "—",
+          }),
+        });
+      } else {
+        // No patient attached yet — create one and attach.
+        const pres = await fetch("/api/clinic/patients", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            givenName: givenName || trimmed,
+            familyName: familyName || "—",
+            isTemporary: true,
+          }),
+        });
+        if (pres.ok) {
+          const pj = (await pres.json()) as { patient?: { id: string } };
+          if (pj.patient?.id) {
+            await fetch(`/api/clinic/encounters/${id}`, {
+              method: "PATCH",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ patientId: pj.patient.id }),
+            });
+          }
+        }
+      }
+      setPatientEditOpen(false);
+      setPatientNameDraft("");
+      await refresh();
+    } finally {
+      setSavingPatient(false);
+    }
+  }
+
   async function deleteEncounter() {
     if (!confirm("Delete this encounter and its transcript? Drafts only — finalized notes can't be deleted here.")) return;
     const res = await fetch(`/api/clinic/encounters/${id}`, { method: "DELETE" });
@@ -274,11 +330,60 @@ export default function EncounterPage() {
       </Link>
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8, marginBottom: 14 }}>
-        <div>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div className="section-title">{NOTE_TYPE_LABELS[e.noteType] || e.noteType}</div>
-          <h1 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.3px" }}>
-            {patientLabel}
-          </h1>
+          {patientEditOpen ? (
+            <div style={{ display: "flex", gap: 6, alignItems: "center", margin: "4px 0" }}>
+              <input
+                className="st-input"
+                autoFocus
+                value={patientNameDraft}
+                placeholder="Patient name (or any label)"
+                onChange={(ev) => setPatientNameDraft(ev.target.value)}
+                onKeyDown={(ev) => {
+                  if (ev.key === "Enter") void savePatientName();
+                  if (ev.key === "Escape") { setPatientEditOpen(false); setPatientNameDraft(""); }
+                }}
+                style={{ fontSize: 16, fontWeight: 600, padding: "8px 10px" }}
+                disabled={savingPatient || isFinalized}
+              />
+              <button
+                type="button"
+                className="st-btn st-btn-primary st-btn-sm press-key"
+                onClick={() => void savePatientName()}
+                disabled={savingPatient || !patientNameDraft.trim()}
+                style={{ width: "auto" }}
+              >
+                {savingPatient ? <Loader2 size={12} className="spin" /> : <Check size={12} />}
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => {
+                if (isFinalized) return;
+                setPatientNameDraft(data.patient ? `${data.patient.givenName} ${data.patient.familyName}`.trim() : "");
+                setPatientEditOpen(true);
+              }}
+              disabled={isFinalized}
+              style={{
+                background: "transparent",
+                border: "none",
+                padding: 0,
+                margin: "2px 0 4px",
+                cursor: isFinalized ? "default" : "pointer",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+                color: data.patient ? "var(--text)" : "var(--text-3)",
+              }}
+            >
+              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: "-0.3px" }}>
+                {data.patient ? patientLabel : "Add patient name"}
+              </h1>
+              {!isFinalized && <Pencil size={11} style={{ opacity: 0.6 }} />}
+            </button>
+          )}
           {e.visitReason && <p style={{ fontSize: 12, color: "var(--text-2)", margin: 0 }}>{e.visitReason}</p>}
         </div>
         <StatusPill status={e.status} pulsing />
@@ -291,7 +396,16 @@ export default function EncounterPage() {
             <div style={{ fontSize: 12, color: "var(--text-2)", lineHeight: 1.5 }}>
               <strong style={{ color: "var(--text)" }}>Generation failed.</strong> Your transcript is preserved.
               <div style={{ marginTop: 4 }}>{e.failureReason}</div>
-              <button className="st-btn st-btn-primary st-btn-sm press-key" style={{ marginTop: 8, display: "inline-flex", width: "auto" }} onClick={() => generate()} disabled={generating}>
+              <button
+                className="st-btn st-btn-primary st-btn-sm press-key"
+                style={{ marginTop: 8, display: "inline-flex", width: "auto" }}
+                onClick={() => generate({ force: true })}
+                disabled={generating}
+              >
+                {/* Retry from FAILED state always forces — even if a stale
+                    note row exists from a prior partial failure, the user
+                    explicitly asked to redo it. The idempotency guard
+                    in the generate route is for the auto-fire path. */}
                 <RefreshCcw size={12} /> Retry generation
               </button>
             </div>

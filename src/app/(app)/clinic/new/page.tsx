@@ -26,13 +26,23 @@ function NewClinicNoteInner() {
   const router = useRouter();
   const search = useSearchParams();
   const initialMode = (search.get("mode") as ClinicInputMode | null) ?? "AMBIENT";
+  const initialReason = search.get("reason") ?? "";
 
   const [patient, setPatient] = useState<PickedPatient | null>(null);
+  /**
+   * Anything the clinician typed in the patient field but didn't formally
+   * pick. We use this as a frictionless quick-label: type "Mrs Jones",
+   * "MRN 12345", "12" or even nothing, and Start still works. If non-empty
+   * at submit time we silently spin up a temporary patient with that label
+   * — no extra tap, no "Create temporary patient" dance.
+   */
+  const [quickName, setQuickName] = useState("");
   const [noteType, setNoteType] = useState<ClinicNoteType>("NEW_CONSULT");
   const [templateKey, setTemplateKey] = useState<string>("general.new-consult");
-  const [visitReason, setVisitReason] = useState("");
+  const [visitReason, setVisitReason] = useState(initialReason);
   const [inputMode, setInputMode] = useState<ClinicInputMode>(initialMode);
   const [consentCaptured, setConsentCaptured] = useState<ClinicConsentMode | null>(null);
+  const [consentText, setConsentText] = useState<string | null>(null);
   const [consentOpen, setConsentOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -41,23 +51,56 @@ function NewClinicNoteInner() {
     (t) => t.noteType === noteType || t.noteType === "CUSTOM",
   );
 
-  // Consent is REQUIRED for AMBIENT and DICTATION; optional for TYPED/PASTED.
+  // Consent is recommended for AMBIENT/DICTATION but no longer a hard
+  // gate on the new-note page — the clinician can capture (or update)
+  // it on the encounter detail page, which talks to a real encounter
+  // row instead of the "pending" sentinel. This keeps the new-note
+  // flow frictionless: type a name (or nothing), tap Start.
   const consentRequired = inputMode === "AMBIENT" || inputMode === "DICTATION";
-  const canStart = !consentRequired || consentCaptured !== null;
+  const canStart = true;
 
   async function start() {
     setCreating(true);
     setError(null);
     try {
-      // Create the encounter shell first…
+      // Frictionless quick-label: if no patient has been formally
+      // selected but the clinician typed something in the patient field,
+      // create a temporary patient inline with that label. Failures are
+      // non-blocking — we still create the encounter without a patient.
+      let patientIdToUse: string | null = patient?.id ?? null;
+      const trimmedQuick = quickName.trim();
+      if (!patientIdToUse && trimmedQuick) {
+        try {
+          const parts = trimmedQuick.split(/\s+/);
+          const givenName = parts.slice(0, -1).join(" ") || parts[0] || trimmedQuick;
+          const familyName = parts.length > 1 ? parts[parts.length - 1] : "";
+          const pres = await fetch("/api/clinic/patients", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              givenName: givenName || trimmedQuick,
+              familyName: familyName || "—",
+              isTemporary: true,
+            }),
+          });
+          if (pres.ok) {
+            const pj = (await pres.json()) as { patient?: { id: string } };
+            if (pj.patient?.id) patientIdToUse = pj.patient.id;
+          }
+        } catch { /* non-blocking */ }
+      }
+
+      // Create the encounter shell. Everything except inputMode is
+      // optional server-side — the wizard mirrors that on the client so
+      // the clinician can fire "Start recording" with just defaults.
       const res = await fetch("/api/clinic/encounters", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          patientId: patient?.id ?? null,
+          patientId: patientIdToUse,
           noteType,
           inputMode,
-          templateKey,
+          templateKey: templateKey || undefined,
           visitReason: visitReason.trim() || undefined,
         }),
       });
@@ -76,7 +119,7 @@ function NewClinicNoteInner() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             mode: consentCaptured,
-            text: "Captured at the start of the encounter.",
+            text: (consentText && consentText.trim()) || "Captured at the start of the encounter.",
           }),
         }).catch(() => {});
       }
@@ -100,11 +143,16 @@ function NewClinicNoteInner() {
         </p>
       </div>
 
-      <Step title="Patient" done={!!patient}>
-        <PatientPicker selected={patient} onSelect={setPatient} />
+      <Step title="Patient (optional)" done={!!patient || quickName.trim().length > 0}>
+        <PatientPicker
+          selected={patient}
+          onSelect={(p) => { setPatient(p); if (p) setQuickName(""); }}
+          onQueryChange={setQuickName}
+          placeholder="Name, MRN, or any label — leave blank if you want"
+        />
       </Step>
 
-      <Step title="Visit type" done>
+      <Step title="Visit type (optional)" done>
         <select
           className="st-input"
           value={noteType}
@@ -120,18 +168,18 @@ function NewClinicNoteInner() {
           ))}
         </select>
 
-        <label className="form-label" style={{ marginTop: 12 }}>Template</label>
+        <label className="form-label" style={{ marginTop: 12 }}>Template (optional)</label>
         <select className="st-input" value={templateKey} onChange={(e) => setTemplateKey(e.target.value)}>
-          {filteredTemplates.length === 0 && <option value="">No matching templates</option>}
+          <option value="">No template — let the AI choose the structure</option>
           {filteredTemplates.map((t) => (
             <option key={t.key} value={t.key}>{t.specialty} — {t.name}</option>
           ))}
         </select>
 
-        <label className="form-label" style={{ marginTop: 12 }}>Reason for visit</label>
+        <label className="form-label" style={{ marginTop: 12 }}>Reason for visit (optional)</label>
         <input
           className="st-input"
-          placeholder="e.g. Elevated PSA, BPH follow-up, results review"
+          placeholder="Anything you want — or leave blank"
           value={visitReason}
           onChange={(e) => setVisitReason(e.target.value)}
           maxLength={200}
@@ -147,14 +195,14 @@ function NewClinicNoteInner() {
         </div>
       </Step>
 
-      <Step title="Patient consent" done={consentCaptured !== null} required={consentRequired}>
+      <Step title="Patient consent (optional)" done={consentCaptured !== null}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ fontSize: 12, color: "var(--text-2)" }}>
             {consentCaptured
               ? <>Captured: <strong style={{ color: "var(--text)" }}>{consentCaptured}</strong></>
               : consentRequired
-              ? "Required for ambient or dictated capture."
-              : "Optional but recommended for the audit trail."}
+              ? "You can capture this here or on the next screen."
+              : "Recommended for the audit trail — capture here or later."}
           </div>
           <button className="st-btn st-btn-secondary st-btn-sm press" onClick={() => setConsentOpen(true)}>
             {consentCaptured ? "Edit" : "Capture"}
@@ -163,8 +211,10 @@ function NewClinicNoteInner() {
         {consentOpen && (
           <ConsentSheet
             encounterId="pending"
+            deferSave
             initialMode={consentCaptured}
-            onCaptured={(m) => setConsentCaptured(m)}
+            initialText={consentText}
+            onCaptured={(m, t) => { setConsentCaptured(m); setConsentText(t); }}
             onClose={() => setConsentOpen(false)}
           />
         )}

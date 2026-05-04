@@ -13,14 +13,25 @@ export async function POST(req: NextRequest, ctxArg: { params: Promise<{ id: str
   const { ctx, error } = await requireClinicAuth();
   if (error) return error;
   const { id: encounterId } = await ctxArg.params;
-  const { encounter, error: aclError } = await loadOwnedEncounter(encounterId, ctx.user.id);
-  if (aclError) return aclError;
 
   const json = await req.json().catch(() => null);
   const parsed = ConsentSchema.safeParse(json);
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid body", details: parsed.error.issues }, { status: 400 });
   }
+
+  // Stale-bundle safety net: an older client may have shipped before
+  // the deferSave fix landed and is POSTing to
+  // /api/clinic/encounters/pending/consent. Returning 404 there strands
+  // the user. Accept the call as a successful no-op so the wizard can
+  // move on; the wizard re-POSTs the captured values to the real
+  // encounter id immediately after creation.
+  if (encounterId === "pending" || encounterId === "undefined" || !encounterId) {
+    return NextResponse.json({ deferred: true });
+  }
+
+  const { encounter, error: aclError } = await loadOwnedEncounter(encounterId, ctx.user.id);
+  if (aclError) return aclError;
 
   const ipAddress =
     req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??

@@ -15,16 +15,29 @@ const DEFAULT_TEXT =
 export function ConsentSheet({
   encounterId,
   initialMode,
+  initialText,
+  deferSave,
   onCaptured,
   onClose,
 }: {
   encounterId: string;
   initialMode?: ClinicConsentMode | null;
-  onCaptured: (mode: ClinicConsentMode) => void;
+  initialText?: string | null;
+  /**
+   * When true, the sheet does NOT hit the consent API. Instead it returns
+   * the captured mode + text via `onCaptured`, and the caller is
+   * responsible for persisting it. Used by the New Note wizard before
+   * an encounter row exists in the DB — without this, the wizard
+   * POSTs to /api/clinic/encounters/pending/consent and gets a 404
+   * "Not found" because the encounter hasn't been created yet.
+   */
+  deferSave?: boolean;
+  /** Receives both the mode AND the wording, so callers can persist later. */
+  onCaptured: (mode: ClinicConsentMode, text: string) => void;
   onClose: () => void;
 }) {
   const [mode, setMode] = useState<ClinicConsentMode>(initialMode ?? "VERBAL");
-  const [text, setText] = useState<string>(DEFAULT_TEXT);
+  const [text, setText] = useState<string>(initialText && initialText.trim() ? initialText : DEFAULT_TEXT);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -32,16 +45,38 @@ export function ConsentSheet({
     setSaving(true);
     setError(null);
     try {
+      // Local-capture path: the encounter doesn't exist yet (e.g. the
+      // New Note wizard). Hand the captured values back to the caller
+      // and let them persist after the encounter is created.
+      // We also auto-detect the "pending" / empty sentinel so callers
+      // that forget to pass deferSave still get the right behaviour
+      // instead of a 404.
+      if (deferSave || !encounterId || encounterId === "pending") {
+        onCaptured(mode, text);
+        onClose();
+        return;
+      }
       const res = await fetch(`/api/clinic/encounters/${encounterId}/consent`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ mode, text }),
       });
       if (!res.ok) {
+        // 404 on consent should never block the clinician — they may
+        // be on a stale bundle that's still pointing at an old encounter
+        // id, or the route returned 404 because the encounter row hasn't
+        // committed yet. Fall back to a local capture so they can keep
+        // moving; the encounter detail page re-saves consent on its
+        // own refresh path.
+        if (res.status === 404) {
+          onCaptured(mode, text);
+          onClose();
+          return;
+        }
         const j = await res.json().catch(() => ({}));
         throw new Error(j.error ?? `HTTP ${res.status}`);
       }
-      onCaptured(mode);
+      onCaptured(mode, text);
       onClose();
     } catch (e) {
       setError((e as Error).message);

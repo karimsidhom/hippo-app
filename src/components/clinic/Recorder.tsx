@@ -23,6 +23,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Mic, Pause, Play, Square, Bookmark, AlertTriangle, Loader2, Wifi, WifiOff, type LucideIcon } from "lucide-react";
 import type { MarkerKind } from "@/lib/clinic/types";
+import { useMacros } from "@/hooks/useMacros";
 
 interface QueuedChunk {
   index: number;
@@ -45,13 +46,75 @@ interface RecorderProps {
 const CHUNK_MS = 10_000; // 10-second slices
 const MAX_RETRIES = 6;
 
+// Order matters. Safari (iOS + macOS) only supports audio/mp4, and its
+// isTypeSupported lies about the webm variants — so we keep mp4 high in
+// the list. We also explicitly fall back to "" (empty) so MediaRecorder
+// uses the browser default rather than throwing on an unsupported type.
 const PRIMARY_MIME_CANDIDATES = [
   "audio/webm;codecs=opus",
   "audio/webm",
   "audio/mp4",
+  "audio/mp4;codecs=mp4a.40.2",
   "audio/ogg;codecs=opus",
   "audio/ogg",
 ];
+
+function pickSupportedMime(): string {
+  // Older Safari versions don't ship MediaRecorder.isTypeSupported. In
+  // that case we'd rather let the browser pick the default than feed it
+  // a guess that throws inside the constructor.
+  if (typeof MediaRecorder === "undefined" || typeof MediaRecorder.isTypeSupported !== "function") {
+    return "";
+  }
+  for (const m of PRIMARY_MIME_CANDIDATES) {
+    try { if (MediaRecorder.isTypeSupported(m)) return m; } catch { /* ignore */ }
+  }
+  return "";
+}
+
+// Voice-command vocabulary. Matched against final SR results before
+// they're posted as transcript segments — so commands never end up in
+// the medical record.
+//
+// Hardened against false positives: every pattern now REQUIRES the
+// wake-word "Hippo" (with optional comma after). The previous version
+// allowed "this is important" to fire a marker, which collides with
+// real clinical speech ("this is important to monitor"). Wake-word-
+// gated commands cost the clinician one extra word but eliminate the
+// "the AI keeps marking things at random" failure mode that would erode
+// trust faster than the feature gains it.
+const VOICE_COMMANDS: Array<{ patterns: RegExp[]; action: VoiceCommand; label: string }> = [
+  { action: "marker:important",          label: "Important",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?important|important|that's\s+important)\b/i] },
+  { action: "marker:exam",               label: "Exam",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?exam|(start|begin)\s+exam|exam)\b/i] },
+  { action: "marker:plan",               label: "Plan",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?plan|(start|begin)\s+plan|plan)\b/i] },
+  { action: "marker:medication",         label: "Medication",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?)?med(ication)?\b/i] },
+  { action: "marker:follow-up",          label: "Follow-up",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?)?follow[-\s]?up\b/i] },
+  { action: "marker:patient-instruction", label: "Patient instruction",
+    patterns: [/^hippo,?\s+(mark\s+(this\s+as\s+)?)?(patient\s+)?instruction\b/i] },
+  { action: "pause",                     label: "Pause",
+    patterns: [/^hippo,?\s+(pause|stop\s+for\s+a\s+moment)\b/i] },
+  { action: "resume",                    label: "Resume",
+    patterns: [/^hippo,?\s+(resume|continue|start\s+again)\b/i] },
+  { action: "stop",                      label: "End recording",
+    patterns: [/^hippo,?\s+(end\s+recording|stop\s+recording|finish\s+recording)\b/i] },
+];
+type VoiceCommand =
+  | "marker:important" | "marker:exam" | "marker:plan" | "marker:medication"
+  | "marker:follow-up" | "marker:patient-instruction"
+  | "pause" | "resume" | "stop";
+
+function detectCommand(text: string): VoiceCommand | null {
+  const t = text.trim();
+  for (const v of VOICE_COMMANDS) {
+    for (const p of v.patterns) if (p.test(t)) return v.action;
+  }
+  return null;
+}
 
 export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: RecorderProps) {
   const [permission, setPermission] = useState<"unknown" | "granted" | "denied">("unknown");
@@ -73,6 +136,11 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
   const flushingRef = useRef<boolean>(false);
   const recRef = useRef<{ recording: boolean; paused: boolean }>({ recording: false, paused: false });
   const sttRef = useRef<unknown>(null);
+  const mountedRef = useRef<boolean>(true);
+  const macros = useMacros();
+  const macrosRef = useRef(macros);
+  useEffect(() => { macrosRef.current = macros; }, [macros]);
+  const [lastCommand, setLastCommand] = useState<string | null>(null);
 
   // Keep refs in sync with reactive state — used inside MediaRecorder
   // callbacks that close over stale state.
@@ -104,6 +172,33 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
     window.addEventListener("beforeunload", handler);
     return () => window.removeEventListener("beforeunload", handler);
   }, [recording, disabled]);
+
+  // Hard cleanup on unmount — close mic, stop SR, signal queue to drain
+  // and exit so we don't run fetches against an unmounted component.
+  // Addresses ruflo review findings M2 + M3.
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+      try {
+        if (mediaRef.current && mediaRef.current.state !== "inactive") {
+          const handle = (mediaRef.current as unknown as { __chunkInterval?: ReturnType<typeof setInterval> }).__chunkInterval;
+          if (handle) { try { clearInterval(handle); } catch { /* ignore */ } }
+          mediaRef.current.stop();
+        }
+      } catch { /* ignore */ }
+      streamRef.current?.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } });
+      const stt = sttRef.current as { stop?: () => void; onresult?: unknown; onend?: unknown } | null;
+      if (stt) {
+        // Null the handlers so the auto-restart in onend doesn't fire.
+        stt.onresult = null;
+        stt.onend = null;
+        try { stt.stop?.(); } catch { /* ignore */ }
+      }
+      if (elapsedTimerRef.current) clearInterval(elapsedTimerRef.current);
+      // Signal flushQueue to bail.
+      recRef.current.recording = false;
+    };
+  }, []);
 
   const tickElapsed = useCallback(() => {
     setElapsedMs(Date.now() - startTsRef.current);
@@ -162,6 +257,22 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
   // ── Start / stop ─────────────────────────────────────────────────────────
   const start = useCallback(async () => {
     setWarning(null);
+
+    // Hard preflight — bail with a readable message instead of crashing
+    // inside MediaRecorder when the browser doesn't ship the APIs at all.
+    if (typeof window === "undefined" || !window.isSecureContext) {
+      setWarning("Recording requires a secure (HTTPS) page. Open the app over HTTPS or localhost.");
+      return;
+    }
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setWarning("This browser doesn't expose a microphone API. Try Safari, Chrome, or Edge.");
+      return;
+    }
+    if (typeof MediaRecorder === "undefined") {
+      setWarning("This browser can't record audio (MediaRecorder unavailable). On iOS, update to iOS 14.5 or newer.");
+      return;
+    }
+
     let stream: MediaStream;
     try {
       stream = await navigator.mediaDevices.getUserMedia({
@@ -174,14 +285,40 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
       });
     } catch (err) {
       setPermission("denied");
-      setWarning("Microphone access was blocked. Enable it in your browser settings.");
+      const name = (err as { name?: string } | undefined)?.name ?? "";
+      const msg = (err as Error | undefined)?.message ?? "";
+      // Surface the actual reason — iOS gives different errors for
+      // permission denial vs. no device vs. system-level mute.
+      let detail = "Microphone access was blocked. Enable it in your browser settings.";
+      if (name === "NotAllowedError" || /denied|permission/i.test(msg)) {
+        detail = "Microphone permission was denied. Allow it in your browser/system settings and try again.";
+      } else if (name === "NotFoundError") {
+        detail = "No microphone was found on this device.";
+      } else if (name === "NotReadableError") {
+        detail = "The microphone is in use by another app. Close other recording apps and try again.";
+      } else if (msg) {
+        detail = `Microphone error: ${msg}`;
+      }
+      setWarning(detail);
       return;
     }
     setPermission("granted");
     streamRef.current = stream;
 
-    const mimeType = PRIMARY_MIME_CANDIDATES.find((m) => MediaRecorder.isTypeSupported?.(m)) || "";
-    const rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    const mimeType = pickSupportedMime();
+    let rec: MediaRecorder;
+    try {
+      rec = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+    } catch (err) {
+      // Some Safari builds throw on any explicit mimeType — retry with default.
+      try {
+        rec = new MediaRecorder(stream);
+      } catch (err2) {
+        stream.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } });
+        setWarning(`Couldn't start the recorder: ${(err2 as Error).message || (err as Error).message}`);
+        return;
+      }
+    }
 
     chunkIdxRef.current = 0;
     startTsRef.current = Date.now();
@@ -206,7 +343,28 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
       // No-op — final ondataavailable already fired with the residual chunk.
     };
 
-    rec.start(CHUNK_MS);
+    // Safari ignores the timeslice argument to start() — chunks only land
+    // on stop(). To keep the upload queue moving on iOS, request a chunk
+    // manually every CHUNK_MS via requestData(). Falls back gracefully if
+    // requestData isn't available.
+    try {
+      rec.start(CHUNK_MS);
+    } catch (err) {
+      stream.getTracks().forEach((t) => { try { t.stop(); } catch { /* ignore */ } });
+      setWarning(`Couldn't start the recorder: ${(err as Error).message}`);
+      return;
+    }
+    if (typeof rec.requestData === "function") {
+      const interval = setInterval(() => {
+        try {
+          if (rec.state === "recording") rec.requestData();
+        } catch { /* ignore */ }
+        if (rec.state === "inactive") clearInterval(interval);
+      }, CHUNK_MS);
+      // Stash on the recorder so stop() can clear it.
+      (rec as unknown as { __chunkInterval?: ReturnType<typeof setInterval> }).__chunkInterval = interval;
+    }
+
     mediaRef.current = rec;
     setRecording(true);
     setPaused(false);
@@ -250,24 +408,41 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
       let interimText = "";
       for (let i = ev.resultIndex; i < ev.results.length; i++) {
         const r = ev.results[i];
-        const text = r[0].transcript;
+        const rawText = r[0].transcript;
         if (r.isFinal) {
-          // Persist final segments — the parent may also be receiving
-          // Whisper transcripts; both paths coexist.
+          // ── Voice commands ──────────────────────────────────────────
+          // First check if the segment is a wake-word command. If so,
+          // run the action and DON'T post the segment as transcript.
+          // We also gate on segment length (max 6 words) so a long
+          // clinical utterance that happens to start with "hippo" never
+          // hijacks the segment — for any longer phrase the patient
+          // record wins over command parsing.
+          if (rawText.trim().split(/\s+/).length <= 6) {
+            const cmd = detectCommand(rawText);
+            if (cmd) {
+              handleVoiceCommand(cmd, rawText);
+              continue;
+            }
+          }
+
+          // ── Macro voice expansion ──────────────────────────────────
+          // "period bph" / "dot bph" → expand inline.
+          const expanded = macrosRef.current.expandVoice(rawText);
+
           void fetch(`/api/clinic/encounters/${encounterId}/transcript`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
               startMs: Math.max(0, Date.now() - startTsRef.current - 4000),
               endMs: Date.now() - startTsRef.current,
-              text,
+              text: expanded,
               confidence: r[0].confidence ?? undefined,
               source: "browser-stt",
               isFinal: true,
             }),
           }).catch(() => {});
         } else {
-          interimText += text;
+          interimText += rawText;
         }
       }
       setInterim(interimText);
@@ -282,6 +457,28 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
     try { rec.start(); } catch { /* ignore */ }
     sttRef.current = rec;
   }, [encounterId]);
+
+  // Voice-command dispatcher — wired into the SR onresult above.
+  // Defined as a ref-stable closure so the SR callback (set up once at
+  // recording start) can reach the LATEST pause/resume/stop refs without
+  // the SR onresult capturing stale values.
+  const dropMarkerRef = useRef<((kind: MarkerKind, label?: string) => Promise<void>) | null>(null);
+  const stopRef       = useRef<(() => Promise<void>) | null>(null);
+  const pauseRef      = useRef<(() => void) | null>(null);
+  const resumeRef     = useRef<(() => void) | null>(null);
+
+  const handleVoiceCommand = useCallback((cmd: VoiceCommand, raw: string) => {
+    setLastCommand(`Heard: "${raw.trim().slice(0, 40)}"`);
+    setTimeout(() => setLastCommand(null), 2400);
+    if (cmd.startsWith("marker:")) {
+      const kind = cmd.slice("marker:".length) as MarkerKind;
+      void dropMarkerRef.current?.(kind, cmd);
+      return;
+    }
+    if (cmd === "pause")  { pauseRef.current?.();  return; }
+    if (cmd === "resume") { resumeRef.current?.(); return; }
+    if (cmd === "stop")   { void stopRef.current?.(); return; }
+  }, []);
 
   const pause = useCallback(() => {
     if (mediaRef.current && mediaRef.current.state === "recording") {
@@ -300,6 +497,9 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
   const stop = useCallback(async () => {
     const total = elapsedMs;
     if (mediaRef.current && mediaRef.current.state !== "inactive") {
+      // Clear the manual-chunk interval the iOS path set up.
+      const handle = (mediaRef.current as unknown as { __chunkInterval?: ReturnType<typeof setInterval> }).__chunkInterval;
+      if (handle) { try { clearInterval(handle); } catch { /* ignore */ } }
       try { mediaRef.current.stop(); } catch { /* ignore */ }
     }
     streamRef.current?.getTracks().forEach((t) => t.stop());
@@ -341,6 +541,16 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
       body: JSON.stringify({ kind, atMs, label }),
     }).catch(() => {});
   }, [encounterId, recording]);
+
+  // Keep the refs the voice-command dispatcher uses pointed at the latest
+  // closures every render. Without this, the SR onresult (set once at
+  // recording start) would call stale versions of these handlers.
+  useEffect(() => {
+    dropMarkerRef.current = dropMarker;
+    stopRef.current       = stop;
+    pauseRef.current      = pause;
+    resumeRef.current     = resume;
+  }, [dropMarker, stop, pause, resume]);
 
   // ── Render ───────────────────────────────────────────────────────────────
   if (disabled) {
@@ -437,6 +647,13 @@ export function Recorder({ encounterId, disabled, onStop, onChunkUploaded }: Rec
           </>
         )}
       </div>
+
+      {/* Voice-command echo */}
+      {recording && lastCommand && (
+        <div className="badge badge-primary" style={{ alignSelf: "flex-start", display: "inline-flex", alignItems: "center", gap: 6 }}>
+          <Mic size={11} /> {lastCommand}
+        </div>
+      )}
 
       {/* Markers */}
       {recording && (
