@@ -41,8 +41,14 @@ function NewClinicNoteInner() {
   const [templateKey, setTemplateKey] = useState<string>("general.new-consult");
   const [visitReason, setVisitReason] = useState(initialReason);
   const [inputMode, setInputMode] = useState<ClinicInputMode>(initialMode);
-  const [consentCaptured, setConsentCaptured] = useState<ClinicConsentMode | null>(null);
-  const [consentText, setConsentText] = useState<string | null>(null);
+  // Implied verbal consent is the default — the clinician affirms it
+  // by starting the encounter. They can change the mode (written / not
+  // required / declined) on this screen or on the encounter page. This
+  // means consent is NEVER a barrier to starting a note.
+  const [consentCaptured, setConsentCaptured] = useState<ClinicConsentMode | null>("VERBAL");
+  const [consentText, setConsentText] = useState<string | null>(
+    "Verbal consent obtained. The clinician explained that an AI scribe would assist with documentation; the patient agreed to proceed."
+  );
   const [consentOpen, setConsentOpen] = useState(false);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -195,17 +201,17 @@ function NewClinicNoteInner() {
         </div>
       </Step>
 
-      <Step title="Patient consent (optional)" done={consentCaptured !== null}>
+      <Step title="Patient consent" done={consentCaptured !== null}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
           <div style={{ fontSize: 12, color: "var(--text-2)" }}>
-            {consentCaptured
-              ? <>Captured: <strong style={{ color: "var(--text)" }}>{consentCaptured}</strong></>
-              : consentRequired
-              ? "You can capture this here or on the next screen."
-              : "Recommended for the audit trail — capture here or later."}
+            {consentCaptured === "DECLINED"
+              ? <span style={{ color: "var(--danger)" }}>Patient declined — recorder will be disabled.</span>
+              : consentCaptured
+              ? <>Implied <strong style={{ color: "var(--text)" }}>{consentCaptured.toLowerCase()}</strong> — tap to change.</>
+              : "Tap to capture how the patient consented."}
           </div>
           <button className="st-btn st-btn-secondary st-btn-sm press" onClick={() => setConsentOpen(true)}>
-            {consentCaptured ? "Edit" : "Capture"}
+            {consentCaptured ? "Change" : "Capture"}
           </button>
         </div>
         {consentOpen && (
