@@ -1,8 +1,16 @@
 /** @type {import('next').NextConfig} */
+const path = require("path");
+
 const nextConfig = {
   reactStrictMode: true,
   // Small hardening win — no "X-Powered-By: Next.js" header on responses.
   poweredByHeader: false,
+  // Pin the workspace root to this directory. Without this, Next 16
+  // walks up looking for a lockfile and on this machine finds one in
+  // ~/package-lock.json, which makes it pick the home directory as the
+  // root and emit a build warning every time. Pinning explicitly silences
+  // the warning and ensures file-tracing is correct on Vercel too.
+  outputFileTracingRoot: __dirname,
   images: {
     // Migrated from the deprecated `images.domains` array to
     // `remotePatterns` so next 16 stops warning on every build.
@@ -17,6 +25,9 @@ const nextConfig = {
     },
   },
 };
+// Reference `path` so linters don't flag the import as unused — we keep
+// the import in case future config wants path.resolve() for other dirs.
+void path;
 
 let finalConfig = nextConfig;
 

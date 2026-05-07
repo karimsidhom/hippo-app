@@ -25,8 +25,29 @@ const PUBLIC_API_PREFIXES = [
 //   /legal/*      — privacy / terms / PHIA / etc; must be publicly readable
 const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/'];
 
-export async function middleware(request: NextRequest) {
+// Renamed from `middleware` to `proxy` per Next 16's deprecation of the
+// `middleware` file convention. Exported function name is `proxy`; the
+// Next runtime calls this on every matched request before any route
+// handler. Behaviour and matcher are unchanged.
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // ─── Hippo Clinic landing override ──────────────────────────────────────
+  // When NEXT_PUBLIC_DEFAULT_MODULE=clinic is set on a deployment (e.g. the
+  // dedicated v0-heidi-clone Vercel project for Hippo Clinic), we redirect
+  // the root and the Log dashboard to /clinic so the URL surface defaults
+  // to the clinic experience. Other deployments (e.g. surgitrack →
+  // hippomedicine.com) don't set this var, so their behaviour is unchanged.
+  // The check is intentionally early — happens before auth — so the
+  // unauthenticated landing also goes straight to /clinic where the auth
+  // gate will then redirect to /login as usual.
+  if (process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic") {
+    if (pathname === "/" || pathname === "/dashboard") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/clinic";
+      return NextResponse.redirect(url);
+    }
+  }
 
   // Always allow static assets + PWA manifest
   if (
@@ -89,6 +110,16 @@ export async function middleware(request: NextRequest) {
   // page can render for logged-out users.
   const isInvitePreviewGet =
     isApiRoute && pathname.startsWith('/api/programs/invites/');
+
+  // CORS preflight for the Chrome extension hits the API host without
+  // cookies — let the route handler's OPTIONS run so it can echo back
+  // the Access-Control-Allow-* headers. Without this the middleware's
+  // 401 short-circuits the preflight and the extension can't even
+  // attempt the authed GET.
+  const isExtensionApi = pathname.startsWith("/api/clinic/extension/");
+  if (isExtensionApi && request.method === "OPTIONS") {
+    return response;
+  }
 
   // ── Protect API routes ─────────────────────────────────────────────────────
   if (isApiRoute && !isAuthed) {
