@@ -2,6 +2,87 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { isProgramOwner } from '@/lib/program-auth';
+import type { ProgramMemberRole } from '@prisma/client';
+
+const ALLOWED_ROLES: ProgramMemberRole[] = [
+  'OWNER',
+  'PD',
+  'CHAIR',
+  'CC_MEMBER',
+  'FACULTY',
+  'COORDINATOR',
+  'DEPT_HEAD',
+  'MEMBER',
+];
+
+/**
+ * PATCH /api/programs/[id]/members/[memberId]
+ * Change a member's role. Owners only.
+ *   body: { role: ProgramMemberRole }
+ *
+ * Demoting the last owner is blocked — same guard as DELETE so a
+ * program never ends up with zero owners.
+ */
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string; memberId: string }> },
+) {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+  const { id, memberId } = await params;
+
+  if (!(await isProgramOwner(user.id, id))) {
+    return NextResponse.json(
+      { error: 'Only program owners can change roles.' },
+      { status: 403 },
+    );
+  }
+
+  let body: { role?: ProgramMemberRole };
+  try {
+    body = (await req.json()) as { role?: ProgramMemberRole };
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 });
+  }
+  if (!body.role || !ALLOWED_ROLES.includes(body.role)) {
+    return NextResponse.json(
+      { error: 'Missing or invalid role' },
+      { status: 400 },
+    );
+  }
+
+  const target = await db.programMember.findUnique({ where: { id: memberId } });
+  if (!target || target.programId !== id) {
+    return NextResponse.json({ error: 'Member not found' }, { status: 404 });
+  }
+
+  // Demoting the last OWNER (or PD-equivalent) leaves the program
+  // un-owned. Block unless another OWNER/PD remains.
+  if (
+    (target.role === 'OWNER' || target.role === 'PD') &&
+    body.role !== 'OWNER' &&
+    body.role !== 'PD'
+  ) {
+    const ownerCount = await db.programMember.count({
+      where: { programId: id, role: { in: ['OWNER', 'PD'] } },
+    });
+    if (ownerCount <= 1) {
+      return NextResponse.json(
+        {
+          error:
+            'Cannot demote the last program owner. Promote another member first.',
+        },
+        { status: 400 },
+      );
+    }
+  }
+
+  const updated = await db.programMember.update({
+    where: { id: memberId },
+    data: { role: body.role },
+  });
+  return NextResponse.json({ member: updated });
+}
 
 /**
  * DELETE /api/programs/[id]/members/[memberId]

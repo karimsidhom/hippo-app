@@ -99,8 +99,27 @@ enum EpaObservationStatus {
 }
 
 enum ProgramMemberRole {
-  OWNER
-  MEMBER
+  // Existing values kept first so the migration is additive — every
+  // current OWNER / MEMBER row stays valid without rewrites.
+  OWNER         // legacy: full read+write+finalize. Now equivalent to PD.
+  MEMBER        // legacy: vanilla member. Now an alias for FACULTY when
+                // unset.
+  // Granular roles (Stage-2 entrada-takeover sprint).
+  PD            // Program Director — owns the program; full read+write,
+                // finalises CC reviews, manages roster + invites.
+  CHAIR         // Department / division chair — read-only program-wide,
+                // can finalise CC reviews on the chair's seat.
+  CC_MEMBER     // Competence Committee — read-only program-wide; can
+                // write notes + decisions on CC reviews they're invited
+                // to. No roster/invite management.
+  FACULTY       // Supervising attending — only sees the residents they
+                // have an active FacultyAssignment to. Standard EPA
+                // sign-off + clinic supervision; no PD dashboard.
+  COORDINATOR   // Programme coordinator — manages invites, scheduling,
+                // and roster admin. NEVER sees PHI or case content.
+  DEPT_HEAD     // Department head — read across multiple programmes
+                // they have membership in. Above PD; rolled-up view
+                // only.
 }
 
 enum ProgramEventType {
@@ -892,9 +911,59 @@ model ProgramMember {
   role      ProgramMemberRole @default(MEMBER)
   joinedAt  DateTime          @default(now())
 
+  // Faculty assignments where THIS member is the supervising attending.
+  // Only meaningful for role == FACULTY (or legacy MEMBER acting as
+  // faculty); otherwise stays empty. Cascade-delete on member removal.
+  facultyAssignments FacultyAssignment[] @relation("FacultyOf")
+
+  // Faculty assignments where THIS member is the resident under
+  // supervision. Most members will only ever populate this side.
+  residentAssignments FacultyAssignment[] @relation("ResidentOf")
+
   @@unique([programId, userId])
   @@index([userId])
   @@map("program_members")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Faculty assignments — which faculty supervise which residents.
+// ───────────────────────────────────────────────────────────────────────────
+// CBD programmes assign each resident a primary supervising attending
+// for a rotation block (or longitudinally across the year). The same
+// programme may also assign multiple secondary supervisors. The
+// FacultyAssignment table is the join — when a FACULTY-role
+// ProgramMember opens /pd-dashboard, every API filters the resident
+// roster to ONLY those they have an active assignment to. This is the
+// hard-gate that lets institutions safely give Hippo accounts to half
+// the faculty without compromising resident psychological safety.
+//
+// Both sides reference ProgramMember (not User) so an assignment can
+// only exist within a shared program — preventing cross-program data
+// leakage by construction.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model FacultyAssignment {
+  id          String        @id @default(cuid())
+  programId   String        // denormalised for fast filtering
+  facultyId   String        // ProgramMember.id of the supervising attending
+  faculty     ProgramMember @relation("FacultyOf",  fields: [facultyId],  references: [id], onDelete: Cascade)
+  residentId  String        // ProgramMember.id of the resident under sup'n
+  resident    ProgramMember @relation("ResidentOf", fields: [residentId], references: [id], onDelete: Cascade)
+  // Optional dates so an assignment can be time-boxed to a rotation
+  // block or academic half-year. Null start/end = open-ended.
+  startDate   DateTime?
+  endDate     DateTime?
+  // "Primary" supervisor flag — most residents have one primary at a
+  // time plus optional secondary supervisors.
+  isPrimary   Boolean       @default(false)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([facultyId, residentId, startDate])
+  @@index([programId, facultyId])
+  @@index([programId, residentId])
+  @@map("faculty_assignments")
 }
 
 model ProgramInvite {

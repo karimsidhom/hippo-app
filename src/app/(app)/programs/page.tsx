@@ -27,10 +27,46 @@ interface ProgramListItem {
   createdById: string;
   createdAt: string;
   updatedAt: string;
-  myRole: "OWNER" | "MEMBER";
+  myRole: ProgramRole;
   memberCount: number;
   eventCount: number;
 }
+
+// Granular program roles (Stage-2 entrada-takeover sprint).
+// OWNER and MEMBER stay valid for backward compatibility — OWNER acts
+// as the PD-equivalent and MEMBER as FACULTY-equivalent until the
+// institution upgrades the row.
+type ProgramRole =
+  | "OWNER"
+  | "PD"
+  | "CHAIR"
+  | "CC_MEMBER"
+  | "FACULTY"
+  | "COORDINATOR"
+  | "DEPT_HEAD"
+  | "MEMBER";
+
+const ROLE_LABELS: Record<ProgramRole, string> = {
+  OWNER:       "Owner / PD",
+  PD:          "Program Director",
+  CHAIR:       "Department Chair",
+  CC_MEMBER:   "CC member",
+  FACULTY:     "Faculty / supervisor",
+  COORDINATOR: "Coordinator (no PHI)",
+  DEPT_HEAD:   "Department head",
+  MEMBER:      "Member",
+};
+
+const PD_LIKE_ROLES: ProgramRole[] = ["OWNER", "PD"];
+const isPdLike = (r: ProgramRole) => PD_LIKE_ROLES.includes(r);
+const ROLE_OPTIONS: ProgramRole[] = [
+  "PD",
+  "CHAIR",
+  "CC_MEMBER",
+  "FACULTY",
+  "COORDINATOR",
+  "DEPT_HEAD",
+];
 
 interface ProgramDetail {
   program: {
@@ -43,11 +79,11 @@ interface ProgramDetail {
     createdAt: string;
     updatedAt: string;
   };
-  myRole: "OWNER" | "MEMBER";
+  myRole: ProgramRole;
   members: Array<{
     id: string;
     userId: string;
-    role: "OWNER" | "MEMBER";
+    role: ProgramRole;
     joinedAt: string;
     name: string | null;
     email: string;
@@ -281,7 +317,7 @@ export default function ProgramsPage() {
                   >
                     {p.name}
                   </span>
-                  {p.myRole === "OWNER" && (
+                  {isPdLike(p.myRole) && (
                     <span
                       style={{
                         fontSize: 10,
@@ -651,6 +687,27 @@ function ProgramDetailSheet({
     onChanged();
   };
 
+  // Change a member's role. PATCH the member endpoint with the new
+  // role value; the server enforces the "can't demote the last owner"
+  // guard. Optimistic — refetch on success/failure to stay in sync.
+  const updateMemberRole = async (memberId: string, role: ProgramRole) => {
+    const res = await fetch(
+      `/api/programs/${programId}/members/${memberId}`,
+      {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role }),
+      },
+    );
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      alert(j.error ?? "Could not change role");
+    }
+    load();
+    onChanged();
+  };
+
   const leaveProgram = async (memberId: string) => {
     if (!confirm("Leave this program?")) return;
     const res = await fetch(`/api/programs/${programId}/members/${memberId}`, {
@@ -700,7 +757,7 @@ function ProgramDetailSheet({
       ) : (
         <>
           {/* Invite (owner only) */}
-          {detail.myRole === "OWNER" && (
+          {isPdLike(detail.myRole) && (
             <div style={{ marginBottom: 20, position: "relative" }}>
               <SectionTitle>Invite members</SectionTitle>
               <div style={{ display: "flex", gap: 8 }}>
@@ -884,7 +941,7 @@ function ProgramDetailSheet({
           )}
 
           {/* Pending invites */}
-          {detail.myRole === "OWNER" && detail.invites.length > 0 && (
+          {isPdLike(detail.myRole) && detail.invites.length > 0 && (
             <div style={{ marginBottom: 20 }}>
               <SectionTitle>Pending invites ({detail.invites.length})</SectionTitle>
               {detail.invites.map((inv) => (
@@ -1000,7 +1057,7 @@ function ProgramDetailSheet({
                       >
                         {m.name ?? m.email}
                       </span>
-                      {m.role === "OWNER" && (
+                      {isPdLike(m.role) && (
                         <ShieldCheck
                           size={12}
                           style={{ color: "var(--primary)" }}
@@ -1013,6 +1070,7 @@ function ProgramDetailSheet({
                         color: "var(--text-3)",
                         display: "flex",
                         gap: 4,
+                        flexWrap: "wrap",
                       }}
                     >
                       <span>
@@ -1024,9 +1082,47 @@ function ProgramDetailSheet({
                           <span>{m.trainingYearLabel}</span>
                         </>
                       )}
+                      {/* Granular program role label */}
+                      <span style={{ color: "var(--muted)" }}>·</span>
+                      <span style={{ color: isPdLike(m.role) ? "var(--primary)" : "var(--text-3)" }}>
+                        {ROLE_LABELS[m.role]}
+                      </span>
                     </div>
                   </div>
-                  {detail.myRole === "OWNER" && m.role !== "OWNER" && !isSelf && (
+                  {/* PD-only role dropdown — change a member's permissions */}
+                  {isPdLike(detail.myRole) && !isSelf && (
+                    <select
+                      value={m.role}
+                      onChange={(e) => updateMemberRole(m.id, e.target.value as ProgramRole)}
+                      title="Change role"
+                      style={{
+                        background: "var(--surface)",
+                        border: "1px solid var(--border)",
+                        color: "var(--text-2)",
+                        borderRadius: 6,
+                        padding: "4px 8px",
+                        fontSize: 11,
+                        fontFamily: "inherit",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {/* Keep OWNER as a non-selectable option only when
+                          the user already holds it — discourages
+                          casually demoting/transferring ownership.    */}
+                      {m.role === "OWNER" && (
+                        <option value="OWNER">{ROLE_LABELS.OWNER}</option>
+                      )}
+                      {ROLE_OPTIONS.map((r) => (
+                        <option key={r} value={r}>
+                          {ROLE_LABELS[r]}
+                        </option>
+                      ))}
+                      {m.role === "MEMBER" && (
+                        <option value="MEMBER">{ROLE_LABELS.MEMBER}</option>
+                      )}
+                    </select>
+                  )}
+                  {isPdLike(detail.myRole) && !isPdLike(m.role) && !isSelf && (
                     <button
                       onClick={() => removeMember(m.id)}
                       aria-label="Remove"
@@ -1061,7 +1157,7 @@ function ProgramDetailSheet({
               marginTop: 8,
             }}
           >
-            {detail.myRole === "OWNER" ? (
+            {isPdLike(detail.myRole) ? (
               <button
                 onClick={deleteProgram}
                 style={{

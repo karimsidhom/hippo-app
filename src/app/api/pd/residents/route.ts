@@ -1,11 +1,22 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { roleCanReadAllResidents } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/residents
- * Returns all residents/fellows at the same institution as the
- * requesting staff member (PD, Attending, or Staff).
+ * Returns the resident/fellow roster the caller is allowed to see.
+ *
+ * Two-tier visibility (Stage-2 faculty-permissions sprint):
+ *   • PD / OWNER / CHAIR / CC_MEMBER / DEPT_HEAD / COORDINATOR — see
+ *     every resident at their institution who's also at least one
+ *     of those roles' member of their program(s).
+ *   • FACULTY (and legacy MEMBER) — see ONLY the residents they have
+ *     an active FacultyAssignment to. The faculty member can still
+ *     hit the dashboard; it just shows their direct trainees.
+ *
+ * The Profile.roleType gate (PROGRAM_DIRECTOR / ATTENDING / STAFF)
+ * remains as the entry-level gate so non-staff users still get a 403.
  */
 export async function GET() {
   const { user, error } = await requireAuth();
@@ -28,12 +39,53 @@ export async function GET() {
     );
   }
 
-  // Find all users at the same institution
+  // ── Compute FACULTY scope across every program the caller belongs to.
+  // If the caller has ANY program where they have unbounded read access
+  // (PD / CHAIR / etc.), they get the full institution roster. Otherwise
+  // we filter to the union of residents directly assigned to them as
+  // a FACULTY member.
+  const memberships = await db.programMember.findMany({
+    where: { userId: user.id },
+    select: { id: true, role: true, programId: true },
+  });
+
+  const hasUnbounded = memberships.some((m) =>
+    roleCanReadAllResidents(m.role),
+  );
+
+  let allowedResidentUserIds: string[] | null = null;
+  if (!hasUnbounded && memberships.length > 0) {
+    // Build the union of residents assigned to me across all programs.
+    const facultyMemberIds = memberships.map((m) => m.id);
+    const now = new Date();
+    const assignments = await db.facultyAssignment.findMany({
+      where: {
+        facultyId: { in: facultyMemberIds },
+        AND: [
+          { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      include: {
+        resident: { select: { userId: true } },
+      },
+    });
+    allowedResidentUserIds = Array.from(
+      new Set(assignments.map((a) => a.resident.userId)),
+    );
+  }
+  // hasUnbounded === true OR memberships.length === 0 (legacy users)
+  // both fall through to the institution-wide roster below.
+
+  // Find all users at the same institution that pass the scope filter.
   const profiles = await db.profile.findMany({
     where: {
       institution: pdProfile.institution,
       userId: { not: user.id },
       roleType: { in: ['RESIDENT', 'FELLOW'] },
+      ...(allowedResidentUserIds
+        ? { userId: { in: allowedResidentUserIds } }
+        : {}),
     },
     include: {
       user: {
