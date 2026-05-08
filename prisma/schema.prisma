@@ -171,6 +171,14 @@ model User {
   notificationPreferences UserNotificationPreferences?
   caseLogImportBatches  CaseLogImportBatch[]
   caseLogImportRows     CaseLogImportRow[]
+  // Rotation block scheduling — a user can be assigned to many rotation
+  // blocks across their training. CC reviews — a user is "the resident
+  // under review", "the chair who finalised", or "an author of a note".
+  rotationAssignments   RotationAssignment[]   @relation("RotationAssignments")
+  ccReviewsAsResident   CCReview[]             @relation("CCReviewsAsResident")
+  ccReviewsCreated      CCReview[]             @relation("CCReviewsCreated")
+  ccReviewsFinalised    CCReview[]             @relation("CCReviewsFinalised")
+  ccReviewNotes         CCReviewNote[]         @relation("CCReviewNotes")
 
   @@map("users")
 }
@@ -319,6 +327,12 @@ model CaseLog {
   originalRowNumber Int?
   importedMetadata  Json?
 
+  // ── Rotation block this case belongs to ─────────────────────────────────
+  // Optional — programs that use rotation scheduling auto-attribute the
+  // case based on its caseDate falling inside an active assignment.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation(fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
 
@@ -328,6 +342,7 @@ model CaseLog {
   @@index([userId])
   @@index([userId, caseDate(sort: Desc)])
   @@index([importBatchId])
+  @@index([rotationAssignmentId])
   @@map("case_logs")
 }
 
@@ -776,6 +791,11 @@ model EpaObservation {
   signedByName      String?
   returnedReason    String?
 
+  // Rotation block this EPA observation belongs to. Optional. Lets the CC
+  // dashboard slice EPAs by rotation when reviewing a resident.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation(fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+
   createdAt         DateTime              @default(now())
   updatedAt         DateTime              @updatedAt
 
@@ -786,6 +806,7 @@ model EpaObservation {
   @@index([userId, status])
   @@index([caseLogId])
   @@index([assessorUserId, status])
+  @@index([rotationAssignmentId])
   @@map("epa_observations")
 }
 
@@ -852,9 +873,11 @@ model Program {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members ProgramMember[]
-  invites ProgramInvite[]
-  events  ProgramEvent[]
+  members   ProgramMember[]
+  invites   ProgramInvite[]
+  events    ProgramEvent[]
+  rotations Rotation[]
+  ccReviews CCReview[]
 
   @@index([createdById])
   @@map("programs")
@@ -918,8 +941,166 @@ model ProgramEvent {
   @@map("program_events")
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// Rotations (CBD block scheduling)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// In Canadian residency programs cases and EPAs are bucketed by rotation
+// "blocks" — Karim is on Endourology Mar 15 → Apr 26, then on a different
+// service through to May 24, etc. Programs run 4-, 6-, or 13-block years.
+// Entrada makes block-attribution central; without this we can't slice
+// EPA / case-volume data the way every PD asks for.
+//
+// Two-table model:
+//
+//   Rotation              — a service the program runs (Urology Endourology,
+//                           General Surgery, Trauma Call Block). Names and
+//                           durations are program-defined.
+//   RotationAssignment    — a single resident on a single rotation across
+//                           a date range. CaseLog + EpaObservation tie back
+//                           via the assignment so we can answer "what did
+//                           Karim do during his Endourology block?".
+// ═══════════════════════════════════════════════════════════════════════════
 
+enum RotationCategory {
+  CORE
+  SUBSPECIALTY
+  ELECTIVE
+  RESEARCH
+  CALL
+  OTHER
+}
 
+model Rotation {
+  id          String           @id @default(cuid())
+  programId   String
+  program     Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  shortName   String?
+  // Optional Hippo specialty link — lets cases auto-suggest this rotation
+  // when their procedureCategory matches.
+  specialty   String?
+  category    RotationCategory @default(CORE)
+  description String?
+  // Hex colour for the calendar dot. Programs can theme their rotations.
+  colour      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  assignments RotationAssignment[]
+
+  @@unique([programId, name])
+  @@index([programId])
+  @@map("rotations")
+}
+
+model RotationAssignment {
+  id          String   @id @default(cuid())
+  rotationId  String
+  rotation    Rotation @relation(fields: [rotationId], references: [id], onDelete: Cascade)
+  // Resident on the block. Keep User as the source of truth so attendings
+  // can be assigned too (some programs use this for staff coverage).
+  userId      String
+  user        User     @relation("RotationAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  // Optional rotation-block label ("Block 7" / "PGY-3 Q2") — surfaced in UI.
+  blockLabel  String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cases       CaseLog[]
+  observations EpaObservation[]
+
+  @@index([userId, startDate])
+  @@index([rotationId, startDate])
+  @@map("rotation_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Competence Committee (CC) workflow
+// ───────────────────────────────────────────────────────────────────────────
+//
+// In CBD, every program runs a Competence Committee that meets ~quarterly
+// to review each resident's portfolio holistically and decide on stage
+// transitions, remediation, watch-status, etc. Without a CC workflow,
+// programs can't legally use a tool as their primary CBD platform.
+//
+//   CCReview        — one resident's review at a single CC meeting. The
+//                     resident-snapshot of all metrics + the committee's
+//                     decision + dissent are captured here.
+//   CCReviewNote    — individual member notes (multi-member discussions
+//                     with attribution and timestamps).
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CCDecision {
+  PROMOTE
+  CONTINUE
+  ON_WATCH
+  REMEDIATION
+  PROBATION
+  GRADUATE
+  WITHDRAW
+}
+
+enum CCReviewStatus {
+  IN_PROGRESS
+  FINALISED
+  ARCHIVED
+}
+
+model CCReview {
+  id          String         @id @default(cuid())
+  programId   String
+  program     Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  // The resident under review.
+  residentId  String
+  resident    User           @relation("CCReviewsAsResident", fields: [residentId], references: [id], onDelete: Cascade)
+  // Meeting date + cycle label ("Q3 2026 / PGY-3 mid-year").
+  meetingDate DateTime
+  cycleLabel  String?
+  // Pre-meeting auto-snapshot of the resident's metrics so the review is
+  // reproducible later (case volume, EPA completion, MSF aggregate).
+  // Free-shaped JSON; the renderer reads what it needs.
+  snapshot    Json?
+  // Final committee decision once the meeting is done.
+  decision    CCDecision?
+  decisionRationale String?
+  // Free-text private summary the chair signs before finalising.
+  chairSummary    String?
+  // Dissent — names + reasons of any committee members who disagreed.
+  dissent         String?
+  status          CCReviewStatus @default(IN_PROGRESS)
+  finalisedAt     DateTime?
+  finalisedById   String?
+  finalisedBy     User?          @relation("CCReviewsFinalised", fields: [finalisedById], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("CCReviewsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  notes CCReviewNote[]
+
+  @@index([programId, meetingDate])
+  @@index([residentId])
+  @@map("cc_reviews")
+}
+
+model CCReviewNote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    CCReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("CCReviewNotes", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  // Optional category so the dashboard can group notes by theme.
+  category  String?
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+  @@map("cc_review_notes")
+}
 
 // ═══════════════════════════════════════════════════════════════════════════
 // Notifications (in-app + web push)
