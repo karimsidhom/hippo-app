@@ -220,15 +220,15 @@ export default function SettingsPage() {
     value: boolean;
     sensitive?: boolean;
   }) => (
-    <div className={`flex items-start justify-between p-4 rounded-lg ${sensitive ? "bg-[#1a0f0f] border border-[#ef4444]/20" : "bg-[#16161f] border border-[#1e2130]"}`}>
+    <div className={`flex items-start justify-between p-4 rounded-lg ${sensitive ? "bg-[#1a0f0f] border border-[#ef4444]/20" : "bg-[var(--surface2)] border border-[var(--border)]"}`}>
       <div className="flex-1 pr-4">
-        <p className="text-sm font-medium text-[#f1f5f9]">{label}</p>
-        <p className="text-xs text-[#64748b] mt-0.5 leading-relaxed">{description}</p>
+        <p className="text-sm font-medium text-[var(--text)]">{label}</p>
+        <p className="text-xs text-[var(--text-3)] mt-0.5 leading-relaxed">{description}</p>
       </div>
       <button
         onClick={() => toggleAndSave(profileKey, value)}
         className={`relative flex-shrink-0 w-11 h-6 rounded-full transition-colors duration-200 ${
-          value ? (sensitive ? "bg-[#ef4444]" : "bg-[#2563eb]") : "bg-[#1e2130]"
+          value ? (sensitive ? "bg-[#ef4444]" : "bg-[var(--primary)]") : "bg-[var(--border)]"
         }`}
       >
         <span
@@ -244,8 +244,8 @@ export default function SettingsPage() {
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[#f1f5f9]">Settings</h1>
-          <p className="text-[#94a3b8] text-sm mt-0.5">Manage your account and privacy preferences</p>
+          <h1 className="text-2xl font-bold text-[var(--text)]">Settings</h1>
+          <p className="text-[var(--text-2)] text-sm mt-0.5">Manage your account and privacy preferences</p>
         </div>
         {/* Auto-save indicator — appears briefly after any save */}
         <div
@@ -274,8 +274,8 @@ export default function SettingsPage() {
                 onClick={() => setActiveTab(key)}
                 className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all text-left ${
                   activeTab === key
-                    ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb]"
-                    : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+                    ? "bg-[var(--surface2)] text-[var(--text)] border-l-2 border-[var(--primary)]"
+                    : "text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
                 }`}
               >
                 <Icon className="w-4 h-4" />
@@ -283,18 +283,18 @@ export default function SettingsPage() {
               </button>
             ))}
 
-            <div className="pt-2 mt-2 border-t border-[#1e2130]">
+            <div className="pt-2 mt-2 border-t border-[var(--border)]">
               {SUBROUTES.map(({ href, label, icon: Icon }) => (
                 <Link
                   key={href}
                   href={href}
-                  className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-all"
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-all"
                 >
                   <span className="flex items-center gap-3">
                     <Icon className="w-4 h-4" />
                     {label}
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[#475569]" />
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--muted)]" />
                 </Link>
               ))}
             </div>
@@ -307,13 +307,13 @@ export default function SettingsPage() {
           {/* ── Profile ──────────────────────────────────────────────── */}
           {activeTab === "profile" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Profile Settings</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Profile Settings</h2>
               <p style={{ fontSize: 11, color: "var(--text-3)", margin: "-8px 0 4px" }}>
                 All changes save automatically.
               </p>
-              <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-4">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-4">
                 <div>
-                  <label className="block text-xs text-[#64748b] mb-2">Display Name</label>
+                  <label className="block text-xs text-[var(--text-3)] mb-2">Display Name</label>
                   <input
                     type="text"
                     value={nameDraft}
@@ -324,21 +324,21 @@ export default function SettingsPage() {
                       }
                     }}
                     placeholder="Dr. Smith"
-                    className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                    className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs text-[#64748b] mb-2">Email</label>
+                  <label className="block text-xs text-[var(--text-3)] mb-2">Email</label>
                   <input
                     type="email"
                     defaultValue={user?.email || ""}
                     disabled
-                    className="w-full bg-[#16161f] border border-[#1e2130] text-[#64748b] rounded-lg px-3 py-2.5 text-sm cursor-not-allowed"
+                    className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-3)] rounded-lg px-3 py-2.5 text-sm cursor-not-allowed"
                   />
-                  <p className="text-xs text-[#64748b] mt-1">Email cannot be changed after registration</p>
+                  <p className="text-xs text-[var(--text-3)] mt-1">Email cannot be changed after registration</p>
                 </div>
                 <div>
-                  <label className="block text-xs text-[#64748b] mb-2">Role</label>
+                  <label className="block text-xs text-[var(--text-3)] mb-2">Role</label>
                   <select
                     value={profile?.roleType || "RESIDENT"}
                     onChange={(e) => {
@@ -416,7 +416,7 @@ export default function SettingsPage() {
                   </div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <div>
-                      <label className="block text-xs text-[#64748b] mb-2">Hospital / Institution</label>
+                      <label className="block text-xs text-[var(--text-3)] mb-2">Hospital / Institution</label>
                       <input
                         type="text"
                         value={institutionDraft}
@@ -431,11 +431,11 @@ export default function SettingsPage() {
                           }
                         }}
                         placeholder="e.g. University Health Network"
-                        className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] placeholder-[#64748b] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs text-[#64748b] mb-2">City</label>
+                      <label className="block text-xs text-[var(--text-3)] mb-2">City</label>
                       <input
                         type="text"
                         value={cityDraft}
@@ -446,7 +446,7 @@ export default function SettingsPage() {
                           }
                         }}
                         placeholder="e.g. Toronto"
-                        className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] placeholder-[#64748b] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                        className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                       />
                     </div>
                   </div>
@@ -529,14 +529,14 @@ export default function SettingsPage() {
           {/* ── Privacy & PHIA ───────────────────────────────────────── */}
           {activeTab === "privacy" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Privacy & PHIA Compliance</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Privacy & PHIA Compliance</h2>
 
-              <div className="p-4 bg-[#1a1a2e] border border-[#2563eb]/30 rounded-xl">
+              <div className="p-4 bg-[var(--surface2)] border border-[var(--primary)]/30 rounded-xl">
                 <div className="flex items-start gap-3">
                   <Shield className="w-4 h-4 text-[#3b82f6] mt-0.5 flex-shrink-0" />
                   <div>
-                    <p className="text-sm font-semibold text-[#f1f5f9]">PHIA Commitment</p>
-                    <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+                    <p className="text-sm font-semibold text-[var(--text)]">PHIA Commitment</p>
+                    <p className="text-xs text-[var(--text-2)] mt-1 leading-relaxed">
                       Hippo is designed to comply with the Ontario Personal Health Information Act (PHIA) and equivalent provincial legislation. We never store patient-identifiable information. All case notes are screened for PHI patterns before storage. Your data is encrypted at rest and in transit.
                     </p>
                   </div>
@@ -563,7 +563,7 @@ export default function SettingsPage() {
           {/* ── Social ───────────────────────────────────────────────── */}
           {activeTab === "social" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Social & Notifications</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Social & Notifications</h2>
               <div className="space-y-2">
                 <ToggleRow
                   label="Allow friend requests"
@@ -584,8 +584,8 @@ export default function SettingsPage() {
           {/* ── Leaderboard ──────────────────────────────────────────── */}
           {activeTab === "leaderboard" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Leaderboard Participation</h2>
-              <div className="p-4 bg-[#16161f] border border-[#1e2130] rounded-lg text-xs text-[#94a3b8]">
+              <h2 className="text-base font-semibold text-[var(--text)]">Leaderboard Participation</h2>
+              <div className="p-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-2)]">
                 Leaderboard rankings use anonymized display names (e.g., &quot;Resident PGY-4&quot; or &quot;Dr. A.C.&quot;). No patient data is ever shared. Rankings are based solely on case volume, autonomy levels, and improvement metrics.
               </div>
               <div className="space-y-2">
@@ -602,7 +602,7 @@ export default function SettingsPage() {
           {/* ── Export ────────────────────────────────────────────────── */}
           {activeTab === "export" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Export Case Log</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Export Case Log</h2>
 
               {/* Download button */}
               <button
@@ -635,13 +635,13 @@ export default function SettingsPage() {
                     setExporting(false);
                   }
                 }}
-                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
+                className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-[var(--primary)] hover:bg-[var(--primary-lo)] disabled:opacity-60 text-white text-sm font-semibold rounded-xl transition-colors"
               >
                 <Download className="w-4 h-4" />
                 {exporting ? 'Preparing\u2026' : 'Download Excel (.xlsx)'}
               </button>
 
-              <p className="text-xs text-[#475569] text-center">
+              <p className="text-xs text-[var(--muted)] text-center">
                 Exports all your cases in a PHIA-safe format. No patient identifiers are included.
               </p>
 
@@ -717,7 +717,7 @@ export default function SettingsPage() {
           {/* ── Subscription ─────────────────────────────────────────── */}
           {activeTab === "subscription" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Subscription</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Subscription</h2>
 
               {/* Beta-era card: everything is free. No paid tier, no billing
                   flow surfaced. When we turn Pro back on post-launch, the
@@ -728,25 +728,25 @@ export default function SettingsPage() {
                     <Sparkles className="w-4 h-4 text-[#0EA5E9]" />
                   </div>
                   <div>
-                    <div className="text-sm font-bold text-[#f1f5f9]">Everything is free during beta</div>
-                    <div className="text-[11px] text-[#94a3b8] mt-0.5">
+                    <div className="text-sm font-bold text-[var(--text)]">Everything is free during beta</div>
+                    <div className="text-[11px] text-[var(--text-2)] mt-0.5">
                       All features unlocked for every user — no paid tier yet.
                     </div>
                   </div>
                 </div>
-                <p className="text-xs text-[#94a3b8] leading-relaxed mt-3">
+                <p className="text-xs text-[var(--text-2)] leading-relaxed mt-3">
                   Hippo is in open beta. Unlimited case logging, AI coaching,
                   PDF exports, and the full attending toolkit are available to
                   every user at no cost.
                 </p>
-                <p className="text-[11px] text-[#64748b] mt-3 leading-relaxed">
+                <p className="text-[11px] text-[var(--text-3)] mt-3 leading-relaxed">
                   A paid tier will come later once we know what residents value
                   most. You&apos;ll hear about it in the app before anything
                   changes — nothing will be silently removed.
                 </p>
               </div>
 
-              <div className="bg-[#111118] border border-[#1f1f23] rounded-xl p-5">
+              <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
                 <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">What you have access to</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                   {[
@@ -775,18 +775,18 @@ export default function SettingsPage() {
           {activeTab === "feedback" && (
             <div className="space-y-4">
               <div>
-                <h2 className="text-base font-semibold text-[#f1f5f9]">Feedback for the developer</h2>
-                <p className="text-xs text-[#64748b] mt-1 leading-relaxed">
+                <h2 className="text-base font-semibold text-[var(--text)]">Feedback for the developer</h2>
+                <p className="text-xs text-[var(--text-3)] mt-1 leading-relaxed">
                   Bug, idea, or general note — goes straight to Karim&apos;s personal inbox.
                   Include as much detail as you&apos;d like (steps to reproduce, what you
                   expected, what happened). Please don&apos;t include patient identifiers.
                 </p>
               </div>
 
-              <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-4">
+              <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-4">
                 {/* Category chips */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-2 block">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
                     What kind of feedback?
                   </label>
                   <div className="flex gap-2">
@@ -806,7 +806,7 @@ export default function SettingsPage() {
                           className={`flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
                             selected
                               ? "bg-[#0EA5E9]/15 border border-[#0EA5E9]/40 text-[#0EA5E9]"
-                              : "bg-[#16161f] border border-[#1e2130] text-[#94a3b8] hover:text-[#f1f5f9]"
+                              : "bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)]"
                           }`}
                         >
                           {opt.label}
@@ -818,7 +818,7 @@ export default function SettingsPage() {
 
                 {/* Message textarea */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-2 block">
+                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
                     Message
                   </label>
                   <textarea
@@ -836,14 +836,14 @@ export default function SettingsPage() {
                           ? "What would make Hippo work better for you?"
                           : "Anything on your mind — good, bad, or otherwise."
                     }
-                    className="w-full bg-[#0a0a0f] border border-[#1e2130] rounded-lg px-3 py-2.5 text-sm text-[#f1f5f9] placeholder:text-[#475569] focus:outline-none focus:border-[#0EA5E9]/50 resize-y"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50 resize-y"
                     style={{ minHeight: 140 }}
                   />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-[#475569]">
+                    <span className="text-[10px] text-[var(--muted)]">
                       {feedbackMessage.length} / 4000
                     </span>
-                    <span className="text-[10px] text-[#475569]">
+                    <span className="text-[10px] text-[var(--muted)]">
                       Replies come from karimsidhom@outlook.com
                     </span>
                   </div>
@@ -867,7 +867,7 @@ export default function SettingsPage() {
                 <button
                   onClick={submitFeedback}
                   disabled={!feedbackMessage.trim() || feedbackSending}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[#1e2130] disabled:text-[#475569] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
                 >
                   <Send size={14} />
                   {feedbackSending ? "Sending…" : "Send to developer"}
@@ -879,27 +879,27 @@ export default function SettingsPage() {
           {/* ── Account ──────────────────────────────────────────────── */}
           {activeTab === "account" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">Account Controls</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Account Controls</h2>
 
               <div className="space-y-3">
-                <div className="p-4 bg-[#111118] border border-[#1e2130] rounded-xl">
+                <div className="p-4 bg-[var(--surface)] border border-[var(--border)] rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-[#f1f5f9]">Download my data</p>
-                      <p className="text-xs text-[#64748b] mt-0.5">Export all your case data in JSON format</p>
+                      <p className="text-sm font-medium text-[var(--text)]">Download my data</p>
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">Export all your case data in JSON format</p>
                     </div>
-                    <a href="/api/account/export" download className="flex items-center gap-1.5 px-3 py-2 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] hover:text-[#f1f5f9] rounded-lg text-xs transition-all">
+                    <a href="/api/account/export" download className="flex items-center gap-1.5 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] rounded-lg text-xs transition-all">
                       <Download className="w-3 h-3" />
                       Download
                     </a>
                   </div>
                 </div>
 
-                <div className="p-4 bg-[#16161f] border border-[#1e2130] rounded-xl">
+                <div className="p-4 bg-[var(--surface2)] border border-[var(--border)] rounded-xl">
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="text-sm font-medium text-[#f1f5f9]">Change password</p>
-                      <p className="text-xs text-[#64748b] mt-0.5">Update your account password</p>
+                      <p className="text-sm font-medium text-[var(--text)]">Change password</p>
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">Update your account password</p>
                     </div>
                     <button
                       onClick={() => {
@@ -909,7 +909,7 @@ export default function SettingsPage() {
                         setPwShow(false);
                         setPwOpen(true);
                       }}
-                      className="flex items-center gap-1.5 px-3 py-2 bg-[#16161f] border border-[#252838] text-[#94a3b8] hover:text-[#f1f5f9] rounded-lg text-xs transition-all"
+                      className="flex items-center gap-1.5 px-3 py-2 bg-[var(--surface2)] border border-[var(--border-mid)] text-[var(--text-2)] hover:text-[var(--text)] rounded-lg text-xs transition-all"
                     >
                       Change <ChevronRight className="w-3 h-3" />
                     </button>
@@ -920,7 +920,7 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm font-medium text-[#ef4444]">Delete account</p>
-                      <p className="text-xs text-[#64748b] mt-0.5">
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">
                         Permanently delete your account and all data. This cannot be undone.
                       </p>
                     </div>
@@ -966,11 +966,11 @@ export default function SettingsPage() {
             <div className="flex items-center justify-between px-5 py-4 border-b border-[#1f1f23]">
               <div className="flex items-center gap-2">
                 <KeyRound size={16} className="text-[#0EA5E9]" />
-                <span className="text-sm font-semibold text-[#f1f5f9]">Change password</span>
+                <span className="text-sm font-semibold text-[var(--text)]">Change password</span>
               </div>
               <button
                 onClick={() => !pwSubmitting && setPwOpen(false)}
-                className="text-[#71717a] hover:text-[#f1f5f9]"
+                className="text-[#71717a] hover:text-[var(--text)]"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -978,7 +978,7 @@ export default function SettingsPage() {
             </div>
             <div className="px-5 py-5 space-y-4">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
                   New password
                 </label>
                 <div className="relative">
@@ -991,12 +991,12 @@ export default function SettingsPage() {
                       if (pwStatus) setPwStatus(null);
                     }}
                     placeholder="At least 8 characters"
-                    className="w-full bg-[#0a0a0f] border border-[#1e2130] rounded-lg px-3 py-2.5 text-sm text-[#f1f5f9] placeholder:text-[#475569] focus:outline-none focus:border-[#0EA5E9]/50 pr-10"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50 pr-10"
                   />
                   <button
                     type="button"
                     onClick={() => setPwShow((v) => !v)}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[#64748b] hover:text-[#f1f5f9]"
+                    className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-[var(--text-3)] hover:text-[var(--text)]"
                     tabIndex={-1}
                     aria-label={pwShow ? "Hide password" : "Show password"}
                   >
@@ -1005,7 +1005,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
                   Confirm new password
                 </label>
                 <input
@@ -1017,7 +1017,7 @@ export default function SettingsPage() {
                     if (pwStatus) setPwStatus(null);
                   }}
                   placeholder="Re-enter the password"
-                  className="w-full bg-[#0a0a0f] border border-[#1e2130] rounded-lg px-3 py-2.5 text-sm text-[#f1f5f9] placeholder:text-[#475569] focus:outline-none focus:border-[#0EA5E9]/50"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50"
                 />
               </div>
 
@@ -1038,14 +1038,14 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setPwOpen(false)}
                   disabled={pwSubmitting}
-                  className="flex-1 py-2.5 bg-transparent border border-[#1e2130] text-[#94a3b8] hover:text-[#f1f5f9] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-transparent border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={submitPasswordChange}
                   disabled={pwSubmitting || !pwNew || !pwConfirm}
-                  className="flex-1 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[#1e2130] disabled:text-[#475569] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Lock size={14} />
                   {pwSubmitting ? "Updating…" : "Update password"}
@@ -1083,7 +1083,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => !delSubmitting && setDelOpen(false)}
-                className="text-[#71717a] hover:text-[#f1f5f9]"
+                className="text-[#71717a] hover:text-[var(--text)]"
                 aria-label="Close"
               >
                 <X size={16} />
@@ -1091,24 +1091,24 @@ export default function SettingsPage() {
             </div>
             <div className="px-5 py-5 space-y-4">
               <div className="space-y-2">
-                <p className="text-sm font-medium text-[#f1f5f9]">
+                <p className="text-sm font-medium text-[var(--text)]">
                   This action is permanent and cannot be undone.
                 </p>
-                <p className="text-xs text-[#94a3b8] leading-relaxed">
+                <p className="text-xs text-[var(--text-2)] leading-relaxed">
                   Every case log, EPA observation, milestone, and program
-                  membership tied to <strong className="text-[#f1f5f9]">{user?.email}</strong>{" "}
+                  membership tied to <strong className="text-[var(--text)]">{user?.email}</strong>{" "}
                   will be deleted from Hippo's servers. Your Supabase auth record
                   will be removed so the email can register fresh if you change
                   your mind.
                 </p>
-                <p className="text-xs text-[#94a3b8] leading-relaxed">
+                <p className="text-xs text-[var(--text-2)] leading-relaxed">
                   Consider downloading your data first from{" "}
-                  <strong className="text-[#f1f5f9]">Account → Download my data</strong>.
+                  <strong className="text-[var(--text)]">Account → Download my data</strong>.
                 </p>
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[#64748b] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
                   To confirm, type:{" "}
                   <span className="text-[#ef4444] font-mono normal-case tracking-normal">
                     {expectedDelete}
@@ -1123,7 +1123,7 @@ export default function SettingsPage() {
                   autoComplete="off"
                   spellCheck={false}
                   placeholder={expectedDelete}
-                  className="w-full bg-[#0a0a0f] border border-[#1e2130] rounded-lg px-3 py-2.5 text-sm text-[#f1f5f9] placeholder:text-[#334155] focus:outline-none focus:border-[#ef4444]/50 font-mono"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[#334155] focus:outline-none focus:border-[#ef4444]/50 font-mono"
                 />
               </div>
 
@@ -1138,14 +1138,14 @@ export default function SettingsPage() {
                 <button
                   onClick={() => setDelOpen(false)}
                   disabled={delSubmitting}
-                  className="flex-1 py-2.5 bg-transparent border border-[#1e2130] text-[#94a3b8] hover:text-[#f1f5f9] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  className="flex-1 py-2.5 bg-transparent border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
                 >
                   Cancel
                 </button>
                 <button
                   onClick={submitAccountDelete}
                   disabled={delSubmitting || delConfirm.trim() !== expectedDelete}
-                  className="flex-1 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] disabled:bg-[#1e2130] disabled:text-[#475569] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Trash2 size={14} />
                   {delSubmitting ? "Deleting…" : "Permanently delete"}

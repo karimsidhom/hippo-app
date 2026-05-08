@@ -18,7 +18,7 @@ type PickerView = 'subcategory' | 'procedure' | 'custom';
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
 const CATEGORY_COLORS = [
-  '#6c7fff', '#3ecf8e', '#a78bfa', '#f97316', '#e05c5c',
+  'var(--primary)', '#3ecf8e', '#a78bfa', '#f97316', '#e05c5c',
   '#06b6d4', '#ec4899', '#84cc16', '#d946ef', '#14b8a6',
   '#f59e0b', '#0ea5e9', '#a16207', '#059669', '#dc2626',
 ];
@@ -240,7 +240,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
   const headerColor =
     view === 'procedure' && selectedCategory
       ? categoryColor(selectedCategory)
-      : '#f1f5f9';
+      : 'var(--text)';
 
   // ── Styles (inline for portability) ───────────────────────────────────────
 
@@ -249,7 +249,9 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
       position: 'fixed' as const,
       inset: 0,
       zIndex: 500,
-      background: 'rgba(0,0,0,0.78)',
+      // Theme-aware modal scrim: dark in dark mode, lighter in light
+      // mode so the sheet still has focus without crushing the page.
+      background: 'var(--modal-scrim, rgba(0,0,0,0.62))',
       display: 'flex',
       alignItems: 'flex-end' as const,
       justifyContent: 'center',
@@ -257,7 +259,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
     sheet: {
       width: '100%',
       maxWidth: 540,
-      background: '#0e0e16',
+      background: 'var(--surface)',
       borderRadius: '20px 20px 0 0',
       maxHeight: '90vh',
       display: 'flex',
@@ -267,7 +269,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
     },
     handle: {
       width: 36, height: 4,
-      background: '#252838',
+      background: 'var(--border-mid)',
       borderRadius: 2,
       margin: '14px auto 0',
       flexShrink: 0,
@@ -280,20 +282,20 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
       flexShrink: 0,
     } as React.CSSProperties,
     backBtn: {
-      background: '#16161f',
+      background: 'var(--surface2)',
       border: '1px solid #1e2130',
       borderRadius: 8,
       width: 32, height: 32,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       cursor: 'pointer',
       flexShrink: 0,
-      color: '#94a3b8',
+      color: 'var(--text-2)',
     } as React.CSSProperties,
     closeBtn: {
       background: 'none',
       border: 'none',
       cursor: 'pointer',
-      color: '#64748b',
+      color: 'var(--text-3)',
       display: 'flex',
       padding: 6,
       borderRadius: 8,
@@ -308,10 +310,10 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
     searchInput: {
       width: '100%',
       padding: '10px 36px 10px 36px',
-      background: '#16161f',
+      background: 'var(--surface2)',
       border: '1px solid #252838',
       borderRadius: 10,
-      color: '#f1f5f9',
+      color: 'var(--text)',
       fontSize: 14,
       outline: 'none',
       fontFamily: 'inherit',
@@ -340,10 +342,10 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
         style={{
           width: '100%',
           padding: '11px 14px',
-          background: '#16161f',
-          border: `1px solid ${value ? '#2563eb40' : '#1e2130'}`,
+          background: 'var(--surface2)',
+          border: `1px solid ${value ? 'rgba(14,165,233,0.25)' : 'var(--border)'}`,
           borderRadius: 10,
-          color: value ? '#f1f5f9' : '#64748b',
+          color: value ? 'var(--text)' : 'var(--text-3)',
           fontSize: 14,
           textAlign: 'left',
           cursor: 'pointer',
@@ -354,13 +356,13 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
           fontFamily: 'inherit',
           transition: 'border-color 0.15s',
         }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = '#2563eb')}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = value ? '#2563eb40' : '#1e2130')}
+        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
+        onMouseLeave={e => (e.currentTarget.style.borderColor = value ? 'rgba(14,165,233,0.25)' : 'var(--border)')}
       >
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
           {value || 'Select procedure…'}
         </span>
-        <ChevronRight size={14} style={{ color: '#64748b', flexShrink: 0 }} />
+        <ChevronRight size={14} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
       </button>
 
       {/* ── Bottom Sheet Modal ───────────────────────────────────────────────── */}
@@ -403,7 +405,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
                 <div style={S.searchInner}>
                   <Search size={15} style={{
                     position: 'absolute', left: 12, top: '50%',
-                    transform: 'translateY(-50%)', color: '#64748b',
+                    transform: 'translateY(-50%)', color: 'var(--text-3)',
                   }} />
                   <input
                     ref={searchRef}
@@ -424,7 +426,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
                         position: 'absolute', right: 10, top: '50%',
                         transform: 'translateY(-50%)',
                         background: 'none', border: 'none',
-                        cursor: 'pointer', color: '#64748b',
+                        cursor: 'pointer', color: 'var(--text-3)',
                       }}
                     >
                       <X size={14} />
@@ -468,7 +470,7 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
                   query={search}
                   selectedValue={value}
                   categoryName={selectedCategory ?? ''}
-                  categoryColor={selectedCategory ? categoryColor(selectedCategory) : '#6c7fff'}
+                  categoryColor={selectedCategory ? categoryColor(selectedCategory) : 'var(--primary)'}
                   onSelect={selectProc}
                   onCustom={() => setView('custom')}
                   tierLabel={tierLabel}
@@ -527,8 +529,8 @@ function SubcategoryGrid({
               onClick={() => onSelect(name)}
               style={{
                 padding: '14px 14px 12px',
-                background: hasSelected ? `${color}12` : '#16161f',
-                border: `1px solid ${hasSelected ? color : '#1e2130'}`,
+                background: hasSelected ? `${color}12` : 'var(--surface2)',
+                border: `1px solid ${hasSelected ? color : 'var(--border)'}`,
                 borderRadius: 12,
                 cursor: 'pointer',
                 fontFamily: 'inherit',
@@ -543,8 +545,8 @@ function SubcategoryGrid({
                 e.currentTarget.style.background = `${color}10`;
               }}
               onMouseLeave={e => {
-                e.currentTarget.style.borderColor = hasSelected ? color : '#1e2130';
-                e.currentTarget.style.background = hasSelected ? `${color}12` : '#16161f';
+                e.currentTarget.style.borderColor = hasSelected ? color : 'var(--border)';
+                e.currentTarget.style.background = hasSelected ? `${color}12` : 'var(--surface2)';
               }}
             >
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -560,10 +562,10 @@ function SubcategoryGrid({
                   </span>
                 )}
               </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: hasSelected ? color : '#f1f5f9', lineHeight: 1.3 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: hasSelected ? color : 'var(--text)', lineHeight: 1.3 }}>
                 {name}
               </div>
-              <div style={{ fontSize: 11, color: '#64748b' }}>
+              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
                 {procs.length} procedure{procs.length !== 1 ? 's' : ''}
               </div>
             </button>
@@ -586,12 +588,12 @@ function SubcategoryGrid({
             flexDirection: 'column',
             gap: 6,
           }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = '#64748b')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = '#252838')}
+          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-3)')}
+          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-mid)')}
         >
           <span style={{ fontSize: 18, lineHeight: 1 }}>✏️</span>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#94a3b8' }}>Other</div>
-          <div style={{ fontSize: 11, color: '#64748b' }}>Custom entry</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Other</div>
+          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Custom entry</div>
         </button>
       </div>
     </div>
@@ -620,8 +622,8 @@ function SearchResults({
   if (results.length === 0) {
     return (
       <div>
-        <div style={{ textAlign: 'center', padding: '28px 16px 12px', color: '#64748b', fontSize: 14 }}>
-          No procedures found for "<strong style={{ color: '#94a3b8' }}>{query}</strong>"
+        <div style={{ textAlign: 'center', padding: '28px 16px 12px', color: 'var(--text-3)', fontSize: 14 }}>
+          No procedures found for "<strong style={{ color: 'var(--text-2)' }}>{query}</strong>"
         </div>
         <div style={{ padding: '0 16px 24px' }}>
           <button
@@ -629,10 +631,10 @@ function SearchResults({
             style={{
               width: '100%',
               padding: '13px 16px',
-              background: 'rgba(37,99,235,0.07)',
+              background: 'rgba(14,165,233,0.08)',
               border: '1px dashed #2563eb',
               borderRadius: 10,
-              color: '#3b82f6',
+              color: 'var(--primary)',
               fontSize: 14,
               fontWeight: 500,
               cursor: 'pointer',
@@ -664,7 +666,7 @@ function SearchResults({
           showCategory={showCategory}
         />
       ))}
-      <div style={{ padding: '10px 16px 20px', borderTop: '1px solid #1a1a24' }}>
+      <div style={{ padding: '10px 16px 20px', borderTop: '1px solid var(--border)' }}>
         <button
           onClick={onCustom}
           style={{
@@ -673,7 +675,7 @@ function SearchResults({
             background: 'transparent',
             border: '1px dashed #252838',
             borderRadius: 10,
-            color: '#64748b',
+            color: 'var(--text-3)',
             fontSize: 13,
             cursor: 'pointer',
             fontFamily: 'inherit',
@@ -717,8 +719,8 @@ function ProcedureList({
   return (
     <div>
       {noResults ? (
-        <div style={{ textAlign: 'center', padding: '28px 16px', color: '#64748b', fontSize: 14 }}>
-          No results for &ldquo;<strong style={{ color: '#94a3b8' }}>{query}</strong>&rdquo; in {categoryName}
+        <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--text-3)', fontSize: 14 }}>
+          No results for &ldquo;<strong style={{ color: 'var(--text-2)' }}>{query}</strong>&rdquo; in {categoryName}
         </div>
       ) : (
         procedures.map(proc => (
@@ -735,7 +737,7 @@ function ProcedureList({
       )}
 
       {/* Always-visible Other option */}
-      <div style={{ padding: '10px 16px 24px', borderTop: '1px solid #1a1a24', marginTop: 4 }}>
+      <div style={{ padding: '10px 16px 24px', borderTop: '1px solid var(--border)', marginTop: 4 }}>
         <button
           onClick={onCustom}
           style={{
@@ -744,7 +746,7 @@ function ProcedureList({
             background: 'transparent',
             border: '1px dashed #252838',
             borderRadius: 10,
-            color: '#64748b',
+            color: 'var(--text-3)',
             fontSize: 14,
             cursor: 'pointer',
             fontFamily: 'inherit',
@@ -754,12 +756,12 @@ function ProcedureList({
             gap: 10,
           }}
           onMouseEnter={e => {
-            e.currentTarget.style.borderColor = '#64748b';
-            e.currentTarget.style.color = '#94a3b8';
+            e.currentTarget.style.borderColor = 'var(--text-3)';
+            e.currentTarget.style.color = 'var(--text-2)';
           }}
           onMouseLeave={e => {
-            e.currentTarget.style.borderColor = '#252838';
-            e.currentTarget.style.color = '#64748b';
+            e.currentTarget.style.borderColor = 'var(--border-mid)';
+            e.currentTarget.style.color = 'var(--text-3)';
           }}
         >
           <Pencil size={14} />
@@ -783,7 +785,7 @@ const CustomEntry = React.forwardRef<
     <div style={{ padding: '8px 16px 32px' }}>
       {category && (
         <div style={{
-          fontSize: 12, color: '#64748b',
+          fontSize: 12, color: 'var(--text-3)',
           marginBottom: 12,
           display: 'flex', alignItems: 'center', gap: 6,
         }}>
@@ -795,7 +797,7 @@ const CustomEntry = React.forwardRef<
         </div>
       )}
 
-      <p style={{ fontSize: 13, color: '#64748b', marginBottom: 14, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 14, lineHeight: 1.5 }}>
         Enter the procedure name as you&apos;d like it recorded. Be specific — this will
         appear in your case log and exports.
       </p>
@@ -810,10 +812,10 @@ const CustomEntry = React.forwardRef<
         style={{
           width: '100%',
           padding: '13px 14px',
-          background: '#16161f',
+          background: 'var(--surface2)',
           border: '1px solid #252838',
           borderRadius: 10,
-          color: '#f1f5f9',
+          color: 'var(--text)',
           fontSize: 14,
           outline: 'none',
           fontFamily: 'inherit',
@@ -821,8 +823,8 @@ const CustomEntry = React.forwardRef<
           marginBottom: 12,
           transition: 'border-color 0.15s',
         }}
-        onFocus={e => (e.target.style.borderColor = '#2563eb')}
-        onBlur={e => (e.target.style.borderColor = '#252838')}
+        onFocus={e => (e.target.style.borderColor = 'var(--primary)')}
+        onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
       />
 
       <button
@@ -831,8 +833,8 @@ const CustomEntry = React.forwardRef<
         style={{
           width: '100%',
           padding: '14px',
-          background: value.trim() ? '#2563eb' : '#16161f',
-          color: value.trim() ? '#fff' : '#64748b',
+          background: value.trim() ? 'var(--primary)' : 'var(--surface2)',
+          color: value.trim() ? '#fff' : 'var(--text-3)',
           border: 'none',
           borderRadius: 10,
           fontSize: 14,
@@ -869,7 +871,7 @@ function ProcedureRow({
   showCategory?: boolean;
   accentColor?: string;
 }) {
-  const accent = accentColor ?? '#6c7fff';
+  const accent = accentColor ?? 'var(--primary)';
 
   return (
     <button
@@ -883,14 +885,14 @@ function ProcedureRow({
         padding: indent ? '12px 16px 12px 36px' : '12px 16px',
         background: selected ? `${accent}12` : 'transparent',
         border: 'none',
-        borderBottom: '1px solid #1a1a24',
+        borderBottom: '1px solid var(--border)',
         cursor: 'pointer',
         fontFamily: 'inherit',
         textAlign: 'left',
         transition: 'background 0.1s',
       }}
       onMouseEnter={e => {
-        if (!selected) e.currentTarget.style.background = '#16161f';
+        if (!selected) e.currentTarget.style.background = 'var(--surface2)';
       }}
       onMouseLeave={e => {
         e.currentTarget.style.background = selected ? `${accent}12` : 'transparent';
@@ -900,7 +902,7 @@ function ProcedureRow({
       <div style={{
         width: 18, height: 18, borderRadius: 9, flexShrink: 0,
         background: selected ? accent : 'transparent',
-        border: `2px solid ${selected ? accent : '#252838'}`,
+        border: `2px solid ${selected ? accent : 'var(--border-mid)'}`,
         display: 'flex', alignItems: 'center', justifyContent: 'center',
         transition: 'border-color 0.15s',
       }}>
@@ -911,7 +913,7 @@ function ProcedureRow({
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{
           fontSize: 14, fontWeight: 500,
-          color: selected ? '#c7d2fe' : '#f1f5f9',
+          color: selected ? 'var(--text)' : 'var(--text)',
           overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
         }}>
           {proc.name}
@@ -923,7 +925,7 @@ function ProcedureRow({
           )}
         </div>
         {showCategory && (
-          <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
             {proc.category}
             {proc.subcategory && proc.subcategory !== proc.category && (
               <span> · {proc.subcategory}</span>
@@ -931,7 +933,7 @@ function ProcedureRow({
           </div>
         )}
         {proc.avgDurationMinutes && (
-          <div style={{ fontSize: 11, color: '#475569', marginTop: 1 }}>
+          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
             ~{proc.avgDurationMinutes} min
           </div>
         )}

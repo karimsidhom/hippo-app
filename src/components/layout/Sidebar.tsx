@@ -65,14 +65,14 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
   };
 
   return (
-    <aside className="h-full flex flex-col bg-[#0d0d14] border-r border-[#1e2130]">
+    <aside className="h-full flex flex-col bg-[#0d0d14] border-r border-[var(--border)]">
       {/* Logo */}
-      <div className="flex items-center justify-between px-4 h-16 border-b border-[#1e2130] flex-shrink-0">
+      <div className="flex items-center justify-between px-4 h-16 border-b border-[var(--border)] flex-shrink-0">
         {!collapsed && (
           <div className="flex items-center gap-2.5">
             <HippoMark size={30} />
             <div>
-              <p className="font-bold text-[#f1f5f9] text-sm leading-none">Hippo</p>
+              <p className="font-bold text-[var(--text)] text-sm leading-none">Hippo</p>
               <p className="text-[10px] text-[#0EA5E9] font-medium mt-0.5">Track mastery. Share growth.</p>
             </div>
           </div>
@@ -84,7 +84,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
         )}
         <button
           onClick={onToggleCollapse}
-          className="p-1.5 rounded-lg text-[#64748b] hover:text-[#94a3b8] hover:bg-[#16161f] transition-colors hidden md:flex"
+          className="p-1.5 rounded-lg text-[var(--text-3)] hover:text-[var(--text-2)] hover:bg-[var(--surface2)] transition-colors hidden md:flex"
         >
           {collapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
@@ -94,7 +94,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
       <div className="px-3 pt-3 pb-1 flex-shrink-0">
         <button
           onClick={onQuickAdd}
-          className={`w-full flex items-center gap-2.5 px-3 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-xl transition-all active:scale-95 shadow-glow-blue ${collapsed ? "justify-center" : ""}`}
+          className={`w-full flex items-center gap-2.5 px-3 py-2.5 bg-[var(--primary)] hover:bg-[var(--primary-lo)] text-white font-medium rounded-xl transition-all active:scale-95 shadow-glow-blue ${collapsed ? "justify-center" : ""}`}
           title="Quick Add Case"
         >
           <Plus className="w-4 h-4 flex-shrink-0" />
@@ -110,16 +110,16 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
             href="/inbox"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
               pathname === "/inbox" || pathname.startsWith("/inbox/")
-                ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
-                : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+                ? "bg-[var(--surface2)] text-[var(--text)] border-l-2 border-[var(--primary)] pl-[10px]"
+                : "text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
             } ${collapsed ? "justify-center" : ""}`}
             title={collapsed ? `Sign-Offs${pendingCount ? ` (${pendingCount})` : ""}` : undefined}
           >
             <Inbox
               className={`flex-shrink-0 transition-colors ${
                 pathname === "/inbox" || pathname.startsWith("/inbox/")
-                  ? "text-[#2563eb]"
-                  : "text-[#64748b] group-hover:text-[#94a3b8]"
+                  ? "text-[var(--primary)]"
+                  : "text-[var(--text-3)] group-hover:text-[var(--text-2)]"
               } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
             />
             {!collapsed && (
@@ -147,16 +147,16 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
             href="/pd-dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
               pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")
-                ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
-                : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+                ? "bg-[var(--surface2)] text-[var(--text)] border-l-2 border-[var(--primary)] pl-[10px]"
+                : "text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
             } ${collapsed ? "justify-center" : ""}`}
             title={collapsed ? "Cohort" : undefined}
           >
             <GraduationCap
               className={`flex-shrink-0 transition-colors ${
                 pathname === "/pd-dashboard" || pathname.startsWith("/pd-dashboard/")
-                  ? "text-[#2563eb]"
-                  : "text-[#64748b] group-hover:text-[#94a3b8]"
+                  ? "text-[var(--primary)]"
+                  : "text-[var(--text-3)] group-hover:text-[var(--text-2)]"
               } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
             />
             {!collapsed && (
@@ -172,14 +172,14 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
               href={href}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${
                 isActive
-                  ? "bg-[#1a1a2e] text-[#f1f5f9] border-l-2 border-[#2563eb] pl-[10px]"
-                  : "text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f]"
+                  ? "bg-[var(--surface2)] text-[var(--text)] border-l-2 border-[var(--primary)] pl-[10px]"
+                  : "text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)]"
               } ${collapsed ? "justify-center" : ""}`}
               title={collapsed ? label : undefined}
             >
               <Icon
                 className={`flex-shrink-0 transition-colors ${
-                  isActive ? "text-[#2563eb]" : "text-[#64748b] group-hover:text-[#94a3b8]"
+                  isActive ? "text-[var(--primary)]" : "text-[var(--text-3)] group-hover:text-[var(--text-2)]"
                 } ${collapsed ? "w-5 h-5" : "w-4 h-4"}`}
               />
               {!collapsed && (
@@ -192,12 +192,12 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
 
       {/* Pro Upgrade CTA (free tier) */}
       {!isPro && !collapsed && (
-        <div className="mx-3 mb-3 p-3 bg-[#16161f] border border-[#1e2130] rounded-xl">
+        <div className="mx-3 mb-3 p-3 bg-[var(--surface2)] border border-[var(--border)] rounded-xl">
           <div className="flex items-center gap-2 mb-2">
             <Zap className="w-4 h-4 text-[#f59e0b]" />
-            <span className="text-xs font-semibold text-[#f1f5f9]">Upgrade to Pro</span>
+            <span className="text-xs font-semibold text-[var(--text)]">Upgrade to Pro</span>
           </div>
-          <p className="text-xs text-[#64748b] mb-2.5 leading-relaxed">
+          <p className="text-xs text-[var(--text-3)] mb-2.5 leading-relaxed">
             Unlock unlimited logging, exports, percentile benchmarks & more
           </p>
           <button className="w-full py-1.5 bg-[#f59e0b] hover:bg-[#d97706] text-black text-xs font-semibold rounded-lg transition-colors">
@@ -207,14 +207,14 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
       )}
 
       {/* User Info + Logout */}
-      <div className={`border-t border-[#1e2130] px-3 py-3 flex items-center gap-3 flex-shrink-0 ${collapsed ? "justify-center flex-col" : ""}`}>
+      <div className={`border-t border-[var(--border)] px-3 py-3 flex items-center gap-3 flex-shrink-0 ${collapsed ? "justify-center flex-col" : ""}`}>
         <Avatar src={undefined} name={user?.name} size="sm" online />
         {!collapsed && (
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium text-[#f1f5f9] truncate">
+            <p className="text-sm font-medium text-[var(--text)] truncate">
               {user?.name || "Surgeon"}
             </p>
-            <p className="text-xs text-[#64748b] truncate">
+            <p className="text-xs text-[var(--text-3)] truncate">
               {profile?.trainingYearLabel || "Resident"} · {isPro ? "Pro" : "Free"}
             </p>
           </div>
@@ -222,7 +222,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
         <button
           onClick={handleLogout}
           title="Log out"
-          className="p-1.5 rounded-lg text-[#64748b] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-all flex-shrink-0"
+          className="p-1.5 rounded-lg text-[var(--text-3)] hover:text-[#ef4444] hover:bg-[#ef4444]/10 transition-all flex-shrink-0"
         >
           <LogOut className="w-4 h-4" />
         </button>

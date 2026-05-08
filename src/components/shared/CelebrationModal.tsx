@@ -51,7 +51,7 @@ export function CelebrationModal({ milestones, prs, onClose }: CelebrationModalP
       </div>
 
       <div
-        className="relative bg-[#16161f] border border-[#1e2130] rounded-2xl w-full max-w-md p-8 text-center transition-transform duration-300"
+        className="relative bg-[var(--surface2)] border border-[var(--border)] rounded-2xl w-full max-w-md p-8 text-center transition-transform duration-300"
         style={{ transform: visible ? 'scale(1)' : 'scale(0.8)' }}
         onClick={e => e.stopPropagation()}
       >
@@ -80,7 +80,7 @@ export function CelebrationModal({ milestones, prs, onClose }: CelebrationModalP
             {milestones.map(m => {
               const badge = BADGE_KEYS[m.badgeKey] ?? { emoji: "🏆", label: m.badgeKey, color: "#6c7fff" };
               return (
-                <div key={m.id} className="flex items-center gap-3 bg-[#111118] border border-blue-500/20 rounded-xl p-4 text-left">
+                <div key={m.id} className="flex items-center gap-3 bg-[var(--surface)] border border-blue-500/20 rounded-xl p-4 text-left">
                   <span className="text-2xl">{badge.emoji}</span>
                   <div>
                     <p className="text-slate-200 font-semibold text-sm">{badge.label}</p>
@@ -95,7 +95,7 @@ export function CelebrationModal({ milestones, prs, onClose }: CelebrationModalP
         {hasPRs && (
           <div className="space-y-3 mb-6">
             {prs.map(pr => (
-              <div key={pr.id} className="flex items-center gap-3 bg-[#111118] border border-green-500/20 rounded-xl p-4 text-left">
+              <div key={pr.id} className="flex items-center gap-3 bg-[var(--surface)] border border-green-500/20 rounded-xl p-4 text-left">
                 <Star className="w-6 h-6 text-yellow-400 shrink-0" />
                 <div>
                   <p className="text-slate-200 font-semibold text-sm">{pr.recordType.replace(/_/g, " ")} — {pr.procedureName}</p>

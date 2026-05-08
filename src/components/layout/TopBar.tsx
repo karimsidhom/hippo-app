@@ -41,16 +41,16 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
-    <header className="h-16 bg-[#0d0d14]/90 backdrop-blur-sm border-b border-[#1e2130] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-20">
+    <header className="h-16 bg-[#0d0d14]/90 backdrop-blur-sm border-b border-[var(--border)] flex items-center justify-between px-4 md:px-6 flex-shrink-0 sticky top-0 z-20">
       {/* Left: Menu + Title */}
       <div className="flex items-center gap-3">
         <button
           onClick={onMenuToggle}
-          className="md:hidden p-2 rounded-lg text-[#64748b] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-colors"
+          className="md:hidden p-2 rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
         >
           <Menu className="w-5 h-5" />
         </button>
-        <h1 className="text-[#f1f5f9] font-semibold text-base md:text-lg">{title}</h1>
+        <h1 className="text-[var(--text)] font-semibold text-base md:text-lg">{title}</h1>
       </div>
 
       {/* Right: Actions */}
@@ -58,7 +58,7 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
         {/* Quick Add */}
         <button
           onClick={onQuickAdd}
-          className="hidden sm:flex items-center gap-2 px-3 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white text-sm font-medium rounded-lg transition-all active:scale-95 shadow-glow-blue"
+          className="hidden sm:flex items-center gap-2 px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] text-white text-sm font-medium rounded-lg transition-all active:scale-95 shadow-glow-blue"
         >
           <Plus className="w-4 h-4" />
           <span className="hidden md:inline">Quick Log</span>
@@ -68,7 +68,7 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
         <div className="relative">
           <button
             onClick={() => { setNotificationsOpen(!notificationsOpen); setUserMenuOpen(false); }}
-            className="relative p-2 rounded-lg text-[#64748b] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-colors"
+            className="relative p-2 rounded-lg text-[var(--text-3)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
@@ -79,15 +79,15 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
           </button>
 
           {notificationsOpen && (
-            <div className="absolute right-0 top-full mt-2 w-80 bg-[#111118] border border-[#252838] rounded-xl shadow-card-hover z-50 animate-slide-down">
-              <div className="p-3 border-b border-[#1e2130]">
-                <p className="font-semibold text-[#f1f5f9] text-sm">Notifications</p>
+            <div className="absolute right-0 top-full mt-2 w-80 bg-[var(--surface)] border border-[var(--border-mid)] rounded-xl shadow-card-hover z-50 animate-slide-down">
+              <div className="p-3 border-b border-[var(--border)]">
+                <p className="font-semibold text-[var(--text)] text-sm">Notifications</p>
               </div>
-              <div className="divide-y divide-[#1e2130]">
+              <div className="divide-y divide-[var(--border)]">
                 {notifications.map((n) => (
-                  <div key={n.id} className={`p-3 hover:bg-[#16161f] transition-colors cursor-pointer ${n.unread ? "border-l-2 border-[#2563eb]" : ""}`}>
-                    <p className={`text-xs ${n.unread ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>{n.text}</p>
-                    <p className="text-xs text-[#64748b] mt-0.5">{n.time}</p>
+                  <div key={n.id} className={`p-3 hover:bg-[var(--surface2)] transition-colors cursor-pointer ${n.unread ? "border-l-2 border-[var(--primary)]" : ""}`}>
+                    <p className={`text-xs ${n.unread ? "text-[var(--text)]" : "text-[var(--text-2)]"}`}>{n.text}</p>
+                    <p className="text-xs text-[var(--text-3)] mt-0.5">{n.time}</p>
                   </div>
                 ))}
               </div>
@@ -99,23 +99,23 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
         <div className="relative">
           <button
             onClick={() => { setUserMenuOpen(!userMenuOpen); setNotificationsOpen(false); }}
-            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[#16161f] transition-colors"
+            className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--surface2)] transition-colors"
           >
             <Avatar src={undefined} name={user?.name} size="sm" />
-            <ChevronDown className="w-3 h-3 text-[#64748b] hidden sm:block" />
+            <ChevronDown className="w-3 h-3 text-[var(--text-3)] hidden sm:block" />
           </button>
 
           {userMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-48 bg-[#111118] border border-[#252838] rounded-xl shadow-card-hover z-50 animate-slide-down overflow-hidden">
-              <div className="p-3 border-b border-[#1e2130]">
-                <p className="text-sm font-medium text-[#f1f5f9] truncate">{user?.name || "Surgeon"}</p>
-                <p className="text-xs text-[#64748b] truncate">{user?.email}</p>
+            <div className="absolute right-0 top-full mt-2 w-48 bg-[var(--surface)] border border-[var(--border-mid)] rounded-xl shadow-card-hover z-50 animate-slide-down overflow-hidden">
+              <div className="p-3 border-b border-[var(--border)]">
+                <p className="text-sm font-medium text-[var(--text)] truncate">{user?.name || "Surgeon"}</p>
+                <p className="text-xs text-[var(--text-3)] truncate">{user?.email}</p>
               </div>
               <div className="py-1">
                 <Link
                   href="/profile"
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                 >
                   <User className="w-4 h-4" />
                   Profile
@@ -123,13 +123,13 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
                 <Link
                   href="/settings"
                   onClick={() => setUserMenuOpen(false)}
-                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[#94a3b8] hover:text-[#f1f5f9] hover:bg-[#16161f] transition-colors"
+                  className="flex items-center gap-2.5 px-3 py-2 text-sm text-[var(--text-2)] hover:text-[var(--text)] hover:bg-[var(--surface2)] transition-colors"
                 >
                   <Settings className="w-4 h-4" />
                   Settings
                 </Link>
                 <button
-                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#ef4444] hover:bg-[#16161f] transition-colors"
+                  className="w-full flex items-center gap-2.5 px-3 py-2 text-sm text-[#ef4444] hover:bg-[var(--surface2)] transition-colors"
                   onClick={() => {
                     setUserMenuOpen(false);
                     if (confirm("Sign out?")) window.location.href = "/";

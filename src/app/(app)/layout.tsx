@@ -101,24 +101,66 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
        * across half the screen.
        */}
       <style>{`
+        /* App shell width strategy.
+           Header + main use the SAME side-padding scale so content lands
+           on a single vertical axis at every breakpoint — no 4-pixel
+           drift between the Hippo logo and the dashboard cards below.
+           Side padding folds in env(safe-area-inset-left/right) so an
+           iPhone in landscape with the notch on the left doesn't shove
+           content sideways. */
         .app-header, .app-main {
           width: 100%;
           max-width: 640px;
           margin-left: auto;
           margin-right: auto;
         }
-        .app-main { padding: 20px 16px 96px; }
+        .app-header {
+          padding-left: max(18px, env(safe-area-inset-left));
+          padding-right: max(18px, env(safe-area-inset-right));
+        }
+        .app-main {
+          padding-left: max(18px, env(safe-area-inset-left));
+          padding-right: max(18px, env(safe-area-inset-right));
+          padding-top: 20px;
+          padding-bottom: 96px;
+        }
         .app-nav {
           width: 100%;
           max-width: 480px;
         }
         @media (min-width: 768px) {
           .app-header, .app-main { max-width: 720px; }
-          .app-main { padding: 24px 28px 96px; }
+          .app-header {
+            padding-left: max(28px, env(safe-area-inset-left));
+            padding-right: max(28px, env(safe-area-inset-right));
+          }
+          .app-main {
+            padding-left: max(28px, env(safe-area-inset-left));
+            padding-right: max(28px, env(safe-area-inset-right));
+            padding-top: 24px;
+            padding-bottom: 96px;
+          }
         }
         @media (min-width: 1200px) {
           .app-header, .app-main { max-width: 880px; }
-          .app-main { padding: 28px 36px 96px; }
+          .app-header {
+            padding-left: max(36px, env(safe-area-inset-left));
+            padding-right: max(36px, env(safe-area-inset-right));
+          }
+          .app-main {
+            padding-left: max(36px, env(safe-area-inset-left));
+            padding-right: max(36px, env(safe-area-inset-right));
+            padding-top: 28px;
+            padding-bottom: 96px;
+          }
+        }
+        /* Premium polish — sticky header sits above a subtle blur so
+           content scrolling underneath ghosts through tastefully rather
+           than slamming a hard line at the bottom of the bar. */
+        .app-header {
+          backdrop-filter: saturate(180%) blur(14px);
+          -webkit-backdrop-filter: saturate(180%) blur(14px);
+          background: color-mix(in oklab, var(--bg) 78%, transparent) !important;
         }
       `}</style>
       {/* ── Header ─────────────────────────────────────────────────────── */}
@@ -142,7 +184,9 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         }}
       />
       <header className="app-header" style={{
-        padding: "0 20px",
+        // Side padding handled by .app-header class above so it stays in
+        // sync with .app-main and folds in safe-area-inset-left/right
+        // for landscape iPhones with the notch on the left.
         paddingTop: "env(safe-area-inset-top)",
         height: "calc(48px + env(safe-area-inset-top))",
         display: "flex",
@@ -152,7 +196,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         top: 0,
         zIndex: 50,
         margin: "0 auto",
-        background: "var(--bg)",
+        // background applied via .app-header class (color-mix for blur)
         borderBottom: "1px solid var(--border)",
       }}>
         <Link
@@ -189,7 +233,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <NotificationBell />
+          {/* The shared NotificationBell renders the existing global feed
+              (EPA verifications, batch sign-offs, etc) — copy that's
+              irrelevant for a clinic-only deployment. We hide it under
+              [data-module="clinic"] so the clinician never lands in EPA
+              vocabulary by mistake. Clinic-specific notifications live
+              at /clinic/settings/notifications and on the dashboard. */}
+          {!inClinic && <NotificationBell />}
           {inClinic ? (
             <Link
               href="/clinic/new"
@@ -284,7 +334,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           left: 0,
           right: 0,
           height: "calc(56px + max(6px, env(safe-area-inset-bottom)) + 4px)",
-          background: "var(--bg)",
+          // Premium polish: same color-mix backdrop blur as the header
+          // so the bottom bar reads as a single floating element, not a
+          // hard slab. Falls back gracefully on browsers without
+          // backdrop-filter (Edge/iOS pre-15) — those just see --bg.
+          background: "color-mix(in oklab, var(--bg) 78%, transparent)",
+          backdropFilter: "saturate(180%) blur(14px)",
+          WebkitBackdropFilter: "saturate(180%) blur(14px)",
           borderTop: "1px solid var(--border)",
           zIndex: 49,
           pointerEvents: "none",

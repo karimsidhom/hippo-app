@@ -217,18 +217,18 @@ export default function DictationSettingsPage() {
       <div className="space-y-2">
         <Link
           href="/settings"
-          className="inline-flex items-center gap-1.5 text-xs text-[#64748b] hover:text-[#94a3b8] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
           Back to Settings
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[#f1f5f9] flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-[var(--text)] flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-[#3b82f6]" />
               Dictation Style
             </h1>
-            <p className="text-[#94a3b8] text-sm mt-0.5">
+            <p className="text-[var(--text-2)] text-sm mt-0.5">
               How Hippo writes your operative notes — learned from your edits.
             </p>
           </div>
@@ -239,22 +239,22 @@ export default function DictationSettingsPage() {
       </div>
 
       {/* Learning status */}
-      <div className="p-4 bg-[#1a1a2e] border border-[#2563eb]/30 rounded-xl">
+      <div className="p-4 bg-[var(--surface2)] border border-[var(--primary)]/30 rounded-xl">
         <div className="flex items-start gap-3">
           <Info className="w-4 h-4 text-[#3b82f6] mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <p className="text-sm font-semibold text-[#f1f5f9]">
+            <p className="text-sm font-semibold text-[var(--text)]">
               {correctionCount === 0
                 ? "No corrections recorded yet"
                 : `Learned from ${correctionCount} correction${correctionCount === 1 ? "" : "s"}`}
             </p>
-            <p className="text-xs text-[#94a3b8] mt-1 leading-relaxed">
+            <p className="text-xs text-[var(--text-2)] mt-1 leading-relaxed">
               Every time you edit a generated draft, Hippo picks up on the
               wording and formatting you prefer. Changes sync automatically
               across your devices.
             </p>
             {hydrating && (
-              <p className="text-[10px] text-[#64748b] mt-2">Syncing latest from server…</p>
+              <p className="text-[10px] text-[var(--text-3)] mt-2">Syncing latest from server…</p>
             )}
           </div>
         </div>
@@ -262,15 +262,15 @@ export default function DictationSettingsPage() {
 
       {/* Dictation preferences */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9]">Dictation Output</h2>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-5">
+        <h2 className="text-base font-semibold text-[var(--text)]">Dictation Output</h2>
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-5">
           {prefsLoading && (
-            <p className="text-[10px] text-[#64748b]">Loading preferences…</p>
+            <p className="text-[10px] text-[var(--text-3)]">Loading preferences…</p>
           )}
 
           {/* Length */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">
               Default dictation length
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -280,22 +280,22 @@ export default function DictationSettingsPage() {
                   onClick={() => patchPrefs({ length: l as DictationLength })}
                   className={`py-2 px-3 rounded-lg text-xs font-medium capitalize transition-all ${
                     prefs.length === l
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {l === "extra-detailed" ? "Extra detailed" : l}
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-[#64748b] mt-1.5">
+            <p className="text-[10px] text-[var(--text-3)] mt-1.5">
               Default is &quot;complete&quot; — full operative note. &quot;Brief&quot; is reserved for handover/sign-out.
             </p>
           </div>
 
           {/* Tone */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">Tone</label>
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">Tone</label>
             <div className="grid grid-cols-2 gap-2">
               {(
                 [
@@ -310,8 +310,8 @@ export default function DictationSettingsPage() {
                   onClick={() => patchPrefs({ tone: key as DictationTone })}
                   className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                     prefs.tone === key
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {label}
@@ -322,7 +322,7 @@ export default function DictationSettingsPage() {
 
           {/* Postop plan */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">
               Postoperative plan
             </label>
             <div className="grid grid-cols-2 gap-2">
@@ -337,8 +337,8 @@ export default function DictationSettingsPage() {
                   onClick={() => patchPrefs({ postopPlanInclusion: key as PostopPlanInclusion })}
                   className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                     prefs.postopPlanInclusion === key
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {label}
@@ -367,14 +367,14 @@ export default function DictationSettingsPage() {
 
       {/* Billing — province + toggle */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9] flex items-center gap-2">
+        <h2 className="text-base font-semibold text-[var(--text)] flex items-center gap-2">
           <Receipt className="w-4 h-4 text-[#3b82f6]" />
           Billing / Documentation Support
         </h2>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-5">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-5">
           {/* Province selector */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">
               Province / Region
             </label>
             <select
@@ -385,7 +385,7 @@ export default function DictationSettingsPage() {
                   billingRegion: v === "" ? null : (v as BillingRegion),
                 });
               }}
-              className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+              className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
             >
               <option value="">— Not selected —</option>
               {ALL_REGIONS.map((r) => (
@@ -395,7 +395,7 @@ export default function DictationSettingsPage() {
               ))}
             </select>
             {prefs.billingRegion && (
-              <p className="text-[10px] text-[#64748b] mt-1.5">
+              <p className="text-[10px] text-[var(--text-3)] mt-1.5">
                 {ALL_REGIONS.find((r) => r.code === prefs.billingRegion)?.feeScheduleName}
                 {ALL_REGIONS.find((r) => r.code === prefs.billingRegion)?.status === "scaffolded" && (
                   <span className="text-[#f59e0b]"> · library not yet populated for this region</span>
@@ -420,7 +420,7 @@ export default function DictationSettingsPage() {
           {/* Disclaimer */}
           <div className="flex items-start gap-2 p-3 bg-[#1a1500] border border-[#f59e0b]/30 rounded-lg">
             <AlertTriangle className="w-3.5 h-3.5 text-[#f59e0b] mt-0.5 flex-shrink-0" />
-            <p className="text-[11px] text-[#cbd5e1] leading-relaxed">
+            <p className="text-[11px] text-[var(--text-2)] leading-relaxed">
               {BILLING_DISCLAIMER}
             </p>
           </div>
@@ -429,12 +429,12 @@ export default function DictationSettingsPage() {
 
       {/* Brevity & formatting */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9]">Tone & Formatting</h2>
+        <h2 className="text-base font-semibold text-[var(--text)]">Tone & Formatting</h2>
 
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-5">
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-5">
           {/* Brevity */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">Brevity</label>
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">Brevity</label>
             <div className="grid grid-cols-3 gap-2">
               {(["verbose", "standard", "concise"] as const).map((level) => (
                 <button
@@ -442,22 +442,22 @@ export default function DictationSettingsPage() {
                   onClick={() => updateGlobal({ brevity: level })}
                   className={`py-2 px-3 rounded-lg text-xs font-medium capitalize transition-all ${
                     profile.global.brevity === level
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {level}
                 </button>
               ))}
             </div>
-            <p className="text-[10px] text-[#64748b] mt-1.5">
+            <p className="text-[10px] text-[var(--text-3)] mt-1.5">
               Concise trims routine language; verbose keeps every detail.
             </p>
           </div>
 
           {/* Header style */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">Section headers</label>
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">Section headers</label>
             <div className="grid grid-cols-3 gap-2">
               {(["upper", "title", "plain"] as const).map((style) => (
                 <button
@@ -465,8 +465,8 @@ export default function DictationSettingsPage() {
                   onClick={() => updateGlobal({ headerStyle: style })}
                   className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                     profile.global.headerStyle === style
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {style === "upper" && "UPPER"}
@@ -479,7 +479,7 @@ export default function DictationSettingsPage() {
 
           {/* Blank lines */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">
               Blank lines between sections
             </label>
             <div className="grid grid-cols-3 gap-2">
@@ -493,8 +493,8 @@ export default function DictationSettingsPage() {
                   }
                   className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                     (formatting.blankLinesBetweenSections ?? 1) === n
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {n === 0 ? "None" : n === 1 ? "Single" : "Double"}
@@ -505,7 +505,7 @@ export default function DictationSettingsPage() {
 
           {/* Bullet style */}
           <div>
-            <label className="block text-xs font-medium text-[#94a3b8] mb-2">Bullet style</label>
+            <label className="block text-xs font-medium text-[var(--text-2)] mb-2">Bullet style</label>
             <div className="grid grid-cols-4 gap-2">
               {([null, "-", "•", "*"] as const).map((bullet) => (
                 <button
@@ -515,8 +515,8 @@ export default function DictationSettingsPage() {
                   }
                   className={`py-2 px-3 rounded-lg text-xs font-medium transition-all ${
                     (formatting.bulletStyle ?? null) === bullet
-                      ? "bg-[#2563eb] text-white border border-[#2563eb]"
-                      : "bg-[#16161f] text-[#94a3b8] border border-[#1e2130] hover:border-[#2563eb]/40"
+                      ? "bg-[var(--primary)] text-white border border-[var(--primary)]"
+                      : "bg-[var(--surface2)] text-[var(--text-2)] border border-[var(--border)] hover:border-[var(--primary)]/40"
                   }`}
                 >
                   {bullet === null ? "Prose" : bullet}
@@ -530,21 +530,21 @@ export default function DictationSettingsPage() {
       {/* Dropped sections */}
       {droppedSections.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[#f1f5f9]">Sections you usually remove</h2>
-          <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-2">
-            <p className="text-xs text-[#64748b] mb-2">
+          <h2 className="text-base font-semibold text-[var(--text)]">Sections you usually remove</h2>
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-2">
+            <p className="text-xs text-[var(--text-3)] mb-2">
               Hippo has learned to drop these from your drafts. Click × to bring any of them back.
             </p>
             <div className="flex flex-wrap gap-2">
               {droppedSections.map((section) => (
                 <span
                   key={section}
-                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[#1a1a2e] border border-[#1e2130] text-xs text-[#f1f5f9] rounded-full"
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-[var(--surface2)] border border-[var(--border)] text-xs text-[var(--text)] rounded-full"
                 >
                   {section}
                   <button
                     onClick={() => removeDroppedSection(section)}
-                    className="text-[#64748b] hover:text-[#ef4444] transition-colors"
+                    className="text-[var(--text-3)] hover:text-[#ef4444] transition-colors"
                     title="Unremove"
                   >
                     <X className="w-3 h-3" />
@@ -558,9 +558,9 @@ export default function DictationSettingsPage() {
 
       {/* Preferred phrases */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9]">Preferred phrases</h2>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-3">
-          <p className="text-xs text-[#64748b]">
+        <h2 className="text-base font-semibold text-[var(--text)]">Preferred phrases</h2>
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-3">
+          <p className="text-xs text-[var(--text-3)]">
             Wording Hippo will favour when drafting your notes.
           </p>
           {profile.global.preferredPhrases.length === 0 ? (
@@ -570,12 +570,12 @@ export default function DictationSettingsPage() {
               {profile.global.preferredPhrases.map((phrase) => (
                 <li
                   key={phrase}
-                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[#16161f] border border-[#1e2130] rounded-lg"
+                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                 >
-                  <span className="text-sm text-[#f1f5f9] truncate">{phrase}</span>
+                  <span className="text-sm text-[var(--text)] truncate">{phrase}</span>
                   <button
                     onClick={() => removePreferredPhrase(phrase)}
-                    className="flex-shrink-0 text-[#64748b] hover:text-[#ef4444] transition-colors"
+                    className="flex-shrink-0 text-[var(--text-3)] hover:text-[#ef4444] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -590,12 +590,12 @@ export default function DictationSettingsPage() {
               onChange={(e) => setNewPreferredPhrase(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addPreferredPhrase()}
               placeholder="Add a phrase you prefer…"
-              className="flex-1 bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb] placeholder:text-[#475569]"
+              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
             />
             <button
               onClick={addPreferredPhrase}
               disabled={!newPreferredPhrase.trim()}
-              className="px-3 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+              className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add
@@ -606,9 +606,9 @@ export default function DictationSettingsPage() {
 
       {/* Avoid phrases */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9]">Phrases to avoid</h2>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-3">
-          <p className="text-xs text-[#64748b]">
+        <h2 className="text-base font-semibold text-[var(--text)]">Phrases to avoid</h2>
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-3">
+          <p className="text-xs text-[var(--text-3)]">
             Wording Hippo will strip out of drafts before showing them to you.
           </p>
           {profile.global.avoidPhrases.length === 0 ? (
@@ -618,12 +618,12 @@ export default function DictationSettingsPage() {
               {profile.global.avoidPhrases.map((phrase) => (
                 <li
                   key={phrase}
-                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[#16161f] border border-[#1e2130] rounded-lg"
+                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                 >
-                  <span className="text-sm text-[#f1f5f9] truncate">{phrase}</span>
+                  <span className="text-sm text-[var(--text)] truncate">{phrase}</span>
                   <button
                     onClick={() => removeAvoidPhrase(phrase)}
-                    className="flex-shrink-0 text-[#64748b] hover:text-[#ef4444] transition-colors"
+                    className="flex-shrink-0 text-[var(--text-3)] hover:text-[#ef4444] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -638,12 +638,12 @@ export default function DictationSettingsPage() {
               onChange={(e) => setNewAvoidPhrase(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addAvoidPhrase()}
               placeholder="Add a phrase to strip out…"
-              className="flex-1 bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb] placeholder:text-[#475569]"
+              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
             />
             <button
               onClick={addAvoidPhrase}
               disabled={!newAvoidPhrase.trim()}
-              className="px-3 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+              className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add
@@ -654,9 +654,9 @@ export default function DictationSettingsPage() {
 
       {/* Phrase substitutions */}
       <section className="space-y-3">
-        <h2 className="text-base font-semibold text-[#f1f5f9]">Phrase substitutions</h2>
-        <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-3">
-          <p className="text-xs text-[#64748b]">
+        <h2 className="text-base font-semibold text-[var(--text)]">Phrase substitutions</h2>
+        <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-3">
+          <p className="text-xs text-[var(--text-3)]">
             Literal find-and-replace rules. Applied at render time.
           </p>
           {phraseSubs.length === 0 ? (
@@ -666,16 +666,16 @@ export default function DictationSettingsPage() {
               {phraseSubs.map((sub) => (
                 <li
                   key={`${sub.from}->${sub.to}`}
-                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[#16161f] border border-[#1e2130] rounded-lg"
+                  className="flex items-center justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                 >
                   <div className="flex-1 min-w-0 flex items-center gap-2 text-sm">
-                    <span className="text-[#94a3b8] truncate">{sub.from}</span>
-                    <span className="text-[#64748b]">→</span>
-                    <span className="text-[#f1f5f9] truncate">{sub.to}</span>
+                    <span className="text-[var(--text-2)] truncate">{sub.from}</span>
+                    <span className="text-[var(--text-3)]">→</span>
+                    <span className="text-[var(--text)] truncate">{sub.to}</span>
                   </div>
                   <button
                     onClick={() => removeSubstitution(sub.from, sub.to)}
-                    className="flex-shrink-0 text-[#64748b] hover:text-[#ef4444] transition-colors"
+                    className="flex-shrink-0 text-[var(--text-3)] hover:text-[#ef4444] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -689,21 +689,21 @@ export default function DictationSettingsPage() {
               value={newSubFrom}
               onChange={(e) => setNewSubFrom(e.target.value)}
               placeholder="Replace…"
-              className="bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb] placeholder:text-[#475569]"
+              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
             />
-            <span className="text-[#64748b] text-xs">→</span>
+            <span className="text-[var(--text-3)] text-xs">→</span>
             <input
               type="text"
               value={newSubTo}
               onChange={(e) => setNewSubTo(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addSubstitution()}
               placeholder="With…"
-              className="bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#2563eb] placeholder:text-[#475569]"
+              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
             />
             <button
               onClick={addSubstitution}
               disabled={!newSubFrom.trim() || !newSubTo.trim()}
-              className="px-3 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
+              className="px-3 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] disabled:opacity-40 text-white rounded-lg text-xs font-medium transition-colors flex items-center gap-1"
             >
               <Plus className="w-3.5 h-3.5" />
               Add
@@ -715,32 +715,32 @@ export default function DictationSettingsPage() {
       {/* Examples */}
       {profile.examples.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-base font-semibold text-[#f1f5f9]">
+          <h2 className="text-base font-semibold text-[var(--text)]">
             Saved examples ({profile.examples.length})
           </h2>
-          <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-5 space-y-2">
-            <p className="text-xs text-[#64748b] mb-2">
+          <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-2">
+            <p className="text-xs text-[var(--text-3)] mb-2">
               Notes you marked as good — Hippo uses these as references when drafting.
             </p>
             <ul className="space-y-2">
               {profile.examples.map((ex) => (
                 <li
                   key={ex.savedAt}
-                  className="flex items-start justify-between gap-3 px-3 py-2 bg-[#16161f] border border-[#1e2130] rounded-lg"
+                  className="flex items-start justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[#64748b]">
+                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[var(--text-3)]">
                       <span>{ex.service}</span>
                       <span>·</span>
                       <span>{ex.noteType}</span>
                       <span>·</span>
                       <span>{new Date(ex.savedAt).toLocaleDateString()}</span>
                     </div>
-                    <p className="text-xs text-[#94a3b8] mt-1 line-clamp-2">{ex.excerpt}</p>
+                    <p className="text-xs text-[var(--text-2)] mt-1 line-clamp-2">{ex.excerpt}</p>
                   </div>
                   <button
                     onClick={() => removeExample(ex.savedAt)}
-                    className="flex-shrink-0 text-[#64748b] hover:text-[#ef4444] transition-colors"
+                    className="flex-shrink-0 text-[var(--text-3)] hover:text-[#ef4444] transition-colors"
                   >
                     <Trash2 className="w-3.5 h-3.5" />
                   </button>
@@ -752,12 +752,12 @@ export default function DictationSettingsPage() {
       )}
 
       {/* Reset */}
-      <section className="pt-4 border-t border-[#1e2130]">
+      <section className="pt-4 border-t border-[var(--border)]">
         <div className="p-4 bg-[#1a0f0f] border border-[#ef4444]/30 rounded-xl">
           <div className="flex items-center justify-between gap-4">
             <div className="flex-1">
               <p className="text-sm font-medium text-[#ef4444]">Reset dictation style</p>
-              <p className="text-xs text-[#64748b] mt-0.5">
+              <p className="text-xs text-[var(--text-3)] mt-0.5">
                 Clears every learned preference. Hippo will start from defaults. Your case logs
                 are unaffected.
               </p>
@@ -774,7 +774,7 @@ export default function DictationSettingsPage() {
               <div className="flex gap-2">
                 <button
                   onClick={() => setConfirmReset(false)}
-                  className="px-3 py-2 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] rounded-lg text-xs"
+                  className="px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] rounded-lg text-xs"
                 >
                   Cancel
                 </button>
@@ -814,15 +814,15 @@ function ToggleRow({
       }`}
     >
       <div className="flex-1 min-w-0">
-        <p className="text-sm text-[#f1f5f9]">{label}</p>
-        {hint && <p className="text-[10px] text-[#64748b] mt-0.5">{hint}</p>}
+        <p className="text-sm text-[var(--text)]">{label}</p>
+        {hint && <p className="text-[10px] text-[var(--text-3)] mt-0.5">{hint}</p>}
       </div>
       <button
         onClick={() => !disabled && onChange(!value)}
         disabled={disabled}
         aria-pressed={value}
         className={`relative flex-shrink-0 h-6 w-10 rounded-full transition-colors ${
-          value ? "bg-[#2563eb]" : "bg-[#1e2130]"
+          value ? "bg-[var(--primary)]" : "bg-[var(--border)]"
         } ${disabled ? "cursor-not-allowed" : "cursor-pointer"}`}
       >
         <span

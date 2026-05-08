@@ -58,6 +58,12 @@
   --r:   6px;
   --rs:  4px;
   --rl:  10px;
+
+  /* Modal scrim — sits behind sheets and dialogs. In dark mode the
+     page is already near-black so the scrim is a soft 0.62-alpha; in
+     light mode (overridden below) the scrim is a translucent slate so
+     it doesn't crush the page to navy. */
+  --modal-scrim: rgba(0,0,0,0.62);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -109,6 +115,10 @@
   --success:      #059669;
   --danger:       #dc2626;
   --warning:      #d97706;
+
+  /* Modal scrim — translucent slate in light mode so a sheet sits in
+     a soft veil instead of a dark blackout. */
+  --modal-scrim: rgba(15,23,42,0.34);
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════

@@ -221,17 +221,17 @@ export default function ImportLogPage() {
       <div className="space-y-2">
         <Link
           href="/settings"
-          className="inline-flex items-center gap-1.5 text-xs text-[#64748b] hover:text-[#94a3b8] transition-colors"
+          className="inline-flex items-center gap-1.5 text-xs text-[var(--text-3)] hover:text-[var(--text-2)] transition-colors"
         >
           <ArrowLeft className="w-3 h-3" />
           Back to Settings
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-[#f1f5f9] flex items-center gap-2">
+          <h1 className="text-2xl font-bold text-[var(--text)] flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-[#3b82f6]" />
             Import Existing Case Log
           </h1>
-          <p className="text-[#94a3b8] text-sm mt-0.5">
+          <p className="text-[var(--text-2)] text-sm mt-0.5">
             Upload your existing Excel, CSV, or text file. Hippo will auto-map
             columns, flag possible duplicates, and merge it into your log.
           </p>
@@ -241,8 +241,8 @@ export default function ImportLogPage() {
       {/* PII warning banner — always visible */}
       <div className="p-4 bg-[#1a1500] border border-[#f59e0b]/30 rounded-xl flex items-start gap-3">
         <Shield className="w-4 h-4 text-[#f59e0b] mt-0.5 flex-shrink-0" />
-        <div className="text-xs text-[#cbd5e1] leading-relaxed">
-          <p className="font-semibold text-[#f1f5f9] mb-0.5">
+        <div className="text-xs text-[var(--text-2)] leading-relaxed">
+          <p className="font-semibold text-[var(--text)] mb-0.5">
             Patient privacy notice
           </p>
           <p>
@@ -257,9 +257,9 @@ export default function ImportLogPage() {
 
       {/* Step 1: Upload */}
       {!preview && !summary && (
-        <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-6 space-y-4">
-          <h2 className="text-base font-semibold text-[#f1f5f9]">1. Upload your file</h2>
-          <p className="text-xs text-[#94a3b8]">
+        <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 space-y-4">
+          <h2 className="text-base font-semibold text-[var(--text)]">1. Upload your file</h2>
+          <p className="text-xs text-[var(--text-2)]">
             Supported: Excel (.xlsx, .xls), CSV, plain text. Max 25 MB.
           </p>
           <input
@@ -267,18 +267,18 @@ export default function ImportLogPage() {
             type="file"
             accept=".xlsx,.xls,.xlsm,.csv,.txt,.pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-            className="block w-full text-xs text-[#94a3b8] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[#2563eb] file:text-white hover:file:bg-[#1d4ed8] file:cursor-pointer"
+            className="block w-full text-xs text-[var(--text-2)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[var(--primary)] file:text-white hover:file:bg-[var(--primary-lo)] file:cursor-pointer"
           />
           {file && (
-            <p className="text-xs text-[#94a3b8]">
-              Selected: <span className="text-[#f1f5f9] font-medium">{file.name}</span>{" "}
+            <p className="text-xs text-[var(--text-2)]">
+              Selected: <span className="text-[var(--text)] font-medium">{file.name}</span>{" "}
               ({(file.size / 1024).toFixed(1)} KB)
             </p>
           )}
           <button
             onClick={handleUpload}
             disabled={!file || parsing}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
+            className="inline-flex items-center gap-2 px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] disabled:opacity-40 text-white rounded-lg text-sm font-medium transition-colors"
           >
             {parsing ? (
               <>
@@ -304,12 +304,12 @@ export default function ImportLogPage() {
       {/* Step 2: Preview + mapping */}
       {preview && !summary && (
         <>
-          <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-6 space-y-4">
+          <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 space-y-4">
             <div className="flex items-center justify-between gap-3 flex-wrap">
-              <h2 className="text-base font-semibold text-[#f1f5f9]">
+              <h2 className="text-base font-semibold text-[var(--text)]">
                 2. Preview &amp; column mapping
               </h2>
-              <div className="flex items-center gap-2 text-xs text-[#94a3b8]">
+              <div className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                 {(preview.usedLlmForMapping || preview.usedLlmForRows) && (
                   <span
                     className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#0c1f3d] border border-[#3b82f6]/30 text-[#93c5fd] rounded-full text-[10px]"
@@ -339,7 +339,7 @@ export default function ImportLogPage() {
                 const reason = preview.mappingRationale?.[field];
                 return (
                   <div key={field} className="space-y-1">
-                    <label className="text-[10px] text-[#64748b] uppercase tracking-wider flex items-center gap-1">
+                    <label className="text-[10px] text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1">
                       <span>{HIPPO_FIELD_LABELS[field]}</span>
                       {mapping[field] && conf !== undefined && (
                         <ConfidenceBadge value={conf} />
@@ -347,7 +347,7 @@ export default function ImportLogPage() {
                       {reason && (
                         <span
                           title={reason}
-                          className="inline-flex text-[#475569]"
+                          className="inline-flex text-[var(--muted)]"
                         >
                           <HelpCircle className="w-3 h-3" />
                         </span>
@@ -358,7 +358,7 @@ export default function ImportLogPage() {
                       onChange={(e) =>
                         setMap(field, e.target.value === "" ? null : e.target.value)
                       }
-                      className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
+                      className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-xs rounded-lg px-2 py-1.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                     >
                       <option value="">— Not mapped —</option>
                       {preview.headers.map((h) => (
@@ -373,15 +373,15 @@ export default function ImportLogPage() {
             </div>
 
             {preview.unmappedColumns.length > 0 && (
-              <div className="pt-2 border-t border-[#1e2130]">
-                <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider mb-1">
+              <div className="pt-2 border-t border-[var(--border)]">
+                <p className="text-[10px] text-[var(--text-2)] uppercase tracking-wider mb-1">
                   Extra columns (will be saved to notes / metadata)
                 </p>
                 <div className="flex flex-wrap gap-1.5">
                   {preview.unmappedColumns.map((col) => (
                     <span
                       key={col}
-                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-[#1a1a2e] text-[10px] text-[#94a3b8] rounded-full border border-[#1e2130]"
+                      className="inline-flex items-center gap-1 px-2 py-0.5 bg-[var(--surface2)] text-[10px] text-[var(--text-2)] rounded-full border border-[var(--border)]"
                     >
                       {col}
                     </span>
@@ -398,7 +398,7 @@ export default function ImportLogPage() {
                 <Shield className="w-4 h-4" />
                 Possible patient identifiers detected
               </h2>
-              <p className="text-xs text-[#cbd5e1]">
+              <p className="text-xs text-[var(--text-2)]">
                 The following columns or values look like they might contain
                 patient identifiers. Check any column to redact (replace with
                 &quot;[redacted by Hippo import]&quot;) before merging.
@@ -413,16 +413,16 @@ export default function ImportLogPage() {
                 ).map((flag) => (
                   <li
                     key={flag.column}
-                    className="flex items-center justify-between gap-3 px-3 py-2 bg-[#16161f] border border-[#1e2130] rounded-lg"
+                    className="flex items-center justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                   >
                     <div className="flex-1 min-w-0">
-                      <p className="text-xs text-[#f1f5f9]">{flag.column}</p>
-                      <p className="text-[10px] text-[#94a3b8]">
+                      <p className="text-xs text-[var(--text)]">{flag.column}</p>
+                      <p className="text-[10px] text-[var(--text-2)]">
                         Looks like: {flag.kind}
                         {flag.example && ` · e.g. "${flag.example}"`}
                       </p>
                     </div>
-                    <label className="flex items-center gap-2 text-xs text-[#cbd5e1]">
+                    <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                       <input
                         type="checkbox"
                         checked={redact.has(flag.column!)}
@@ -433,7 +433,7 @@ export default function ImportLogPage() {
                   </li>
                 ))}
               </ul>
-              <label className="flex items-start gap-2 text-xs text-[#cbd5e1] pt-2">
+              <label className="flex items-start gap-2 text-xs text-[var(--text-2)] pt-2">
                 <input
                   type="checkbox"
                   className="mt-0.5"
@@ -448,9 +448,9 @@ export default function ImportLogPage() {
 
           {/* Coerced preview — what Hippo will actually store */}
           {preview.previewCoerced && preview.previewCoerced.length > 0 && (
-            <section className="bg-[#111118] border border-[#1e2130] rounded-xl p-4 overflow-auto">
+            <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 overflow-auto">
               <div className="flex items-center justify-between mb-2 px-2">
-                <p className="text-[10px] text-[#94a3b8] uppercase tracking-wider">
+                <p className="text-[10px] text-[var(--text-2)] uppercase tracking-wider">
                   Hippo preview — first {preview.previewCoerced.length} rows the way they&apos;ll land in your log
                 </p>
                 {preview.usedLlmForRows && (
@@ -462,7 +462,7 @@ export default function ImportLogPage() {
               </div>
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[#64748b]">
+                  <tr className="text-left text-[var(--text-3)]">
                     <th className="px-2 py-1 whitespace-nowrap">#</th>
                     <th className="px-2 py-1 whitespace-nowrap">Date</th>
                     <th className="px-2 py-1 whitespace-nowrap">Procedure</th>
@@ -479,10 +479,10 @@ export default function ImportLogPage() {
                   {preview.previewCoerced.map((p) => (
                     <tr
                       key={p.rowNumber}
-                      className="text-[#cbd5e1] border-t border-[#1e2130] align-top"
+                      className="text-[var(--text-2)] border-t border-[var(--border)] align-top"
                     >
-                      <td className="px-2 py-1 text-[#64748b]">{p.rowNumber}</td>
-                      <td className="px-2 py-1 whitespace-nowrap font-mono text-[#94a3b8]">
+                      <td className="px-2 py-1 text-[var(--text-3)]">{p.rowNumber}</td>
+                      <td className="px-2 py-1 whitespace-nowrap font-mono text-[var(--text-2)]">
                         {p.coerced.caseDate ?? <span className="text-[#ef4444]">—</span>}
                       </td>
                       <td
@@ -506,13 +506,13 @@ export default function ImportLogPage() {
                       <td className="px-2 py-1 text-[10px] uppercase">
                         <EnumPill value={p.coerced.patientAgeBin} uncertain={p.coerced.uncertain.includes("patientAgeBin")} />
                       </td>
-                      <td className="px-2 py-1 text-[#94a3b8] whitespace-nowrap">
+                      <td className="px-2 py-1 text-[var(--text-2)] whitespace-nowrap">
                         {p.coerced.operativeDurationMinutes !== null
                           ? `${p.coerced.operativeDurationMinutes}m`
                           : "—"}
                       </td>
                       <td
-                        className="px-2 py-1 max-w-[220px] truncate text-[#94a3b8]"
+                        className="px-2 py-1 max-w-[220px] truncate text-[var(--text-2)]"
                         title={[p.coerced.institutionSite, p.coerced.attendingLabel]
                           .filter(Boolean)
                           .join(" · ")}
@@ -525,21 +525,21 @@ export default function ImportLogPage() {
                   ))}
                 </tbody>
               </table>
-              <p className="text-[10px] text-[#64748b] mt-2 px-2">
+              <p className="text-[10px] text-[var(--text-3)] mt-2 px-2">
                 Pills with a dashed border were guessed by the AI — double-check before merging.
               </p>
             </section>
           )}
 
           {/* Raw preview rows (collapsed by default) */}
-          <details className="bg-[#111118] border border-[#1e2130] rounded-xl overflow-hidden">
-            <summary className="cursor-pointer px-4 py-3 text-[10px] text-[#94a3b8] uppercase tracking-wider hover:text-[#cbd5e1]">
+          <details className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
+            <summary className="cursor-pointer px-4 py-3 text-[10px] text-[var(--text-2)] uppercase tracking-wider hover:text-[var(--text-2)]">
               Raw spreadsheet preview (first 10 rows)
             </summary>
-            <div className="p-4 overflow-auto border-t border-[#1e2130]">
+            <div className="p-4 overflow-auto border-t border-[var(--border)]">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="text-left text-[#64748b]">
+                  <tr className="text-left text-[var(--text-3)]">
                     {preview.headers.map((h) => (
                       <th key={h} className="px-2 py-1 whitespace-nowrap">
                         {h}
@@ -549,7 +549,7 @@ export default function ImportLogPage() {
                 </thead>
                 <tbody>
                   {preview.previewRows.slice(0, 10).map((row, i) => (
-                    <tr key={i} className="text-[#cbd5e1] border-t border-[#1e2130]">
+                    <tr key={i} className="text-[var(--text-2)] border-t border-[var(--border)]">
                       {preview.headers.map((h) => (
                         <td
                           key={h}
@@ -572,7 +572,7 @@ export default function ImportLogPage() {
           <section className="flex items-center justify-end gap-2">
             <button
               onClick={reset}
-              className="px-3 py-2 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] rounded-lg text-xs hover:border-[#2563eb]/40"
+              className="px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] rounded-lg text-xs hover:border-[var(--primary)]/40"
             >
               Start over
             </button>
@@ -608,7 +608,7 @@ export default function ImportLogPage() {
 
       {/* Step 3: Summary */}
       {summary && (
-        <section className="bg-[#111118] border border-[#10b981]/30 rounded-xl p-6 space-y-4">
+        <section className="bg-[var(--surface)] border border-[#10b981]/30 rounded-xl p-6 space-y-4">
           <h2 className="text-base font-semibold text-[#10b981] flex items-center gap-2">
             <Check className="w-5 h-5" />
             Import complete
@@ -625,22 +625,22 @@ export default function ImportLogPage() {
             />
           </div>
           {summary.duplicateCount > 0 && (
-            <p className="text-xs text-[#94a3b8]">
+            <p className="text-xs text-[var(--text-2)]">
               {summary.duplicateCount} row(s) appeared to duplicate existing
               cases and were not imported. Re-upload with explicit
               &quot;import anyway&quot; or &quot;merge&quot; decisions if you want them brought in.
             </p>
           )}
-          <div className="flex items-center gap-2 pt-3 border-t border-[#1e2130]">
+          <div className="flex items-center gap-2 pt-3 border-t border-[var(--border)]">
             <Link
               href="/cases"
-              className="px-4 py-2 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-sm font-medium"
+              className="px-4 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] text-white rounded-lg text-sm font-medium"
             >
               View imported cases
             </Link>
             <button
               onClick={reset}
-              className="px-3 py-2 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] rounded-lg text-xs hover:border-[#2563eb]/40"
+              className="px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] rounded-lg text-xs hover:border-[var(--primary)]/40"
             >
               Import another file
             </button>
@@ -661,11 +661,11 @@ function Stat({
   accent?: string;
 }) {
   return (
-    <div className="bg-[#16161f] border border-[#1e2130] rounded-lg p-3">
-      <p className="text-[10px] text-[#64748b] uppercase tracking-wider">{label}</p>
+    <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3">
+      <p className="text-[10px] text-[var(--text-3)] uppercase tracking-wider">{label}</p>
       <p
         className="text-2xl font-bold mt-0.5"
-        style={{ color: accent ?? "#f1f5f9" }}
+        style={{ color: accent ?? "var(--text)" }}
       >
         {value}
       </p>
@@ -710,7 +710,7 @@ function EnumPill({ value, uncertain }: { value: string; uncertain?: boolean }) 
       className={`inline-flex items-center px-1.5 py-0.5 rounded-md border text-[9px] tracking-wider ${
         uncertain
           ? "bg-[#1a1500] text-[#fbbf24] border-[#f59e0b]/40 border-dashed"
-          : "bg-[#16161f] text-[#cbd5e1] border-[#1e2130]"
+          : "bg-[var(--surface2)] text-[var(--text-2)] border-[var(--border)]"
       }`}
       title={uncertain ? "AI was uncertain about this value — please verify." : undefined}
     >

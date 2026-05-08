@@ -804,7 +804,7 @@ function ObservationCard({
                 <div style={{ display: "flex", gap: 6 }}>
                   {(["ACHIEVED", "NOT_ACHIEVED"] as const).map(val => {
                     const selected = achievement === val;
-                    const color = val === "ACHIEVED" ? "#10b981" : "#94a3b8";
+                    const color = val === "ACHIEVED" ? "#10b981" : "var(--text-2)";
                     return (
                       <button
                         key={val}
