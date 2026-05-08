@@ -31,6 +31,11 @@ const UpdateSchema = z.object({
   notifyOnEpaVerified:   z.boolean().optional(),
   notifyOnEpaReturned:   z.boolean().optional(),
   notifyOnBatchSigned:   z.boolean().optional(),
+  // Per-digest toggles — added with the Stage-2 digest sprint.
+  weeklyResidentDigest:  z.boolean().optional(),
+  weeklyAttendingDigest: z.boolean().optional(),
+  weeklyPdDigest:        z.boolean().optional(),
+  ccMeetingPrepDigest:   z.boolean().optional(),
   soundEnabled:          z.boolean().optional(),
   hapticsEnabled:        z.boolean().optional(),
 });

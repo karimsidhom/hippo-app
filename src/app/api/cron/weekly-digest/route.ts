@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
+import { buildDigestEmail } from '@/lib/email/digest-shell';
 
 /**
  * POST /api/cron/weekly-digest
@@ -27,11 +28,27 @@ export async function POST(req: NextRequest) {
   let errored = 0;
 
   try {
-    // Find all users who have opted in to the weekly digest
+    // Find all users who have opted in to the resident weekly digest.
+    // We honour BOTH the legacy Profile.allowWeeklyDigest and the newer
+    // UserNotificationPreferences.weeklyResidentDigest — either set to
+    // false suppresses the email. This keeps existing opt-outs valid
+    // while letting the new per-channel UI take precedence going forward.
     const profiles = await db.profile.findMany({
       where: { allowWeeklyDigest: true },
       include: {
-        user: { select: { id: true, email: true, name: true } },
+        user: {
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            notificationPreferences: {
+              select: {
+                emailEnabled: true,
+                weeklyResidentDigest: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -41,6 +58,17 @@ export async function POST(req: NextRequest) {
     for (const profile of profiles) {
       const { user } = profile;
       if (!user.email) {
+        skipped++;
+        continue;
+      }
+
+      // Per-channel preferences take precedence over the legacy boolean.
+      const prefs = user.notificationPreferences;
+      if (prefs && prefs.weeklyResidentDigest === false) {
+        skipped++;
+        continue;
+      }
+      if (prefs && prefs.emailEnabled === false) {
         skipped++;
         continue;
       }
@@ -69,13 +97,11 @@ export async function POST(req: NextRequest) {
         }
 
         const firstName = user.name?.split(' ')[0] ?? 'Surgeon';
-        const { subject, html, text } = buildDigestEmail({
+        const { subject, html, text } = renderResidentDigest({
           firstName,
           casesThisWeek,
           pendingEpas,
           milestonesThisWeek,
-          specialty: profile.specialty ?? undefined,
-          trainingYear: profile.trainingYearLabel ?? undefined,
         });
 
         const ok = await sendEmail({ to: user.email, subject, html, text });
@@ -105,110 +131,52 @@ export async function GET(req: NextRequest) {
   return POST(req);
 }
 
-// ── Email template ────────────────────────────────────────────────────
+// ── Resident-digest template ─────────────────────────────────────────
+// Uses the shared digest shell so it inherits the same Hippo brand
+// chrome (typography, colours, blur header band) as the attending /
+// PD / CC-prep digests. The local helper below just collects the
+// resident-specific bullets.
 
 interface DigestData {
   firstName: string;
   casesThisWeek: number;
   pendingEpas: number;
   milestonesThisWeek: number;
-  specialty?: string;
-  trainingYear?: string;
 }
 
-function buildDigestEmail(data: DigestData): {
+function renderResidentDigest(data: DigestData): {
   subject: string;
   html: string;
   text: string;
 } {
   const { firstName, casesThisWeek, pendingEpas, milestonesThisWeek } = data;
 
-  // Build summary lines
-  const lines: string[] = [];
+  const bullets: string[] = [];
   if (casesThisWeek > 0) {
-    lines.push(`${casesThisWeek} case${casesThisWeek === 1 ? '' : 's'} logged this week`);
+    bullets.push(`${casesThisWeek} case${casesThisWeek === 1 ? '' : 's'} logged this week`);
   }
   if (pendingEpas > 0) {
-    lines.push(`${pendingEpas} EPA${pendingEpas === 1 ? '' : 's'} pending sign-off`);
+    bullets.push(`${pendingEpas} EPA${pendingEpas === 1 ? '' : 's'} pending sign-off`);
   }
   if (milestonesThisWeek > 0) {
-    lines.push(`${milestonesThisWeek} new milestone${milestonesThisWeek === 1 ? '' : 's'} earned`);
+    bullets.push(`${milestonesThisWeek} new milestone${milestonesThisWeek === 1 ? '' : 's'} earned`);
   }
 
-  const subject = `Your week on Hippo: ${lines[0] ?? 'weekly summary'}`;
+  const subjectLead = bullets[0] ?? 'Your weekly Hippo summary';
 
-  const text = `Hi Dr. ${firstName},
-
-Here's your weekly Hippo summary:
-
-${lines.map(l => `- ${l}`).join('\n')}
-
-Keep it up! Log into Hippo to see your full dashboard:
-https://hippomedicine.com/dashboard
-
----
-You're receiving this because you opted into weekly digests.
-Turn it off anytime: https://hippomedicine.com/settings (Social tab)
-
-— Hippo (hippomedicine.com)`;
-
-  const statsHtml = lines
-    .map(
-      (l) =>
-        `<tr><td style="padding:10px 16px;border-bottom:1px solid rgba(255,255,255,0.06);font-size:14px;color:#cbd5e1;">${escapeHtml(l)}</td></tr>`,
-    )
-    .join('');
-
-  const html = `
-<!DOCTYPE html>
-<html>
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
-  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
-    <div style="text-align:center;margin-bottom:28px;">
-      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">
-        Hippo
-      </div>
-      <div style="font-size:12px;color:#64748b;margin-top:4px;">Your Weekly Summary</div>
-    </div>
-
-    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
-      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        Hi Dr. ${escapeHtml(firstName)},
-      </p>
-      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
-        Here&rsquo;s what happened on Hippo this week:
-      </p>
-
-      <table style="width:100%;border-collapse:collapse;background:#0e1520;border:1px solid rgba(255,255,255,0.06);border-radius:8px;overflow:hidden;">
-        ${statsHtml}
-      </table>
-
-      <a href="https://hippomedicine.com/dashboard" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;margin-top:20px;">
-        Open Dashboard
-      </a>
-    </div>
-
-    <div style="text-align:center;margin-top:24px;">
-      <p style="color:#475569;font-size:11px;margin:0;line-height:1.6;">
-        You&rsquo;re receiving this because you opted into weekly digests.<br>
-        <a href="https://hippomedicine.com/settings" style="color:#64748b;">Turn off</a> anytime in Settings &rarr; Social.
-      </p>
-      <p style="color:#475569;font-size:11px;margin:8px 0 0;">
-        <a href="https://hippomedicine.com" style="color:#64748b;">Hippo</a> &mdash; surgical education, simplified.
-      </p>
-    </div>
-  </div>
-</body>
-</html>`;
-
-  return { subject, html, text };
-}
-
-function escapeHtml(str: string): string {
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+  return buildDigestEmail({
+    eyebrow: 'Your week on Hippo',
+    subjectLead: `Your week on Hippo: ${subjectLead}`,
+    greeting: `Hi Dr. ${firstName},`,
+    sections: [
+      {
+        heading: 'This week',
+        bullets,
+        cta: { label: 'See the full dashboard', href: '/dashboard' },
+      },
+    ],
+    primaryCta: { label: 'Open Hippo', href: '/dashboard' },
+    unsubscribeUrl: '/settings/notifications',
+    unsubscribeReason: 'you opted into the weekly resident summary',
+  });
 }

@@ -1,12 +1,9 @@
 {
   "crons": [
-    {
-      "path": "/api/cron/weekly-digest",
-      "schedule": "0 13 * * 1"
-    },
-    {
-      "path": "/api/cron/keepalive",
-      "schedule": "0 11 * * 2,5"
-    }
+    { "path": "/api/cron/weekly-digest",     "schedule": "0 13 * * 1" },
+    { "path": "/api/cron/attending-digest",  "schedule": "0 12 * * 1" },
+    { "path": "/api/cron/pd-digest",         "schedule": "30 13 * * 1" },
+    { "path": "/api/cron/cc-meeting-prep",   "schedule": "0 9 * * *" },
+    { "path": "/api/cron/keepalive",         "schedule": "0 11 * * 2,5" }
   ]
 }

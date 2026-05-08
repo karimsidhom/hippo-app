@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronLeft, Bell, Volume2, Vibrate, Smartphone, Mail, Check, AlertTriangle } from "lucide-react";
+import { ChevronLeft, Bell, Volume2, Vibrate, Smartphone, Mail, Check, AlertTriangle, MailOpen } from "lucide-react";
 import { useInteraction } from "@/hooks/useInteraction";
 import {
   enablePush,
@@ -28,15 +28,21 @@ import {
 // ---------------------------------------------------------------------------
 
 interface Preferences {
-  inAppEnabled:          boolean;
-  pushEnabled:           boolean;
-  emailEnabled:          boolean;
-  notifyOnEpaSubmitted:  boolean;
-  notifyOnEpaVerified:   boolean;
-  notifyOnEpaReturned:   boolean;
-  notifyOnBatchSigned:   boolean;
-  soundEnabled:          boolean;
-  hapticsEnabled:        boolean;
+  inAppEnabled:           boolean;
+  pushEnabled:            boolean;
+  emailEnabled:           boolean;
+  notifyOnEpaSubmitted:   boolean;
+  notifyOnEpaVerified:    boolean;
+  notifyOnEpaReturned:    boolean;
+  notifyOnBatchSigned:    boolean;
+  // Per-digest toggles — independent of the master Email switch so a
+  // user can keep transactional EPA emails but mute every Monday digest.
+  weeklyResidentDigest:   boolean;
+  weeklyAttendingDigest:  boolean;
+  weeklyPdDigest:         boolean;
+  ccMeetingPrepDigest:    boolean;
+  soundEnabled:           boolean;
+  hapticsEnabled:         boolean;
 }
 
 export default function NotificationSettingsPage() {
@@ -62,6 +68,12 @@ export default function NotificationSettingsPage() {
           notifyOnEpaVerified: p.notifyOnEpaVerified,
           notifyOnEpaReturned: p.notifyOnEpaReturned,
           notifyOnBatchSigned: p.notifyOnBatchSigned,
+          // Default-true for the digests so a freshly-created prefs row
+          // (no explicit override) gets digests until the user opts out.
+          weeklyResidentDigest:  p.weeklyResidentDigest  ?? true,
+          weeklyAttendingDigest: p.weeklyAttendingDigest ?? true,
+          weeklyPdDigest:        p.weeklyPdDigest        ?? true,
+          ccMeetingPrepDigest:   p.ccMeetingPrepDigest   ?? true,
           soundEnabled: p.soundEnabled,
           hapticsEnabled: p.hapticsEnabled,
         });
@@ -213,6 +225,45 @@ export default function NotificationSettingsPage() {
               description="Both sides: confirmation when many EPAs are signed at once"
               checked={prefs.notifyOnBatchSigned}
               onChange={v => update({ notifyOnBatchSigned: v })}
+            />
+          </Section>
+
+          {/* ── Digest emails ───────────────────────────────────────── */}
+          {/*
+            Each toggle controls one weekly cron-driven email. They sit
+            BELOW the master "Email" toggle in §Channels — if the user
+            turns email off entirely, none of these fire regardless of
+            the per-digest state. We deliberately don't grey them out
+            here so the user can pre-configure their preferences.
+          */}
+          <Section
+            icon={<MailOpen size={14} />}
+            title="Digest emails"
+            body="Weekly summaries and meeting-prep reminders. Each one is independent — keep what helps, mute what doesn't."
+          >
+            <Toggle
+              label="Resident weekly summary"
+              description="Mondays at 8 AM ET — your week's cases, EPAs, milestones"
+              checked={prefs.weeklyResidentDigest}
+              onChange={v => update({ weeklyResidentDigest: v })}
+            />
+            <Toggle
+              label="Attending weekly digest"
+              description="Mondays — EPAs from residents that need your sign-off"
+              checked={prefs.weeklyAttendingDigest}
+              onChange={v => update({ weeklyAttendingDigest: v })}
+            />
+            <Toggle
+              label="PD weekly cohort digest"
+              description="Mondays — silent residents and EPA review backlog (program owners only)"
+              checked={prefs.weeklyPdDigest}
+              onChange={v => update({ weeklyPdDigest: v })}
+            />
+            <Toggle
+              label="CC meeting prep"
+              description="One week before each scheduled CC review — pre-meeting snapshot"
+              checked={prefs.ccMeetingPrepDigest}
+              onChange={v => update({ ccMeetingPrepDigest: v })}
             />
           </Section>
 

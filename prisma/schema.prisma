@@ -1199,6 +1199,14 @@ model UserNotificationPreferences {
   notifyOnEpaReturned   Boolean  @default(true)   // resident side
   notifyOnBatchSigned   Boolean  @default(true)   // resident + attending confirm
 
+  // Weekly + meeting-prep digest toggles. Each is a separate channel
+  // so a user can opt in to the resident summary but skip the PD or
+  // attending one even if they wear multiple hats.
+  weeklyResidentDigest  Boolean  @default(true)   // "you logged X cases / Y EPAs pending"
+  weeklyAttendingDigest Boolean  @default(true)   // "X EPAs need your sign-off"
+  weeklyPdDigest        Boolean  @default(true)   // "X residents silent / Y EPAs in CC backlog"
+  ccMeetingPrepDigest   Boolean  @default(true)   // 1 week before each scheduled CC review
+
   // Sound + haptics (read by the client; stored server-side so they
   // follow the user across devices).
   soundEnabled          Boolean  @default(true)
