@@ -272,6 +272,11 @@ export default function PDDashboardPage() {
 
   const casesThisWeek = residents.reduce((s, r) => s + r.casesThisWeek, 0);
 
+  // Demo storyboard's "Mapped Cases" — cohort total. Every case logged
+  // by the cohort, all-time. Headline number; the weekly delta is the
+  // sublabel so we keep the action-focused signal too.
+  const mappedCasesTotal = residents.reduce((s, r) => s + r.totalCases, 0);
+
   // EPAs signed this month — best-effort: we use epaSigned totals as a signal.
   // The residents route doesn't break signed-by-month; we surface the live total
   // as "EPAs signed (all time)" and highlight "this month" if avail.
@@ -424,6 +429,14 @@ export default function PDDashboardPage() {
       </div>
 
       {/* ── KPI strip ──────────────────────────────────────────────────── */}
+      {/* Top row mirrors the demo storyboard's three headline tiles:
+          Mapped Cases / EPA Completion / Silent residents. The
+          weekly-cases delta moves into the Mapped Cases sublabel so
+          the PD still sees the action signal without a fifth tile.
+          Demo also showed an "Overall Level" tile but that's the
+          aggregate competency level which we don't compute server-side
+          yet — using "Avg EPA completion" already conveys cohort
+          progress, so we keep that as the third progress tile. */}
       <div
         style={{
           display: "grid",
@@ -434,16 +447,18 @@ export default function PDDashboardPage() {
       >
         <KpiCard
           icon={<Activity size={16} />}
-          label="Cases this week"
-          value={casesThisWeek}
+          label="Mapped Cases"
+          value={mappedCasesTotal}
           color="var(--primary)"
+          sublabel={`${casesThisWeek} this week`}
         />
         <KpiCard
           icon={<CheckCircle2 size={16} />}
-          label="EPAs signed"
-          value={epasSignedTotal}
+          label="EPA Completion"
+          value={avgEpaCompletion}
           color="var(--success)"
-          sublabel="cohort total"
+          suffix="%"
+          sublabel={`${epasSignedTotal} signed`}
         />
         <KpiCard
           icon={<ShieldAlert size={16} />}
@@ -454,10 +469,10 @@ export default function PDDashboardPage() {
         />
         <KpiCard
           icon={<Users size={16} />}
-          label="Avg EPA completion"
-          value={avgEpaCompletion}
-          color="var(--warning)"
-          suffix="%"
+          label="Cohort size"
+          value={residents.length}
+          color="var(--text-2)"
+          sublabel={`${residentCount} residents · ${fellowCount} fellows`}
         />
       </div>
 

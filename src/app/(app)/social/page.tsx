@@ -34,7 +34,19 @@ interface FollowUser {
   } | null;
 }
 
-type Tab = "Feed" | "Discover" | "Following" | "Followers" | "Invite";
+// Demo storyboard (S9 — Community) shows three primary tabs: Feed,
+// Pearls, Leaderboard. Discover/Following/Followers/Invite remain
+// reachable from the secondary chip strip below the tabs so we don't
+// lose any existing surface area, but the demo's promised surface is
+// what users land on.
+type Tab =
+  | "Feed"
+  | "Pearls"
+  | "Leaderboard"
+  | "Discover"
+  | "Following"
+  | "Followers"
+  | "Invite";
 
 export default function SocialPage() {
   const { user } = useAuth();
@@ -175,8 +187,15 @@ export default function SocialPage() {
     window.open(`sms:?&body=${message}`, "_self");
   };
 
-  const TABS: { key: Tab; label: string }[] = [
+  // Primary tabs match the demo storyboard.
+  const PRIMARY_TABS: { key: Tab; label: string }[] = [
     { key: "Feed", label: "Feed" },
+    { key: "Pearls", label: "Pearls" },
+    { key: "Leaderboard", label: "Leaderboard" },
+  ];
+  // Secondary chips — preserve the existing functionality without
+  // crowding the primary nav.
+  const SECONDARY_CHIPS: { key: Tab; label: string }[] = [
     { key: "Discover", label: "Discover" },
     { key: "Following", label: "Following" },
     { key: "Followers", label: "Followers" },
@@ -232,11 +251,11 @@ export default function SocialPage() {
         </button>
       </div>
 
-      {/* Tabs */}
+      {/* Primary tabs — the three the demo storyboard actually shows. */}
       <div style={{
-        display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 16, gap: 0,
+        display: "flex", borderBottom: "1px solid var(--border)", marginBottom: 12, gap: 0,
       }}>
-        {TABS.map(({ key, label }) => (
+        {PRIMARY_TABS.map(({ key, label }) => (
           <button
             key={key}
             onClick={() => setActiveTab(key)}
@@ -245,7 +264,7 @@ export default function SocialPage() {
               background: "none", border: "none",
               borderBottom: activeTab === key ? "2px solid var(--primary)" : "2px solid transparent",
               color: activeTab === key ? "var(--text)" : "var(--text-3)",
-              fontSize: 12, fontWeight: activeTab === key ? 600 : 500,
+              fontSize: 13, fontWeight: activeTab === key ? 600 : 500,
               cursor: "pointer", fontFamily: "'Geist', sans-serif",
               transition: "all .15s",
             }}
@@ -255,9 +274,152 @@ export default function SocialPage() {
         ))}
       </div>
 
+      {/* Secondary chip strip — Discover / Following / Followers / Invite. */}
+      <div
+        style={{
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 6,
+          marginBottom: 16,
+        }}
+      >
+        {SECONDARY_CHIPS.map(({ key, label }) => {
+          const active = activeTab === key;
+          return (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              style={{
+                padding: "6px 12px",
+                fontSize: 11,
+                fontWeight: 500,
+                borderRadius: 99,
+                border: `1px solid ${active ? "var(--primary)" : "var(--border)"}`,
+                background: active ? "rgba(14,165,233,0.1)" : "var(--surface)",
+                color: active ? "var(--primary)" : "var(--text-3)",
+                cursor: "pointer",
+                transition: "all .15s",
+                fontFamily: "'Geist', sans-serif",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* ═══ Feed Tab ═══ */}
       {activeTab === "Feed" && (
         <PostFeed onCreatePost={() => setComposerOpen(true)} />
+      )}
+
+      {/* ═══ Pearls Tab — curated subset of the same feed ═══
+          The pearl model in this app IS the post model — every shared
+          post is a "clinical pearl". The Pearls tab gives the same feed
+          a different framing: a one-line header that names what the
+          user is looking at, then the same chronological pearl list. */}
+      {activeTab === "Pearls" && (
+        <div>
+          <div
+            style={{
+              padding: "12px 14px",
+              marginBottom: 12,
+              background: "rgba(14,165,233,0.04)",
+              border: "1px solid rgba(14,165,233,0.18)",
+              borderRadius: 12,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--primary)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 4,
+              }}
+            >
+              Clinical pearls
+            </div>
+            <div
+              style={{
+                fontSize: 12,
+                color: "var(--text-2)",
+                lineHeight: 1.5,
+              }}
+            >
+              Surgical pearls shared by the community. Every pearl is
+              auto-screened for PHI before it lands here.
+            </div>
+          </div>
+          <PostFeed onCreatePost={() => setComposerOpen(true)} />
+        </div>
+      )}
+
+      {/* ═══ Leaderboard Tab — link to the dedicated leaderboard page ═══
+          We render a compact "see-it-here" header with a primary CTA
+          that takes the user to the full leaderboard so all the
+          existing filters (volume / autonomy / improvement, specialty,
+          PGY, time range) remain available. */}
+      {activeTab === "Leaderboard" && (
+        <div>
+          <div
+            style={{
+              padding: 18,
+              marginBottom: 14,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 14,
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 600,
+                color: "var(--text-3)",
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                marginBottom: 6,
+              }}
+            >
+              Hippo top contributors
+            </div>
+            <div
+              style={{
+                fontSize: 14,
+                color: "var(--text)",
+                fontWeight: 500,
+                lineHeight: 1.5,
+                marginBottom: 14,
+              }}
+            >
+              See the volume, autonomy and improvement leaderboards
+              across your specialty and PGY year.
+            </div>
+            <button
+              onClick={() => router.push("/leaderboard")}
+              style={{
+                padding: "10px 18px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#fff",
+                background: "linear-gradient(135deg, var(--primary-hi), var(--primary-lo))",
+                border: "none",
+                borderRadius: 10,
+                cursor: "pointer",
+                fontFamily: "inherit",
+                boxShadow: "0 4px 24px -4px rgba(14,165,233,0.35)",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 6,
+              }}
+            >
+              Open the leaderboard
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        </div>
       )}
 
       {/* Unified composer — opens from PostFeed's "new post" button or from
