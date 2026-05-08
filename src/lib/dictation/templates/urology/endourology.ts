@@ -837,65 +837,76 @@ export const URETHRAL_DILATION_OPTILUME: ProcedureTemplate = {
 };
 
 // ---------------------------------------------------------------------------
-// Urethral stricture dilation with S-curved sounds (Van Buren / metal)
+// Urethral dilation (the procedure — most often performed with the Cook
+// Medical S-curve dilator set, sequential 6 → 20 Fr).
 //
-// Sequential mechanical dilation using S-curved metal sounds (Van Buren
-// or Hegar-style). Curved sound design follows the natural urethral
-// curve from meatus around to the bladder neck — atraumatic when sized
-// up correctly, traumatic when forced. Often used in clinic or OR for
-// short, simple anterior strictures, prior to or in lieu of balloon /
-// laser urethrotomy. Risk profile: false passage, urethral injury,
-// transient bleeding, dysuria.
+// Procedure-name in dictation is "Urethral dilation"; the S-curve Cook
+// dilator set is the workhorse instrument and is described in the
+// operative steps. Filiforms-and-followers and open Van Buren sounds
+// remain alternates that the user can substitute via free-text.
+//
+// Sequence: wire-guided cystoscopy, baseline lumen calibration with the
+// 6 Fr S-curve dilator, then sequential upsizing 6 → 8 → 10 → 12 → 14
+// → 16 → 18 → 20 Fr, holding briefly at each step. Most clinical
+// stops at 18-20 Fr because the bulbar urethra accommodates ≥ 20 Fr
+// without trauma in the average adult male.
 // ---------------------------------------------------------------------------
 
-export const URETHRAL_DILATION_S_CURVE: ProcedureTemplate = {
-  key: "urology.endourology.urethral_dilation_s_curve",
+export const URETHRAL_DILATION: ProcedureTemplate = {
+  key: "urology.endourology.urethral_dilation",
   specialty: "urology",
   subcategory: "endourology",
-  procedureName: "Cystoscopy with sequential S-curve sound urethral dilation",
+  procedureName: "Cystoscopy with urethral dilation",
   synonyms: [
+    "urethral dilation",
+    "urethral dilatation",
+    "cystoscopy and urethral dilation",
+    "cystoscopy with urethral dilation",
     "s-curve dilation",
-    "s curve",
-    "van buren sound",
+    "s curve dilation",
+    "cook s-curve",
     "sound dilation",
-    "metal sound dilation",
-    "blind dilation",
     "filiform and follower",
   ],
   matchPatterns: [
-    /\b(s[-\s]?curve|s[-\s]?shaped|van\s?buren|metal)\s+(sound|sounds)\b/i,
+    // Direct procedure-name match.
+    /\burethr(al|a)\s+dilat(ion|ation)\b/i,
+    // Cook S-curve dilator name (the workhorse hardware).
+    /\bcook\s+s[-\s]?curve\b/i,
+    /\bs[-\s]?curve\s+dilator\b/i,
+    // Generic sound-dilation / filiform language as a urethral procedure.
     /\bsound\s+dilation\b.*\burethr/i,
-    /\burethr.*\b(sound|sounds)\s+dilation\b/i,
+    /\burethr.*\bsound\s+dilation\b/i,
     /\bfiliform\s+and\s+followers?\b/i,
   ],
   topMatter: {
-    anesthesia: "IV sedation with topical 2% lidocaine jelly intra-urethrally; or general / spinal for tighter strictures.",
+    anesthesia: "IV sedation with topical 2% lidocaine jelly intra-urethrally; general or spinal anesthesia for tighter / more painful strictures.",
     position: "Dorsal lithotomy with well-padded candy-cane stirrups; common peroneal nerve compression off-loaded at the fibular head.",
-    prep: "Genitalia and perineum prepped with chlorhexidine and draped in the usual sterile fashion. Cefazolin 2 g IV within 60 min per AUA guidelines.",
-    ebl: "Minimal — typically a few drops of urethral bleeding only.",
-    disposition: "PACU and home the same day; clinic alternative for select cases.",
+    prep: "Genitalia and perineum prepped with chlorhexidine and draped in the usual sterile fashion. Cefazolin 2 g IV (or culture-directed) within 60 min per AUA guidelines.",
+    ebl: "Minimal — typically only a few drops of urethral bleeding.",
+    disposition: "PACU and home the same day.",
   },
   findings: {
     headline:
-      "[Bulbar / penile / fossa-navicularis] urethral stricture, lumen calibre approximately {{pre_lumen_fr}} Fr at narrowest point, length {{stricture_length_mm}} mm.",
+      "[Bulbar / penile / fossa-navicularis] urethral stricture, lumen calibre approximately {{pre_lumen_fr}} Fr at the narrowest point, length {{stricture_length_mm}} mm, located {{stricture_position_cm}} cm from the meatus.",
     supporting: [
-      "Pre-dilation cystoscopy: stricture {{stricture_position_cm}} cm from the meatus; mucosa pale, fibrotic, no fresh ulceration or active bleeding.",
-      "Sequential dilation tolerated well with no false passage created; final dilation to {{final_size_fr}} Fr was atraumatic.",
-      "Post-dilation cystoscopy (when performed): patent lumen at the dilated calibre; no perforation; minimal mucosal bleeding controlled with continuous irrigation.",
+      "Pre-dilation cystoscopy: mucosa pale and fibrotic across the strictured segment; no fresh ulceration or active bleeding; no associated false passage.",
+      "Sequential dilation 6 → 20 Fr was tolerated well, with progressive resistance through 12-14 Fr and atraumatic passage at the final calibre.",
+      "Post-dilation cystoscopy: lumen patent at the achieved calibre; no perforation, no false passage, no mucosal flap; bleeding self-limited.",
     ],
   },
   operativeSteps: {
     steps: [
       "After sedation and timeout, 2% lidocaine jelly was instilled intraurethrally with the penis stretched on traction; held for 5 minutes for topical anesthesia.",
-      "Diagnostic flexible (or rigid 22 Fr) cystoscopy was performed under direct vision; the stricture's location, length, calibre, and any associated false passage were documented.",
-      "A 0.035\" hydrophilic guidewire (Sensor / Glidewire) was advanced through the stricture into the bladder under cystoscopic guidance; intravesical position was confirmed by coiling within the bladder.",
-      "[For very tight strictures: a 3 Fr Pollack or open-ended ureteric catheter was passed alongside the wire to railroad the dilation; or filiforms followed by graduated followers were used for the same purpose.]",
-      "Sequential S-curved metal (Van Buren) sounds were passed over/along the wire (or freehand under direct cystoscopic vision when no wire used). The smallest sound that comfortably traversed the stricture was the starting calibre — typically 14-18 Fr.",
-      "Each sound was advanced with the curve following the natural urethral course (penis on cephalad traction for the anterior urethra, downward then anteriorly through the bulb), held for 30-60 seconds, and withdrawn. Sounds were upsized in 2 Fr increments (16, 18, 20, 22, 24, up to {{final_size_fr}} Fr) until adequate calibre was achieved without forcing.",
-      "[At each step, hemostasis was assessed by direct withdrawal — heavy or pulsatile bleeding would prompt termination of further upsizing.]",
-      "Final sound was held for 30 seconds at the target calibre to allow gentle radial dilation memory.",
-      "Post-dilation cystoscopy (optional but recommended) was performed: lumen patent at the achieved calibre; no false passage, no extravasation, no mucosal flap, no significant bleeding.",
-      "[A 14-16 Fr Foley catheter was placed and balloon inflated with 5-10 mL sterile water] OR [The patient voided spontaneously in the PACU — surgeon preference based on stricture severity and bleeding].",
+      "Diagnostic flexible (or rigid 22 Fr) cystoscopy was performed under direct vision; the stricture's location, length, lumen calibre, and any associated false passage were documented.",
+      "A 0.035\" hydrophilic guidewire (Sensor / Glidewire) was advanced through the stricture into the bladder under cystoscopic guidance; intravesical position was confirmed by free coiling within the bladder.",
+      "The Cook S-curve urethral dilator set was used. The 6 Fr dilator was advanced over the wire as the baseline calibre.",
+      "Sequential dilation was then performed: 8 Fr → 10 Fr → 12 Fr → 14 Fr → 16 Fr → 18 Fr → 20 Fr, each dilator passed over the wire with the S-curve following the natural urethral course (penis on gentle cephalad traction for the anterior urethra, then dropping posteriorly to negotiate the bulb).",
+      "Each dilator was held in place for 30-60 seconds, then withdrawn over the wire while the next size was prepared. Resistance and bleeding were assessed at each step; in the absence of either, upsizing continued through to {{final_size_fr}} Fr.",
+      "[For very tight strictures: filiforms followed by graduated followers were used to railroad the initial calibration before transitioning to the Cook S-curve set.]",
+      "The wire was kept in situ throughout. Final dilator was held at the target calibre for 30 seconds to set the radial dilation memory, then withdrawn.",
+      "Post-dilation cystoscopy was performed: lumen patent at {{final_size_fr}} Fr; no false passage, no extravasation, no mucosal flap, no significant bleeding.",
+      "[A 14-16 Fr 2-way silicone Foley catheter was placed and the balloon inflated with 5-10 mL sterile water] OR [The patient voided spontaneously in the PACU — surgeon preference based on stricture severity and bleeding].",
     ],
     closure:
       "Equipment removed. Genitalia cleaned and the patient returned to supine. Drapes removed; skin re-inspected.",
@@ -904,9 +915,9 @@ export const URETHRAL_DILATION_S_CURVE: ProcedureTemplate = {
     instruments: [
       "16/17 Fr flexible cystoscope (or 22 Fr rigid)",
       "0.035\" hydrophilic guidewire (Sensor / Glidewire)",
-      "Set of S-curved (Van Buren) metal sounds, 14-30 Fr in 2 Fr increments",
-      "[Optional] Filiforms and graduated followers (8 Fr filiform, 8-30 Fr followers)",
-      "[Optional] Open-ended 5/6 Fr ureteric catheter for railroad pre-dilation",
+      "Cook Medical S-curve urethral dilator set (6 Fr through 20 Fr in 2 Fr increments)",
+      "[Optional] Filiforms and graduated followers (for very tight strictures)",
+      "[Optional] Open-ended 5/6 Fr ureteric catheter for railroad calibration",
     ],
     implants: ["[Optional] 14-16 Fr 2-way silicone Foley catheter"],
     consumables: [
@@ -920,25 +931,25 @@ export const URETHRAL_DILATION_S_CURVE: ProcedureTemplate = {
       "[Foley: 14-16 Fr Foley to gravity / Catheter-free: PACU voiding trial — surgeon preference based on bleeding and stricture severity].",
   },
   complicationChecks: [
-    { label: "False passage", defaultStatus: "None — guidewire / direct-vision technique used throughout; final cystoscopy confirmed intact lumen." },
-    { label: "Urethral injury / extravasation" },
+    { label: "False passage", defaultStatus: "None — wire-guided technique throughout; final cystoscopy confirmed intact lumen." },
+    { label: "Urethral injury / extravasation", defaultStatus: "None." },
     { label: "Bleeding (typically self-limited)" },
     { label: "Acute urinary retention post-dilation" },
     { label: "Urinary tract infection / urosepsis (low risk with peri-procedure prophylaxis)" },
-    { label: "Stricture recurrence (high — sound dilation alone has ~50–70% recurrence at 1 year)" },
+    { label: "Stricture recurrence (high — dilation alone has ~50–70% recurrence at 1 year)" },
   ],
   postopPlan: {
     disposition: "Discharge home from PACU.",
     catheter:
-      "[If Foley placed: remove POD 1-3 in clinic; void at home or in clinic that day. / If catheter-free: void in PACU before discharge.]",
+      "[If Foley placed: remove POD 1-3 in clinic; void at home or in clinic that day. / If catheter-free: void in PACU before discharge].",
     analgesia:
       "Phenazopyridine 100-200 mg PO TID × 2 days for dysuria; acetaminophen + NSAID PRN. No routine opioids.",
     antibiotics: "Single peri-procedure dose. Oral course only if positive preop urine culture or extended instrumentation.",
     activity: "Resume normal activity in 24 h; abstain from sexual intercourse for 1 week.",
     followup: [
-      "Uroflow + post-void residual at 6 weeks then 3, 6, 12 months",
+      "Uroflow + post-void residual at 6 weeks, then 3, 6, 12 months",
       "IPSS at each visit — track symptom recurrence early",
-      "Discuss durable options (urethroplasty, internal urethrotomy with knife, Optilume DCB) given high recurrence rate of dilation alone",
+      "Discuss durable options (urethroplasty, DVIU, Optilume DCB) given high recurrence rate of dilation alone",
       "Repeat cystoscopy if symptomatic recurrence",
     ],
     returnPrecautions: [
@@ -969,13 +980,14 @@ export const URETHRAL_DILATION_S_CURVE: ProcedureTemplate = {
       id: "final_size_fr",
       label: "Final dilation calibre (Fr)",
       type: "enum",
-      options: ["18", "20", "22", "24", "26", "28", "30"],
+      options: ["14", "16", "18", "20"],
+      hint: "Cook S-curve set runs 6-20 Fr; 18-20 Fr is the typical clinical stop in adult males.",
     },
     {
       id: "wire_used",
       label: "Wire-guided",
       type: "boolean",
-      hint: "Wire-guided dilation is markedly safer than blind sound dilation.",
+      hint: "Wire-guided dilation is markedly safer than blind sounding.",
     },
     {
       id: "catheter_strategy",
@@ -988,15 +1000,16 @@ export const URETHRAL_DILATION_S_CURVE: ProcedureTemplate = {
     { id: "prior_treatments", label: "Prior stricture treatments", type: "text" },
     { id: "filiform_used", label: "Filiform & followers used", type: "boolean" },
     { id: "post_procedure_cystoscopy", label: "Post-procedure cystoscopy performed", type: "boolean" },
+    { id: "dilator_set", label: "Dilator set", type: "enum", options: ["Cook S-curve", "Filiform & followers", "Open-tip ureteric catheter railroad", "Other"] },
   ],
   billingPrompts: [
-    "Document the technique as sequential metal sound dilation (CPT 53600 / 53601 family in the US).",
-    "Specify wire-guided vs blind technique — affects coding precision.",
+    "Document urethral dilation technique (CPT 53600 / 53601 family in the US).",
+    "Specify wire-guided vs blind — affects coding precision.",
     "Note final achieved calibre and catheter strategy.",
-    "Counselling on high recurrence rate vs definitive options should be documented separately.",
+    "Counselling on high recurrence rate vs definitive options (urethroplasty, DVIU, Optilume) should be documented separately.",
   ],
   notes:
-    "S-curve metal sound dilation is a temporising procedure with high recurrence (50–70% at 1 year for bulbar strictures). Patients should be counselled on durable alternatives (urethroplasty, Optilume DCB, DVIU). Wire-guided technique is strongly preferred over blind sounding.",
+    "Urethral dilation is a temporising procedure with high recurrence (~50-70% at 1 year for bulbar strictures). The Cook Medical S-curve dilator set is the workhorse: sequential passage 6 → 20 Fr over a wire. Patients should be counselled on durable alternatives (urethroplasty, Optilume DCB, DVIU). Wire-guided technique is strongly preferred over blind sounding.",
 };
 
 // Aggregate export
@@ -1009,8 +1022,11 @@ export const ENDOUROLOGY_TEMPLATES: ProcedureTemplate[] = [
   URETEROSCOPY_LASER,
   TURBT,
   HOLEP,
-  // Urethral stricture dilation variants — Optilume name is unambiguous,
-  // S-curve / sound patterns are wider so they sit slightly later.
+  // Urethral stricture dilation variants — Optilume (drug-coated balloon)
+  // is a separate procedure with its own match patterns; the generic
+  // urethral-dilation template (Cook S-curve set, sequential 6-20 Fr)
+  // sits second so the more specific Optilume match wins when both
+  // patterns could fire.
   URETHRAL_DILATION_OPTILUME,
-  URETHRAL_DILATION_S_CURVE,
+  URETHRAL_DILATION,
 ];

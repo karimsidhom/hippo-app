@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
 import { getStreak } from "@/lib/milestones";
+import { MILESTONE_THRESHOLDS } from "@/lib/constants";
 import { getLearningCurveData, getWeeklyHeatmapData } from "@/lib/stats";
 import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
@@ -60,6 +61,112 @@ function approachColor(approach: string): string {
     ENDOSCOPIC: "#64748B", HYBRID: "#10B981", PERCUTANEOUS: "#F97316",
   };
   return m[approach] ?? "#334155";
+}
+
+// ── Progress / next-up milestones ─────────────────────────────────────────
+//
+// Computes which milestones a resident is closest to unlocking, returning
+// up to two candidates ranked by progress percentage. The point of this is
+// gamification: pinning the next badge in front of the user makes case-
+// logging feel like climbing a ladder, not filling a database.
+
+interface NextMilestone {
+  /** Stable key — used for React keys. */
+  key: string;
+  /** Short headline ("100 cases", "10 independent", "30-day streak"). */
+  label: string;
+  /** Sub-label: what the user does to earn it. */
+  hint: string;
+  /** 0..1 progress toward the threshold. */
+  progress: number;
+  /** Current value. */
+  current: number;
+  /** Target value. */
+  target: number;
+  /** Visual hint. */
+  emoji: string;
+  color: string;
+}
+
+function nextThreshold(thresholds: readonly number[], current: number): number | null {
+  for (const t of thresholds) if (t > current) return t;
+  return null;
+}
+
+function getNextUpMilestones(
+  totalCases: number,
+  independentCount: number,
+  streakDays: number,
+  topProcName: string,
+  topProcCount: number,
+): NextMilestone[] {
+  const out: NextMilestone[] = [];
+
+  const totalNext = nextThreshold(MILESTONE_THRESHOLDS.TOTAL_CASES, totalCases);
+  if (totalNext) {
+    out.push({
+      key: `total_${totalNext}`,
+      label: `${totalNext} total cases`,
+      hint: `${totalNext - totalCases} to go`,
+      progress: totalCases / totalNext,
+      current: totalCases,
+      target: totalNext,
+      emoji: totalNext >= 100 ? "👑" : totalNext >= 50 ? "💎" : totalNext >= 25 ? "🏆" : "⭐",
+      color: totalNext >= 100 ? "#f59e0b" : totalNext >= 50 ? "#6366f1" : "#0ea5e9",
+    });
+  }
+
+  const indThresholds = [1, 10, 25, 50, 100] as const;
+  const indNext = nextThreshold(indThresholds, independentCount);
+  if (indNext) {
+    out.push({
+      key: `independent_${indNext}`,
+      label:
+        indNext === 1 ? "First independent case" : `${indNext} independent cases`,
+      hint:
+        indNext === 1
+          ? "Log a case where you operated independently"
+          : `${indNext - independentCount} more independent cases`,
+      progress: independentCount / indNext,
+      current: independentCount,
+      target: indNext,
+      emoji: "🦅",
+      color: "#10b981",
+    });
+  }
+
+  const streakNext = nextThreshold(MILESTONE_THRESHOLDS.STREAK_DAYS, streakDays);
+  if (streakNext && streakDays > 0) {
+    out.push({
+      key: `streak_${streakNext}`,
+      label: `${streakNext}-day streak`,
+      hint: `Log a case daily for ${streakNext - streakDays} more day${streakNext - streakDays === 1 ? "" : "s"}`,
+      progress: streakDays / streakNext,
+      current: streakDays,
+      target: streakNext,
+      emoji: "🔥",
+      color: "#ef4444",
+    });
+  }
+
+  const procThresholds = (MILESTONE_THRESHOLDS as { PROCEDURE_COUNT?: readonly number[] }).PROCEDURE_COUNT ?? [5, 10, 25, 50, 100];
+  const procNext = topProcName ? nextThreshold(procThresholds, topProcCount) : null;
+  if (procNext && topProcName) {
+    out.push({
+      key: `proc_${topProcName}_${procNext}`,
+      label: `${procNext} × ${topProcName}`,
+      hint: `${procNext - topProcCount} more ${topProcName.toLowerCase()}${procNext - topProcCount === 1 ? "" : "s"}`,
+      progress: topProcCount / procNext,
+      current: topProcCount,
+      target: procNext,
+      emoji: "🎯",
+      color: "#8b5cf6",
+    });
+  }
+
+  return out
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, 2);
 }
 
 export default function DashboardPage() {
@@ -417,6 +524,246 @@ export default function DashboardPage() {
           </div>
         ))}
       </div>
+
+      {/* ── Progress / next-up milestones (residents only) ─────────────────
+          The whole point of this strip: case-logging should feel like
+          climbing a ladder, not filling a database. We surface the user's
+          most recent earned badges (left) plus their two closest next
+          targets (right). Tappable — leads to /milestones for the full
+          history. */}
+      {isResident && (cases.length > 0 || milestones.length > 0) && (() => {
+        const independentCount = cases.filter(
+          (c) => c.autonomyLevel === "INDEPENDENT" || c.autonomyLevel === "TEACHING",
+        ).length;
+        const nextUp = getNextUpMilestones(
+          cases.length,
+          independentCount,
+          streakInfo.currentStreak,
+          topProcName,
+          topProcs[0]?.[1] ?? 0,
+        );
+        const recentMilestones = [...milestones]
+          .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
+          .slice(0, 4);
+
+        if (nextUp.length === 0 && recentMilestones.length === 0) return null;
+
+        return (
+          <Link
+            href="/milestones"
+            style={{
+              display: "block",
+              padding: "16px",
+              marginBottom: 28,
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 12,
+              textDecoration: "none",
+              color: "var(--text)",
+              transition: "border-color .15s",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                marginBottom: 12,
+              }}
+            >
+              <span
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.06em",
+                  color: "var(--text-3)",
+                }}
+              >
+                Progress
+              </span>
+              <span
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  fontSize: 11,
+                  color: "var(--text-3)",
+                }}
+              >
+                {milestones.length} earned
+                <ChevronRight size={11} />
+              </span>
+            </div>
+
+            {/* Recently earned — visual reward strip */}
+            {recentMilestones.length > 0 && (
+              <div
+                style={{
+                  display: "flex",
+                  gap: 8,
+                  marginBottom: nextUp.length > 0 ? 14 : 0,
+                  flexWrap: "wrap",
+                }}
+              >
+                {recentMilestones.map((m) => {
+                  const badge = BADGE_KEYS[m.badgeKey] ?? {
+                    label: m.badgeKey,
+                    color: "#0EA5E9",
+                    emoji: "🏆",
+                  };
+                  return (
+                    <div
+                      key={m.id}
+                      title={badge.label}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                        padding: "5px 10px 5px 6px",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 99,
+                      }}
+                    >
+                      <span
+                        aria-hidden
+                        style={{
+                          width: 22,
+                          height: 22,
+                          borderRadius: "50%",
+                          background: `${badge.color}22`,
+                          border: `1px solid ${badge.color}55`,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          fontSize: 11,
+                        }}
+                      >
+                        {badge.emoji ?? "🏆"}
+                      </span>
+                      <span
+                        style={{
+                          fontSize: 11,
+                          fontWeight: 500,
+                          color: "var(--text-2)",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {badge.label}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Next up — closest two thresholds with progress bars */}
+            {nextUp.length > 0 && (
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns:
+                    nextUp.length > 1 ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
+                  gap: 10,
+                }}
+              >
+                {nextUp.map((nu) => {
+                  const pct = Math.max(0, Math.min(1, nu.progress)) * 100;
+                  return (
+                    <div
+                      key={nu.key}
+                      style={{
+                        padding: "10px 12px",
+                        background: "var(--surface2)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 8,
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "space-between",
+                          marginBottom: 6,
+                          gap: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 8,
+                            minWidth: 0,
+                          }}
+                        >
+                          <span
+                            aria-hidden
+                            style={{
+                              fontSize: 14,
+                              lineHeight: 1,
+                            }}
+                          >
+                            {nu.emoji}
+                          </span>
+                          <span
+                            style={{
+                              fontSize: 12,
+                              fontWeight: 600,
+                              color: "var(--text)",
+                              whiteSpace: "nowrap",
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                            }}
+                          >
+                            {nu.label}
+                          </span>
+                        </div>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            color: "var(--text-3)",
+                            fontFamily: "'Geist Mono', monospace",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {nu.current}/{nu.target}
+                        </span>
+                      </div>
+                      <div
+                        style={{
+                          height: 4,
+                          background: "var(--border)",
+                          borderRadius: 99,
+                          overflow: "hidden",
+                        }}
+                      >
+                        <div
+                          style={{
+                            width: `${pct}%`,
+                            height: "100%",
+                            background: nu.color,
+                            transition: "width .3s",
+                          }}
+                        />
+                      </div>
+                      <div
+                        style={{
+                          fontSize: 10,
+                          color: "var(--text-3)",
+                          marginTop: 5,
+                        }}
+                      >
+                        {nu.hint}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </Link>
+        );
+      })()}
 
       {/* ── Pre-Op Brief CTA ──────────────────────────────────────────── */}
       <button
@@ -869,50 +1216,12 @@ export default function DashboardPage() {
         ))}
       </section>
 
-      {/* ── Resident: milestones ──────────────────────────────────────── */}
-      {isResident && milestones.length > 0 && (
-        <section style={{ marginTop: 28 }}>
-          <div style={{
-            height: 1, background: "var(--border)", marginBottom: 20,
-          }} />
-          <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px",
-            marginBottom: 14,
-          }}>Milestones</div>
-          {milestones.slice(0, 3).map((m, i) => {
-            const badge = BADGE_KEYS[m.badgeKey] ?? { label: m.badgeKey, color: "#0EA5E9" };
-            return (
-              <div key={m.id} style={{
-                display: "flex", alignItems: "center", gap: 12,
-                padding: "10px 0",
-                borderBottom: i < 2 && i < milestones.length - 1 ? "1px solid var(--border)" : "none",
-              }}>
-                <div style={{
-                  width: 32, height: 32, borderRadius: 6,
-                  background: "var(--surface2)",
-                  border: "1px solid var(--border-mid)",
-                  display: "flex", alignItems: "center", justifyContent: "center",
-                  flexShrink: 0,
-                }}>
-                  <div style={{
-                    width: 8, height: 8, borderRadius: "50%",
-                    background: badge.color ?? "var(--primary)",
-                  }} />
-                </div>
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
-                    {badge.label}
-                  </div>
-                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
-                    {m.procedureName ?? m.type?.replace(/_/g, " ")}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </section>
-      )}
+      {/* The bottom-of-page "Milestones" footer used to live here. It was
+          a quiet 3-row list that nobody scrolled to. The same data now
+          renders MUCH earlier on the page (see the "Progress" card right
+          after the metrics row above) where it actually drives behaviour
+          — recent badges as a visual reward, plus the closest two
+          unearned thresholds with live progress bars. */}
 
       {/* ── Sheets (rendered at the end so they overlay) ──────────────── */}
       <BriefMeSheet

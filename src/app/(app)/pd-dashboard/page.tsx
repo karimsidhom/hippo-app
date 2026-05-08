@@ -15,7 +15,24 @@ import {
   ShieldAlert,
   Shield,
   AlertCircle,
+  ArrowUpDown,
+  LayoutGrid,
+  Rows3,
 } from "lucide-react";
+
+// ── Layout constants ────────────────────────────────────────────────────
+// Desktop (≥ 768 px) defaults to the dense table because that's where
+// scanning a 30-resident program actually lives. Mobile defaults to
+// cards because tables don't scan well on narrow screens.
+type ViewMode = "table" | "cards";
+type SortKey =
+  | "lastCase"      // default — silent first, then most recent
+  | "name"
+  | "year"
+  | "casesMonth"
+  | "epaProgress"
+  | "epaPending";
+type SortDir = "asc" | "desc";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -56,6 +73,29 @@ export default function PDDashboardPage() {
   const [query, setQuery] = useState("");
   const [pgyFilter, setPgyFilter] = useState<string>("ALL");
   const [specialtyFilter, setSpecialtyFilter] = useState<string>("ALL");
+  // Persisted lightweight UI state — defaults set on mount so SSR/CSR
+  // hydration matches and mobile / desktop pick the right initial view.
+  const [viewMode, setViewMode] = useState<ViewMode>("table");
+  const [sortKey, setSortKey] = useState<SortKey>("lastCase");
+  const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  // Default to cards on mobile; remember the user's last choice in
+  // localStorage so it sticks across sessions.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const saved = window.localStorage.getItem("pdDashView");
+    if (saved === "cards" || saved === "table") {
+      setViewMode(saved);
+      return;
+    }
+    if (window.matchMedia("(max-width: 767px)").matches) {
+      setViewMode("cards");
+    }
+  }, []);
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem("pdDashView", viewMode);
+  }, [viewMode]);
 
   const fetchResidents = useCallback(async () => {
     try {
@@ -250,6 +290,29 @@ export default function PDDashboardPage() {
     return Math.round(pct * 100);
   })();
 
+  // ── Action queue: residents who need PD attention right now ─────────
+  // - silent ≥ 14 days, OR
+  // - have ≥ 1 EPA pending review (someone needs to sign)
+  // Surfaced above the cohort so the PD doesn't have to scan to find them.
+  const actionQueue = residents
+    .filter((r) => {
+      const silent = !r.lastCaseDate || daysSince(r.lastCaseDate) >= SILENT_DAYS;
+      return silent || r.epaPending > 0;
+    })
+    .slice()
+    .sort((a, b) => {
+      // Silent + pending EPAs first, then silent only, then pending only.
+      const aSilent = !a.lastCaseDate || daysSince(a.lastCaseDate) >= SILENT_DAYS;
+      const bSilent = !b.lastCaseDate || daysSince(b.lastCaseDate) >= SILENT_DAYS;
+      const aScore = (aSilent ? 2 : 0) + (a.epaPending > 0 ? 1 : 0);
+      const bScore = (bSilent ? 2 : 0) + (b.epaPending > 0 ? 1 : 0);
+      if (aScore !== bScore) return bScore - aScore;
+      // Then by silence duration (longest first).
+      const aDays = a.lastCaseDate ? daysSince(a.lastCaseDate) : 9999;
+      const bDays = b.lastCaseDate ? daysSince(b.lastCaseDate) : 9999;
+      return bDays - aDays;
+    });
+
   const filtered = residents
     .filter((r) => {
       if (query.trim()) {
@@ -267,14 +330,7 @@ export default function PDDashboardPage() {
       return true;
     })
     .slice()
-    .sort((a, b) => {
-      const aSilent = a.lastCaseDate ? daysSince(a.lastCaseDate) >= SILENT_DAYS : true;
-      const bSilent = b.lastCaseDate ? daysSince(b.lastCaseDate) >= SILENT_DAYS : true;
-      if (aSilent !== bSilent) return aSilent ? -1 : 1;
-      const aT = a.lastCaseDate ? new Date(a.lastCaseDate).getTime() : 0;
-      const bT = b.lastCaseDate ? new Date(b.lastCaseDate).getTime() : 0;
-      return bT - aT;
-    });
+    .sort((a, b) => sortResidents(a, b, sortKey, sortDir));
 
   // ── Render ──────────────────────────────────────────────────────────────
   return (
@@ -405,7 +461,139 @@ export default function PDDashboardPage() {
         />
       </div>
 
-      {/* ── Filter / search bar ───────────────────────────────────────── */}
+      {/* ── Action queue ──────────────────────────────────────────────── */}
+      {/* Residents who need PD attention right now: silent ≥ 14 days OR
+          have EPAs pending sign-off. One quick-scan strip so the PD lands
+          on the dashboard and immediately sees who to follow up with. */}
+      {actionQueue.length > 0 && (
+        <div
+          style={{
+            background: "var(--surface)",
+            border: "1px solid rgba(245, 158, 11, 0.3)",
+            borderRadius: 14,
+            padding: "14px 16px",
+            marginBottom: 18,
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              marginBottom: 10,
+            }}
+          >
+            <AlertTriangle size={14} style={{ color: "var(--warning)" }} />
+            <span
+              style={{
+                fontSize: 11,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                color: "var(--text-2)",
+              }}
+            >
+              Needs your attention
+            </span>
+            <span
+              style={{
+                fontSize: 11,
+                color: "var(--text-3)",
+                fontFamily: MONO,
+                marginLeft: "auto",
+              }}
+            >
+              {actionQueue.length} resident{actionQueue.length === 1 ? "" : "s"}
+            </span>
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {actionQueue.slice(0, 6).map((r) => {
+              const days = r.lastCaseDate ? daysSince(r.lastCaseDate) : null;
+              const silent = days === null || days >= SILENT_DAYS;
+              return (
+                <button
+                  key={r.userId}
+                  type="button"
+                  onClick={() => router.push(`/pd-dashboard/${r.userId}`)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "6px 10px 6px 8px",
+                    background: "var(--surface2)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 99,
+                    color: "var(--text)",
+                    fontSize: 12,
+                    fontFamily: "inherit",
+                    cursor: "pointer",
+                    transition: "border-color .15s",
+                  }}
+                  title={[
+                    silent
+                      ? days === null
+                        ? "No cases logged yet"
+                        : `Silent ${days} days`
+                      : null,
+                    r.epaPending > 0
+                      ? `${r.epaPending} EPA${r.epaPending === 1 ? "" : "s"} pending review`
+                      : null,
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                >
+                  <ResidentAvatar image={r.image} name={r.name} compact />
+                  <span style={{ fontWeight: 600 }}>
+                    {(r.name || r.email).split(" ")[0]}
+                  </span>
+                  {silent && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--danger)",
+                        fontFamily: MONO,
+                      }}
+                    >
+                      {days === null ? "0d" : `${days}d`}
+                    </span>
+                  )}
+                  {r.epaPending > 0 && (
+                    <span
+                      style={{
+                        fontSize: 10,
+                        color: "var(--warning)",
+                        fontFamily: MONO,
+                      }}
+                    >
+                      {r.epaPending} EPA
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+            {actionQueue.length > 6 && (
+              <span
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-3)",
+                  alignSelf: "center",
+                  paddingLeft: 4,
+                }}
+              >
+                + {actionQueue.length - 6} more below
+              </span>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── Filter / search / view bar ────────────────────────────────── */}
       <div
         style={{
           display: "flex",
@@ -474,6 +662,56 @@ export default function PDDashboardPage() {
             </option>
           ))}
         </select>
+        <div
+          role="group"
+          aria-label="View mode"
+          style={{
+            display: "inline-flex",
+            background: "var(--surface)",
+            border: "1px solid var(--border)",
+            borderRadius: 10,
+            padding: 2,
+          }}
+        >
+          <button
+            type="button"
+            onClick={() => setViewMode("table")}
+            aria-pressed={viewMode === "table"}
+            title="Table view"
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "none",
+              background: viewMode === "table" ? "var(--surface2)" : "transparent",
+              color: viewMode === "table" ? "var(--text)" : "var(--text-3)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              fontFamily: "inherit",
+            }}
+          >
+            <Rows3 size={14} />
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode("cards")}
+            aria-pressed={viewMode === "cards"}
+            title="Card view"
+            style={{
+              padding: "6px 10px",
+              borderRadius: 8,
+              border: "none",
+              background: viewMode === "cards" ? "var(--surface2)" : "transparent",
+              color: viewMode === "cards" ? "var(--text)" : "var(--text-3)",
+              cursor: "pointer",
+              display: "inline-flex",
+              alignItems: "center",
+              fontFamily: "inherit",
+            }}
+          >
+            <LayoutGrid size={14} />
+          </button>
+        </div>
       </div>
 
       {/* ── Empty state ───────────────────────────────────────────────── */}
@@ -519,7 +757,7 @@ export default function PDDashboardPage() {
         </div>
       )}
 
-      {/* ── Resident grid ─────────────────────────────────────────────── */}
+      {/* ── Cohort: table OR cards ────────────────────────────────────── */}
       {residents.length > 0 && (
         <>
           {filtered.length === 0 ? (
@@ -536,7 +774,7 @@ export default function PDDashboardPage() {
             >
               No residents match your filters.
             </div>
-          ) : (
+          ) : viewMode === "cards" ? (
             <div
               style={{
                 display: "grid",
@@ -552,11 +790,415 @@ export default function PDDashboardPage() {
                 />
               ))}
             </div>
+          ) : (
+            <ResidentTable
+              residents={filtered}
+              sortKey={sortKey}
+              sortDir={sortDir}
+              onSort={(key) => {
+                if (key === sortKey) {
+                  setSortDir(sortDir === "asc" ? "desc" : "asc");
+                } else {
+                  setSortKey(key);
+                  setSortDir(defaultSortDirFor(key));
+                }
+              }}
+              onRowClick={(id) => router.push(`/pd-dashboard/${id}`)}
+            />
           )}
         </>
       )}
     </div>
   );
+}
+
+// ── Resident table ──────────────────────────────────────────────────────────
+//
+// Dense, scannable, sortable. Header click toggles direction; clicking a
+// different column changes the active sort. Designed for ≥ 768 px viewports
+// (the toggle in the filter bar lets PDs pick their preference). Each row
+// is a real <button>-style row so keyboard / screen-reader users can use it.
+
+function ResidentTable({
+  residents,
+  sortKey,
+  sortDir,
+  onSort,
+  onRowClick,
+}: {
+  residents: ResidentData[];
+  sortKey: SortKey;
+  sortDir: SortDir;
+  onSort: (key: SortKey) => void;
+  onRowClick: (userId: string) => void;
+}) {
+  const headers: Array<{ key: SortKey; label: string; align?: "right" }> = [
+    { key: "name", label: "Resident" },
+    { key: "year", label: "Year" },
+    { key: "casesMonth", label: "Cases / mo", align: "right" },
+    { key: "lastCase", label: "Last case", align: "right" },
+    { key: "epaProgress", label: "EPAs", align: "right" },
+    { key: "epaPending", label: "Pending", align: "right" },
+  ];
+  return (
+    <div
+      style={{
+        background: "var(--surface)",
+        border: "1px solid var(--border)",
+        borderRadius: 14,
+        overflow: "hidden",
+      }}
+    >
+      <div
+        // Horizontal scroll wrapper for narrow viewports; the table itself
+        // still hits a min-width so columns don't crush.
+        style={{ overflowX: "auto" }}
+      >
+        <table
+          style={{
+            width: "100%",
+            minWidth: 720,
+            borderCollapse: "separate",
+            borderSpacing: 0,
+            fontSize: 13,
+          }}
+        >
+          <thead>
+            <tr>
+              {headers.map((h) => {
+                const active = sortKey === h.key;
+                return (
+                  <th
+                    key={h.key}
+                    onClick={() => onSort(h.key)}
+                    style={{
+                      textAlign: h.align ?? "left",
+                      padding: "10px 14px",
+                      fontSize: 10,
+                      fontWeight: 700,
+                      textTransform: "uppercase",
+                      letterSpacing: "0.06em",
+                      color: active ? "var(--text)" : "var(--text-3)",
+                      borderBottom: "1px solid var(--border)",
+                      cursor: "pointer",
+                      userSelect: "none",
+                      whiteSpace: "nowrap",
+                      background: "var(--surface)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        justifyContent: h.align === "right" ? "flex-end" : "flex-start",
+                        width: "100%",
+                      }}
+                    >
+                      {h.label}
+                      <ArrowUpDown
+                        size={11}
+                        style={{
+                          opacity: active ? 1 : 0.3,
+                          transform: active && sortDir === "asc" ? "rotate(180deg)" : undefined,
+                          transition: "transform .15s",
+                        }}
+                      />
+                    </span>
+                  </th>
+                );
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {residents.map((r) => (
+              <ResidentRow key={r.userId} resident={r} onClick={() => onRowClick(r.userId)} />
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function ResidentRow({
+  resident,
+  onClick,
+}: {
+  resident: ResidentData;
+  onClick: () => void;
+}) {
+  const lastDays = resident.lastCaseDate ? daysSince(resident.lastCaseDate) : null;
+  const silent = lastDays === null || lastDays >= SILENT_DAYS;
+  const epaPct =
+    resident.epaTotal > 0 ? Math.round((resident.epaSigned / resident.epaTotal) * 100) : 0;
+
+  return (
+    <tr
+      role="button"
+      tabIndex={0}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onClick();
+        }
+      }}
+      style={{
+        cursor: "pointer",
+        background: silent ? "rgba(239, 68, 68, 0.04)" : undefined,
+        transition: "background .15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = "var(--surface2)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = silent ? "rgba(239, 68, 68, 0.04)" : "";
+      }}
+    >
+      {/* Resident — avatar + name + role pill */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          minWidth: 220,
+        }}
+      >
+        <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
+          <ResidentAvatar image={resident.image} name={resident.name} compact />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 600,
+                color: "var(--text)",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+              }}
+            >
+              {resident.name || resident.email}
+            </div>
+            {resident.specialty && (
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-3)",
+                  marginTop: 1,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                {resident.specialty}
+              </div>
+            )}
+          </div>
+          {resident.roleType === "FELLOW" && (
+            <span
+              style={{
+                fontSize: 9,
+                fontWeight: 700,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                padding: "2px 6px",
+                borderRadius: 4,
+                background: "rgba(139, 92, 246, 0.12)",
+                color: "#a78bfa",
+                flexShrink: 0,
+              }}
+            >
+              Fellow
+            </span>
+          )}
+        </div>
+      </td>
+
+      {/* Year */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          color: "var(--text-2)",
+          fontFamily: MONO,
+          fontSize: 12,
+          whiteSpace: "nowrap",
+        }}
+      >
+        {resident.trainingYearLabel ||
+          (resident.pgyYear != null ? `PGY-${resident.pgyYear}` : "—")}
+      </td>
+
+      {/* Cases this month */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          color: "var(--text)",
+          fontFamily: MONO,
+          fontSize: 13,
+          textAlign: "right",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {resident.casesThisMonth}
+      </td>
+
+      {/* Last case */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+          fontSize: 12,
+          fontFamily: MONO,
+          color: silent ? "var(--danger)" : "var(--text-2)",
+        }}
+      >
+        {lastDays === null
+          ? "—"
+          : lastDays === 0
+            ? "today"
+            : `${lastDays}d ago`}
+      </td>
+
+      {/* EPA progress — bar + count */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          minWidth: 140,
+        }}
+      >
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            justifyContent: "flex-end",
+          }}
+        >
+          <div
+            style={{
+              height: 4,
+              width: 70,
+              background: "var(--border)",
+              borderRadius: 99,
+              overflow: "hidden",
+              flexShrink: 0,
+            }}
+          >
+            <div
+              style={{
+                width: `${epaPct}%`,
+                height: "100%",
+                background:
+                  epaPct >= 75
+                    ? "var(--success)"
+                    : epaPct >= 40
+                      ? "var(--warning)"
+                      : "var(--danger)",
+                transition: "width .3s",
+              }}
+            />
+          </div>
+          <span
+            style={{
+              fontSize: 11,
+              color: "var(--text-2)",
+              fontFamily: MONO,
+              minWidth: 56,
+              textAlign: "right",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {resident.epaSigned}/{resident.epaTotal}
+          </span>
+        </div>
+      </td>
+
+      {/* Pending review */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+        }}
+      >
+        {resident.epaPending > 0 ? (
+          <span
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 5,
+              padding: "2px 8px",
+              borderRadius: 99,
+              background: "rgba(245, 158, 11, 0.12)",
+              color: "var(--warning)",
+              fontSize: 11,
+              fontWeight: 600,
+              fontFamily: MONO,
+            }}
+          >
+            <AlertTriangle size={10} />
+            {resident.epaPending}
+          </span>
+        ) : (
+          <span style={{ color: "var(--text-3)", fontFamily: MONO, fontSize: 11 }}>—</span>
+        )}
+      </td>
+    </tr>
+  );
+}
+
+// Sort comparator. Silent-first remains an implicit tiebreaker on
+// `lastCase` so PDs naturally see who's slipped first.
+function sortResidents(
+  a: ResidentData,
+  b: ResidentData,
+  key: SortKey,
+  dir: SortDir,
+): number {
+  const flip = dir === "asc" ? 1 : -1;
+  switch (key) {
+    case "name": {
+      const an = (a.name || a.email).toLowerCase();
+      const bn = (b.name || b.email).toLowerCase();
+      return an.localeCompare(bn) * flip;
+    }
+    case "year": {
+      const ay = a.pgyYear ?? -1;
+      const by = b.pgyYear ?? -1;
+      return (ay - by) * flip;
+    }
+    case "casesMonth":
+      return (a.casesThisMonth - b.casesThisMonth) * flip;
+    case "epaProgress": {
+      const ap = a.epaTotal > 0 ? a.epaSigned / a.epaTotal : 0;
+      const bp = b.epaTotal > 0 ? b.epaSigned / b.epaTotal : 0;
+      return (ap - bp) * flip;
+    }
+    case "epaPending":
+      return (a.epaPending - b.epaPending) * flip;
+    case "lastCase":
+    default: {
+      // Silent-first then most-recent-first when desc.
+      const aSilent = a.lastCaseDate ? daysSince(a.lastCaseDate) >= SILENT_DAYS : true;
+      const bSilent = b.lastCaseDate ? daysSince(b.lastCaseDate) >= SILENT_DAYS : true;
+      if (aSilent !== bSilent) return aSilent ? -1 : 1;
+      const aT = a.lastCaseDate ? new Date(a.lastCaseDate).getTime() : 0;
+      const bT = b.lastCaseDate ? new Date(b.lastCaseDate).getTime() : 0;
+      return (aT - bT) * flip;
+    }
+  }
+}
+
+function defaultSortDirFor(key: SortKey): SortDir {
+  // Numeric / date columns descend (highest / most recent first); name
+  // ascends so A-Z reads naturally on first click.
+  return key === "name" ? "asc" : "desc";
 }
 
 // ── Resident card ────────────────────────────────────────────────────────────
@@ -855,7 +1497,17 @@ function KpiCard({
 
 // ── Helpers / small components ───────────────────────────────────────────────
 
-function ResidentAvatar({ image, name }: { image: string | null; name: string | null }) {
+function ResidentAvatar({
+  image,
+  name,
+  compact,
+}: {
+  image: string | null;
+  name: string | null;
+  compact?: boolean;
+}) {
+  const size = compact ? 24 : 38;
+  const fontSize = compact ? 11 : 14;
   const initial = (name || "?").trim().charAt(0).toUpperCase();
   if (image) {
     return (
@@ -864,8 +1516,8 @@ function ResidentAvatar({ image, name }: { image: string | null; name: string | 
         src={image}
         alt={name || "Resident"}
         style={{
-          width: 38,
-          height: 38,
+          width: size,
+          height: size,
           borderRadius: "50%",
           objectFit: "cover",
           border: "1px solid var(--border)",
@@ -877,14 +1529,14 @@ function ResidentAvatar({ image, name }: { image: string | null; name: string | 
   return (
     <div
       style={{
-        width: 38,
-        height: 38,
+        width: size,
+        height: size,
         borderRadius: "50%",
         background: "rgba(14, 165, 233, 0.12)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        fontSize: 14,
+        fontSize,
         fontWeight: 700,
         color: "var(--primary)",
         flexShrink: 0,
