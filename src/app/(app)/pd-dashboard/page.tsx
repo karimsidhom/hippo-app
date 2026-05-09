@@ -18,6 +18,7 @@ import {
   ArrowUpDown,
   LayoutGrid,
   Rows3,
+  FileSpreadsheet,
 } from "lucide-react";
 
 // ── Layout constants ────────────────────────────────────────────────────
@@ -404,28 +405,53 @@ export default function PDDashboardPage() {
           </p>
         </div>
 
-        <button
-          onClick={handleExport}
-          disabled={exportLoading}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            padding: "10px 16px",
-            background: "var(--surface)",
-            border: "1px solid var(--border)",
-            borderRadius: 10,
-            color: "var(--text-2)",
-            fontSize: 13,
-            fontWeight: 600,
-            cursor: exportLoading ? "not-allowed" : "pointer",
-            opacity: exportLoading ? 0.6 : 1,
-            fontFamily: "inherit",
-          }}
-        >
-          <Download size={14} />
-          {exportLoading ? "Exporting…" : "Export CSV"}
-        </button>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {/* Eight pre-built accreditation reports — Royal College
+              reviewer's checklist in one click. Lives at its own
+              page so the PD can pick which one to download. */}
+          <Link
+            href="/pd-dashboard/reports"
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 16px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              color: "var(--text-2)",
+              fontSize: 13,
+              fontWeight: 600,
+              fontFamily: "inherit",
+              textDecoration: "none",
+            }}
+          >
+            <FileSpreadsheet size={14} />
+            Accreditation reports
+          </Link>
+          <button
+            onClick={handleExport}
+            disabled={exportLoading}
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "10px 16px",
+              background: "var(--surface)",
+              border: "1px solid var(--border)",
+              borderRadius: 10,
+              color: "var(--text-2)",
+              fontSize: 13,
+              fontWeight: 600,
+              cursor: exportLoading ? "not-allowed" : "pointer",
+              opacity: exportLoading ? 0.6 : 1,
+              fontFamily: "inherit",
+            }}
+          >
+            <Download size={14} />
+            {exportLoading ? "Exporting…" : "Export CSV"}
+          </button>
+        </div>
       </div>
 
       {/* ── KPI strip ──────────────────────────────────────────────────── */}
