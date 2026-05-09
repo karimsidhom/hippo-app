@@ -198,6 +198,12 @@ model User {
   ccReviewsCreated      CCReview[]             @relation("CCReviewsCreated")
   ccReviewsFinalised    CCReview[]             @relation("CCReviewsFinalised")
   ccReviewNotes         CCReviewNote[]         @relation("CCReviewNotes")
+  // Custom-form templates this user has authored, plus form
+  // submissions where they're either the subject (assessed) or the
+  // author (assessor). Same dual-role pattern as EpaObservation.
+  formTemplatesCreated     FormTemplate[]     @relation("FormTemplatesCreated")
+  formSubmissionsAsSubject FormSubmission[]   @relation("FormSubmissionsAsSubject")
+  formSubmissionsAsAuthor  FormSubmission[]   @relation("FormSubmissionsAsAuthor")
 
   @@map("users")
 }
@@ -357,6 +363,8 @@ model CaseLog {
 
   portfolioCase   PortfolioCase?
   epaObservations EpaObservation[]
+  // Custom-form submissions tied to this case (Mini-CEX / DOPS).
+  formSubmissions FormSubmission[] @relation("CaseFormSubmissions")
 
   @@index([userId])
   @@index([userId, caseDate(sort: Desc)])
@@ -892,11 +900,12 @@ model Program {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  members   ProgramMember[]
-  invites   ProgramInvite[]
-  events    ProgramEvent[]
-  rotations Rotation[]
-  ccReviews CCReview[]
+  members      ProgramMember[]
+  invites      ProgramInvite[]
+  events       ProgramEvent[]
+  rotations    Rotation[]
+  ccReviews    CCReview[]
+  formTemplates FormTemplate[]
 
   @@index([createdById])
   @@map("programs")
@@ -964,6 +973,123 @@ model FacultyAssignment {
   @@index([programId, facultyId])
   @@index([programId, residentId])
   @@map("faculty_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Custom assessment forms (Mini-CEX, DOPS, MSF, coaching, in-training,
+// professionalism rubrics — anything beyond the canonical EPA + O-SCORE).
+// ───────────────────────────────────────────────────────────────────────────
+//
+// FormTemplate     — owners design a form: list of typed fields with
+//                    optional rubric scoring. Stored as Prisma JSON so a
+//                    schema bump doesn't require a migration each time
+//                    the institution adds a new question type.
+// FormSubmission   — one resident's filled-in instance. Sign-off
+//                    routing piggy-backs on the EpaObservation pattern
+//                    (DRAFT → SUBMITTED → SIGNED / RETURNED).
+// FormResponse     — one cell of one submission, keyed on the field id
+//                    inside the template's schema. Kept relational so
+//                    we can index + aggregate by field across many
+//                    submissions for the cohort dashboards.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum FormCategory {
+  MINI_CEX
+  DOPS
+  MSF
+  COACHING
+  IN_TRAINING
+  PROFESSIONALISM
+  CUSTOM
+}
+
+enum FormSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  SIGNED
+  RETURNED
+}
+
+model FormTemplate {
+  id          String       @id @default(cuid())
+  programId   String
+  program     Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  category    FormCategory @default(CUSTOM)
+  // Free-shaped JSON — see src/lib/forms/types.ts for the canonical
+  // FormSchema interface. Field types: short_text / long_text /
+  // number / boolean / single_choice / multi_choice / likert /
+  // rubric_grid / signature.
+  schema      Json
+  // True when the form is published and residents can submit; false
+  // while the owner is still designing.
+  active      Boolean      @default(true)
+  createdById String
+  createdBy   User         @relation("FormTemplatesCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  submissions FormSubmission[]
+
+  @@index([programId])
+  @@map("form_templates")
+}
+
+model FormSubmission {
+  id            String               @id @default(cuid())
+  templateId    String
+  template      FormTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  // The user the form is ABOUT — the resident or trainee being
+  // assessed. Same shape as EpaObservation.userId.
+  subjectId     String
+  subject       User                 @relation("FormSubmissionsAsSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  // The user filling the form in. Same shape as EpaObservation.assessor.
+  authorId      String
+  author        User                 @relation("FormSubmissionsAsAuthor",  fields: [authorId],  references: [id], onDelete: Cascade)
+  status        FormSubmissionStatus @default(DRAFT)
+  // Optional case-log link — useful for Mini-CEX / DOPS that should
+  // attach to a specific case the resident logged.
+  caseLogId     String?
+  caseLog       CaseLog?             @relation("CaseFormSubmissions", fields: [caseLogId], references: [id], onDelete: SetNull)
+  // Optional rotation block — same idea as EpaObservation.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation("FormSubmissions", fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+  // The signed-off summary the author leaves behind. Free-text.
+  summary       String?
+  // Aggregate score the rubric produced (when the schema computes
+  // one). Pure read-model — recomputed on every save.
+  aggregateScore Float?
+  signedAt      DateTime?
+  returnedReason String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  responses     FormResponse[]
+
+  @@index([templateId])
+  @@index([subjectId, status])
+  @@index([authorId, status])
+  @@index([caseLogId])
+  @@index([rotationAssignmentId])
+  @@map("form_submissions")
+}
+
+model FormResponse {
+  id            String         @id @default(cuid())
+  submissionId  String
+  submission    FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fieldId       String         // matches a field id inside FormTemplate.schema
+  // Stored as JSON so any field type (text, number, choice array,
+  // rubric grid) can round-trip without per-type columns. The
+  // application layer is responsible for shape correctness.
+  value         Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([submissionId, fieldId])
+  @@index([submissionId])
+  @@map("form_responses")
 }
 
 model ProgramInvite {
@@ -1081,6 +1207,7 @@ model RotationAssignment {
 
   cases       CaseLog[]
   observations EpaObservation[]
+  formSubmissions FormSubmission[] @relation("FormSubmissions")
 
   @@index([userId, startDate])
   @@index([rotationId, startDate])

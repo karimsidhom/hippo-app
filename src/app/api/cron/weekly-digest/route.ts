@@ -176,7 +176,7 @@ function renderResidentDigest(data: DigestData): {
       },
     ],
     primaryCta: { label: 'Open Hippo', href: '/dashboard' },
-    unsubscribeUrl: '/settings/notifications',
+    unsubscribeUrl: '/settings/notifications#digest-emails',
     unsubscribeReason: 'you opted into the weekly resident summary',
   });
 }

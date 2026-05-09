@@ -235,12 +235,90 @@ export default function NotificationSettingsPage() {
             turns email off entirely, none of these fire regardless of
             the per-digest state. We deliberately don't grey them out
             here so the user can pre-configure their preferences.
+
+            The id="digest-emails" anchor is used by the unsubscribe
+            links in every digest email — clicking "Manage notifications"
+            scrolls the user straight to this section.
           */}
+          <div id="digest-emails">
           <Section
             icon={<MailOpen size={14} />}
             title="Digest emails"
             body="Weekly summaries and meeting-prep reminders. Each one is independent — keep what helps, mute what doesn't."
           >
+            {/* Master controls — one click to opt all weekly emails on
+                or off. The four individual toggles below stay editable
+                so the user can also build a custom mix. */}
+            {(() => {
+              const allOn =
+                prefs.weeklyResidentDigest &&
+                prefs.weeklyAttendingDigest &&
+                prefs.weeklyPdDigest &&
+                prefs.ccMeetingPrepDigest;
+              const allOff =
+                !prefs.weeklyResidentDigest &&
+                !prefs.weeklyAttendingDigest &&
+                !prefs.weeklyPdDigest &&
+                !prefs.ccMeetingPrepDigest;
+              const setAll = (v: boolean) =>
+                update({
+                  weeklyResidentDigest: v,
+                  weeklyAttendingDigest: v,
+                  weeklyPdDigest: v,
+                  ccMeetingPrepDigest: v,
+                });
+              return (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                    paddingBottom: 12,
+                    marginBottom: 8,
+                    borderBottom: "1px solid var(--border)",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => setAll(true)}
+                    disabled={allOn}
+                    style={{
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: allOn ? "var(--surface2)" : "var(--surface2)",
+                      color: allOn ? "var(--text-3)" : "var(--text)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      cursor: allOn ? "default" : "pointer",
+                      fontFamily: "inherit",
+                      opacity: allOn ? 0.6 : 1,
+                    }}
+                  >
+                    Opt in to all
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setAll(false)}
+                    disabled={allOff}
+                    style={{
+                      padding: "7px 12px",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      background: "var(--surface2)",
+                      color: allOff ? "var(--text-3)" : "var(--danger)",
+                      border: `1px solid ${allOff ? "var(--border)" : "rgba(239,68,68,0.3)"}`,
+                      borderRadius: 8,
+                      cursor: allOff ? "default" : "pointer",
+                      fontFamily: "inherit",
+                      opacity: allOff ? 0.6 : 1,
+                    }}
+                  >
+                    Mute all weekly emails
+                  </button>
+                </div>
+              );
+            })()}
             <Toggle
               label="Resident weekly summary"
               description="Mondays at 8 AM ET — your week's cases, EPAs, milestones"
@@ -265,7 +343,20 @@ export default function NotificationSettingsPage() {
               checked={prefs.ccMeetingPrepDigest}
               onChange={v => update({ ccMeetingPrepDigest: v })}
             />
+            <p
+              style={{
+                fontSize: 11,
+                color: "var(--text-3)",
+                lineHeight: 1.5,
+                margin: "10px 0 0",
+              }}
+            >
+              Transactional emails (EPA sign-off requests, account
+              security, attending review links) are unaffected — those
+              follow the master <em>Email</em> toggle in Channels above.
+            </p>
           </Section>
+          </div>
 
           {/* ── Sound & haptics ─────────────────────────────────────── */}
           <Section

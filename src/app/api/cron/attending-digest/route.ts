@@ -129,7 +129,7 @@ export async function POST(req: NextRequest) {
             },
           ],
           primaryCta: { label: 'Sign EPAs in Hippo', href: '/log' },
-          unsubscribeUrl: '/settings/notifications',
+          unsubscribeUrl: '/settings/notifications#digest-emails',
           unsubscribeReason:
             'you have EPAs from residents pending your sign-off',
         });

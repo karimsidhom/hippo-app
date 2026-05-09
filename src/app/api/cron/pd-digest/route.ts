@@ -175,7 +175,7 @@ export async function POST(req: NextRequest) {
           greeting: `Hi Dr. ${firstName},`,
           sections,
           primaryCta: { label: 'Open PD dashboard', href: '/pd-dashboard' },
-          unsubscribeUrl: '/settings/notifications',
+          unsubscribeUrl: '/settings/notifications#digest-emails',
           unsubscribeReason: `you're a Program Director on ${owner.program.name}`,
         });
 

@@ -135,7 +135,7 @@ export async function POST(req: NextRequest) {
               label: 'Review the resident',
               href: `/cc-reviews/${review.id}`,
             },
-            unsubscribeUrl: '/settings/notifications',
+            unsubscribeUrl: '/settings/notifications#digest-emails',
             unsubscribeReason: `you're a member of the ${review.program.name} program`,
           });
 
