@@ -116,10 +116,23 @@ export interface ClinicTemplateDefinition {
 
 export interface ClinicianContext {
   fullName: string;
+  email?: string;
   role?: string;        // "Resident, PGY-3" | "Staff Urologist" | etc.
+  roleType?: string;    // raw enum value: "RESIDENT" | "STAFF" | etc.
   specialty?: string;
   province?: string;
   signatureLine?: string;
+  /** "Make it sound like me" — clinician's saved voice preferences. */
+  stylePrefs?: {
+    /** From Profile.dictationLength: "complete" | "extra-detailed" | "brief" */
+    length?: string;
+    /** From Profile.dictationTone: "standard" | "academic" | "concise-attending" | "resident-teaching" */
+    tone?: string;
+    /** Phrases the clinician consistently keeps when correcting drafts. */
+    preferredPhrases?: string[];
+    /** Phrases they consistently strip out. */
+    avoidPhrases?: string[];
+  };
 }
 
 export interface AudioStatusSnapshot {

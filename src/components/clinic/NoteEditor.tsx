@@ -12,6 +12,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Sparkles, Wand2, FileText, MessageSquareText, Loader2, Scissors, Receipt, Heart, FileText as FileTextIcon } from "lucide-react";
 import { createClient } from "@/lib/supabase";
+import { useMacros } from "@/hooks/useMacros";
 
 interface Paragraphs { p1: string; p2: string; p3: string; p4: string }
 interface NoteShape {
@@ -44,6 +45,7 @@ export function NoteEditor({
   const [pending, setPending] = useState<string | null>(null);
   const [savingState, setSavingState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
+  const macros = useMacros();
   // Mirror `pending` into a ref so the realtime callback can read the latest
   // value without re-subscribing every time a regen toggles in/out.
   const pendingRef = useRef(pending);
@@ -52,6 +54,26 @@ export function NoteEditor({
   useEffect(() => {
     setNote(initialNote);
   }, [initialNote?.id]);
+
+  // Cmd/Ctrl+S → save the note. We attach to the document so the
+  // shortcut works whether focus is in a textarea or a button. We
+  // ignore other places (login form, settings page) by checking that
+  // this component is currently mounted with a non-finalized note.
+  useEffect(() => {
+    if (isFinalized) return;
+    const onKey = (e: KeyboardEvent) => {
+      const isCmdS = (e.metaKey || e.ctrlKey) && (e.key === "s" || e.key === "S");
+      if (!isCmdS) return;
+      // Only intercept when our editor is actually visible. We use a
+      // data-attribute on the wrapper as the marker (set below).
+      if (!document.querySelector("[data-hippo-note-editor='active']")) return;
+      e.preventDefault();
+      void persist();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- persist is stable for our purposes
+  }, [isFinalized]);
 
   // Realtime subscribe to note updates.
   useEffect(() => {
@@ -95,6 +117,35 @@ export function NoteEditor({
 
   function setParagraph<K extends keyof Paragraphs>(key: K, value: string) {
     setNote((n) => (n ? { ...n, paragraphs: { ...n.paragraphs, [key]: value } } : n));
+  }
+
+  // Macro expansion: when the user types a space after `.trigger`, swap in
+  // the expansion. We only run this on plain typing; pasting big chunks of
+  // text shouldn't accidentally expand. The handler is shared by every
+  // textarea on this page through onKeyUp.
+  function handleMacroKeyUp<K extends keyof Paragraphs | "letter" | "patientInstructions">(
+    key: K,
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+  ) {
+    if (!macros.hydrated || isFinalized) return;
+    if (e.key !== " ") return; // only fires on the space that ended the trigger
+    const ta = e.currentTarget;
+    const result = macros.expandSuffix(ta.value, ta.selectionStart);
+    if (!result) return;
+    if (key === "letter") {
+      setNote((n) => n ? { ...n, letter: result.value } : n);
+    } else if (key === "patientInstructions") {
+      setNote((n) => n ? { ...n, patientInstructions: result.value } : n);
+    } else {
+      setNote((n) => n ? { ...n, paragraphs: { ...n.paragraphs, [key]: result.value } } : n);
+    }
+    // Reposition the caret after React commits. setTimeout(0) jumps us
+    // past the React commit cycle, then we restore selection.
+    setTimeout(() => {
+      try {
+        ta.setSelectionRange(result.caret, result.caret);
+      } catch { /* ignore — element may have unmounted */ }
+    }, 0);
   }
 
   async function persist() {
@@ -184,9 +235,18 @@ export function NoteEditor({
       : null;
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+    // The data-hippo-note-editor attribute is the marker the Cmd/Ctrl+S
+    // listener uses to decide whether to intercept the keystroke. Without
+    // this, the global listener would also fire on settings pages /
+    // dashboards where the NoteEditor isn't mounted.
+    <div data-hippo-note-editor="active" style={{ display: "flex", flexDirection: "column", gap: 14 }}>
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div className="section-title" style={{ margin: 0 }}>4-paragraph note</div>
+        <div className="section-title" style={{ margin: 0, display: "inline-flex", alignItems: "center", gap: 6 }}>
+          4-paragraph note
+          <span className="badge badge-muted" title="Press Cmd+S (or Ctrl+S) to save your edits" style={{ fontSize: 9 }}>
+            {typeof navigator !== "undefined" && /Mac/i.test(navigator.platform) ? "⌘S" : "Ctrl+S"}
+          </span>
+        </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 11, color: "var(--text-3)" }}>
           {savingState === "saving" && <><Loader2 size={11} className="spin" /> Saving…</>}
           {savingState === "saved" && <span style={{ color: "var(--success)" }}>Saved</span>}
@@ -227,6 +287,7 @@ export function NoteEditor({
             className="st-input"
             value={note.paragraphs[k]}
             onChange={(e) => setParagraph(k, e.target.value)}
+            onKeyUp={(e) => handleMacroKeyUp(k, e)}
             onBlur={persist}
             disabled={isFinalized}
             rows={k === "p4" ? 7 : 5}
@@ -255,6 +316,7 @@ export function NoteEditor({
           className="st-input"
           value={note.patientInstructions ?? ""}
           onChange={(e) => setNote((n) => n ? { ...n, patientInstructions: e.target.value } : n)}
+          onKeyUp={(e) => handleMacroKeyUp("patientInstructions", e)}
           onBlur={persist}
           disabled={isFinalized}
           rows={4}
@@ -281,6 +343,7 @@ export function NoteEditor({
           className="st-input"
           value={note.letter ?? ""}
           onChange={(e) => setNote((n) => n ? { ...n, letter: e.target.value } : n)}
+          onKeyUp={(e) => handleMacroKeyUp("letter", e)}
           onBlur={persist}
           disabled={isFinalized}
           rows={8}
