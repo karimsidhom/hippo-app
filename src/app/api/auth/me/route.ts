@@ -29,39 +29,69 @@ export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  let dbUser = await db.user.findUnique({
-    where: { id: user.id },
-    include: { profile: true },
-  });
-
-  if (!dbUser) {
-    // Self-heal. `ensureDbUser` is idempotent and creates the profile.
-    await ensureDbUser(user);
-    dbUser = await db.user.findUnique({
+  try {
+    let dbUser = await db.user.findUnique({
       where: { id: user.id },
       include: { profile: true },
     });
-  }
 
-  if (!dbUser) {
-    // This should be impossible — ensureDbUser either creates or finds the
-    // row. Log loudly so Vercel logs catch it, and fall back to a clean
-    // 500 rather than letting the client crash on a missing property.
-    console.error('[auth/me] ensureDbUser did not produce a row for', user.id);
-    return NextResponse.json({ error: 'User record unavailable' }, { status: 500 });
-  }
+    if (!dbUser) {
+      await ensureDbUser(user);
+      dbUser = await db.user.findUnique({
+        where: { id: user.id },
+        include: { profile: true },
+      });
+    }
 
-  return NextResponse.json(
-    {
-      user: {
-        id: dbUser.id,
-        email: dbUser.email,
-        name: dbUser.name,
-        image: dbUser.image,
-        role: dbUser.role,
+    if (!dbUser) {
+      console.error('[hippo:auth/me] ensureDbUser produced no row userId=', user.id);
+      return NextResponse.json(
+        { error: 'User record unavailable', code: 'NO_USER_ROW' },
+        { status: 500 },
+      );
+    }
+
+    return NextResponse.json(
+      {
+        user: {
+          id: dbUser.id,
+          email: dbUser.email,
+          name: dbUser.name,
+          image: dbUser.image,
+          role: dbUser.role,
+        },
+        profile: dbUser.profile,
       },
-      profile: dbUser.profile,
-    },
-    { headers: { 'Cache-Control': 'no-store, must-revalidate' } },
-  );
+      { headers: { 'Cache-Control': 'no-store, must-revalidate' } },
+    );
+  } catch (err) {
+    // Surface Prisma error codes to the client so the DebugBanner can
+    // display "schema drift" hints instead of an opaque 500. Most often
+    // hit when migrations haven't deployed (P2022 missing column) — the
+    // user's "data is gone" symptom is almost always a schema-drift
+    // 500 here, since AuthContext defaults to /onboarding when this
+    // endpoint fails.
+    const code =
+      typeof err === 'object' && err !== null && 'code' in err
+        ? String((err as { code: unknown }).code)
+        : undefined;
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[hippo:auth/me] userId=${user.id} code=${code ?? '-'}`,
+      message,
+    );
+    return NextResponse.json(
+      {
+        error: message,
+        code,
+        hint:
+          code === 'P2022'
+            ? 'Schema drift — column referenced by Prisma is missing in DB. Run `prisma migrate deploy`.'
+            : code === 'P2021'
+              ? 'Schema drift — table referenced by Prisma is missing in DB. Run `prisma migrate deploy`.'
+              : undefined,
+      },
+      { status: 500 },
+    );
+  }
 }

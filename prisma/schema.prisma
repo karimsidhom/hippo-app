@@ -267,6 +267,13 @@ model Profile {
   acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
   tier                          String       @default("free")
 
+  // ── Theme preference (cross-device sync) ─────────────────────────────────
+  // Mirrors localStorage["hippo-theme"] but syncs across devices through
+  // Supabase. Bootstrap script in <head> still reads localStorage as the
+  // synchronous fast path; this DB value is canonical and overwrites
+  // localStorage on hydrate.
+  theme                         String       @default("dark")  // "light" | "dark" | "system"
+
   // ── Dictation preferences ─────────────────────────────────────────────────
   // Controls the dictation engine: length, tone, billing overlay, teaching
   // pearls, and missing-field prompts. All editable from /settings/dictation.

@@ -95,6 +95,36 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const [mode, setModeState] = useState<ThemeMode>(initial.mode);
   const [resolved, setResolved] = useState<"light" | "dark">(initial.resolved);
 
+  // ── Cross-device theme sync ─────────────────────────────────────────────
+  // On mount, ask the server for the canonical theme (Profile.theme). If
+  // it differs from localStorage, the DB wins — the user changed it on
+  // another device since last login. We update localStorage + re-apply
+  // so they don't see their old preference for a moment after login.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/auth/me", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        const dbTheme = data?.profile?.theme as ThemeMode | undefined;
+        if (
+          dbTheme &&
+          (dbTheme === "light" || dbTheme === "dark" || dbTheme === "system") &&
+          dbTheme !== mode
+        ) {
+          setModeState(dbTheme);
+          try { localStorage.setItem(THEME_STORAGE_KEY, dbTheme); } catch {}
+          const r = resolveTheme(dbTheme);
+          setResolved(r);
+          applyTheme(r);
+        }
+      })
+      .catch(() => { /* ignore — keep localStorage default */ });
+    return () => { cancelled = true; };
+    // Run-once on mount; ignore mode changes here (handled by setMode).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Listen for system preference changes (when mode = "system"). We
   // don't apply the theme on initial mount — the bootstrap script
   // already did that, and re-applying here would race React hydration.
@@ -116,6 +146,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     const r = resolveTheme(newMode);
     setResolved(r);
     applyTheme(r);
+
+    // Best-effort write to Profile.theme so the choice follows the user
+    // across devices. Non-blocking — local UX is already updated; if the
+    // PATCH fails (offline, signed-out, RLS, etc.) localStorage is the
+    // safety net.
+    fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ theme: newMode }),
+    }).catch((err) => {
+      // eslint-disable-next-line no-console
+      console.warn("[hippo:theme-sync] failed to persist theme to DB", err);
+    });
   }, []);
 
   return (
