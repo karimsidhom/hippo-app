@@ -6,10 +6,8 @@ import { db } from '@/lib/db';
  * GET /api/profile — fetch the current user's profile
  *
  * Wraps Prisma in try/catch and tags every error with `[hippo:profile]`
- * so the failing query is visible in Vercel runtime logs even when the
- * client just sees a 500. Includes the Prisma error code in the JSON
- * payload so the frontend's DebugBanner can show "P2022 (column missing)"
- * instead of a generic "something went wrong".
+ * so the failing query is visible in Vercel runtime logs. Includes the
+ * Prisma error code in the JSON payload for client-side diagnostics.
  */
 export async function GET() {
   const { user, error } = await requireAuth();

@@ -65,12 +65,8 @@ export async function GET() {
       { headers: { 'Cache-Control': 'no-store, must-revalidate' } },
     );
   } catch (err) {
-    // Surface Prisma error codes to the client so the DebugBanner can
-    // display "schema drift" hints instead of an opaque 500. Most often
-    // hit when migrations haven't deployed (P2022 missing column) — the
-    // user's "data is gone" symptom is almost always a schema-drift
-    // 500 here, since AuthContext defaults to /onboarding when this
-    // endpoint fails.
+    // Surface the Prisma error code (P2022, P2021, etc.) so failures are
+    // diagnosable from the client + Vercel logs without re-deploy.
     const code =
       typeof err === 'object' && err !== null && 'code' in err
         ? String((err as { code: unknown }).code)

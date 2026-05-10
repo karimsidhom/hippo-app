@@ -4,7 +4,6 @@ import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider, ThemeBootstrapScript } from "@/context/ThemeContext";
 import { InstallCapture } from "@/components/pwa/InstallCapture";
-import { DebugBanner } from "@/components/DebugBanner";
 
 // All pages require runtime auth — never prerender statically
 export const dynamic = "force-dynamic";
@@ -147,10 +146,6 @@ export default function RootLayout({
               <InstallCapture />
               <div id="app-root">{children}</div>
               <div id="portal-root" />
-              {/* Visible toast for failing /api/* hops. Renders nothing
-                  on success; surfaces 5xx + Prisma error codes the moment
-                  schema drift / RLS / auth issues hit. */}
-              <DebugBanner />
             </SubscriptionProvider>
           </AuthProvider>
         </ThemeProvider>
