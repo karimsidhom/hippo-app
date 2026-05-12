@@ -173,6 +173,14 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
   useEffect(() => {
     if (open) {
       setTimeout(() => searchRef.current?.focus(), 80);
+      // Lock body scroll while the picker is open. Without this, iOS PWA
+      // bleeds touch-scroll into the page behind the sheet — the list
+      // jitters or refuses to scroll because the body keeps absorbing
+      // the touchmove. globals.css ships .scroll-lock for exactly this.
+      document.body.classList.add('scroll-lock');
+      return () => {
+        document.body.classList.remove('scroll-lock');
+      };
     } else {
       setView('subcategory');
       setSelectedCategory(null);
@@ -261,7 +269,13 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
       maxWidth: 540,
       background: 'var(--surface)',
       borderRadius: '20px 20px 0 0',
-      maxHeight: '90vh',
+      // 90dvh (dynamic viewport) shrinks with the iOS URL bar / on-screen
+      // keyboard so the sheet always fits the *visible* viewport. 90vh
+      // (static) extends below the home indicator and the bottom rows
+      // become un-tappable. paddingBottom adds room for the iOS home-
+      // indicator gesture zone so the last list row clears it.
+      maxHeight: '90dvh',
+      paddingBottom: 'env(safe-area-inset-bottom)',
       display: 'flex',
       flexDirection: 'column' as const,
       overflow: 'hidden',
@@ -322,6 +336,17 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
     scroll: {
       overflowY: 'auto' as const,
       flex: 1,
+      // iOS momentum scroll inside a position:fixed sheet — without this
+      // the inner list scrolls in jerky discrete steps or stalls entirely
+      // when the user lifts their finger.
+      WebkitOverflowScrolling: 'touch' as const,
+      // Stop scroll-chain leakage to the body when the list hits its
+      // bounds — otherwise the page behind the modal jumps and the
+      // sheet feels rubbery.
+      overscrollBehavior: 'contain' as const,
+      // Explicitly allow vertical pan; some ancestor styles can otherwise
+      // suppress it on touch devices.
+      touchAction: 'pan-y' as const,
     },
   };
 
