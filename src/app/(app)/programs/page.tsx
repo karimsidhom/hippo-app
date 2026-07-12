@@ -15,6 +15,7 @@ import {
   Trash2,
   LogOut,
   ShieldCheck,
+  CreditCard,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
@@ -756,6 +757,7 @@ function ProgramDetailSheet({
         </div>
       ) : (
         <>
+          {isPdLike(detail.myRole) && <ProgramBilling programId={programId} />}
           {/* Invite (owner only) */}
           {isPdLike(detail.myRole) && (
             <div style={{ marginBottom: 20, position: "relative" }}>
@@ -1210,6 +1212,48 @@ function ProgramDetailSheet({
       )}
     </SheetShell>
   );
+}
+
+function ProgramBilling({ programId }: { programId: string }) {
+  const [status, setStatus] = useState("loading");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    fetch(`/api/stripe/subscription?programId=${encodeURIComponent(programId)}`, { credentials: "include" })
+      .then(async (res) => res.ok ? res.json() : { status: "none" })
+      .then((data) => setStatus(data.status ?? "none"))
+      .catch(() => setStatus("none"));
+  }, [programId]);
+
+  const openBilling = async () => {
+    setBusy(true);
+    setError(null);
+    const active = ["active", "trialing", "past_due"].includes(status);
+    try {
+      const res = await fetch(active ? "/api/stripe/portal" : "/api/stripe/checkout", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ programId }),
+      });
+      const data = await res.json();
+      if (!res.ok || !data.url) throw new Error(data.error ?? "Billing is unavailable");
+      window.location.assign(data.url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Billing is unavailable");
+      setBusy(false);
+    }
+  };
+
+  const active = ["active", "trialing", "past_due"].includes(status);
+  return <div style={{ marginBottom: 20, padding: 14, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface2)" }}>
+    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}><CreditCard size={18} color="var(--primary)" /><div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Program plan</div><div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{status === "loading" ? "Checking billing..." : active ? `Status: ${status.replace("_", " ")}` : "Institutional features are in pilot."}</div></div></div>
+      <button onClick={openBilling} disabled={busy || status === "loading"} style={{ ...footerBtnPrimary, padding: "8px 12px", opacity: busy || status === "loading" ? .6 : 1 }}>{busy ? "Opening..." : active ? "Manage" : "Start pilot"}</button>
+    </div>
+    {error && <div style={{ color: "#ef4444", fontSize: 11, marginTop: 8 }}>{error}</div>}
+  </div>;
 }
 
 // ─── Shared sheet chrome ────────────────────────────────────────────────────

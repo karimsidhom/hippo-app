@@ -1,25 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
+import { isProgramOwner } from "@/lib/program-auth";
 
 export async function GET(req: NextRequest) {
-  const id = req.nextUrl.searchParams.get('id');
-  if (!id) return NextResponse.json({ error: 'Missing subscription id' }, { status: 400 });
-
-  const stripeSecret = process.env.STRIPE_SECRET_KEY;
-  if (!stripeSecret) return NextResponse.json({ error: 'Stripe not configured' }, { status: 503 });
-
-  try {
-    const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10' as any });
-
-    const sub = await stripe.subscriptions.retrieve(id);
-
-    return NextResponse.json({
-      status: sub.status,
-      tier: (sub.metadata?.tier ?? 'pro') as string,
-      currentPeriodEnd: new Date((sub as any).current_period_end * 1000).toISOString(),
-      cancelAtPeriodEnd: sub.cancel_at_period_end,
-    });
-  } catch (err: any) {
-    return NextResponse.json({ error: err.message }, { status: 500 });
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+  const programId = req.nextUrl.searchParams.get("programId");
+  if (!programId || !(await isProgramOwner(auth.user.id, programId))) {
+    return NextResponse.json({ error: "Program owner access required" }, { status: 403 });
   }
+  const billing = await db.programSubscription.findUnique({ where: { programId } });
+  return NextResponse.json(billing ? { status: billing.status, currentPeriodEnd: billing.currentPeriodEnd, cancelAtPeriodEnd: billing.cancelAtPeriodEnd } : { status: "none" });
 }
