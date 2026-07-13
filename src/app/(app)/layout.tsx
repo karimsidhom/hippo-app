@@ -67,7 +67,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Pure CSS-variable swap (see globals.css [data-module="clinic"]) — no logic
   // or component changes needed elsewhere in the app.
   const inClinic = pathname.startsWith("/clinic");
-  const inProgramWorkspace = pathname.startsWith("/program-command-center");
+  const inProgramWorkspace = pathname.startsWith("/program-command-center") || pathname.startsWith("/program-procurement");
   const moduleAttr = inClinic ? "clinic" : undefined;
 
   return (

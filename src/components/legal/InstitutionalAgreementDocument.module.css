@@ -1,0 +1,129 @@
+.document {
+  box-sizing: border-box;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 2rem;
+  background: #fff;
+  color: #17241f;
+  font-size: 0.84rem;
+  line-height: 1.65;
+  border: 1px solid #dbe3df;
+  border-radius: 6px;
+}
+.document > header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 2rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 2px solid #17241f;
+}
+.document > header span {
+  font:
+    750 0.68rem "Geist Mono",
+    monospace;
+  color: #087a55;
+}
+.document h1 {
+  margin: 0.3rem 0 0;
+  font-size: 2rem;
+  line-height: 1.1;
+  letter-spacing: 0;
+}
+.document header dl {
+  display: flex;
+  gap: 1.5rem;
+  margin: 0;
+}
+.document header dl div {
+  display: grid;
+  gap: 0.15rem;
+}
+.document dt {
+  font:
+    650 0.62rem "Geist Mono",
+    monospace;
+  text-transform: uppercase;
+  color: #65746e;
+}
+.document dd {
+  margin: 0;
+  font-weight: 650;
+}
+.notice {
+  margin: 1rem 0;
+  padding: 0.8rem;
+  border-left: 3px solid #087a55;
+  background: #edf5f1;
+  color: #53645e;
+}
+.document section {
+  padding: 1rem 0;
+  border-bottom: 1px solid #dbe3df;
+}
+.document h2 {
+  margin: 0 0 0.45rem;
+  font-size: 1rem;
+  letter-spacing: 0;
+}
+.document p {
+  margin: 0.45rem 0;
+  color: #3d4e47;
+}
+.document a {
+  color: #087a55;
+}
+.orderGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  border-top: 1px solid #ccd7d1;
+  border-left: 1px solid #ccd7d1;
+}
+.orderGrid > div {
+  padding: 0.7rem;
+  border-right: 1px solid #ccd7d1;
+  border-bottom: 1px solid #ccd7d1;
+}
+.orderGrid .wide {
+  grid-column: 1/-1;
+}
+.orderGrid dt {
+  margin-bottom: 0.2rem;
+}
+.orderGrid dd {
+  font-size: 0.78rem;
+}
+@media (max-width: 620px) {
+  .document {
+    padding: 1rem;
+  }
+  .document > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .document h1 {
+    font-size: 1.55rem;
+  }
+  .document header dl {
+    width: 100%;
+    justify-content: space-between;
+  }
+  .orderGrid {
+    grid-template-columns: 1fr;
+  }
+  .orderGrid .wide {
+    grid-column: auto;
+  }
+}
+@media print {
+  .document {
+    font-size: 9pt;
+    max-width: none;
+  }
+  .document section {
+    break-inside: avoid;
+  }
+  .notice {
+    background: #fff;
+  }
+}

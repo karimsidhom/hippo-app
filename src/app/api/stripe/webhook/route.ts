@@ -38,12 +38,20 @@ async function syncSubscription(subscription: Stripe.Subscription) {
       cancelAtPeriodEnd: subscription.cancel_at_period_end,
     },
   });
+  const institutionActive = subscription.status === "active" || subscription.status === "trialing" || subscription.status === "past_due";
+  await db.institutionalProcurement.updateMany({
+    where: { programId: resolvedProgramId, agreementAcceptedAt: { not: null } },
+    data: institutionActive
+      ? { status: "ACTIVE", activatedAt: new Date() }
+      : { status: "AGREEMENT_ACCEPTED", activatedAt: null },
+  });
 }
 
 export async function POST(req: NextRequest) {
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
   const signature = req.headers.get("stripe-signature");
-  if (!webhookSecret || !signature) return NextResponse.json({ error: "Stripe webhook is not configured" }, { status: 503 });
+  if (!webhookSecret) return NextResponse.json({ error: "Stripe webhook is not configured" }, { status: 503 });
+  if (!signature) return NextResponse.json({ error: "Stripe signature is required" }, { status: 400 });
 
   let event: Stripe.Event;
   try {
@@ -72,6 +80,10 @@ export async function POST(req: NextRequest) {
           where: { programId },
           create: { programId, stripeCustomerId: customerId, stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id, status: "active" },
           update: { stripeCustomerId: customerId, stripeSubscriptionId: typeof session.subscription === "string" ? session.subscription : session.subscription?.id },
+        });
+        await db.institutionalProcurement.updateMany({
+          where: { programId, agreementAcceptedAt: { not: null } },
+          data: { status: "ACTIVE", activatedAt: new Date() },
         });
       }
     }

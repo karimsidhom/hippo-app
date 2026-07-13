@@ -1227,11 +1227,15 @@ function ProgramBilling({ programId }: { programId: string }) {
   }, [programId]);
 
   const openBilling = async () => {
+    const active = ["active", "trialing", "past_due"].includes(status);
+    if (!active) {
+      window.location.assign(`/program-procurement?programId=${encodeURIComponent(programId)}`);
+      return;
+    }
     setBusy(true);
     setError(null);
-    const active = ["active", "trialing", "past_due"].includes(status);
     try {
-      const res = await fetch(active ? "/api/stripe/portal" : "/api/stripe/checkout", {
+      const res = await fetch("/api/stripe/portal", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -1249,8 +1253,8 @@ function ProgramBilling({ programId }: { programId: string }) {
   const active = ["active", "trialing", "past_due"].includes(status);
   return <div style={{ marginBottom: 20, padding: 14, border: "1px solid var(--border)", borderRadius: 8, background: "var(--surface2)" }}>
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 10 }}><CreditCard size={18} color="var(--primary)" /><div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Program plan</div><div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{status === "loading" ? "Checking billing..." : active ? `Status: ${status.replace("_", " ")}` : "Institutional features are in pilot."}</div></div></div>
-      <button onClick={openBilling} disabled={busy || status === "loading"} style={{ ...footerBtnPrimary, padding: "8px 12px", opacity: busy || status === "loading" ? .6 : 1 }}>{busy ? "Opening..." : active ? "Manage" : "Start pilot"}</button>
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}><CreditCard size={18} color="var(--primary)" /><div><div style={{ fontSize: 13, fontWeight: 700, color: "var(--text)" }}>Program plan</div><div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{status === "loading" ? "Checking billing..." : active ? `Status: ${status.replace("_", " ")}` : "Agreement, procurement, and billing workflow."}</div></div></div>
+      <button onClick={openBilling} disabled={busy || status === "loading"} style={{ ...footerBtnPrimary, padding: "8px 12px", opacity: busy || status === "loading" ? .6 : 1 }}>{busy ? "Opening..." : active ? "Manage" : "Institutional onboarding"}</button>
     </div>
     {error && <div style={{ color: "#ef4444", fontSize: 11, marginTop: 8 }}>{error}</div>}
   </div>;

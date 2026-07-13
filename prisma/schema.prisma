@@ -204,6 +204,8 @@ model User {
   formTemplatesCreated     FormTemplate[]               @relation("FormTemplatesCreated")
   formSubmissionsAsSubject FormSubmission[]             @relation("FormSubmissionsAsSubject")
   formSubmissionsAsAuthor  FormSubmission[]             @relation("FormSubmissionsAsAuthor")
+  procurementRequests      InstitutionalProcurement[]   @relation("ProcurementRequestedBy")
+  procurementAcceptances   InstitutionalProcurement[]   @relation("ProcurementAcceptedBy")
 
   @@map("users")
 }
@@ -914,6 +916,7 @@ model Program {
   ccReviews     CCReview[]
   formTemplates FormTemplate[]
   subscription  ProgramSubscription?
+  procurement   InstitutionalProcurement?
 
   @@index([createdById])
   @@map("programs")
@@ -942,6 +945,55 @@ model StripeWebhookEvent {
   createdAt DateTime @default(now())
 
   @@map("stripe_webhook_events")
+}
+
+model InstitutionalProcurement {
+  id                      String    @id @default(cuid())
+  programId               String    @unique
+  program                 Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  requestedById           String
+  requestedBy             User      @relation("ProcurementRequestedBy", fields: [requestedById], references: [id], onDelete: Restrict)
+  status                  String    @default("DRAFT")
+  institutionLegalName    String
+  institutionType         String
+  jurisdiction            String
+  addressLine1            String
+  addressLine2            String?
+  city                    String
+  province                String
+  postalCode              String
+  country                 String    @default("Canada")
+  signatoryName           String
+  signatoryTitle          String
+  signatoryEmail          String
+  billingContactName      String
+  billingContactEmail     String
+  residentSeats           Int       @default(20)
+  facultySeats            Int       @default(10)
+  pilotStartDate          DateTime?
+  pilotEndDate            DateTime?
+  purchaseOrderRequired   Boolean   @default(false)
+  purchaseOrderNumber     String?
+  securityReviewRequired  Boolean   @default(false)
+  dataProcessingRequired  Boolean   @default(true)
+  notes                   String?
+  agreementVersion        String?
+  agreementToken          String?   @unique
+  agreementTokenExpiresAt DateTime?
+  agreementAcceptedAt     DateTime?
+  agreementAcceptedById   String?
+  agreementAcceptedBy     User?     @relation("ProcurementAcceptedBy", fields: [agreementAcceptedById], references: [id], onDelete: Restrict)
+  authorityConfirmed      Boolean   @default(false)
+  acceptanceIpAddress     String?
+  acceptanceUserAgent     String?
+  submittedAt             DateTime?
+  activatedAt             DateTime?
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+
+  @@index([requestedById])
+  @@index([status, submittedAt])
+  @@map("institutional_procurements")
 }
 
 model ProgramMember {

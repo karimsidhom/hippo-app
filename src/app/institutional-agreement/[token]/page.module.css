@@ -1,0 +1,175 @@
+.page {
+  min-height: 100vh;
+  background: #eef2ef;
+  color: #17241f;
+  padding: 0 1.25rem 5rem;
+}
+.page > nav {
+  max-width: 960px;
+  height: 4rem;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #ccd7d1;
+}
+.page > nav a {
+  font-weight: 800;
+  color: inherit;
+  text-decoration: none;
+}
+.page > nav span {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: #53645e;
+  font-size: 0.72rem;
+}
+.page > article {
+  max-width: 960px;
+  margin: 1rem auto;
+}
+.executed,
+.instructions {
+  max-width: 960px;
+  margin: 1rem auto;
+  display: flex;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.8rem 1rem;
+  border: 1px solid rgba(8, 122, 85, 0.28);
+  background: #e6f5ee;
+  color: #087a55;
+}
+.executed div,
+.instructions {
+  font-size: 0.75rem;
+}
+.executed div {
+  display: grid;
+  gap: 0.15rem;
+}
+.executed span,
+.instructions span {
+  color: #53645e;
+}
+.signature {
+  max-width: 960px;
+  margin: 1rem auto;
+  background: #17241f;
+  color: #f5f8f6;
+  padding: 1.5rem;
+  border-radius: 6px;
+}
+.signature > div:first-child > span {
+  font:
+    700 0.65rem "Geist Mono",
+    monospace;
+  text-transform: uppercase;
+  color: #77e2ba;
+}
+.signature h2 {
+  margin: 0.3rem 0;
+  font-size: 1.25rem;
+}
+.signature p {
+  color: #b7c8c2;
+  font-size: 0.76rem;
+}
+.fields {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.fields label {
+  display: grid;
+  gap: 0.35rem;
+  color: #b7c8c2;
+  font-size: 0.68rem;
+}
+.fields input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3a5148;
+  border-radius: 4px;
+  background: #0e1a16;
+  color: #fff;
+  padding: 0.7rem;
+  font: inherit;
+}
+.wide {
+  grid-column: 1/-1;
+}
+.check {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.55rem;
+  margin: 0.75rem 0;
+  color: #dce6e1;
+  font-size: 0.72rem;
+  line-height: 1.45;
+}
+.check input {
+  margin-top: 0.15rem;
+}
+.signature button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.75rem;
+  border: 0;
+  border-radius: 5px;
+  background: #77e2ba;
+  color: #10211b;
+  padding: 0.75rem 1rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.signature button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.error {
+  color: #fca5a5 !important;
+}
+.state {
+  min-height: 100vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 0.75rem;
+  background: #eef2ef;
+  color: #17241f;
+  padding: 1.5rem;
+  text-align: center;
+}
+.state h1,
+.state p {
+  margin: 0;
+}
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 620px) {
+  .page {
+    padding-inline: 0.75rem;
+  }
+  .page > nav span {
+    font-size: 0;
+  }
+  .page > nav span svg {
+    display: block;
+  }
+  .fields {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+}

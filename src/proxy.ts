@@ -13,6 +13,7 @@ const PUBLIC_ROUTES = new Set([
 const PUBLIC_API_PREFIXES = [
   '/api/auth/',
   '/api/stripe/webhook',
+  '/api/procurement/agreement/',
   '/api/cron/',
   // Review route is a public token link emailed to attendings who may
   // not have a Hippo account. The API verifies the token.
@@ -23,7 +24,7 @@ const PUBLIC_API_PREFIXES = [
 //   /join/:token  — program invites
 //   /review/:token — EPA review flow for attendings without accounts
 //   /legal/*      — privacy / terms / PHIA / etc; must be publicly readable
-const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/'];
+const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/', '/institutional-agreement/'];
 
 // Renamed from `middleware` to `proxy` per Next 16's deprecation of the
 // `middleware` file convention. Exported function name is `proxy`; the
