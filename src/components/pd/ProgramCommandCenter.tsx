@@ -172,7 +172,7 @@ export function ProgramCommandCenter({ data, onProgramChange }: ProgramCommandCe
 
       <footer className={styles.privacyFooter}>
         Program-scoped training data only. No patient names, MRNs, or clinical notes are included in this command center.
-        <span>Generated {new Date(data.generatedAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short" })}</span>
+        <span>Generated {new Date(data.generatedAt).toLocaleString("en-CA", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" })} UTC</span>
       </footer>
 
       {guideOpen && (
