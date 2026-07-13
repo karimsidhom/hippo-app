@@ -294,6 +294,14 @@ export default function DashboardPage() {
       {/* ── Pending program invites (in-app, self-hides if none) ───────── */}
       <ProgramInviteBanner />
 
+      {isResident && (
+        <Link href="/share-hippo" style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 16px", marginBottom: 16, background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--text-1)", textDecoration: "none" }}>
+          <div style={{ width: 32, height: 32, borderRadius: 6, background: "var(--primary-dim)", display: "grid", placeItems: "center", color: "var(--primary)", flexShrink: 0 }}><Share2 size={16} /></div>
+          <div style={{ flex: 1, minWidth: 0 }}><div style={{ fontSize: 13, fontWeight: 650 }}>Invite your co-residents</div><div style={{ color: "var(--text-3)", fontSize: 12, marginTop: 2 }}>Share Hippo without sending their email to us.</div></div>
+          <ChevronRight size={16} style={{ color: "var(--text-3)" }} />
+        </Link>
+      )}
+
       {/* ── Staff: EPAs to complete — persistent link to inbox ──────────
           Always shown for attendings/PDs so the entry point is stable,
           even when the queue is clear. The visual intensity scales with

@@ -206,6 +206,8 @@ model User {
   formSubmissionsAsAuthor  FormSubmission[]             @relation("FormSubmissionsAsAuthor")
   procurementRequests      InstitutionalProcurement[]   @relation("ProcurementRequestedBy")
   procurementAcceptances   InstitutionalProcurement[]   @relation("ProcurementAcceptedBy")
+  growthReferral           GrowthReferral?
+  growthEvents             GrowthEvent[]
 
   @@map("users")
 }
@@ -945,6 +947,73 @@ model StripeWebhookEvent {
   createdAt DateTime @default(now())
 
   @@map("stripe_webhook_events")
+}
+
+// First-party acquisition records. These tables contain business-contact
+// details and anonymous marketing attribution only. Clinical and patient data
+// never enters the growth system.
+model GrowthLead {
+  id            String   @id @default(cuid())
+  name          String
+  email         String
+  role          String
+  institution   String
+  programName   String?
+  specialty     String?
+  residentCount Int?
+  country       String?
+  message       String?
+  source        String?
+  medium        String?
+  campaign      String?
+  content       String?
+  status        String   @default("NEW")
+  consentAt     DateTime
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([email])
+  @@map("growth_leads")
+}
+
+model GrowthReferral {
+  id          String   @id @default(cuid())
+  code        String   @unique
+  ownerUserId String   @unique
+  owner       User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+  clicks      Int      @default(0)
+  signups     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([createdAt])
+  @@map("growth_referrals")
+}
+
+model GrowthEvent {
+  id           String   @id @default(cuid())
+  name         String
+  path         String
+  sessionId    String?
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  source       String?
+  medium       String?
+  campaign     String?
+  content      String?
+  referralCode String?
+  referrerHost String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  @@index([name, createdAt])
+  @@index([path, createdAt])
+  @@index([campaign, createdAt])
+  @@index([referralCode, createdAt])
+  @@index([userId, createdAt])
+  @@map("growth_events")
 }
 
 model InstitutionalProcurement {

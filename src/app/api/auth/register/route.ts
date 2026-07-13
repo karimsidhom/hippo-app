@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { db } from '@/lib/db';
 import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
+import { ATTRIBUTION_COOKIE, decodeAttribution, REFERRAL_COOKIE } from '@/lib/growth/attribution';
 
 const schema = z.object({
   name:     z.string().min(2, 'Name must be at least 2 characters'),
@@ -65,6 +66,29 @@ export async function POST(req: NextRequest) {
         name,
         profile: { create: { onboardingCompleted: false } },
       },
+    });
+
+    const attribution = decodeAttribution(req.cookies.get(ATTRIBUTION_COOKIE)?.value);
+    const referralCode = req.cookies.get(REFERRAL_COOKIE)?.value;
+    await db.$transaction(async (tx) => {
+      await tx.growthEvent.create({
+        data: {
+          name: 'signup',
+          path: '/signup',
+          userId: authUserId,
+          source: referralCode ? 'resident_referral' : attribution.source || null,
+          medium: referralCode ? 'share' : attribution.medium || null,
+          campaign: attribution.campaign || null,
+          content: attribution.content || null,
+          referralCode: referralCode || null,
+        },
+      });
+      if (referralCode) {
+        await tx.growthReferral.updateMany({
+          where: { code: referralCode, NOT: { ownerUserId: authUserId } },
+          data: { signups: { increment: 1 } },
+        });
+      }
     });
 
     // ── 3. Sign in to get session tokens ─────────────────────────────────

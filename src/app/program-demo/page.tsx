@@ -14,7 +14,7 @@ export const metadata: Metadata = {
 
 export default function ProgramDemoPage() {
   return <div className={styles.page}>
-    <nav><Link href="/"><ArrowLeft size={15} /> Hippo</Link><div><Link href="/pricing">Program pricing</Link><Link className={styles.primary} href="/signup">Start a pilot <ArrowRight size={15} /></Link></div></nav>
+    <nav><Link href="/"><ArrowLeft size={15} /> Hippo</Link><div><Link href="/pricing">Program pricing</Link><Link className={styles.primary} href="/pilot?utm_source=program_demo&utm_medium=product&utm_campaign=program_pilot">Request a pilot <ArrowRight size={15} /></Link></div></nav>
     <ProgramCommandCenter data={demoProgramCommandCenter} />
   </div>;
 }

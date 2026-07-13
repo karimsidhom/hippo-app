@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   authors: [{ name: "Hippo" }],
   creator: "Hippo",
   publisher: "Hippo",
+  alternates: { types: { "application/rss+xml": "https://hippomedicine.com/insights/feed.xml" } },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
   robots: {
     index: false,
     follow: false,
@@ -130,6 +134,7 @@ export default function RootLayout({
         <ThemeBootstrapScript />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="alternate" type="application/rss+xml" title="Hippo Residency Training Insights" href="/insights/feed.xml" />
       </head>
       <body
         className="min-h-screen antialiased"

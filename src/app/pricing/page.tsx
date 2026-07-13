@@ -18,7 +18,7 @@ export default function PricingPage() {
       <p style={{ fontSize: 19, color: "#53645e", maxWidth: 720, lineHeight: 1.6 }}>Personal training tools stay free. Institutions subscribe only when Hippo saves their program leadership time and improves oversight.</p>
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 320px), 1fr))", gap: 18, marginTop: 54 }}>
         <Plan name="Resident & Fellow" price="Free forever" copy="Everything an individual trainee needs to build and own a complete training record." features={["Unlimited cases and specialties", "EPA and milestone tracking", "PDF and spreadsheet exports", "Analytics and benchmarks", "No advertising"]} cta="Create free account" href="/signup" />
-        <Plan name="Residency Program" price="Pilot pricing" copy="Operational tools for program directors, coordinators, and faculty." features={["Program director command center", "Accreditation-ready reports", "Faculty assignment workflows", "Guided implementation", "Weekly pilot brief and outcome report"]} cta="Explore the live demo" href="/program-demo" dark />
+        <Plan name="Residency Program" price="30-day pilot" copy="Operational tools for program directors, coordinators, and faculty." features={["Program director command center", "Accreditation-ready reports", "Faculty assignment workflows", "Guided implementation", "Weekly pilot brief and outcome report"]} cta="Request a program pilot" href="/pilot" dark />
       </div>
       <p style={{ color: "#64736d", marginTop: 24, lineHeight: 1.6 }}>No patient information is sold. No resident advertising. A program subscription never controls a resident’s access to their personal logbook.</p>
     </section>

@@ -24,7 +24,7 @@ export default function HomePage() {
     applicationCategory: "MedicalApplication",
     operatingSystem: "Web",
     url: "https://hippomedicine.com",
-    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+    offers: { "@type": "Offer", price: "0", priceCurrency: "CAD" },
     description: "A free surgical case log and competency tracker for residents and fellows.",
   };
 
@@ -35,6 +35,7 @@ export default function HomePage() {
       <nav aria-label="Main navigation" style={{ maxWidth: 1120, margin: "0 auto", padding: "24px", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16 }}>
         <Link href="/" style={{ color: "inherit", textDecoration: "none", fontSize: 20, fontWeight: 800 }}>Hippo</Link>
         <div className="marketing-nav-actions" style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 14 }}>
+          <Link className="secondary-nav-link" href="/insights" style={{ color: "#b7c8c2", textDecoration: "none" }}>Insights</Link>
           <Link className="secondary-nav-link" href="/pricing" style={{ color: "#b7c8c2", textDecoration: "none" }}>For programs</Link>
           <Link className="secondary-nav-link" href="/login" style={{ color: "#f3f7f5", textDecoration: "none" }}>Sign in</Link>
           <Link href="/signup" style={{ color: "#06251c", background: "#77e2ba", padding: "10px 14px", borderRadius: 6, fontWeight: 800, textDecoration: "none" }}>Create free account</Link>
@@ -72,6 +73,10 @@ export default function HomePage() {
         <p style={{ color: "#9db0a9", lineHeight: 1.7, fontSize: 18 }}>Program subscriptions fund the free resident product and add cohort oversight, accreditation-ready reporting, faculty workflows, onboarding, and priority support.</p>
         <Link href="/program-demo" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 24, color: "#77e2ba", fontWeight: 800, textDecoration: "none" }}>Explore the command center <ArrowRight size={18} /></Link>
       </section>
+      <section style={{ borderTop: "1px solid #1d312a", background: "#0a1613" }}><div style={{ maxWidth: 1120, margin: "0 auto", padding: "54px 24px", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(210px,1fr))", gap: 28 }}>
+        {[['/surgical-case-log','Surgical case logging','A fast, free personal training record.'],['/epa-tracking','EPA tracking','Follow requests through faculty completion.'],['/residency-program-dashboard','Program dashboard','Weekly adoption, gaps, and action signals.'],['/accreditation-reporting','Accreditation reports','Organized evidence from routine program work.']].map(([href,title,copy]) => <Link href={href} key={href} style={{ color: "inherit", textDecoration: "none" }}><strong style={{ display: "block", fontSize: 15 }}>{title}</strong><span style={{ display: "block", color: "#8ea49c", fontSize: 13, lineHeight: 1.5, marginTop: 7 }}>{copy}</span></Link>)}
+      </div></section>
+      <footer style={{ borderTop: "1px solid #1d312a", padding: "28px 24px", color: "#82978f", fontSize: 12, display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 18 }}><span>Hippo Medicine Inc.</span><Link href="/insights" style={{ color: "#aabbb4" }}>Insights</Link><Link href="/pilot" style={{ color: "#aabbb4" }}>Program pilot</Link><Link href="/legal/privacy" style={{ color: "#aabbb4" }}>Privacy</Link></footer>
     </main>
   );
 }
