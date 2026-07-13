@@ -934,7 +934,7 @@ export default function DashboardPage() {
       {isPD && (
         <section style={{ marginBottom: 28 }}>
           <Link
-            href="/pd-dashboard"
+            href="/program-command-center"
             style={{
               display: "flex",
               alignItems: "center",
@@ -1006,7 +1006,7 @@ export default function DashboardPage() {
           {/* Silent residents — actionable, stays as a top-level alert */}
           {cohortKpis && cohortKpis.silentResidents > 0 && (
             <Link
-              href="/pd-dashboard"
+              href="/program-command-center"
               style={{
                 display: "flex",
                 alignItems: "center",

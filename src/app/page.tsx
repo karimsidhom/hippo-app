@@ -48,7 +48,7 @@ export default function HomePage() {
           <p style={{ color: "#b7c8c2", fontSize: 20, lineHeight: 1.6, maxWidth: 650 }}>Hippo turns daily case logging into a clear record of your operative experience, competency, and progress. Free for residents and fellows, always.</p>
           <div style={{ display: "flex", flexWrap: "wrap", gap: 12, marginTop: 34 }}>
             <Link href="/signup" style={{ display: "inline-flex", alignItems: "center", gap: 8, color: "#06251c", background: "#77e2ba", padding: "14px 18px", borderRadius: 6, fontWeight: 800, textDecoration: "none" }}>Start logging free <ArrowRight size={18} /></Link>
-            <Link href="/pricing" style={{ color: "#f3f7f5", border: "1px solid #2a443b", padding: "14px 18px", borderRadius: 6, fontWeight: 700, textDecoration: "none" }}>Bring Hippo to a program</Link>
+            <Link href="/program-demo" style={{ color: "#f3f7f5", border: "1px solid #2a443b", padding: "14px 18px", borderRadius: 6, fontWeight: 700, textDecoration: "none" }}>View program demo</Link>
           </div>
         </div>
         <div style={{ border: "1px solid #29443a", background: "#0c1b17", borderRadius: 8, padding: "clamp(24px, 5vw, 42px)" }}>
@@ -70,7 +70,7 @@ export default function HomePage() {
         <p style={{ color: "#77e2ba", fontWeight: 800 }}>Programs pay. Residents do not.</p>
         <h2 style={{ fontSize: "clamp(30px, 5vw, 48px)", margin: "14px 0 18px" }}>Give your program a live view of training quality.</h2>
         <p style={{ color: "#9db0a9", lineHeight: 1.7, fontSize: 18 }}>Program subscriptions fund the free resident product and add cohort oversight, accreditation-ready reporting, faculty workflows, onboarding, and priority support.</p>
-        <Link href="/pricing" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 24, color: "#77e2ba", fontWeight: 800, textDecoration: "none" }}>See program plans <ArrowRight size={18} /></Link>
+        <Link href="/program-demo" style={{ display: "inline-flex", alignItems: "center", gap: 8, marginTop: 24, color: "#77e2ba", fontWeight: 800, textDecoration: "none" }}>Explore the command center <ArrowRight size={18} /></Link>
       </section>
     </main>
   );

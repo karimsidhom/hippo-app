@@ -6,7 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { InstallCapture } from "@/components/pwa/InstallCapture";
 
-const PUBLIC_MARKETING_ROUTES = new Set(["/", "/pricing"]);
+const PUBLIC_MARKETING_ROUTES = new Set(["/", "/pricing", "/program-demo"]);
 
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

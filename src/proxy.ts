@@ -8,7 +8,7 @@ import { createServerClient } from '@supabase/ssr';
 // /offline is the service-worker fallback — if it requires auth the SW
 // can't serve it to a logged-out user who lost connectivity.
 const PUBLIC_ROUTES = new Set([
-  '/', '/pricing', '/login', '/signup', '/onboarding', '/install', '/offline',
+  '/', '/pricing', '/program-demo', '/login', '/signup', '/onboarding', '/install', '/offline',
 ]);
 const PUBLIC_API_PREFIXES = [
   '/api/auth/',
@@ -49,10 +49,12 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Always allow static assets + PWA manifest
+  // Always allow static assets + PWA shell files. Service workers cannot
+  // follow redirects during registration, so /sw.js must bypass auth.
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
+    pathname === '/sw.js' ||
     pathname === '/manifest.json' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
