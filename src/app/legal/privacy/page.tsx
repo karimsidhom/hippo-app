@@ -4,7 +4,7 @@ export default function PrivacyPage() {
   return (
     <>
       <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Privacy Policy</h1>
-      <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Effective date: 2026-04-14 · Last updated: 2026-04-14</p>
+      <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Effective date: 2026-04-14 · Last updated: 2026-07-13</p>
 
       <h2 style={H2}>1. What Hippo is (and is not)</h2>
       <p>Hippo is a personal surgical training companion. It is <strong>not</strong> an official training record, credentialing system, or accreditation platform unless your program has explicitly entered into an institutional agreement with us. You should continue to use your program&apos;s official learning-management system (Elentra, MedHub, New Innovations, one45, Entrada, etc.) for any records your program requires.</p>
@@ -15,11 +15,13 @@ export default function PrivacyPage() {
         <li><strong>Case logs:</strong> procedure, date, role, autonomy level, operative time, approach, and free-text notes/reflections that you enter yourself.</li>
         <li><strong>EPA observations:</strong> ratings, attending information, and free-text comments.</li>
         <li><strong>Device & audit data:</strong> IP address and user-agent when you take sensitive actions (case edits, sign-offs, exports). Retained in the audit log.</li>
+        <li><strong>Website acquisition data:</strong> public page views, campaign parameters, referring website, calls-to-action clicked, and a first-party session identifier. We use a 90-day first-party attribution cookie to understand which Hippo pages and referrals produce signups or pilot requests.</li>
+        <li><strong>Pilot contact data:</strong> when you request an institutional pilot, we collect the business contact, institution, role, program details, message, and your permission for Hippo to follow up.</li>
         <li><strong>No PHI by design:</strong> Hippo does not ask you for patient names, dates of birth, medical record numbers, or any direct identifiers. Our notes fields are scrubbed for obvious PHI tokens before storage, but you are responsible for not entering PHI.</li>
       </ul>
 
       <h2 style={H2}>3. How we use it</h2>
-      <p>To provide the product, to generate the analytics and briefs you see in the app, and to maintain security and integrity of the service. We do not sell your data. We do not show third-party advertising. We do not share your data with your program unless you explicitly opt in.</p>
+      <p>To provide the product, generate the analytics and briefs you see in the app, respond to requested pilot inquiries, understand which public educational content is useful, and maintain security and integrity of the service. We do not sell your data. We do not show third-party advertising. We do not share your data with your program unless you explicitly opt in.</p>
 
       <h2 style={H2}>4. Where it lives</h2>
       <p>Primary storage is Supabase (Postgres) with encryption at rest and in transit. Files you upload are stored in Supabase Storage. For a full list of subprocessors see <a href="/legal/subprocessors" style={A}>Subprocessors</a>.</p>

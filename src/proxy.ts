@@ -8,11 +8,15 @@ import { createServerClient } from '@supabase/ssr';
 // /offline is the service-worker fallback — if it requires auth the SW
 // can't serve it to a logged-out user who lost connectivity.
 const PUBLIC_ROUTES = new Set([
-  '/', '/login', '/signup', '/onboarding', '/install', '/offline',
+  '/', '/pricing', '/program-demo', '/pilot', '/insights', '/surgical-case-log', '/epa-tracking',
+  '/residency-program-dashboard', '/accreditation-reporting', '/login', '/signup', '/onboarding', '/install', '/offline',
 ]);
 const PUBLIC_API_PREFIXES = [
   '/api/auth/',
   '/api/stripe/webhook',
+  '/api/procurement/agreement/',
+  '/api/growth/events',
+  '/api/growth/leads',
   '/api/cron/',
   // Review route is a public token link emailed to attendings who may
   // not have a Hippo account. The API verifies the token.
@@ -23,7 +27,7 @@ const PUBLIC_API_PREFIXES = [
 //   /join/:token  — program invites
 //   /review/:token — EPA review flow for attendings without accounts
 //   /legal/*      — privacy / terms / PHIA / etc; must be publicly readable
-const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/'];
+const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/', '/institutional-agreement/', '/insights/', '/r/'];
 
 // Renamed from `middleware` to `proxy` per Next 16's deprecation of the
 // `middleware` file convention. Exported function name is `proxy`; the
@@ -49,10 +53,12 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Always allow static assets + PWA manifest
+  // Always allow static assets + PWA shell files. Service workers cannot
+  // follow redirects during registration, so /sw.js must bypass auth.
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
+    pathname === '/sw.js' ||
     pathname === '/manifest.json' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
@@ -68,9 +74,13 @@ export async function proxy(request: NextRequest) {
 
   let response = NextResponse.next({ request });
 
-  // Skip auth if Supabase isn't configured (build-time / missing env)
+  // Keep public pages available when the backend is not configured, but do
+  // not let private pages fall through into a provider crash.
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return response;
+    const publicPage = PUBLIC_ROUTES.has(pathname) || PUBLIC_PAGE_PREFIXES.some((p) => pathname.startsWith(p));
+    if (publicPage) return response;
+    if (pathname.startsWith("/api/")) return NextResponse.json({ error: "Service unavailable" }, { status: 503 });
+    return NextResponse.redirect(new URL("/", request.url));
   }
 
   // Build server Supabase client — syncs session cookies on every request

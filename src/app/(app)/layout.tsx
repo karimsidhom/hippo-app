@@ -67,10 +67,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Pure CSS-variable swap (see globals.css [data-module="clinic"]) — no logic
   // or component changes needed elsewhere in the app.
   const inClinic = pathname.startsWith("/clinic");
+  const inProgramWorkspace = pathname.startsWith("/program-command-center") || pathname.startsWith("/program-procurement");
   const moduleAttr = inClinic ? "clinic" : undefined;
 
   return (
     <div
+      className={inProgramWorkspace ? "program-workspace" : undefined}
       data-module={moduleAttr}
       style={{
         background: "var(--bg)",
@@ -153,6 +155,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             padding-top: 28px;
             padding-bottom: 96px;
           }
+        }
+        @media (min-width: 1000px) {
+          .program-workspace .app-header,
+          .program-workspace .app-main { max-width: 1200px; }
         }
         /* Premium polish — sticky header sits above a subtle blur so
            content scrolling underneath ghosts through tastefully rather

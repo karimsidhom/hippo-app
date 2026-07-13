@@ -5,18 +5,18 @@
 
 export const PRICING = {
   pro: {
-    label: 'Pro',
-    monthlyUsd: 5,
-    monthlyDisplay: '$5',
-    yearlyUsd: 48,
-    yearlyDisplay: '$48',
-    yearlyPerMonth: '$4',
+    label: 'Resident',
+    monthlyUsd: 0,
+    monthlyDisplay: '$0',
+    yearlyUsd: 0,
+    yearlyDisplay: '$0',
+    yearlyPerMonth: '$0',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ?? '',
     stripeProductId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRODUCT_ID ?? '',
     tagline: 'For residents & fellows',
-    cta: 'Start Pro — $5/month',
-    ctaShort: '$5/mo',
-    description: 'Unlimited logging, AI coaching, and interview-ready PDF exports.',
+    cta: 'Start free',
+    ctaShort: 'Free',
+    description: 'Unlimited logging, coaching, and interview-ready exports, free for residents.',
     features: [
       'Unlimited case logging',
       'All 10+ specialties',
@@ -32,8 +32,8 @@ export const PRICING = {
   },
   institution: {
     label: 'Institution',
-    monthlyUsd: 49,
-    monthlyDisplay: '$49',
+    monthlyUsd: 0,
+    monthlyDisplay: 'Pilot pricing',
     tagline: 'For programs & hospitals',
     cta: 'Contact Sales',
     description: 'Multi-resident dashboards and cohort analytics.',
@@ -51,19 +51,16 @@ export const PRICING = {
   free: {
     label: 'Free',
     monthlyUsd: 0,
-    weeklyCaseLimit: 5,
-    specialtyLimit: 1,
+    weeklyCaseLimit: Infinity,
+    specialtyLimit: Infinity,
     features: [
-      '5 cases per week',
-      '1 specialty',
-      'Basic time trend graph',
-      'Personal analytics only',
+      'Unlimited cases and specialties',
+      'Full analytics and benchmarks',
+      'EPA and milestone tracking',
+      'PDF and spreadsheet exports',
     ],
     limitations: [
-      'No social / friends access',
-      'No benchmark percentile comparison',
-      'No public profile',
-      'Ads shown throughout',
+      'Program administration requires an institutional plan',
     ],
   },
 } as const;
@@ -83,30 +80,30 @@ export function hasFeature(tier: PricingTier, feature: keyof typeof FEATURE_GATE
 }
 
 export const FEATURE_GATES = {
-  unlimitedCases:       ['pro', 'institution'] as PricingTier[],
-  allSpecialties:       ['pro', 'institution'] as PricingTier[],
-  benchmarkPercentiles: ['pro', 'institution'] as PricingTier[],
-  socialFriends:        ['pro', 'institution'] as PricingTier[],
-  leaderboard:          ['pro', 'institution'] as PricingTier[],
-  excelExport:          ['pro', 'institution'] as PricingTier[],
-  publicProfile:        ['pro', 'institution'] as PricingTier[],
-  aiInsights:           ['pro', 'institution'] as PricingTier[],
+  unlimitedCases:       ['free', 'pro', 'institution'] as PricingTier[],
+  allSpecialties:       ['free', 'pro', 'institution'] as PricingTier[],
+  benchmarkPercentiles: ['free', 'pro', 'institution'] as PricingTier[],
+  socialFriends:        ['free', 'pro', 'institution'] as PricingTier[],
+  leaderboard:          ['free', 'pro', 'institution'] as PricingTier[],
+  excelExport:          ['free', 'pro', 'institution'] as PricingTier[],
+  publicProfile:        ['free', 'pro', 'institution'] as PricingTier[],
+  aiInsights:           ['free', 'pro', 'institution'] as PricingTier[],
   programDashboard:     ['institution'] as PricingTier[],
-  noAds:                ['pro', 'institution'] as PricingTier[],
+  noAds:                ['free', 'pro', 'institution'] as PricingTier[],
 
   // Pro anchors — shipped April 2026
   /** Download the full logbook as a branded PDF — interview & fellowship ready. */
-  logbookPdf:           ['pro', 'institution'] as PricingTier[],
+  logbookPdf:           ['free', 'pro', 'institution'] as PricingTier[],
   /** AI "Brief Me" pre-case coaching — free tier limited to FREE_BRIEF_LIMIT/mo. */
-  aiBrief:              ['pro', 'institution'] as PricingTier[],
+  aiBrief:              ['free', 'pro', 'institution'] as PricingTier[],
   /** AI entrustment-score suggestions in the attending inbox. */
-  aiOscore:             ['pro', 'institution'] as PricingTier[],
+  aiOscore:             ['free', 'pro', 'institution'] as PricingTier[],
   /** Bulk EPA sign-off queue for attendings / PDs. */
-  bulkSignoff:          ['pro', 'institution'] as PricingTier[],
+  bulkSignoff:          ['free', 'pro', 'institution'] as PricingTier[],
 } as const;
 
 /**
  * Free-tier monthly allowance for AI Brief Me. Residents get this many
  * briefs per calendar month before hitting the paywall. Pro = unlimited.
  */
-export const FREE_BRIEF_LIMIT = 5;
+export const FREE_BRIEF_LIMIT = Number.POSITIVE_INFINITY;

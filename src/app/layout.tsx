@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
-import { SubscriptionProvider } from "@/context/SubscriptionContext";
-import { AuthProvider } from "@/context/AuthContext";
-import { ThemeProvider, ThemeBootstrapScript } from "@/context/ThemeContext";
-import { InstallCapture } from "@/components/pwa/InstallCapture";
+import { ThemeBootstrapScript } from "@/context/ThemeContext";
+import { AppProviders } from "@/components/AppProviders";
 
 // All pages require runtime auth — never prerender statically
 export const dynamic = "force-dynamic";
@@ -16,6 +14,7 @@ export const dynamic = "force-dynamic";
 const isClinic = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic";
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || "https://hippomedicine.com"),
   title: isClinic
     ? { default: "Hippo Clinic — AI Clinic Scribe", template: "%s | Hippo Clinic" }
     : { default: "Hippo — Strava for Surgeons", template: "%s | Hippo" },
@@ -28,8 +27,12 @@ export const metadata: Metadata = {
   authors: [{ name: "Hippo" }],
   creator: "Hippo",
   publisher: "Hippo",
+  alternates: { types: { "application/rss+xml": "https://hippomedicine.com/insights/feed.xml" } },
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
   robots: {
-    index: false, // Private medical app — don't index
+    index: false,
     follow: false,
   },
   icons: isClinic
@@ -131,24 +134,17 @@ export default function RootLayout({
         <ThemeBootstrapScript />
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+        <link rel="alternate" type="application/rss+xml" title="Hippo Residency Training Insights" href="/insights/feed.xml" />
       </head>
       <body
         className="min-h-screen antialiased"
         suppressHydrationWarning
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
-        <ThemeProvider>
-          <AuthProvider>
-            <SubscriptionProvider>
-              {/* Must mount near the root — beforeinstallprompt fires
-                  before most route components mount. See the component
-                  comment for why it's a dedicated element. */}
-              <InstallCapture />
-              <div id="app-root">{children}</div>
-              <div id="portal-root" />
-            </SubscriptionProvider>
-          </AuthProvider>
-        </ThemeProvider>
+        <AppProviders>
+          <div id="app-root">{children}</div>
+          <div id="portal-root" />
+        </AppProviders>
       </body>
     </html>
   );

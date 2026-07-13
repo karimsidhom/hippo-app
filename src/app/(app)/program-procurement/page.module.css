@@ -1,0 +1,429 @@
+.workspace {
+  max-width: 920px;
+  margin: 0 auto;
+  padding-bottom: 4rem;
+}
+.workspace > header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 2rem;
+  padding: 1rem 0 1.4rem;
+  border-bottom: 1px solid var(--border-mid);
+}
+.workspace > header a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--text-3);
+  text-decoration: none;
+  font-size: 0.68rem;
+}
+.workspace > header span {
+  display: block;
+  margin-top: 0.8rem;
+  font:
+    700 0.65rem "Geist Mono",
+    monospace;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.workspace h1 {
+  margin: 0.3rem 0;
+  font-size: 1.8rem;
+  letter-spacing: 0;
+}
+.workspace > header p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.72rem;
+}
+.status {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border-mid);
+  color: var(--text-3);
+  font:
+    650 0.62rem "Geist Mono",
+    monospace;
+  text-transform: uppercase;
+}
+.status i {
+  width: 0.42rem;
+  height: 0.42rem;
+  border-radius: 50%;
+  background: var(--warning);
+}
+.status[data-status="ACTIVE"] i,
+.status[data-status="AGREEMENT_ACCEPTED"] i {
+  background: var(--success);
+}
+.steps {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin: 1.25rem 0;
+  border: 1px solid var(--border);
+}
+.steps button {
+  height: 4rem;
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  padding: 0.7rem;
+  border: 0;
+  border-right: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-3);
+  font:
+    650 0.68rem "Geist",
+    sans-serif;
+  text-align: left;
+  cursor: pointer;
+}
+.steps button:last-child {
+  border-right: 0;
+}
+.steps button[data-active="true"] {
+  background: var(--surface2);
+  color: var(--text);
+}
+.steps button i {
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  border: 1px solid var(--border-mid);
+  font:
+    700 0.6rem "Geist Mono",
+    monospace;
+}
+.steps button[data-complete="true"] i {
+  border-color: rgba(16, 185, 129, 0.4);
+  background: rgba(16, 185, 129, 0.1);
+  color: var(--success);
+}
+.panel {
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 1.5rem;
+}
+.heading {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.8rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid var(--border);
+}
+.heading > i {
+  width: 2.25rem;
+  height: 2.25rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-mid);
+  color: var(--primary);
+}
+.heading > i svg {
+  width: 1.1rem;
+}
+.heading span {
+  font:
+    700 0.62rem "Geist Mono",
+    monospace;
+  text-transform: uppercase;
+  color: var(--primary);
+}
+.heading h2 {
+  margin: 0.2rem 0;
+  font-size: 1.1rem;
+  letter-spacing: 0;
+}
+.heading p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  line-height: 1.5;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin: 1.25rem 0;
+}
+.formGrid label,
+.notes {
+  display: grid;
+  gap: 0.4rem;
+  color: var(--text-2);
+  font-size: 0.68rem;
+}
+.formGrid label > span,
+.notes > span {
+  justify-self: end;
+  margin-top: -1.15rem;
+  color: var(--text-3);
+  font-size: 0.6rem;
+}
+.formGrid input,
+.notes textarea {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid var(--border-mid);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  padding: 0.7rem;
+  font: inherit;
+}
+.formGrid input:focus,
+.notes textarea:focus {
+  outline: 2px solid color-mix(in srgb, var(--primary) 25%, transparent);
+  border-color: var(--primary);
+}
+.formGrid input:disabled {
+  color: var(--text-3);
+  background: var(--surface2);
+}
+.wide {
+  grid-column: 1/-1;
+}
+.checks {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.checks label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.7rem;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 0.68rem;
+}
+.notes textarea {
+  min-height: 6rem;
+  resize: vertical;
+}
+.deliverables {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+  padding: 1rem;
+  border: 1px solid var(--border);
+  background: var(--surface2);
+}
+.deliverables strong {
+  grid-column: 1/-1;
+  font-size: 0.72rem;
+}
+.deliverables span {
+  font-size: 0.67rem;
+  color: var(--text-2);
+}
+.deliverables span:before {
+  content: "✓";
+  margin-right: 0.4rem;
+  color: var(--success);
+}
+.executionGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.75rem;
+  margin: 1.25rem 0;
+}
+.executionGrid > div {
+  display: grid;
+  grid-template-columns: 1.5rem 1fr;
+  gap: 0.25rem 0.5rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+}
+.executionGrid i {
+  grid-row: 1/3;
+  width: 1.35rem;
+  height: 1.35rem;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--border-mid);
+  color: var(--success);
+}
+.executionGrid strong {
+  font-size: 0.7rem;
+}
+.executionGrid span {
+  font-size: 0.62rem;
+  color: var(--text-3);
+  line-height: 1.4;
+}
+.executionGrid div[data-complete="true"] {
+  border-color: rgba(16, 185, 129, 0.3);
+}
+.documentLinks {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  margin: 1rem 0;
+}
+.documentLinks a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--border-mid);
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 0.66rem;
+}
+.primaryAction {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  border: 0;
+  border-radius: 4px;
+  background: var(--primary);
+  color: #041016;
+  padding: 0.75rem 1rem;
+  font-weight: 750;
+  cursor: pointer;
+}
+.primaryAction:disabled {
+  opacity: 0.5;
+}
+.waiting {
+  padding: 0.75rem;
+  border-left: 3px solid var(--warning);
+  background: rgba(245, 158, 11, 0.06);
+  color: var(--text-2);
+  font-size: 0.7rem;
+}
+.pendingStripe {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+  padding: 0.85rem;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+  background: rgba(16, 185, 129, 0.06);
+  color: var(--success);
+}
+.pendingStripe div {
+  display: grid;
+  gap: 0.2rem;
+}
+.pendingStripe strong {
+  font-size: 0.72rem;
+}
+.pendingStripe span {
+  color: var(--text-2);
+  font-size: 0.66rem;
+}
+.error,
+.notice {
+  padding: 0.65rem 0.75rem;
+  font-size: 0.68rem;
+}
+.error {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.06);
+}
+.notice {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.06);
+}
+.panel > footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+.panel > footer > div {
+  display: flex;
+  gap: 0.5rem;
+}
+.panel > footer button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border: 1px solid var(--border-mid);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-2);
+  padding: 0.6rem 0.75rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+.panel > footer button:disabled {
+  opacity: 0.35;
+}
+.panel > footer .next {
+  border-color: var(--primary);
+  background: var(--primary);
+  color: #041016;
+}
+.state {
+  min-height: 60vh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  text-align: center;
+  color: var(--text);
+}
+.state svg {
+  animation: spin 0.8s linear infinite;
+}
+.state h1 {
+  margin: 0.7rem 0 0.2rem;
+  font-size: 1.25rem;
+}
+.state p {
+  margin: 0;
+  color: var(--text-3);
+  font-size: 0.75rem;
+}
+.state a {
+  margin-top: 1rem;
+  color: var(--primary);
+  font-size: 0.72rem;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 720px) {
+  .workspace > header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+  .steps {
+    grid-template-columns: 1fr 1fr;
+  }
+  .steps button:nth-child(2) {
+    border-right: 0;
+  }
+  .steps button:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--border);
+  }
+  .panel {
+    padding: 1rem;
+  }
+  .formGrid,
+  .checks,
+  .executionGrid {
+    grid-template-columns: 1fr;
+  }
+  .wide {
+    grid-column: auto;
+  }
+  .deliverables {
+    grid-template-columns: 1fr;
+  }
+  .deliverables strong {
+    grid-column: auto;
+  }
+}

@@ -32,6 +32,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
           <Link href="/legal/acceptable-use" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Acceptable Use</Link>
           <Link href="/legal/security" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Security</Link>
           <Link href="/legal/subprocessors" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Subprocessors</Link>
+          <Link href="/legal/institutional-agreement" style={{ color: "var(--text-2, #a1a1aa)", textDecoration: "none" }}>Institutional Agreement</Link>
         </nav>
         <article style={{
           fontSize: 15, lineHeight: 1.7, color: "var(--text-2, #d4d4d8)",

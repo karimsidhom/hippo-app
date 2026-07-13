@@ -4,6 +4,12 @@ export const metadata = { title: "Legal · Hippo" };
 
 const DOCS: { href: string; title: string; desc: string; badge?: string }[] = [
   {
+    href: "/legal/institutional-agreement",
+    title: "Institutional Pilot and Services Agreement",
+    desc: "The program order form, pilot terms, subscription terms, security commitments, and data-processing schedule.",
+    badge: "Programs",
+  },
+  {
     href: "/legal/eula",
     title: "End User Licence Agreement",
     desc: "The binding contract for using Hippo — licence grants, ownership of your content, restrictions, liability.",

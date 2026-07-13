@@ -6,7 +6,7 @@
 // pass when the user requests it.
 // ---------------------------------------------------------------------------
 
-import * as XLSX from "xlsx";
+import readXlsxFile, { type Row } from "read-excel-file/node";
 import Papa from "papaparse";
 
 export type ImportFileType = "xlsx" | "csv" | "txt" | "pdf" | "unknown";
@@ -26,7 +26,7 @@ export interface ParseResult {
 
 export function detectFileType(filename: string, mimeType?: string): ImportFileType {
   const lower = filename.toLowerCase();
-  if (lower.endsWith(".xlsx") || lower.endsWith(".xls") || lower.endsWith(".xlsm")) return "xlsx";
+  if (lower.endsWith(".xlsx") || lower.endsWith(".xlsm")) return "xlsx";
   if (lower.endsWith(".csv")) return "csv";
   if (lower.endsWith(".txt")) return "txt";
   if (lower.endsWith(".pdf")) return "pdf";
@@ -43,37 +43,37 @@ export function detectFileType(filename: string, mimeType?: string): ImportFileT
 // XLSX
 // ---------------------------------------------------------------------------
 
-export function parseXlsx(buffer: ArrayBuffer | Buffer): ParseResult {
-  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+export async function parseXlsx(buffer: ArrayBuffer | Buffer): Promise<ParseResult> {
+  const input = Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
   const sheets: ParsedSheet[] = [];
   const warnings: string[] = [];
+  const workbook = await readXlsxFile(input);
 
-  for (const sheetName of workbook.SheetNames) {
-    const sheet = workbook.Sheets[sheetName];
-    if (!sheet) continue;
-    const rawRows = XLSX.utils.sheet_to_json<Record<string, unknown>>(sheet, {
-      defval: null,
-      raw: false,
-      blankrows: false,
-    });
+  for (const { sheet: sheetName, data: table } of workbook) {
+    const [headerRow, ...dataRows] = table.filter((row) => row.some((cell) => cell !== null));
 
-    if (rawRows.length === 0) {
+    if (!headerRow || dataRows.length === 0) {
       warnings.push(`Sheet "${sheetName}" is empty.`);
       continue;
     }
 
-    // Header detection: prefer first row's keys but also catch headers stored
-    // in row index 0 if XLSX did not infer them.
-    const headerSet = new Set<string>();
-    for (const row of rawRows) {
-      for (const key of Object.keys(row)) headerSet.add(key);
-    }
-    const headers = Array.from(headerSet);
+    const headers = uniqueHeaders(headerRow);
+    const rows = dataRows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? null])));
 
-    sheets.push({ sheetName, headers, rows: rawRows });
+    sheets.push({ sheetName, headers, rows });
   }
 
   return { fileType: "xlsx", sheets, warnings };
+}
+
+function uniqueHeaders(row: Row): string[] {
+  const counts = new Map<string, number>();
+  return row.map((value, index) => {
+    const base = String(value ?? "").trim() || `Column ${index + 1}`;
+    const count = (counts.get(base) ?? 0) + 1;
+    counts.set(base, count);
+    return count === 1 ? base : `${base} ${count}`;
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -189,7 +189,7 @@ export async function parseUpload(
   switch (type) {
     case "xlsx": {
       const buf = await file.arrayBuffer();
-      return parseXlsx(buf);
+      return await parseXlsx(buf);
     }
     case "csv": {
       const text = await file.text();

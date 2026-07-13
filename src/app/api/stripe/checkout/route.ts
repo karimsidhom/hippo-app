@@ -1,57 +1,46 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from "next/server";
+import { db } from "@/lib/db";
+import { requireAuth } from "@/lib/api-auth";
+import { isProgramOwner } from "@/lib/program-auth";
+import { getStripe } from "@/lib/stripe";
 
 export async function POST(req: NextRequest) {
+  const auth = await requireAuth();
+  if (auth.error) return auth.error;
+
+  const { programId } = await req.json().catch(() => ({}));
+  if (typeof programId !== "string" || !(await isProgramOwner(auth.user.id, programId))) {
+    return NextResponse.json({ error: "Program owner access required" }, { status: 403 });
+  }
+
+  const price = process.env.STRIPE_PROGRAM_PRICE_ID;
+  if (!price) return NextResponse.json({ error: "Program billing is not configured" }, { status: 503 });
+
+  const procurement = await db.institutionalProcurement.findUnique({ where: { programId } });
+  if (!procurement?.agreementAcceptedAt || !procurement.authorityConfirmed) {
+    return NextResponse.json({ error: "Execute the institutional agreement before checkout." }, { status: 409 });
+  }
+
   try {
-    const body = await req.json();
-    const { priceId, successUrl, cancelUrl, customerEmail } = body;
-
-    if (!priceId || !successUrl || !cancelUrl) {
-      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
-    }
-
-    const stripeSecret = process.env.STRIPE_SECRET_KEY;
-    if (!stripeSecret) {
-      return NextResponse.json(
-        { error: 'Stripe not configured. Add STRIPE_SECRET_KEY to .env.local' },
-        { status: 503 }
-      );
-    }
-
-    // Dynamically import stripe to avoid build errors when key is missing
-    const Stripe = (await import('stripe')).default;
-    const stripe = new Stripe(stripeSecret, { apiVersion: '2024-04-10' as any });
-
-    const sessionParams: any = {
-      mode: 'subscription',
-      payment_method_types: ['card'],
-      line_items: [{ price: priceId, quantity: 1 }],
-      success_url: successUrl,
-      cancel_url: cancelUrl,
+    const stripe = getStripe();
+    const billing = await db.programSubscription.findUnique({ where: { programId } });
+    const origin = process.env.NEXT_PUBLIC_APP_URL || "https://hippomedicine.com";
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price, quantity: 1 }],
+      customer: billing?.stripeCustomerId,
+      customer_email: billing ? undefined : auth.user.email,
+      billing_address_collection: "required",
+      tax_id_collection: { enabled: true },
       allow_promotion_codes: true,
-      subscription_data: {
-        metadata: {
-          app: 'hippo',
-          tier: 'pro',
-        },
-      },
-      metadata: {
-        app: 'hippo',
-        tier: 'pro',
-      },
-    };
-
-    if (customerEmail) {
-      sessionParams.customer_email = customerEmail;
-    }
-
-    const session = await stripe.checkout.sessions.create(sessionParams);
-
-    return NextResponse.json({ url: session.url, sessionId: session.id });
-  } catch (err: any) {
-    console.error('Stripe checkout error:', err);
-    return NextResponse.json(
-      { error: err.message ?? 'Checkout failed' },
-      { status: 500 }
-    );
+      success_url: `${origin}/program-procurement?programId=${encodeURIComponent(programId)}&billing=success`,
+      cancel_url: `${origin}/program-procurement?programId=${encodeURIComponent(programId)}&billing=cancelled`,
+      metadata: { app: "hippo", programId, procurementId: procurement.id, agreementVersion: procurement.agreementVersion ?? "unknown" },
+      subscription_data: { metadata: { app: "hippo", programId, procurementId: procurement.id, agreementVersion: procurement.agreementVersion ?? "unknown" } },
+    });
+    return NextResponse.json({ url: session.url });
+  } catch (error) {
+    console.error("Program checkout failed", error);
+    return NextResponse.json({ error: "Unable to start checkout" }, { status: 500 });
   }
 }

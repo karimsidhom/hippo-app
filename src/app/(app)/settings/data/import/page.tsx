@@ -260,12 +260,12 @@ export default function ImportLogPage() {
         <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 space-y-4">
           <h2 className="text-base font-semibold text-[var(--text)]">1. Upload your file</h2>
           <p className="text-xs text-[var(--text-2)]">
-            Supported: Excel (.xlsx, .xls), CSV, plain text. Max 25 MB.
+            Supported: Excel (.xlsx, .xlsm), CSV, plain text. Max 25 MB.
           </p>
           <input
             ref={fileInputRef}
             type="file"
-            accept=".xlsx,.xls,.xlsm,.csv,.txt,.pdf"
+            accept=".xlsx,.xlsm,.csv,.txt,.pdf"
             onChange={(e) => setFile(e.target.files?.[0] ?? null)}
             className="block w-full text-xs text-[var(--text-2)] file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-[var(--primary)] file:text-white hover:file:bg-[var(--primary-lo)] file:cursor-pointer"
           />
