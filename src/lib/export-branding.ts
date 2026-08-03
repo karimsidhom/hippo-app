@@ -436,6 +436,7 @@ export function addCertificationBlock(
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function trainingSystemLabel(country: string | null): string {
+  if (country === "SMSNA") return "SMSNA Fellowship (OPRS, J Urol 2012)";
   if (country === "CA") return "RCPSC (Royal College of Physicians and Surgeons of Canada)";
   if (country === "US") return "ACGME (Accreditation Council for Graduate Medical Education)";
   return "—";

@@ -19,6 +19,9 @@ import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
 import { useInteraction } from "@/hooks/useInteraction";
+import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
+import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
+import { OprsObservationForm } from "@/components/smsna/OprsObservationForm";
 
 interface LogFormState {
   specialtySlug: string;
@@ -60,12 +63,16 @@ export default function LogCasePage() {
   const { milestones, personalRecords, addMilestone } = useMilestones();
   const { user, profile } = useUser();
 
+  const isSmsna = isSmsnaProfile(profile);
+
   const userSpecialtySlug = (() => {
+    if (isSmsna) return SMSNA_SPECIALTY_SLUG;
     if (!profile?.specialty) return "urology";
     const found = SPECIALTIES.find(s => s.name === profile.specialty || s.slug === profile.specialty);
     return found?.slug ?? "urology";
   })();
   const userSpecialtyName = (() => {
+    if (isSmsna) return SMSNA_SPECIALTY_NAME;
     const found = SPECIALTIES.find(s => s.slug === userSpecialtySlug);
     return found?.name ?? "Urology";
   })();
@@ -111,6 +118,9 @@ export default function LogCasePage() {
   const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
   const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
   const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
+
+  // SMSNA fellows never see EPA suggestions — they go straight to the OPRS form.
+  const [showOprs, setShowOprs] = useState(false);
 
   // Portal root for rendering modals outside the scrollable content
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
@@ -166,7 +176,16 @@ export default function LogCasePage() {
     }
   };
 
-  const specialtyProcedures = getProceduresBySpecialty(form.specialtySlug || "urology");
+  const specialtyProcedures = isSmsna
+    ? getSmsnaProcedures()
+    : getProceduresBySpecialty(form.specialtySlug || "urology");
+
+  // Category resolved for the OPRS form — falls back to the catch-all
+  // "General Urology and Office Procedures" bucket for a procedure name
+  // that doesn't match a known SMSNA category (e.g. free-text "Other").
+  const smsnaCategory =
+    getSmsnaCategoryForProcedure(form.procedureName)
+    ?? SMSNA_CATEGORIES.find(c => c.key === "general-office")!;
 
   const updateForm = (updates: Partial<LogFormState>) => {
     setForm((prev) => ({ ...prev, ...updates }));
@@ -258,6 +277,14 @@ export default function LogCasePage() {
     }
 
     setSubmitting(false);
+
+    // SMSNA fellows never see EPA suggestions — the EPA framework doesn't
+    // apply to their pathway. Go straight to the OPRS grading form instead.
+    if (isSmsna) {
+      setShowOprs(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
 
     // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID.
     // When the server save failed (realCaseId == null) we fall back to sending
@@ -544,31 +571,41 @@ export default function LogCasePage() {
             {/* Specialty */}
             <div>
               <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Specialty *</label>
-              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
-                {SPECIALTIES.map((spec) => (
-                  <button
-                    key={spec.slug}
-                    type="button"
-                    onClick={() => updateForm({ specialtySlug: spec.slug, specialtyName: spec.name, procedureName: "" })}
-                    style={{
-                      flexShrink: 0,
-                      padding: "6px 12px",
-                      borderRadius: 20,
-                      fontSize: 13,
-                      fontWeight: 500,
-                      border: "1px solid",
-                      cursor: "pointer",
-                      fontFamily: "inherit",
-                      transition: "all 0.15s",
-                      background: form.specialtySlug === spec.slug ? "#1a1a2e" : "var(--surface2)",
-                      borderColor: form.specialtySlug === spec.slug ? "#2563eb" : "var(--border)",
-                      color: form.specialtySlug === spec.slug ? "var(--text)" : "var(--text-2)",
-                    }}
-                  >
-                    {spec.icon} {spec.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
-                  </button>
-                ))}
-              </div>
+              {isSmsna ? (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 20, fontSize: 13, fontWeight: 500,
+                  border: "1px solid #2563eb", background: "#1a1a2e", color: "var(--text)",
+                }}>
+                  🧬 SMSNA Fellowship
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                  {SPECIALTIES.map((spec) => (
+                    <button
+                      key={spec.slug}
+                      type="button"
+                      onClick={() => updateForm({ specialtySlug: spec.slug, specialtyName: spec.name, procedureName: "" })}
+                      style={{
+                        flexShrink: 0,
+                        padding: "6px 12px",
+                        borderRadius: 20,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        border: "1px solid",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.15s",
+                        background: form.specialtySlug === spec.slug ? "#1a1a2e" : "var(--surface2)",
+                        borderColor: form.specialtySlug === spec.slug ? "#2563eb" : "var(--border)",
+                        color: form.specialtySlug === spec.slug ? "var(--text)" : "var(--text-2)",
+                      }}
+                    >
+                      {spec.icon} {spec.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Procedure */}
@@ -1173,7 +1210,7 @@ export default function LogCasePage() {
                   epaId={selectedEpaSuggestion.epaId}
                   epaTitle={selectedEpaSuggestion.epaTitle}
                   specialtySlug={form.specialtySlug}
-                  trainingSystem={profile?.trainingCountry === "CA" ? "RCPSC" : "ACGME"}
+                  trainingSystem={resolveTrainingSystem(profile)}
                   prefillData={savedCaseId ? {
                     caseLogId: savedCaseId,
                     caseDate: form.caseDate,
@@ -1183,6 +1220,62 @@ export default function LogCasePage() {
                   onSubmit={handleEpaObservationSubmit}
                   onCancel={() => {
                     setSelectedEpaSuggestion(null);
+                    router.push("/cases");
+                  }}
+                  onSaveDraft={handleEpaObservationDraft}
+                />
+              </div>
+            </>
+          )}
+
+          {/* OPRS Observation Form Modal (SMSNA) — identical wrapper markup */}
+          {isSmsna && showOprs && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0, 0, 0, 0.7)",
+                  backdropFilter: "blur(4px)",
+                  zIndex: 1002,
+                }}
+                onClick={() => {
+                  setShowOprs(false);
+                  router.push("/cases");
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1003,
+                  maxWidth: 720,
+                  width: "94vw",
+                  maxHeight: "calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                  background: "#0f1825",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 16,
+                  padding: "28px 28px 24px",
+                  boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+                }}
+              >
+                <OprsObservationForm
+                  categoryKey={smsnaCategory.key}
+                  categoryName={smsnaCategory.name}
+                  procedureName={form.procedureName}
+                  prefillData={savedCaseId ? {
+                    caseLogId: savedCaseId,
+                    caseDate: form.caseDate,
+                    procedureName: form.procedureName,
+                    attendingLabel: form.attendingLabel || undefined,
+                  } : undefined}
+                  onSubmit={handleEpaObservationSubmit}
+                  onCancel={() => {
+                    setShowOprs(false);
                     router.push("/cases");
                   }}
                   onSaveDraft={handleEpaObservationDraft}

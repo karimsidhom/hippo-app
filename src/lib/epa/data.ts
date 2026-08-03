@@ -6752,6 +6752,12 @@ export function getSpecialtyEpaData(
   specialtySlug: string,
   country?: string,
 ): SpecialtyEpaData | undefined {
+  // SMSNA fellows use the OPRS instrument (src/lib/smsna/oprs.ts), not an
+  // EPA/CanMEDS framework. Every consumer of this function already handles
+  // an `undefined` return gracefully (its pre-existing "no framework"
+  // empty state), so this degrades cleanly instead of silently serving
+  // ACGME urology EPAs to an SMSNA fellow.
+  if (country === "SMSNA") return undefined;
   const key = specialtySlug.toLowerCase();
   if (country === "CA") {
     return RCPSC_MAP[key];

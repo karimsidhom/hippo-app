@@ -70,6 +70,10 @@ const CATEGORY_ICONS: Record<string, string> = {
   'Soft Tissue': '🟣', 'Skin': '🔴', 'Abdominal Wall': '🔵',
   // OMFS
   'Jaw': '🦷', 'Salivary Gland': '💦', 'Facial Trauma': '🚨', 'Facial Reconstruction': '🔧',
+  // SMSNA Fellowship
+  'Penile Surgery and Prosthetics': '🔧', 'Male Infertility': '🔬',
+  'Male Urethra and Reconstructive Surgery': '🩹', 'Female Reconstructive Surgery': '🌸',
+  'Gender Affirmation Surgery': '🏳️‍⚧️', 'General Urology and Office Procedures': '🩺',
 };
 
 function getIcon(category: string): string {

@@ -22,6 +22,8 @@ import { useUser } from "@/hooks/useUser";
 import Link from "next/link";
 import { BarChart2, Plus, AlertTriangle, ChevronRight, LayoutDashboard, Users2, Inbox } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
+import { isSmsnaProfile } from "@/lib/smsna/gate";
+import { SmsnaAssessmentPanel } from "@/components/smsna/SmsnaAssessmentPanel";
 
 // Staff (attendings, PDs) see a Cohort tab instead of Learning Curve / Volume.
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
@@ -53,6 +55,7 @@ export default function AnalyticsPage() {
 
   const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
+  const isSmsna = isSmsnaProfile(profile);
 
   // Staff see Cohort in place of Learning Curve + Volume; PDs also get a
   // direct link to the full PD Dashboard.
@@ -339,21 +342,29 @@ export default function AnalyticsPage() {
 
       {/* ── EPAs ── */}
       {!hasNoCases && activeTab === "EPAs" && (
-        <EpaAnalyticsPanel
-          cases={cases}
-          specialty={profile?.specialty ?? undefined}
-          trainingCountry={profile?.trainingCountry ?? undefined}
-        />
+        isSmsna ? (
+          <SmsnaAssessmentPanel />
+        ) : (
+          <EpaAnalyticsPanel
+            cases={cases}
+            specialty={profile?.specialty ?? undefined}
+            trainingCountry={profile?.trainingCountry ?? undefined}
+          />
+        )
       )}
 
       {/* ── Milestones ── */}
       {!hasNoCases && activeTab === "Milestones" && (
-        <EpaDashboard
-          cases={cases}
-          specialty={profile?.specialty ?? undefined}
-          trainingCountry={profile?.trainingCountry ?? undefined}
-          initialTab="Milestones"
-        />
+        isSmsna ? (
+          <SmsnaAssessmentPanel />
+        ) : (
+          <EpaDashboard
+            cases={cases}
+            specialty={profile?.specialty ?? undefined}
+            trainingCountry={profile?.trainingCountry ?? undefined}
+            initialTab="Milestones"
+          />
+        )
       )}
 
       {/* ── Learning Curve ── */}

@@ -21,6 +21,7 @@ interface Observation {
   achievement?: string;
   entrustmentScore?: number;
   canmedsRatings?: { roleId: string; roleTitle: string; rating: number | null }[];
+  criteriaRatings?: { criterionId: string; label: string; entrustmentRating: number | null; comment?: string }[];
   observationNotes?: string;
   strengthsNotes?: string;
   improvementNotes?: string;
@@ -424,6 +425,43 @@ export default function ReviewPage() {
                     }}>
                       {r.rating ?? "—"}
                     </span>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* OPRS item ratings (SMSNA only) — strictly additive; RCPSC/ACGME
+                reviewers never see this block since their trainingSystem
+                is never "SMSNA". */}
+            {observation.trainingSystem === "SMSNA" && observation.criteriaRatings && observation.criteriaRatings.length > 0 && (
+              <div style={{
+                background: "#141c28",
+                border: "1px solid rgba(255,255,255,0.08)",
+                borderRadius: 12,
+                padding: 16,
+                marginBottom: 16,
+              }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                  OPRS Item Ratings
+                </div>
+                {observation.criteriaRatings.map((r) => (
+                  <div key={r.criterionId} style={{
+                    padding: "6px 0",
+                    borderBottom: "1px solid rgba(255,255,255,0.04)",
+                  }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <span style={{ fontSize: 12, color: "#94a3b8" }}>{r.label}</span>
+                      <span style={{
+                        fontSize: 12, fontWeight: 600,
+                        color: r.entrustmentRating ? "#e2e8f0" : "#475569",
+                        fontFamily: "'Geist Mono', monospace",
+                      }}>
+                        {r.entrustmentRating ?? "—"}
+                      </span>
+                    </div>
+                    {r.comment && (
+                      <p style={{ fontSize: 11, color: "#64748b", fontStyle: "italic", marginTop: 2 }}>{r.comment}</p>
+                    )}
                   </div>
                 ))}
               </div>

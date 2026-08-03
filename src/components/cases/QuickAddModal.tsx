@@ -21,6 +21,9 @@ import type {
   EpaSuggestion, EpaObservationInput,
 } from "@/lib/types";
 import { X, Check } from "lucide-react";
+import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
+import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
+import { OprsObservationForm } from "@/components/smsna/OprsObservationForm";
 
 interface QuickAddModalProps {
   open: boolean;
@@ -79,13 +82,21 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [savedCaseDate, setSavedCaseDate] = useState<Date>(new Date());
   const [shareAsPearl, setShareAsPearl] = useState(false);
 
+  // SMSNA fellows never see EPA suggestions — they go straight to the OPRS form.
+  const [showOprs, setShowOprs] = useState(false);
+
   // Portal root for rendering EPA modals above everything
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
   useEffect(() => {
     setPortalRoot(document.getElementById("portal-root"));
   }, []);
 
-  const procedures = getProceduresBySpecialty(specialtySlug);
+  // Do NOT initialise useState from `profile` — it hydrates async, so this
+  // is recomputed every render instead.
+  const isSmsna = isSmsnaProfile(profile);
+  const effectiveSlug = isSmsna ? SMSNA_SPECIALTY_SLUG : specialtySlug;
+
+  const procedures = isSmsna ? getSmsnaProcedures() : getProceduresBySpecialty(effectiveSlug);
 
   const handleProcedureChange = (name: string, proc: Procedure) => {
     setProcedureName(name);
@@ -110,8 +121,8 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
       const newCase = await addCaseAsync({
         userId: user?.id ?? "",
-        specialtyId: specialtySlug,
-        specialtyName: SPECIALTIES.find((s) => s.slug === specialtySlug)?.name,
+        specialtyId: effectiveSlug,
+        specialtyName: isSmsna ? SMSNA_SPECIALTY_NAME : SPECIALTIES.find((s) => s.slug === effectiveSlug)?.name,
         procedureDefinitionId: null,
         procedureName,
         procedureCategory: null,
@@ -156,6 +167,14 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
         setSubmitting(false);
 
+        // SMSNA fellows never see EPA suggestions — the EPA framework
+        // doesn't apply to their pathway. Go straight to the OPRS grading
+        // form instead (mirrors log/page.tsx's EPA-suggestion skip).
+        if (isSmsna) {
+          setShowOprs(true);
+          return;
+        }
+
         // ALWAYS show EPA suggestions — this is the critical flow.
         // If we have a real caseLogId, use it; otherwise send inline case
         // details so the sheet still shows something useful instead of
@@ -178,7 +197,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
                   attendingLabel: attendingLabel.trim() || null,
                   outcomeCategory,
                   notes: notes.trim() || null,
-                  specialtyId: specialtySlug,
+                  specialtyId: effectiveSlug,
                 },
               };
           const res = await fetch("/api/epa/ai-suggest", {
@@ -214,9 +233,13 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     } catch (e) {
       console.error('[QuickAdd] Submit error:', e);
       setSubmitting(false);
-      // Still show EPA suggestions even on error
-      setShowEpaSuggestions(true);
-      setEpaSuggestionsLoading(false);
+      // Still show the next grading step even on a case-save error.
+      if (isSmsna) {
+        setShowOprs(true);
+      } else {
+        setShowEpaSuggestions(true);
+        setEpaSuggestionsLoading(false);
+      }
     }
   };
 
@@ -316,9 +339,10 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     setSavedAttending("");
     setSavedCaseDate(new Date());
     setShareAsPearl(false);
+    setShowOprs(false);
   };
 
-  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl) return null;
+  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl && !showOprs) return null;
 
   // ── PostComposer (Share as pearl from the Next-steps banner) ──
   if (shareAsPearl && portalRoot) {
@@ -395,7 +419,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             epaId={selectedEpaSuggestion.epaId}
             epaTitle={selectedEpaSuggestion.epaTitle}
             specialtySlug={userSpecialtySlug}
-            trainingSystem={profile?.trainingCountry === "US" ? "ACGME" : "RCPSC"}
+            trainingSystem={resolveTrainingSystem(profile, "RCPSC")}
             prefillData={{
               caseLogId: savedCaseId || "",
               caseDate: savedCaseDate,
@@ -404,6 +428,67 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             }}
             onSubmit={handleEpaObservationSubmit}
             onCancel={() => { setSelectedEpaSuggestion(null); onClose(); resetForm(); }}
+            onSaveDraft={handleEpaObservationDraft}
+          />
+        </div>
+      </div>,
+      portalRoot,
+    );
+  }
+
+  // ── OPRS Observation Form (SMSNA — rendered via portal) ──
+  if (isSmsna && showOprs && portalRoot) {
+    const smsnaCategory =
+      getSmsnaCategoryForProcedure(savedProcedureName)
+      ?? SMSNA_CATEGORIES.find(c => c.key === "general-office")!;
+
+    return createPortal(
+      <div style={{
+        position: "fixed",
+        inset: 0,
+        zIndex: 1002,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}>
+        {/* Backdrop */}
+        <div
+          onClick={() => { setShowOprs(false); onClose(); resetForm(); }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            background: "rgba(0,0,0,0.7)",
+            backdropFilter: "blur(4px)",
+          }}
+        />
+        {/* Form container */}
+        <div
+          ref={(el) => { if (el) el.scrollTop = 0; }}
+          style={{
+            position: "relative",
+            zIndex: 1,
+            width: "95vw",
+            maxWidth: 720,
+            maxHeight: "85vh",
+            overflowY: "auto",
+            borderRadius: 16,
+            background: "var(--bg-1)",
+            border: "1px solid var(--border-mid)",
+            boxShadow: "0 25px 60px rgba(0,0,0,0.5)",
+            margin: "auto",
+          }}>
+          <OprsObservationForm
+            categoryKey={smsnaCategory.key}
+            categoryName={smsnaCategory.name}
+            procedureName={savedProcedureName}
+            prefillData={{
+              caseLogId: savedCaseId || "",
+              caseDate: savedCaseDate,
+              procedureName: savedProcedureName,
+              attendingLabel: savedAttending || undefined,
+            }}
+            onSubmit={handleEpaObservationSubmit}
+            onCancel={() => { setShowOprs(false); onClose(); resetForm(); }}
             onSaveDraft={handleEpaObservationDraft}
           />
         </div>
@@ -482,32 +567,42 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
           {/* ── Specialty ── */}
           <div style={{ marginBottom: 16 }}>
             <div className="form-label">Specialty</div>
-            <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
-              {SPECIALTIES.filter(s => s.slug !== "other").map((s) => (
-                <button
-                  key={s.slug}
-                  type="button"
-                  onClick={() => { setSpecialtySlug(s.slug); setProcedureName(""); }}
-                  style={{
-                    flexShrink: 0,
-                    padding: "5px 11px",
-                    borderRadius: 6,
-                    fontSize: 12,
-                    fontWeight: 500,
-                    border: "1px solid",
-                    cursor: "pointer",
-                    fontFamily: "inherit",
-                    transition: "all 0.15s",
-                    background: specialtySlug === s.slug ? "var(--primary-dim)" : "transparent",
-                    borderColor: specialtySlug === s.slug ? "var(--primary)" : "var(--border)",
-                    color: specialtySlug === s.slug ? "var(--primary-hi)" : "var(--muted)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {s.icon} {s.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
-                </button>
-              ))}
-            </div>
+            {isSmsna ? (
+              <div style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "5px 11px", borderRadius: 6, fontSize: 12, fontWeight: 500,
+                border: "1px solid var(--primary)", background: "var(--primary-dim)", color: "var(--primary-hi)",
+              }}>
+                🧬 SMSNA Fellowship
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4, scrollbarWidth: "none" }}>
+                {SPECIALTIES.filter(s => s.slug !== "other").map((s) => (
+                  <button
+                    key={s.slug}
+                    type="button"
+                    onClick={() => { setSpecialtySlug(s.slug); setProcedureName(""); }}
+                    style={{
+                      flexShrink: 0,
+                      padding: "5px 11px",
+                      borderRadius: 6,
+                      fontSize: 12,
+                      fontWeight: 500,
+                      border: "1px solid",
+                      cursor: "pointer",
+                      fontFamily: "inherit",
+                      transition: "all 0.15s",
+                      background: specialtySlug === s.slug ? "var(--primary-dim)" : "transparent",
+                      borderColor: specialtySlug === s.slug ? "var(--primary)" : "var(--border)",
+                      color: specialtySlug === s.slug ? "var(--primary-hi)" : "var(--muted)",
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {s.icon} {s.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* ── Procedure ── */}

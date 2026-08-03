@@ -72,7 +72,7 @@ export default function OnboardingPage() {
     await updateProfile({
       ...(profileData as Parameters<typeof updateProfile>[0]),
       onboardingCompleted: true,
-      trainingYearLabel: `PGY-${form.pgyYear}`,
+      trainingYearLabel: form.trainingCountry === "SMSNA" ? "SMSNA Fellow" : `PGY-${form.pgyYear}`,
       trainingCountry: form.trainingCountry || undefined,
     });
     setSaving(false);
@@ -289,16 +289,22 @@ export default function OnboardingPage() {
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Training Country</h2>
-              <p className="text-[#94a3b8] mt-1">This determines your EPA framework and milestones</p>
+              <p className="text-[#94a3b8] mt-1">This determines your case-log taxonomy and assessment framework</p>
             </div>
             <div className="space-y-3">
               {[
                 { value: "US", label: "United States", desc: "ACGME milestones & EPAs", flag: "🇺🇸" },
                 { value: "CA", label: "Canada", desc: "Royal College CBD & CanMEDS", flag: "🇨🇦" },
+                { value: "SMSNA", label: "SMSNA Fellowship", desc: "Sexual medicine fellowship: SMSNA case log + OPRS assessments", flag: "🧬" },
               ].map((country) => (
                 <button
                   key={country.value}
-                  onClick={() => update({ trainingCountry: country.value })}
+                  onClick={() => {
+                    update({ trainingCountry: country.value });
+                    if (country.value === "SMSNA") {
+                      update({ roleType: "FELLOW", pgyYear: 6, specialty: form.specialty || "Urology" });
+                    }
+                  }}
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
                     form.trainingCountry === country.value
                       ? "bg-[#1a1a2e] border-[#2563eb]"
