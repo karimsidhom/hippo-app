@@ -96,7 +96,12 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const isSmsna = isSmsnaProfile(profile);
   const effectiveSlug = isSmsna ? SMSNA_SPECIALTY_SLUG : specialtySlug;
 
-  const procedures = isSmsna ? getSmsnaProcedures() : getProceduresBySpecialty(effectiveSlug);
+  // A case is SMSNA-graded when the fellow pathway is active OR the SMSNA
+  // specialty chip is selected for this case — SMSNA is a pickable section
+  // like any other specialty.
+  const caseIsSmsna = isSmsna || effectiveSlug === SMSNA_SPECIALTY_SLUG;
+
+  const procedures = caseIsSmsna ? getSmsnaProcedures() : getProceduresBySpecialty(effectiveSlug);
 
   const handleProcedureChange = (name: string, proc: Procedure) => {
     setProcedureName(name);
@@ -122,7 +127,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
       const newCase = await addCaseAsync({
         userId: user?.id ?? "",
         specialtyId: effectiveSlug,
-        specialtyName: isSmsna ? SMSNA_SPECIALTY_NAME : SPECIALTIES.find((s) => s.slug === effectiveSlug)?.name,
+        specialtyName: caseIsSmsna ? SMSNA_SPECIALTY_NAME : SPECIALTIES.find((s) => s.slug === effectiveSlug)?.name,
         procedureDefinitionId: null,
         procedureName,
         procedureCategory: null,
@@ -167,10 +172,10 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
         setSubmitting(false);
 
-        // SMSNA fellows never see EPA suggestions — the EPA framework
-        // doesn't apply to their pathway. Go straight to the OPRS grading
-        // form instead (mirrors log/page.tsx's EPA-suggestion skip).
-        if (isSmsna) {
+        // SMSNA cases never see EPA suggestions — the EPA framework
+        // doesn't apply to them. Go straight to the OPRS grading form
+        // instead (mirrors log/page.tsx's EPA-suggestion skip).
+        if (caseIsSmsna) {
           setShowOprs(true);
           return;
         }
@@ -234,7 +239,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
       console.error('[QuickAdd] Submit error:', e);
       setSubmitting(false);
       // Still show the next grading step even on a case-save error.
-      if (isSmsna) {
+      if (caseIsSmsna) {
         setShowOprs(true);
       } else {
         setShowEpaSuggestions(true);
@@ -437,7 +442,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   }
 
   // ── OPRS Observation Form (SMSNA — rendered via portal) ──
-  if (isSmsna && showOprs && portalRoot) {
+  if (caseIsSmsna && showOprs && portalRoot) {
     const smsnaCategory =
       getSmsnaCategoryForProcedure(savedProcedureName)
       ?? SMSNA_CATEGORIES.find(c => c.key === "general-office")!;

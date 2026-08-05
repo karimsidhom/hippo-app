@@ -176,7 +176,12 @@ export default function LogCasePage() {
     }
   };
 
-  const specialtyProcedures = isSmsna
+  // A case is SMSNA-graded when the fellow pathway is active OR the SMSNA
+  // specialty chip is selected for this case — SMSNA is a pickable section
+  // like any other specialty.
+  const caseIsSmsna = isSmsna || form.specialtySlug === SMSNA_SPECIALTY_SLUG;
+
+  const specialtyProcedures = caseIsSmsna
     ? getSmsnaProcedures()
     : getProceduresBySpecialty(form.specialtySlug || "urology");
 
@@ -278,9 +283,9 @@ export default function LogCasePage() {
 
     setSubmitting(false);
 
-    // SMSNA fellows never see EPA suggestions — the EPA framework doesn't
-    // apply to their pathway. Go straight to the OPRS grading form instead.
-    if (isSmsna) {
+    // SMSNA cases never see EPA suggestions — the EPA framework doesn't
+    // apply to them. Go straight to the OPRS grading form instead.
+    if (caseIsSmsna) {
       setShowOprs(true);
       window.scrollTo({ top: 0, behavior: 'smooth' });
       return;
@@ -1229,7 +1234,7 @@ export default function LogCasePage() {
           )}
 
           {/* OPRS Observation Form Modal (SMSNA) — identical wrapper markup */}
-          {isSmsna && showOprs && (
+          {caseIsSmsna && showOprs && (
             <>
               <div
                 style={{
