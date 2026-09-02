@@ -1,5 +1,6 @@
 'use client';
 
+import { stripHonorific } from '@/lib/names';
 import React, {
   createContext, useContext, useState,
   useEffect, useCallback, useRef,
@@ -36,7 +37,7 @@ interface AuthContextValue {
   logout:   () => void;
   // Profile
   profile:        Profile | null;
-  updateProfile:  (updates: Partial<Profile>) => Promise<void>;
+  updateProfile:  (updates: Partial<Profile> & { name?: string }) => Promise<void>;
   onboardingDone: boolean;
   // Cases
   cases:      CaseLog[];
@@ -171,6 +172,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         try {
           const data = await profileResult.value.json();
           setProfile((data.profile ?? null) as Profile | null);
+          // The DB row is the source of truth for the display name. The
+          // auth token's user_metadata.name is only what was typed at
+          // signup and never changes when the user edits their name.
+          const dbName = typeof data.user?.name === 'string' ? data.user.name.trim() : '';
+          if (dbName) setUser(prev => (prev ? { ...prev, name: dbName } : prev));
         } catch (err) {
           console.warn('[AuthContext] profile parse failed:', err);
         }
@@ -334,7 +340,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   // ── Profile ────────────────────────────────────────────────────────────────
 
-  const updateProfile = useCallback(async (updates: Partial<Profile>) => {
+  const updateProfile = useCallback(async (updates: Partial<Profile> & { name?: string }) => {
     // Optimistic update (handle null profile for new users)
     setProfile(prev => prev
       ? { ...prev, ...updates, updatedAt: new Date() }
@@ -350,6 +356,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (res.ok) {
         const saved = await res.json();
         setProfile(saved as Profile);
+        if (typeof updates.name === 'string') {
+          const clean = stripHonorific(updates.name);
+          if (clean) setUser(prev => (prev ? { ...prev, name: clean } : prev));
+        }
       }
     } catch (e) {
       console.error('[AuthContext] updateProfile error:', e);

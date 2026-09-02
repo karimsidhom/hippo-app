@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { createServiceRoleClient } from '@/lib/supabase-server';
+import { stripHonorific } from '@/lib/names';
 
 /**
  * GET /api/profile — fetch the current user's profile
@@ -40,10 +42,23 @@ export async function PATCH(req: NextRequest) {
     const body = await req.json();
 
     if (typeof body.name === 'string') {
+      // Store the name without an honorific: the app adds "Dr." itself
+      // wherever it greets the user, so "Dr. Chan" stored here would
+      // render as "Dr. Dr. Chan".
+      const name = stripHonorific(body.name) || null;
       await db.user.update({
         where: { id: user.id },
-        data: { name: body.name.trim() || null },
+        data: { name },
       });
+      // Keep the auth token's metadata in step so a fresh session (or
+      // another Hippo app reading user_metadata) shows the same name.
+      try {
+        await createServiceRoleClient().auth.admin.updateUserById(user.id, {
+          user_metadata: { name: name ?? '' },
+        });
+      } catch (metaErr) {
+        console.warn('[hippo:profile] auth metadata name sync failed', metaErr);
+      }
     }
 
     // Whitelist updatable profile fields

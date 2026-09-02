@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { doctorName } from '@/lib/names';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { buildDigestEmail } from '@/lib/email/digest-shell';
@@ -97,7 +98,7 @@ export async function POST(req: NextRequest) {
             continue;
           }
 
-          const firstName = m.user.name?.split(' ')[0] ?? 'Doctor';
+          const greetName = doctorName(m.user.name, 'Doctor');
           const residentName = review.resident.name ?? 'a resident';
           const meetingDateFmt = review.meetingDate.toLocaleDateString(
             undefined,
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
           const digest = buildDigestEmail({
             eyebrow: 'CC meeting prep · 1 week out',
             subjectLead: `${review.cycleLabel ?? 'CC Review'} for ${residentName} is ${meetingDateFmt}.`,
-            greeting: `Hi Dr. ${firstName},`,
+            greeting: `Hi ${greetName},`,
             sections: [
               {
                 heading: 'Pre-meeting snapshot',

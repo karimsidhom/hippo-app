@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { db } from '@/lib/db';
+import { stripHonorific } from '@/lib/names';
 import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 
 const schema = z.object({
@@ -30,7 +31,9 @@ export async function POST(req: NextRequest) {
     if (!rl.allowed) return rl.response;
 
     const body = await req.json();
-    const { name, email, password } = schema.parse(body);
+    const { name: rawName, email, password } = schema.parse(body);
+    // "Dr. Jane Smith" is stored as "Jane Smith"; greetings add the Dr.
+    const name = stripHonorific(rawName) || rawName.trim();
 
     const supabase = createServiceRoleClient();
 

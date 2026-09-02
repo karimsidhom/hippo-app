@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { doctorName } from '@/lib/names';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { buildDigestEmail } from '@/lib/email/digest-shell';
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const firstName = ownerUser.name?.split(' ')[0] ?? 'Doctor';
+        const greetName = doctorName(ownerUser.name, 'Doctor');
         const sections = [];
 
         if (silent.length > 0) {
@@ -172,7 +173,7 @@ export async function POST(req: NextRequest) {
         const digest = buildDigestEmail({
           eyebrow: 'PD weekly digest',
           subjectLead: summarySubject,
-          greeting: `Hi Dr. ${firstName},`,
+          greeting: `Hi ${greetName},`,
           sections,
           primaryCta: { label: 'Open PD dashboard', href: '/pd-dashboard' },
           unsubscribeUrl: '/settings/notifications#digest-emails',

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Camera } from "lucide-react";
+import { Camera, Pencil } from "lucide-react";
 import type { PublicProfile } from "@/lib/types";
 
 interface Props {
@@ -98,12 +98,35 @@ export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers
 
         {/* Name + meta */}
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{
-            fontSize: 18, fontWeight: 700, color: "var(--text)",
-            letterSpacing: "-0.3px", marginBottom: 3,
-          }}>
-            {profile.name || "Surgeon"}
-          </div>
+          {/* On your own profile the name itself is tappable and opens the
+              edit form, so changing it doesn't depend on finding the button. */}
+          {profile.isOwnProfile && onEdit ? (
+            <button
+              type="button"
+              onClick={onEdit}
+              aria-label="Change your name"
+              title="Change your name"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                background: "none", border: "none", padding: 0, marginBottom: 3,
+                fontSize: 18, fontWeight: 700, color: "var(--text)",
+                letterSpacing: "-0.3px", cursor: "pointer", textAlign: "left",
+                fontFamily: "'Geist', sans-serif", maxWidth: "100%",
+              }}
+            >
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {profile.name || "Add your name"}
+              </span>
+              <Pencil size={13} color="var(--text-3)" style={{ flexShrink: 0 }} />
+            </button>
+          ) : (
+            <div style={{
+              fontSize: 18, fontWeight: 700, color: "var(--text)",
+              letterSpacing: "-0.3px", marginBottom: 3,
+            }}>
+              {profile.name || "Surgeon"}
+            </div>
+          )}
           {p && (
             <>
               <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 2 }}>
@@ -135,7 +158,7 @@ export function ProfileHeader({ profile, onEdit, onFollowToggle, onShowFollowers
               flexShrink: 0,
             }}
           >
-            Edit
+            Edit profile
           </button>
         ) : (
           <button

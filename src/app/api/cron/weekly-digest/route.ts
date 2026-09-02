@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { doctorName } from '@/lib/names';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { buildDigestEmail } from '@/lib/email/digest-shell';
@@ -96,9 +97,9 @@ export async function POST(req: NextRequest) {
           continue;
         }
 
-        const firstName = user.name?.split(' ')[0] ?? 'Surgeon';
+        const greetName = doctorName(user.name, 'Surgeon');
         const { subject, html, text } = renderResidentDigest({
-          firstName,
+          greetName,
           casesThisWeek,
           pendingEpas,
           milestonesThisWeek,
@@ -138,7 +139,7 @@ export async function GET(req: NextRequest) {
 // resident-specific bullets.
 
 interface DigestData {
-  firstName: string;
+  greetName: string;
   casesThisWeek: number;
   pendingEpas: number;
   milestonesThisWeek: number;
@@ -149,7 +150,7 @@ function renderResidentDigest(data: DigestData): {
   html: string;
   text: string;
 } {
-  const { firstName, casesThisWeek, pendingEpas, milestonesThisWeek } = data;
+  const { greetName, casesThisWeek, pendingEpas, milestonesThisWeek } = data;
 
   const bullets: string[] = [];
   if (casesThisWeek > 0) {
@@ -167,7 +168,7 @@ function renderResidentDigest(data: DigestData): {
   return buildDigestEmail({
     eyebrow: 'Your week on Hippo',
     subjectLead: `Your week on Hippo: ${subjectLead}`,
-    greeting: `Hi Dr. ${firstName},`,
+    greeting: `Hi ${greetName},`,
     sections: [
       {
         heading: 'This week',

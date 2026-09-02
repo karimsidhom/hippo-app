@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { doctorName } from '@/lib/names';
 import { db } from '@/lib/db';
 import { sendEmail } from '@/lib/email';
 import { buildDigestEmail } from '@/lib/email/digest-shell';
@@ -92,7 +93,7 @@ export async function POST(req: NextRequest) {
         }
 
         const total = row._count._all;
-        const firstName = user.name?.split(' ')[0] ?? 'Doctor';
+        const greetName = doctorName(user.name, 'Doctor');
         const oldestAgeDays = Math.max(
           1,
           Math.round(
@@ -118,7 +119,7 @@ export async function POST(req: NextRequest) {
             total === 1
               ? `One EPA is waiting for your sign-off — oldest ${oldestAgeDays}d.`
               : `${total} EPAs are waiting for your sign-off — oldest ${oldestAgeDays}d.`,
-          greeting: `Hi Dr. ${firstName},`,
+          greeting: `Hi ${greetName},`,
           sections: [
             {
               heading: 'Awaiting your review',

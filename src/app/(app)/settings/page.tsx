@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { PRICING } from "@/lib/pricing";
@@ -56,6 +56,9 @@ export default function SettingsPage() {
 
   // ── Profile field drafts ────────────────────────────────────────────
   const [nameDraft, setNameDraft] = useState(user?.name ?? "");
+  // The user object arrives after mount (and changes after a save), so
+  // keep the draft in step or the field shows blank / a stale name.
+  useEffect(() => { setNameDraft(user?.name ?? ""); }, [user?.name]);
   const [institutionDraft, setInstitutionDraft] = useState(profile?.institution ?? "");
   const [cityDraft, setCityDraft] = useState(profile?.city ?? "");
   const [institutionPrompt, setInstitutionPrompt] = useState<string | null>(null);
@@ -323,9 +326,12 @@ export default function SettingsPage() {
                         saveOnBlur({ name: nameDraft.trim() });
                       }
                     }}
-                    placeholder="Dr. Smith"
+                    placeholder="Jane Smith"
+                    autoComplete="name"
+                    autoCapitalize="words"
                     className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
                   />
+                  <p className="text-xs text-[var(--text-3)] mt-1">No Dr. needed, the app adds it. Saves when you tap away.</p>
                 </div>
                 <div>
                   <label className="block text-xs text-[var(--text-3)] mb-2">Email</label>

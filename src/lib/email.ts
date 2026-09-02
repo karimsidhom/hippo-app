@@ -12,6 +12,7 @@
 // sendEmail() already treated that as "skip", so the switch is drop-in.
 // ---------------------------------------------------------------------------
 
+import { doctorName } from '@/lib/names';
 import { Resend } from "resend";
 
 let _resend: Resend | null = null;
@@ -90,7 +91,7 @@ export function buildEpaReviewEmail(data: EpaReviewEmailData): {
 } {
   const subject = `EPA Sign-off Request: ${data.epaId} — ${data.procedureName}`;
 
-  const text = `Hi Dr. ${data.assessorName},
+  const text = `Hi ${doctorName(data.assessorName, 'Doctor')},
 
 ${data.residentName} is requesting your sign-off on an EPA observation.
 
@@ -124,7 +125,7 @@ This link does not require a login. It stays valid for 12 months.`}
     <!-- Card -->
     <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
       <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">
-        Hi Dr. ${escapeHtml(data.assessorName)},
+        Hi ${escapeHtml(doctorName(data.assessorName, 'Doctor'))},
       </p>
       <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
         <strong style="color:#e2e8f0;">${escapeHtml(data.residentName)}</strong> is requesting your sign-off on an EPA observation.

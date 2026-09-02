@@ -285,8 +285,15 @@ export default function ProfilePage() {
           paddingBottom: 16, marginBottom: 16,
           borderBottom: "1px solid var(--border)",
         }}>
-          <input className="st-input" style={{ marginBottom: 8 }} type="text" value={editForm.name}
-            onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Full name" />
+          <label style={{ display: "block", fontSize: 11, fontWeight: 600, color: "var(--text-2)", marginBottom: 4 }}>
+            Your name
+          </label>
+          <input className="st-input" style={{ marginBottom: 4 }} type="text" value={editForm.name}
+            autoComplete="name" autoCapitalize="words"
+            onChange={(e) => setEditForm((f) => ({ ...f, name: e.target.value }))} placeholder="Jane Smith" />
+          <p style={{ fontSize: 11, color: "var(--text-3)", margin: "0 0 10px", lineHeight: 1.4 }}>
+            No Dr. needed. Your dashboard greets you as Dr. {editForm.name.trim().split(" ").filter(Boolean).pop() || "Lastname"}.
+          </p>
           <textarea className="st-input" style={{ marginBottom: 8, resize: "none", height: 56 }} value={editForm.bio}
             onChange={(e) => setEditForm((f) => ({ ...f, bio: e.target.value }))} placeholder="Short bio..." />
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>

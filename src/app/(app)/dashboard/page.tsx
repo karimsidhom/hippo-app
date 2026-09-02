@@ -1,5 +1,6 @@
 "use client";
 
+import { doctorName } from '@/lib/names';
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
@@ -277,7 +278,8 @@ export default function DashboardPage() {
   const topProcName = topProcs[0]?.[0] ?? "";
   const learningCurve = topProcName ? getLearningCurveData(cases ?? [], topProcName) : [];
 
-  const firstName = user?.name?.split(" ")[0] ?? "Surgeon";
+  // "Justin Chan" greets as "Dr. Chan"; a stored "Dr. ..." is stripped first.
+  const greetName = doctorName(user?.name, "Surgeon");
 
   // Role label for staff identity
   const roleLabel = profile?.roleType
@@ -407,7 +409,7 @@ export default function DashboardPage() {
             lineHeight: 1,
             fontFamily: "'Geist', sans-serif",
           }}>
-            Dr. {firstName}
+            {greetName}
           </div>
         </div>
 

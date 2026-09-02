@@ -230,13 +230,16 @@ export default function SignupPage() {
           <input
             type="text"
             autoComplete="name"
-            placeholder="Dr. Jane Smith"
+            placeholder="Jane Smith"
             value={name}
             onChange={(e) => setName(e.target.value)}
             onFocus={() => setFocused("name")}
             onBlur={() => setFocused(null)}
             style={inputStyle(focused === "name")}
           />
+          <p style={{ fontSize: 11, color: "var(--text-3)", margin: "-6px 0 12px", lineHeight: 1.4 }}>
+            Just your name, no Dr. needed. You can change it any time from your profile.
+          </p>
 
           {/* Email */}
           <label style={labelStyle}>Email</label>
