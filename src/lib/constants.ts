@@ -1,6 +1,6 @@
 export const SPECIALTIES = [
   { name: "Urology",                    slug: "urology",          color: "#6c7fff", icon: "🫘" },
-  { name: "SMSNA",                      slug: "smsna",            color: "#8b5cf6", icon: "🧬" },
+  { name: "Andrology",                  slug: "smsna",            color: "#8b5cf6", icon: "🔬" },
   { name: "General Surgery",            slug: "general-surgery",  color: "#3ecf8e", icon: "🔪" },
   { name: "Neurosurgery",               slug: "neurosurgery",     color: "#a78bfa", icon: "🧠" },
   { name: "Orthopedic Surgery",         slug: "orthopedic",       color: "#f5a623", icon: "🦴" },

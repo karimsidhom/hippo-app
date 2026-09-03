@@ -302,7 +302,7 @@ export default function OnboardingPage() {
                   onClick={() => {
                     update({ trainingCountry: country.value });
                     if (country.value === "SMSNA") {
-                      update({ roleType: "FELLOW", pgyYear: 6, specialty: form.specialty || "Urology" });
+                      update({ roleType: "FELLOW", pgyYear: 6, specialty: form.specialty || "Andrology" });
                     }
                   }}
                   className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${

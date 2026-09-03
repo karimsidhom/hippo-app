@@ -9,10 +9,10 @@
 
 /** Sentinel value stored in `Profile.trainingCountry` for SMSNA fellows. */
 export const SMSNA_TRAINING_SYSTEM = "SMSNA";
-/** Specialty slug used for SMSNA case logs — never added to PROCEDURE_LIBRARY or SPECIALTIES. */
+/** Specialty slug used for SMSNA case logs — its procedures are never added to PROCEDURE_LIBRARY. */
 export const SMSNA_SPECIALTY_SLUG = "smsna";
-/** Specialty display name for SMSNA case logs (`CaseLog.specialtyName`). */
-export const SMSNA_SPECIALTY_NAME = "SMSNA";
+/** Specialty display name for SMSNA case logs (`CaseLog.specialtyName` + the SPECIALTIES entry). */
+export const SMSNA_SPECIALTY_NAME = "Andrology";
 
 /** True when this profile's training pathway is the SMSNA sexual medicine fellowship. */
 export function isSmsnaProfile(p?: { trainingCountry?: string | null } | null): boolean {
