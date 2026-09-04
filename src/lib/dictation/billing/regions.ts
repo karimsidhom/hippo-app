@@ -16,6 +16,10 @@ import {
   MB_GLOBAL_SURGICAL_RULES,
   MB_PROCEDURE_LIBRARY,
 } from "./manitoba";
+import {
+  BC_GLOBAL_SURGICAL_RULES,
+  BC_PROCEDURE_LIBRARY,
+} from "./bc";
 
 // Canonical region codes — match Profile.billingRegion column.
 export type BillingRegion =
@@ -63,7 +67,7 @@ export const REGION_REGISTRY: Record<BillingRegion, RegionMeta> = {
     feeScheduleName: "MSC Payment Schedule (BC)",
     feeScheduleUrl:
       "https://www2.gov.bc.ca/gov/content/health/practitioner-professional-resources/msp/physicians/payment-schedules",
-    status: "scaffolded",
+    status: "verified",
   },
   SK: {
     code: "SK",
@@ -143,7 +147,7 @@ export const REGION_PROCEDURE_LIBRARIES: Record<
 > = {
   MB: MB_PROCEDURE_LIBRARY,
   AB: {},
-  BC: {},
+  BC: BC_PROCEDURE_LIBRARY,
   SK: {},
   ON: {},
   QC: {},
@@ -159,7 +163,7 @@ export const REGION_PROCEDURE_LIBRARIES: Record<
 export const REGION_GLOBAL_RULES: Record<BillingRegion, BillingPrompt[]> = {
   MB: MB_GLOBAL_SURGICAL_RULES,
   AB: [],
-  BC: [],
+  BC: BC_GLOBAL_SURGICAL_RULES,
   SK: [],
   ON: [],
   QC: [],
