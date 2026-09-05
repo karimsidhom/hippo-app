@@ -30,6 +30,7 @@ const TABS = [
 const SUBROUTES = [
   { href: "/welcome", label: "What Hippo can do (tour)", icon: Compass },
   { href: "/install", label: "Install app on phone", icon: Smartphone },
+  { href: "/settings/training", label: "Training dates (autonomy slope)", icon: Bell },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },
   { href: "/settings/dictation", label: "Dictation Style", icon: Sparkles },
   { href: "/settings/data/import", label: "Import Existing Case Log", icon: FileSpreadsheet },
