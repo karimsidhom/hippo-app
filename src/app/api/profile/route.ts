@@ -80,6 +80,7 @@ export async function PATCH(req: NextRequest) {
       onboardingCompleted,
       tier,
       theme,
+      expectedGraduation,
     } = body;
 
     // Validate theme — only accept the three known values, never trust
@@ -108,6 +109,9 @@ export async function PATCH(req: NextRequest) {
         ...(bio !== undefined && { bio }),
         ...(onboardingCompleted !== undefined && { onboardingCompleted }),
         ...(tier !== undefined && { tier }),
+        ...(expectedGraduation !== undefined && {
+          expectedGraduation: expectedGraduation ? new Date(expectedGraduation) : null,
+        }),
         ...(safeTheme && { theme: safeTheme }),
       },
       create: {

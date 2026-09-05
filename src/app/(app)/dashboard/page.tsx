@@ -21,6 +21,7 @@ import { DebriefSheet } from "@/components/DebriefSheet";
 import { PostComposer } from "@/components/social/PostComposer";
 import { ProgramCalendar } from "@/components/ProgramCalendar";
 import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
+import { OnTrackCard } from "@/components/dashboard/OnTrackCard";
 
 // Role types that see staff-specific modules (sign-offs, teaching load).
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
@@ -438,6 +439,9 @@ export default function DashboardPage() {
 
       {/* ── Principle ─────────────────────────────────────────────────── */}
       <TodaysPrinciple />
+
+      {/* ── On track (Pro): projections against program minimums ─────── */}
+      <OnTrackCard />
 
       {/* ── Thin divider ──────────────────────────────────────────────── */}
       <div style={{
