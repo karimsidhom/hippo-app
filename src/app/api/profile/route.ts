@@ -81,6 +81,7 @@ export async function PATCH(req: NextRequest) {
       tier,
       theme,
       expectedGraduation,
+      residencyStartDate,
     } = body;
 
     // Validate theme — only accept the three known values, never trust
@@ -111,6 +112,9 @@ export async function PATCH(req: NextRequest) {
         ...(tier !== undefined && { tier }),
         ...(expectedGraduation !== undefined && {
           expectedGraduation: expectedGraduation ? new Date(expectedGraduation) : null,
+        }),
+        ...(residencyStartDate !== undefined && {
+          residencyStartDate: residencyStartDate ? new Date(residencyStartDate) : null,
         }),
         ...(safeTheme && { theme: safeTheme }),
       },

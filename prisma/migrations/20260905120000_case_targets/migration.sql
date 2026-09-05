@@ -1,6 +1,6 @@
 -- On-track projections (Pro): per-resident case targets + expected graduation.
 
-ALTER TABLE "Profile" ADD COLUMN IF NOT EXISTS "expectedGraduation" TIMESTAMP(3);
+ALTER TABLE "profiles" ADD COLUMN IF NOT EXISTS "expectedGraduation" TIMESTAMP(3);
 
 CREATE TABLE IF NOT EXISTS "CaseTarget" (
     "id"         TEXT NOT NULL,
