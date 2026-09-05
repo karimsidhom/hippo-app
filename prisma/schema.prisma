@@ -284,6 +284,7 @@ model Profile {
   teachingPearlsEnabled         Boolean      @default(false)
   missingFieldPromptsEnabled    Boolean      @default(true)
   postopPlanInclusion           String       @default("always")    // "always" | "if-entered"
+  residencyStartDate            DateTime?                          // PGY-1 day one; anchors the autonomy slope
 
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
