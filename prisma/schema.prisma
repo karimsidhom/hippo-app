@@ -284,6 +284,7 @@ model Profile {
   teachingPearlsEnabled         Boolean      @default(false)
   missingFieldPromptsEnabled    Boolean      @default(true)
   postopPlanInclusion           String       @default("always")    // "always" | "if-entered"
+  expectedGraduation            DateTime?                          // drives "on track" projections (Pro)
 
   createdAt                     DateTime     @default(now())
   updatedAt                     DateTime     @updatedAt
@@ -394,6 +395,23 @@ enum CaseLogImportStatus {
   COMMITTED   // cases inserted into the user's log
   ROLLED_BACK // user undid the import
   FAILED
+}
+
+// Per-resident case targets for "on track" projections (Pro). No FK to User
+// on purpose, matching CaseLog.specialtyId: the row is owned by userId and
+// scoped by every query.
+model CaseTarget {
+  id         String    @id @default(cuid())
+  userId     String
+  label      String
+  matchType  String    // "TOTAL" | "CATEGORY" | "PROCEDURE" | "INDEPENDENT"
+  matchValue String?
+  target     Int
+  dueDate    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
 }
 
 model CaseLogImportBatch {

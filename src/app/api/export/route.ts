@@ -8,6 +8,7 @@ import {
   addCertificationBlock,
   HIPPO_TRADEMARK_LINE,
 } from '@/lib/export-branding';
+import { buildFellowshipSummary } from '@/lib/reports/fellowship-summary';
 
 // ---------------------------------------------------------------------------
 // POST /api/export — Hippo Case Log Excel export
@@ -285,6 +286,52 @@ export async function POST(req: NextRequest) {
 
     summarySheet.getColumn(1).width = 32;
     summarySheet.getColumn(2).width = 14;
+
+    // ── Sheet 3b: Fellowship Summary (Pro anchor, Sept 2026) ────────────
+    // Category x role x year, autonomy split, top procedures. This is the
+    // table every fellowship, match and job application asks for.
+    {
+      const fs = buildFellowshipSummary(filteredCases as never[]);
+      const fSheet = workbook.addWorksheet('Fellowship Summary');
+      fSheet.getCell('A1').value = 'Fellowship Summary';
+      fSheet.getCell('A1').font = { name: 'Arial', size: 16, bold: true, color: { argb: BRAND.INK } };
+      fSheet.getRow(1).height = 24;
+      fSheet.getCell('A2').value = `${residentName} · cases by category, role and year · generated ${new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}`;
+      fSheet.getCell('A2').font = { name: 'Arial', size: 10, color: { argb: BRAND.MUTED }, italic: true };
+      fSheet.getRow(3).height = 6;
+
+      const header = ['Category', 'Total', ...fs.roles.map((r) => `Role: ${r}`), ...fs.years.map((y) => String(y))];
+      const h = fSheet.addRow(header);
+      h.font = { name: 'Arial', size: 11, bold: true, color: { argb: BRAND.TEAL } };
+      fs.rows.forEach((r) => {
+        fSheet.addRow([
+          r.category,
+          r.total,
+          ...fs.roles.map((role) => r.byRole[role] ?? 0),
+          ...fs.years.map((y) => r.byYear[y] ?? 0),
+        ]);
+      });
+      const t = fSheet.addRow([
+        'All categories',
+        fs.totals.total,
+        ...fs.roles.map((role) => fs.totals.byRole[role] ?? 0),
+        ...fs.years.map((y) => fs.totals.byYear[y] ?? 0),
+      ]);
+      t.font = { name: 'Arial', size: 11, bold: true, color: { argb: BRAND.INK_2 } };
+
+      fSheet.addRow([]);
+      const aHead = fSheet.addRow(['Autonomy', 'Cases', 'Percent']);
+      aHead.font = { name: 'Arial', size: 11, bold: true, color: { argb: BRAND.TEAL } };
+      fs.autonomy.forEach((a) => fSheet.addRow([a.level, a.count, a.percent]));
+
+      fSheet.addRow([]);
+      const pHead = fSheet.addRow(['Top procedures', 'Cases']);
+      pHead.font = { name: 'Arial', size: 11, bold: true, color: { argb: BRAND.TEAL } };
+      fs.topProcedures.forEach((p) => fSheet.addRow([p.procedureName, p.count]));
+
+      fSheet.getColumn(1).width = 34;
+      for (let i = 2; i <= header.length; i += 1) fSheet.getColumn(i).width = 14;
+    }
 
     // ── Sheet 4: Milestones & PRs ───────────────────────────────────────
     const milestoneSheet = workbook.addWorksheet('Milestones & PRs');

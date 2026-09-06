@@ -26,9 +26,35 @@ export const PRICING = {
       'Bulk EPA sign-off queue (attendings)',
       'Benchmark percentiles & leaderboards',
       'Excel export (PHIA-safe)',
+      'On-track projections against your program minimums',
+      'Fellowship Summary sheet: category by role by year, ready to paste into any application',
       'Social & friends system',
       'No ads — ever',
     ],
+  },
+  /**
+   * Team plan: a chief resident or a program office buys seats for a cohort.
+   * Priced per resident per month, billed to one card, minimum 5 seats.
+   */
+  team: {
+    label: 'Team',
+    perSeatMonthlyUsd: 3,
+    perSeatMonthlyDisplay: '$3',
+    minSeats: 5,
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_TEAM_PRICE_ID ?? '',
+    tagline: 'For a cohort or a chief resident',
+    cta: 'Buy seats for your cohort',
+    description: 'Everything in Pro for every resident on one bill.',
+  },
+  /** One payment, Pro for life. Early-adopter anchor; revisit after the first 200 sold. */
+  lifetime: {
+    label: 'Lifetime',
+    oneTimeUsd: 99,
+    oneTimeDisplay: '$99',
+    stripePriceId: process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID ?? '',
+    tagline: 'Pay once, keep it through fellowship',
+    cta: 'Lifetime Pro — $99 once',
+    description: 'Every Pro feature, forever, including features shipped after you buy.',
   },
   institution: {
     label: 'Institution',
@@ -70,6 +96,18 @@ export const PRICING = {
 
 export type PricingTier = 'free' | 'pro' | 'institution';
 
+/**
+ * Beta switch. While true, every feature is unlocked for every user on both
+ * the client (SubscriptionContext) and the server (API routes that call
+ * isUnlocked). Flip to false when billing goes live.
+ */
+export const BETA_ALL_UNLOCKED = true;
+
+/** Server-side gate that honours the beta switch. Use this in API routes. */
+export function isUnlocked(tier: PricingTier, feature: keyof typeof FEATURE_GATES): boolean {
+  return BETA_ALL_UNLOCKED || hasFeature(tier, feature);
+}
+
 /** Human-readable tier display */
 export const TIER_LABELS: Record<PricingTier, string> = {
   free: 'Free',
@@ -103,6 +141,12 @@ export const FEATURE_GATES = {
   aiOscore:             ['pro', 'institution'] as PricingTier[],
   /** Bulk EPA sign-off queue for attendings / PDs. */
   bulkSignoff:          ['pro', 'institution'] as PricingTier[],
+
+  // Pro anchors — September 2026
+  /** "On track" projections against the program's case minimums. */
+  onTrack:              ['pro', 'institution'] as PricingTier[],
+  /** Fellowship Summary sheet in the Excel export (category x role x year). */
+  fellowshipSummary:    ['pro', 'institution'] as PricingTier[],
 } as const;
 
 /**
