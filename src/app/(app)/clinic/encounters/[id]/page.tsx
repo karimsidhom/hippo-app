@@ -24,6 +24,7 @@ import { NoteEditor } from "@/components/clinic/NoteEditor";
 import { ConsentSheet } from "@/components/clinic/ConsentSheet";
 import { StatusPill } from "@/components/clinic/StatusPill";
 import { BillingSuggestions } from "@/components/clinic/BillingSuggestions";
+import { UnderbillingCheck } from "@/components/clinic/UnderbillingCheck";
 import { ReferenceSuggestions, noteFingerprint } from "@/components/clinic/ReferenceSuggestions";
 import { SafetyPanel } from "@/components/clinic/SafetyPanel";
 import { SendToPatientButton } from "@/components/clinic/SendToPatientButton";
@@ -545,6 +546,15 @@ export default function EncounterPage() {
 
       {/* Billing suggestions (only when enabled in settings) */}
       <BillingSuggestions encounterId={id} hasNote={Boolean(data.note)} />
+      {data.note && (
+        <UnderbillingCheck
+          noteType={data.encounter.noteType}
+          noteText={[
+            ...Object.values((data.note.paragraphs ?? {}) as Record<string, unknown>).filter((v): v is string => typeof v === "string"),
+            data.note.letter ?? "",
+          ].join("\n\n")}
+        />
+      )}
 
       {/* Optional references add-on — gated client-side by useReferenceSettings */}
       <ReferenceSuggestions
