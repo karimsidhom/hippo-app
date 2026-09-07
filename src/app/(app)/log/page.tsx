@@ -15,6 +15,7 @@ import { getProceduresBySpecialty } from "@/lib/procedureLibrary";
 import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord, EpaSuggestion, EpaObservationInput } from "@/lib/types";
 import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles } from "lucide-react";
 import { VoiceTextarea } from "@/components/VoiceTextarea";
+import { DeriveFromNote, type DerivePrefill } from "@/components/log/DeriveFromNote";
 import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
@@ -174,6 +175,24 @@ export default function LogCasePage() {
     } finally {
       setVoiceParsing(false);
     }
+  };
+
+  // Dictate once: an operative note parsed server-side into a prefill.
+  const ROLE_FROM_DERIVED: Record<DerivePrefill["role"], string> = {
+    PRIMARY: "First Surgeon", ASSIST: "Assist", OBSERVER: "Observer", TEACHING: "First Surgeon",
+  };
+  const handleDerivedApply = (pf: DerivePrefill) => {
+    const updates: Partial<LogFormState> = {};
+    if (pf.procedureName) updates.procedureName = pf.procedureName;
+    if (pf.surgicalApproach) updates.surgicalApproach = pf.surgicalApproach;
+    if (pf.role) updates.role = ROLE_FROM_DERIVED[pf.role];
+    if (pf.autonomyLevel) updates.autonomyLevel = pf.autonomyLevel;
+    if (pf.attendingLabel) updates.attendingLabel = pf.attendingLabel;
+    if (pf.outcomeCategory) updates.outcomeCategory = pf.outcomeCategory;
+    if (pf.complicationCategory) updates.complicationCategory = pf.complicationCategory;
+    updates.conversionOccurred = Boolean(pf.conversionOccurred);
+    if (typeof pf.operativeDurationMinutes === "number") updates.consoleTimeMinutes = pf.operativeDurationMinutes;
+    updateForm(updates);
   };
 
   // A case is SMSNA-graded when the fellow pathway is active OR the SMSNA
@@ -469,6 +488,9 @@ export default function LogCasePage() {
         {/* ── Step 1: Essentials ── */}
         {step === 0 && (
           <div className="space-y-5 animate-slide-up">
+            {/* Dictate once: derive the case from the operative note */}
+            <DeriveFromNote specialty={form.specialtySlug || null} onApply={handleDerivedApply} />
+
             {/* Voice dictation — fill the form by talking */}
             <div
               style={{
