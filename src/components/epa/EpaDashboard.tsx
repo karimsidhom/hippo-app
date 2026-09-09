@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { ClipboardList, Plus, Target, Stethoscope } from "lucide-react";
+import { ClipboardList, Plus, Target, Stethoscope, AlertTriangle } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import type { CaseLog, EpaObservation, EpaObservationInput } from "@/lib/types";
 import { getSpecialtyEpaData, getSystemLabel, getMilestoneFramework } from "@/lib/epa/data";
@@ -14,6 +14,7 @@ import { ModalShell } from "@/components/shared/ModalShell";
 import { EpaSubReqChecklist } from "./EpaSubReqChecklist";
 import { trackSubRequirements } from "@/lib/epa/subreqs";
 import type { ObservationForTracking, EpaSubRequirementSummary } from "@/lib/epa/subreqs";
+import { EpaDeliveryConfirmation, type EpaDeliveryInfo } from "./EpaDeliveryConfirmation";
 
 // ── Sub-tabs within EPA Dashboard ──────────────────────────────────────────
 const EPA_TABS = ["Overview", "EPAs", "Milestones", "Gaps", "Observations"];
@@ -816,6 +817,13 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
 
   // EPA form modal state
   const [epaFormModal, setEpaFormModal] = useState<{ epaId: string; epaTitle: string } | null>(null);
+  // Inline error shown inside the form modal on a failed create/submit —
+  // this used to be console-only, which meant a resident could get a 400
+  // and never know their observation went nowhere.
+  const [epaFormError, setEpaFormError] = useState<string | null>(null);
+  // Post-submit delivery confirmation — see EpaDeliveryConfirmation for why
+  // this exists (Resend can silently reject a send).
+  const [epaDelivery, setEpaDelivery] = useState<{ info: EpaDeliveryInfo; assessorName: string } | null>(null);
 
   // Fetch observations
   const loadObservations = useCallback(async () => {
@@ -850,10 +858,12 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
   }, [observations]);
 
   const handleLogEpa = (epaId: string, epaTitle: string) => {
+    setEpaFormError(null);
     setEpaFormModal({ epaId, epaTitle });
   };
 
   const handleEpaFormSubmit = async (data: EpaObservationInput) => {
+    setEpaFormError(null);
     try {
       const createRes = await fetch("/api/epa/observations", {
         method: "POST",
@@ -866,24 +876,39 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
             : data.observationDate,
         }),
       });
-      if (!createRes.ok) throw new Error("Failed to create observation");
-      const observation = await createRes.json();
+      const createBody = await createRes.json().catch(() => null);
+      if (!createRes.ok) {
+        throw new Error(createBody?.error ?? "Failed to create observation");
+      }
+      const observation = createBody;
 
-      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+      const submitRes = await fetch(`/api/epa/observations/${observation.id}/submit`, {
         method: "POST",
         credentials: "include",
       });
+      const submitBody = await submitRes.json().catch(() => null);
+      if (!submitRes.ok) {
+        throw new Error(submitBody?.error ?? "Failed to submit observation");
+      }
 
       setEpaFormModal(null);
       loadObservations();
+      setEpaDelivery({
+        info: submitBody?.delivery ?? { channel: "none", emailSent: false },
+        assessorName: data.assessorName,
+      });
     } catch (err) {
       console.error("EPA observation submit failed:", err);
+      setEpaFormError(
+        err instanceof Error ? err.message : "Failed to submit observation. Please try again.",
+      );
     }
   };
 
   const handleEpaFormDraft = async (data: EpaObservationInput) => {
+    setEpaFormError(null);
     try {
-      await fetch("/api/epa/observations", {
+      const res = await fetch("/api/epa/observations", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -894,10 +919,17 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
             : data.observationDate,
         }),
       });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Failed to save draft");
+      }
       setEpaFormModal(null);
       loadObservations();
     } catch (err) {
       console.error("EPA observation draft failed:", err);
+      setEpaFormError(
+        err instanceof Error ? err.message : "Failed to save draft. Please try again.",
+      );
     }
   };
 
@@ -1048,17 +1080,37 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
 
       {/* ── EPA Observation Form Modal ── */}
       {epaFormModal && (
-        <ModalShell onClose={() => setEpaFormModal(null)}>
+        <ModalShell onClose={() => { setEpaFormModal(null); setEpaFormError(null); }}>
+          {epaFormError && (
+            <div style={{
+              display: "flex", alignItems: "flex-start", gap: 8,
+              padding: "10px 12px", marginBottom: 14,
+              background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+              borderRadius: 8, fontSize: 13, color: "#fca5a5", lineHeight: 1.4,
+            }}>
+              <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#ef4444" }} />
+              <span>{epaFormError}</span>
+            </div>
+          )}
           <EpaObservationForm
             epaId={epaFormModal.epaId}
             epaTitle={epaFormModal.epaTitle}
             specialtySlug={specialty || ""}
             trainingSystem={isCanadian ? "RCPSC" : "ACGME"}
             onSubmit={handleEpaFormSubmit}
-            onCancel={() => setEpaFormModal(null)}
+            onCancel={() => { setEpaFormModal(null); setEpaFormError(null); }}
             onSaveDraft={handleEpaFormDraft}
           />
         </ModalShell>
+      )}
+
+      {/* ── Post-submit delivery confirmation ── */}
+      {epaDelivery && (
+        <EpaDeliveryConfirmation
+          delivery={epaDelivery.info}
+          assessorName={epaDelivery.assessorName}
+          onClose={() => setEpaDelivery(null)}
+        />
       )}
     </div>
   );

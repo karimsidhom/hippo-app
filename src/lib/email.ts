@@ -34,14 +34,31 @@ export interface SendEmailOptions {
 }
 
 /**
- * Send an email via Resend.
- * Returns true on success, false on failure (never throws).
+ * Structured send result. `ok: false` always carries a human-readable
+ * `reason` so callers that need to explain a failure (e.g. the EPA submit
+ * route surfacing "we could not email Dr. X") don't have to re-derive it.
+ *
+ * Callers that only care about pass/fail should destructure `{ ok }` rather
+ * than treating the whole return value as a boolean — this is an object now,
+ * not a primitive, so `if (result)` is always true regardless of `ok`.
  */
-export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
+export type SendEmailResult = { ok: true } | { ok: false; reason: string };
+
+/** Redacts everything before the "@" so logs never contain a full address. */
+function domainOf(email: string): string {
+  const at = email.lastIndexOf("@");
+  return at === -1 ? "unknown" : email.slice(at + 1);
+}
+
+/**
+ * Send an email via Resend.
+ * Returns a structured result — never throws.
+ */
+export async function sendEmail(opts: SendEmailOptions): Promise<SendEmailResult> {
   const resend = getResendClient();
   if (!resend) {
     console.warn("[email] RESEND_API_KEY not set — skipping email send");
-    return false;
+    return { ok: false, reason: "Email is not configured on this server." };
   }
 
   try {
@@ -54,15 +71,18 @@ export async function sendEmail(opts: SendEmailOptions): Promise<boolean> {
     });
 
     if (error) {
-      console.error("[email] Resend error:", error);
-      return false;
+      console.error(`[email] Resend error sending to @${domainOf(opts.to)}:`, error);
+      return { ok: false, reason: error.message || "The email provider rejected the message." };
     }
 
     console.log(`[email] Sent to ${opts.to}: ${opts.subject}`);
-    return true;
+    return { ok: true };
   } catch (err) {
-    console.error("[email] Send failed:", err);
-    return false;
+    console.error(`[email] Send failed for @${domainOf(opts.to)}:`, err);
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "Unknown email send failure.",
+    };
   }
 }
 

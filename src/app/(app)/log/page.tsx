@@ -19,6 +19,7 @@ import { DeriveFromNote, type DerivePrefill } from "@/components/log/DeriveFromN
 import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
+import { EpaDeliveryConfirmation, type EpaDeliveryInfo } from "@/components/epa/EpaDeliveryConfirmation";
 import { useInteraction } from "@/hooks/useInteraction";
 import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
 import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
@@ -119,6 +120,12 @@ export default function LogCasePage() {
   const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
   const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
   const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
+  // Inline error shown inside the EPA/OPRS form on a failed create/submit —
+  // previously console-only, so a resident could get a 400 and never know.
+  const [epaSubmitError, setEpaSubmitError] = useState<string | null>(null);
+  // Post-submit delivery confirmation. Navigation to /cases is deferred
+  // until this is dismissed so the resident actually sees it.
+  const [epaDelivery, setEpaDelivery] = useState<{ info: EpaDeliveryInfo; assessorName: string } | null>(null);
 
   // SMSNA fellows never see EPA suggestions — they go straight to the OPRS form.
   const [showOprs, setShowOprs] = useState(false);
@@ -380,6 +387,7 @@ export default function LogCasePage() {
 
   /** Handle user selecting an EPA suggestion */
   const handleEpaSelect = (suggestion: EpaSuggestion) => {
+    setEpaSubmitError(null);
     setSelectedEpaSuggestion(suggestion);
     setShowEpaSuggestions(false);
   };
@@ -393,6 +401,7 @@ export default function LogCasePage() {
 
   /** Handle EPA observation form submission */
   const handleEpaObservationSubmit = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
     try {
       // Create the observation
       const createRes = await fetch("/api/epa/observations", {
@@ -406,31 +415,45 @@ export default function LogCasePage() {
             : data.observationDate,
         }),
       });
-      if (!createRes.ok) throw new Error("Failed to create observation");
-      const observation = await createRes.json();
+      const createBody = await createRes.json().catch(() => null);
+      if (!createRes.ok) {
+        throw new Error(createBody?.error ?? "Failed to create observation");
+      }
+      const observation = createBody;
 
       // Submit the observation
-      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+      const submitRes = await fetch(`/api/epa/observations/${observation.id}/submit`, {
         method: "POST",
         credentials: "include",
       });
+      const submitBody = await submitRes.json().catch(() => null);
+      if (!submitRes.ok) {
+        throw new Error(submitBody?.error ?? "Failed to submit observation");
+      }
 
       // "Logged and sent" — the most satisfying interaction the app has.
       fx.log();
       setSelectedEpaSuggestion(null);
-      router.push("/cases");
+      // Hold on /log so the resident actually sees who was notified and
+      // how — navigation happens once they dismiss the confirmation.
+      setEpaDelivery({
+        info: submitBody?.delivery ?? { channel: "none", emailSent: false },
+        assessorName: data.assessorName,
+      });
     } catch (err) {
       fx.error();
       console.error("EPA observation submit failed:", err);
-      setSelectedEpaSuggestion(null);
-      router.push("/cases");
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to submit observation. Please try again.",
+      );
     }
   };
 
   /** Handle EPA observation save as draft */
   const handleEpaObservationDraft = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
     try {
-      await fetch("/api/epa/observations", {
+      const res = await fetch("/api/epa/observations", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -441,11 +464,18 @@ export default function LogCasePage() {
             : data.observationDate,
         }),
       });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Failed to save draft");
+      }
+      setSelectedEpaSuggestion(null);
+      router.push("/cases");
     } catch (err) {
       console.error("EPA observation draft save failed:", err);
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to save draft. Please try again.",
+      );
     }
-    setSelectedEpaSuggestion(null);
-    router.push("/cases");
   };
 
   return (
@@ -1233,6 +1263,17 @@ export default function LogCasePage() {
                   boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
                 }}
               >
+                {epaSubmitError && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "10px 12px", marginBottom: 16,
+                    background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 8, fontSize: 13, color: "#fca5a5", lineHeight: 1.4,
+                  }}>
+                    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#ef4444" }} />
+                    <span>{epaSubmitError}</span>
+                  </div>
+                )}
                 <EpaObservationForm
                   epaId={selectedEpaSuggestion.epaId}
                   epaTitle={selectedEpaSuggestion.epaTitle}
@@ -1290,6 +1331,17 @@ export default function LogCasePage() {
                   boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
                 }}
               >
+                {epaSubmitError && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "10px 12px", marginBottom: 16,
+                    background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 8, fontSize: 13, color: "#fca5a5", lineHeight: 1.4,
+                  }}>
+                    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#ef4444" }} />
+                    <span>{epaSubmitError}</span>
+                  </div>
+                )}
                 <OprsObservationForm
                   categoryKey={smsnaCategory.key}
                   categoryName={smsnaCategory.name}
@@ -1309,6 +1361,19 @@ export default function LogCasePage() {
                 />
               </div>
             </>
+          )}
+
+          {/* Post-submit delivery confirmation — navigation to /cases was
+              deferred so the resident sees this before leaving the page. */}
+          {epaDelivery && (
+            <EpaDeliveryConfirmation
+              delivery={epaDelivery.info}
+              assessorName={epaDelivery.assessorName}
+              onClose={() => {
+                setEpaDelivery(null);
+                router.push("/cases");
+              }}
+            />
           )}
         </>,
         portalRoot,

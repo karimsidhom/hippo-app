@@ -1,16 +1,19 @@
 'use client';
 
 import { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { PricingTier, hasFeature, FEATURE_GATES, PRICING } from '@/lib/pricing';
+import { PricingTier, hasFeature, FEATURE_GATES } from '@/lib/pricing';
 
 export type SubscriptionStatus =
   | 'active'
   | 'trialing'
   | 'past_due'
   | 'canceled'
+  | 'comped'
+  | 'lifetime'
   | 'unpaid'
   | 'incomplete'
-  | 'none';
+  | 'none'
+  | null;
 
 export interface SubscriptionState {
   tier: PricingTier;
@@ -23,43 +26,18 @@ export interface SubscriptionState {
 }
 
 interface SubscriptionContextValue extends SubscriptionState {
-  /** True when tier is pro or institution and status is active/trialing */
+  /** True when the caller's Profile is tier pro/institution with an active-ish status. */
   isPro: boolean;
   isInstitution: boolean;
   isFree: boolean;
   /** Check if a specific feature is gated */
   can: (feature: keyof typeof FEATURE_GATES) => boolean;
-  /** Trigger Stripe Checkout for Pro */
-  startCheckout: () => Promise<void>;
+  /** Trigger Stripe Checkout for Pro (or lifetime) */
+  startCheckout: (plan?: 'monthly' | 'yearly' | 'lifetime') => Promise<void>;
   /** Open Stripe Billing Portal to manage/cancel */
   openBillingPortal: () => Promise<void>;
-  /** Manually refresh subscription state (e.g. after returning from Stripe) */
+  /** Re-fetch subscription state from the server (e.g. after returning from Stripe) */
   refresh: () => Promise<void>;
-  /** Demo-only: simulate upgrade (until Stripe is wired up) */
-  simulateUpgrade: () => void;
-  simulateDowngrade: () => void;
-}
-
-const STORAGE_KEY = 'hippo_subscription';
-
-function loadFromStorage(): Partial<SubscriptionState> {
-  if (typeof window === 'undefined') return {};
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (!raw) return {};
-    const parsed = JSON.parse(raw);
-    if (parsed.currentPeriodEnd) parsed.currentPeriodEnd = new Date(parsed.currentPeriodEnd);
-    return parsed;
-  } catch {
-    return {};
-  }
-}
-
-function saveToStorage(state: SubscriptionState) {
-  if (typeof window === 'undefined') return;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-  } catch {}
 }
 
 const DEFAULT_STATE: SubscriptionState = {
@@ -76,47 +54,69 @@ const SubscriptionContext = createContext<SubscriptionContextValue | null>(null)
 
 export function SubscriptionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<SubscriptionState>(DEFAULT_STATE);
+  const [serverIsPro, setServerIsPro] = useState(false);
 
-  // Hydrate from localStorage on mount
-  useEffect(() => {
-    const stored = loadFromStorage();
-    setState(prev => ({ ...prev, ...stored, loading: false }));
+  const load = useCallback(async () => {
+    try {
+      const res = await fetch('/api/subscription', { cache: 'no-store' });
+      if (!res.ok) {
+        setState(prev => ({ ...prev, loading: false }));
+        return;
+      }
+      const data = await res.json();
+      setState({
+        tier: (data.tier ?? 'free') as PricingTier,
+        status: data.status ?? 'none',
+        stripeCustomerId: data.stripeCustomerId ?? null,
+        stripeSubscriptionId: data.stripeSubscriptionId ?? null,
+        currentPeriodEnd: data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null,
+        cancelAtPeriodEnd: data.cancelAtPeriodEnd ?? false,
+        loading: false,
+      });
+      setServerIsPro(Boolean(data.isPro));
+    } catch (err) {
+      console.error('Subscription fetch error:', err);
+      setState(prev => ({ ...prev, loading: false }));
+    }
   }, []);
 
-  // Persist to localStorage whenever state changes
   useEffect(() => {
-    if (!state.loading) saveToStorage(state);
-  }, [state]);
+    load();
+  }, [load]);
 
-  // ── Everything is free and unlocked during beta ──────────────────────────
-  const isPro = true;
-  const isInstitution = false;
-  const isFree = false;
+  // While the first fetch is in flight, treat the user as Pro so gated UI
+  // doesn't flash a paywall before we know the real answer.
+  const isPro = state.loading ? true : serverIsPro;
+  const isInstitution = state.tier === 'institution';
+  const isFree = !isPro;
 
   const can = useCallback(
-    (_feature: keyof typeof FEATURE_GATES) => true,
-    []
+    (feature: keyof typeof FEATURE_GATES) => {
+      const effectiveTier: PricingTier = isPro ? (isInstitution ? 'institution' : 'pro') : 'free';
+      return hasFeature(effectiveTier, feature);
+    },
+    [isPro, isInstitution]
   );
 
-  const startCheckout = useCallback(async () => {
+  const startCheckout = useCallback(async (plan: 'monthly' | 'yearly' | 'lifetime' = 'monthly') => {
     try {
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          priceId: PRICING.pro.stripePriceId,
+          plan,
           successUrl: `${window.location.origin}/upgrade/success?session_id={CHECKOUT_SESSION_ID}`,
           cancelUrl: `${window.location.origin}/upgrade?canceled=true`,
         }),
       });
-      if (!res.ok) throw new Error('Checkout session failed');
-      const { url } = await res.json();
-      window.location.href = url;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data?.error ?? 'Checkout session failed');
+      }
+      if (data.url) window.location.href = data.url;
     } catch (err) {
       console.error('Stripe checkout error:', err);
-      // Fallback: open Stripe payment link if configured
-      const fallback = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK;
-      if (fallback) window.open(fallback, '_blank');
+      throw err;
     }
   }, []);
 
@@ -126,50 +126,16 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          customerId: state.stripeCustomerId,
           returnUrl: `${window.location.origin}/settings?tab=subscription`,
         }),
       });
-      if (!res.ok) throw new Error('Portal session failed');
-      const { url } = await res.json();
-      window.location.href = url;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(data?.error ?? 'Portal session failed');
+      if (data.url) window.location.href = data.url;
     } catch (err) {
       console.error('Billing portal error:', err);
+      throw err;
     }
-  }, [state.stripeCustomerId]);
-
-  const refresh = useCallback(async () => {
-    if (!state.stripeSubscriptionId) return;
-    try {
-      const res = await fetch(`/api/stripe/subscription?id=${state.stripeSubscriptionId}`);
-      if (!res.ok) return;
-      const data = await res.json();
-      setState(prev => ({
-        ...prev,
-        tier: data.tier,
-        status: data.status,
-        currentPeriodEnd: data.currentPeriodEnd ? new Date(data.currentPeriodEnd) : null,
-        cancelAtPeriodEnd: data.cancelAtPeriodEnd ?? false,
-      }));
-    } catch {}
-  }, [state.stripeSubscriptionId]);
-
-  // Demo helpers — active until real Stripe is wired
-  const simulateUpgrade = useCallback(() => {
-    const newState: SubscriptionState = {
-      tier: 'pro',
-      status: 'active',
-      stripeCustomerId: 'cus_demo',
-      stripeSubscriptionId: 'sub_demo',
-      currentPeriodEnd: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-      cancelAtPeriodEnd: false,
-      loading: false,
-    };
-    setState(newState);
-  }, []);
-
-  const simulateDowngrade = useCallback(() => {
-    setState({ ...DEFAULT_STATE, loading: false });
   }, []);
 
   return (
@@ -181,9 +147,7 @@ export function SubscriptionProvider({ children }: { children: ReactNode }) {
       can,
       startCheckout,
       openBillingPortal,
-      refresh,
-      simulateUpgrade,
-      simulateDowngrade,
+      refresh: load,
     }}>
       {children}
     </SubscriptionContext.Provider>

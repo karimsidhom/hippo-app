@@ -2,6 +2,7 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Check, Sparkles, X, Zap } from "lucide-react";
 import { PRICING } from "@/lib/pricing";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -48,6 +49,7 @@ export function PaywallModal({
   bullets,
 }: PaywallModalProps) {
   const { startCheckout } = useSubscription();
+  const router = useRouter();
 
   // Lock body scroll while the modal is open.
   useEffect(() => {
@@ -238,7 +240,7 @@ export function PaywallModal({
         >
           <button
             onClick={() => {
-              startCheckout();
+              startCheckout().catch(() => router.push('/upgrade'));
             }}
             style={{
               width: "100%",
@@ -257,7 +259,7 @@ export function PaywallModal({
               gap: 6,
             }}
           >
-            <Zap size={14} /> Start Pro — {PRICING.pro.monthlyDisplay}/mo
+            <Zap size={14} /> Start Pro, {PRICING.pro.monthlyDisplay}/mo
           </button>
           <Link
             href="/upgrade"

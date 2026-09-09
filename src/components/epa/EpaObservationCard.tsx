@@ -1,11 +1,24 @@
 "use client";
 
+import { useState } from "react";
+import { Link2, Copy, Share2, Send, Eye } from "lucide-react";
 import type { EpaObservation } from "@/lib/types";
 import { EpaStatusBadge, EpaVerifiedLine, type EpaStatus } from "@/components/epa/EpaStatusBadge";
 
 interface EpaObservationCardProps {
   observation: EpaObservation;
   onClick?: () => void;
+}
+
+interface ReviewLinkInfo {
+  reviewUrl: string;
+  recipientEmail: string;
+  recipientName: string;
+  sentAt: string;
+  viewedAt: string | null;
+  respondedAt: string | null;
+  expiresAt: string | null;
+  channel: string;
 }
 
 function getStageColor(epaId: string): string {
@@ -40,11 +53,99 @@ export function EpaObservationCard({
   const stageColor = getStageColor(observation.epaId);
   const achieved = observation.achievement === "ACHIEVED";
   const isSigned = observation.status === "SIGNED";
+  const isPending = observation.status === "PENDING_REVIEW";
   const dateStr = new Date(observation.observationDate).toLocaleDateString(
     undefined,
     { month: "short", day: "numeric", year: "numeric" }
   );
   const oScore = observation.entrustmentScore;
+
+  // ── Review-link panel (PENDING_REVIEW only) — lets the resident grab or
+  // re-send the sign-off link themselves without leaving the dashboard. All
+  // observations here already belong to the signed-in resident (the list
+  // API scopes to userId), so no extra ownership check is needed. ──
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkError, setLinkError] = useState<string | null>(null);
+  const [linkInfo, setLinkInfo] = useState<ReviewLinkInfo | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [reminding, setReminding] = useState(false);
+  const [remindMessage, setRemindMessage] = useState<string | null>(null);
+
+  async function loadReviewLink() {
+    setLinkLoading(true);
+    setLinkError(null);
+    try {
+      const res = await fetch(`/api/epa/observations/${observation.id}/review-link`);
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? "Couldn't load the review link.");
+      setLinkInfo(body as ReviewLinkInfo);
+    } catch (err) {
+      setLinkError(err instanceof Error ? err.message : "Couldn't load the review link.");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
+  function handleToggleLink(e: React.MouseEvent) {
+    e.stopPropagation();
+    const next = !linkOpen;
+    setLinkOpen(next);
+    setRemindMessage(null);
+    if (next && !linkInfo && !linkLoading) loadReviewLink();
+  }
+
+  async function handleCopy(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!linkInfo?.reviewUrl) return;
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(linkInfo.reviewUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+      }
+    } catch {
+      // Clipboard unavailable — the selectable input is the fallback.
+    }
+  }
+
+  async function handleShare(e: React.MouseEvent) {
+    e.stopPropagation();
+    if (!linkInfo?.reviewUrl || !navigator.share) return;
+    try {
+      await navigator.share({
+        title: "EPA sign-off request",
+        text: `Please review and sign off on ${observation.epaId}: ${observation.epaTitle}.`,
+        url: linkInfo.reviewUrl,
+      });
+    } catch {
+      // User cancelled the share sheet.
+    }
+  }
+
+  async function handleRemind(e: React.MouseEvent) {
+    e.stopPropagation();
+    setReminding(true);
+    setRemindMessage(null);
+    try {
+      const res = await fetch(`/api/epa/observations/${observation.id}/remind`, { method: "POST" });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) throw new Error(body?.error ?? "Couldn't send the reminder.");
+      setRemindMessage(
+        body?.delivery?.emailSent === false
+          ? `Couldn't email: ${body.delivery.emailError ?? "delivery failed"}. Copy the link instead.`
+          : "Reminder sent.",
+      );
+      loadReviewLink();
+    } catch (err) {
+      setRemindMessage(err instanceof Error ? err.message : "Couldn't send the reminder.");
+    } finally {
+      setReminding(false);
+    }
+  }
+
+  const canShare = typeof navigator !== "undefined" && typeof navigator.share === "function";
+  const canRemind = linkInfo && linkInfo.channel !== "in_app";
 
   return (
     <div
@@ -143,6 +244,125 @@ export function EpaObservationCard({
           {achieved ? "Achieved" : "Not Yet"}
         </span>
       </div>
+
+      {/* Review-link action — PENDING_REVIEW only. Lets the resident grab
+          the sign-off link themselves (the point of this card entirely: an
+          email that silently failed shouldn't be a dead end). */}
+      {isPending && (
+        <div style={{ marginTop: 10 }} onClick={(e) => e.stopPropagation()}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              type="button"
+              onClick={handleToggleLink}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
+                padding: "4px 9px", borderRadius: 6,
+                background: linkOpen ? "rgba(14,165,233,0.12)" : "transparent",
+                border: "1px solid rgba(14,165,233,0.3)",
+                color: "#38bdf8", fontSize: 11, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+              }}
+            >
+              <Link2 size={11} />
+              Review link
+            </button>
+            {linkInfo?.viewedAt && (
+              <span style={{
+                display: "inline-flex", alignItems: "center", gap: 3,
+                fontSize: 10, color: "var(--text-3)",
+              }}>
+                <Eye size={10} />
+                Opened
+              </span>
+            )}
+          </div>
+
+          {linkOpen && (
+            <div style={{
+              marginTop: 8, padding: "10px 12px",
+              background: "var(--bg-1)", border: "1px solid var(--border-mid)",
+              borderRadius: 8, display: "flex", flexDirection: "column", gap: 8,
+            }}>
+              {linkLoading && (
+                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Loading…</div>
+              )}
+              {linkError && (
+                <div style={{ fontSize: 11, color: "#ef4444" }}>{linkError}</div>
+              )}
+              {linkInfo && (
+                <>
+                  <input
+                    readOnly
+                    value={linkInfo.reviewUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Review link"
+                    style={{
+                      width: "100%", boxSizing: "border-box",
+                      background: "var(--surface2)", border: "1px solid var(--border-mid)",
+                      borderRadius: 6, color: "var(--text-2)", fontSize: 11,
+                      padding: "6px 8px", fontFamily: "'Geist Mono', monospace",
+                    }}
+                  />
+                  <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                    <button
+                      type="button"
+                      onClick={handleCopy}
+                      style={{
+                        display: "inline-flex", alignItems: "center", gap: 5,
+                        padding: "5px 9px", borderRadius: 6,
+                        border: "1px solid var(--border-mid)", background: "var(--surface2)",
+                        color: "var(--text-1)", fontSize: 11, fontWeight: 600,
+                        cursor: "pointer", fontFamily: "inherit",
+                      }}
+                    >
+                      <Copy size={11} />
+                      {copied ? "Copied" : "Copy"}
+                    </button>
+                    {canShare && (
+                      <button
+                        type="button"
+                        onClick={handleShare}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 9px", borderRadius: 6,
+                          border: "1px solid var(--border-mid)", background: "var(--surface2)",
+                          color: "var(--text-1)", fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        <Share2 size={11} />
+                        Share
+                      </button>
+                    )}
+                    {canRemind && (
+                      <button
+                        type="button"
+                        onClick={handleRemind}
+                        disabled={reminding}
+                        style={{
+                          display: "inline-flex", alignItems: "center", gap: 5,
+                          padding: "5px 9px", borderRadius: 6,
+                          border: "1px solid var(--border-mid)", background: "var(--surface2)",
+                          color: "var(--text-1)", fontSize: 11, fontWeight: 600,
+                          cursor: reminding ? "not-allowed" : "pointer", fontFamily: "inherit",
+                          opacity: reminding ? 0.6 : 1,
+                        }}
+                      >
+                        <Send size={11} />
+                        {reminding ? "Sending…" : "Send reminder"}
+                      </button>
+                    )}
+                  </div>
+                  {remindMessage && (
+                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>{remindMessage}</div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Returned feedback — shown prominently so resident knows why */}
       {observation.status === "RETURNED" && (

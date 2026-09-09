@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, Suspense } from 'react';
+import { useEffect, useState, useRef, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
-import { CheckCircle, ArrowRight } from 'lucide-react';
+import { CheckCircle, ArrowRight, Loader2 } from 'lucide-react';
 import { useSubscription } from '@/context/SubscriptionContext';
 
 const S = {
@@ -61,19 +61,52 @@ const UNLOCKED = [
 function SuccessPageInner() {
   const params = useSearchParams();
   const router = useRouter();
-  const { simulateUpgrade } = useSubscription();
-  const [verified, setVerified] = useState(false);
+  const { isPro, refresh } = useSubscription();
+  const [syncing, setSyncing] = useState(true);
+  const ranOnce = useRef(false);
 
   const sessionId = params.get('session_id');
 
   useEffect(() => {
-    // In production: verify session_id with your API, then update user tier
-    // For now: apply upgrade optimistically
-    if (sessionId || true) {
-      simulateUpgrade();
-      setVerified(true);
+    if (ranOnce.current) return;
+    ranOnce.current = true;
+
+    async function sync() {
+      // The webhook may already have landed by the time the browser
+      // redirects back here. Try a plain refresh first.
+      await refresh();
+
+      // If not, fall back to a direct sync from the Checkout Session so
+      // the user doesn't sit on a "welcome" screen that isn't true yet.
+      if (sessionId) {
+        try {
+          const res = await fetch('/api/stripe/subscription', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId }),
+          });
+          if (res.ok) await refresh();
+        } catch (err) {
+          console.error('Session sync error:', err);
+        }
+      }
+      setSyncing(false);
     }
-  }, [sessionId, simulateUpgrade]);
+
+    sync();
+  }, [sessionId, refresh]);
+
+  if (syncing) {
+    return (
+      <div style={S.page}>
+        <div style={S.icon}>
+          <Loader2 size={30} color="#22c55e" className="animate-spin" />
+        </div>
+        <h1 style={S.h1}>Confirming your subscription...</h1>
+        <p style={S.p}>This only takes a moment.</p>
+      </div>
+    );
+  }
 
   return (
     <div style={S.page}>
@@ -82,10 +115,11 @@ function SuccessPageInner() {
       </div>
 
       <div style={S.eyebrow}>Welcome to Pro</div>
-      <h1 style={S.h1}>You're all set.</h1>
+      <h1 style={S.h1}>{isPro ? "You're all set." : 'Almost there.'}</h1>
       <p style={S.p}>
-        Your Hippo Pro subscription is active.
-        Everything is unlocked — start logging.
+        {isPro
+          ? 'Your Hippo Pro subscription is active. Everything is unlocked, start logging.'
+          : "We couldn't confirm your subscription yet. If you were just charged, this will update within a minute or two, refresh Settings then Subscription to check."}
       </p>
 
       <div style={S.features}>

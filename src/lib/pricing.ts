@@ -13,14 +13,16 @@ export const PRICING = {
     yearlyPerMonth: '$4',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRICE_ID ?? '',
     stripeProductId: process.env.NEXT_PUBLIC_STRIPE_PRO_PRODUCT_ID ?? '',
+    /** Optional. Only set this env var once a real yearly Price exists in Stripe. */
+    stripeYearlyPriceId: process.env.NEXT_PUBLIC_STRIPE_PRO_YEARLY_PRICE_ID ?? '',
     tagline: 'For residents & fellows',
-    cta: 'Start Pro — $5/month',
+    cta: 'Start Pro, $5/month',
     ctaShort: '$5/mo',
     description: 'Unlimited logging, AI coaching, and interview-ready PDF exports.',
     features: [
       'Unlimited case logging',
       'All 10+ specialties',
-      'Logbook PDF export — interview & fellowship ready',
+      'Logbook PDF export, interview and fellowship ready',
       'Unlimited AI Brief Me (pre-case coaching)',
       'AI O-score suggestions on every EPA',
       'Bulk EPA sign-off queue (attendings)',
@@ -29,7 +31,7 @@ export const PRICING = {
       'On-track projections against your program minimums',
       'Fellowship Summary sheet: category by role by year, ready to paste into any application',
       'Social & friends system',
-      'No ads — ever',
+      'No ads, ever',
     ],
   },
   /**
@@ -53,7 +55,7 @@ export const PRICING = {
     oneTimeDisplay: '$99',
     stripePriceId: process.env.NEXT_PUBLIC_STRIPE_LIFETIME_PRICE_ID ?? '',
     tagline: 'Pay once, keep it through fellowship',
-    cta: 'Lifetime Pro — $99 once',
+    cta: 'Lifetime Pro, $99 once',
     description: 'Every Pro feature, forever, including features shipped after you buy.',
   },
   institution: {
@@ -99,9 +101,13 @@ export type PricingTier = 'free' | 'pro' | 'institution';
 /**
  * Beta switch. While true, every feature is unlocked for every user on both
  * the client (SubscriptionContext) and the server (API routes that call
- * isUnlocked). Flip to false when billing goes live.
+ * isUnlocked). Billing is live, so this is off. If it ever needs to be
+ * flipped back on without a code deploy, set the server env var
+ * HIPPO_BETA_UNLOCK_ALL=1 (read in /api/subscription) instead of editing
+ * this file — that keeps the constant here as the code-level default and
+ * the env var as the emergency switch.
  */
-export const BETA_ALL_UNLOCKED = true;
+export const BETA_ALL_UNLOCKED = false;
 
 /** Server-side gate that honours the beta switch. Use this in API routes. */
 export function isUnlocked(tier: PricingTier, feature: keyof typeof FEATURE_GATES): boolean {

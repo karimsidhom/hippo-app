@@ -44,7 +44,7 @@ export function ProGate({ children, feature = 'this feature', bypass, blur = tru
           onClick={() => setShowModal(true)}
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '9px 18px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 8, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
         >
-          <Zap size={13} /> Upgrade — {PRICING.pro.monthlyDisplay}/mo
+          <Zap size={13} /> Upgrade, {PRICING.pro.monthlyDisplay}/mo
         </button>
       </div>
 
@@ -55,14 +55,17 @@ export function ProGate({ children, feature = 'this feature', bypass, blur = tru
 
 export function UpgradeModal({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { startCheckout, simulateUpgrade, isFree } = useSubscription();
+  const { startCheckout } = useSubscription();
   const [loading, setLoading] = useState(false);
 
   async function handleCheckout() {
     setLoading(true);
-    onClose();
     try {
       await startCheckout();
+      onClose();
+    } catch {
+      onClose();
+      router.push('/upgrade');
     } finally {
       setLoading(false);
     }
@@ -122,7 +125,7 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
             style={{ width: '100%', padding: '15px 20px', background: '#3b82f6', color: '#fff', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 600, cursor: loading ? 'wait' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, opacity: loading ? .7 : 1, transition: 'opacity .15s' }}
           >
             <Zap size={15} />
-            {loading ? 'Redirecting…' : `Start Pro — ${PRICING.pro.monthlyDisplay}/month`}
+            {loading ? 'Redirecting...' : `Start Pro, ${PRICING.pro.monthlyDisplay}/month`}
           </button>
 
           <button
@@ -131,16 +134,6 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
           >
             See full comparison
           </button>
-
-          {/* Dev-only simulate button */}
-          {process.env.NODE_ENV !== 'production' && (
-            <button
-              onClick={() => { simulateUpgrade(); onClose(); }}
-              style={{ width: '100%', marginTop: 8, padding: '11px', background: 'transparent', color: '#3f3f46', border: '1px dashed #27272a', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}
-            >
-              ⚡ Dev: Simulate Upgrade (no Stripe)
-            </button>
-          )}
         </div>
 
         {/* Trust */}

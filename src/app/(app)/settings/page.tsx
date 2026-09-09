@@ -40,11 +40,14 @@ const SUBROUTES = [
 
 export default function SettingsPage() {
   const { user, profile, updateProfile } = useUser();
-  const { isPro, isFree, currentPeriodEnd, cancelAtPeriodEnd, startCheckout, openBillingPortal, simulateUpgrade, simulateDowngrade } = useSubscription();
+  const { isPro, tier, status, currentPeriodEnd, cancelAtPeriodEnd, stripeCustomerId, startCheckout, openBillingPortal } = useSubscription();
   const { mode: themeMode, resolved: resolvedTheme, setMode: setThemeMode } = useTheme();
   const [activeTab, setActiveTab] = useState("privacy");
   const [portalLoading, setPortalLoading] = useState(false);
   const [exporting, setExporting] = useState(false);
+  // Subscription tab: upgrade button state + inline "payments not on yet" note.
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   // ── Auto-save indicator ─────────────────────────────────────────────
   const [autoSaved, setAutoSaved] = useState(false);
@@ -208,6 +211,22 @@ export default function SettingsPage() {
       await openBillingPortal();
     } finally {
       setPortalLoading(false);
+    }
+  }
+
+  async function handleUpgrade() {
+    setCheckoutError(null);
+    setCheckoutLoading(true);
+    try {
+      await startCheckout('monthly');
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error && err.message.toLowerCase().includes('not switched on')
+          ? 'Payments are not switched on yet. Check back soon.'
+          : 'Could not start checkout. Please try again.'
+      );
+    } finally {
+      setCheckoutLoading(false);
     }
   }
 
@@ -727,55 +746,118 @@ export default function SettingsPage() {
             <div className="space-y-4">
               <h2 className="text-base font-semibold text-[var(--text)]">Subscription</h2>
 
-              {/* Beta-era card: everything is free. No paid tier, no billing
-                  flow surfaced. When we turn Pro back on post-launch, the
-                  old paywall UI lives in git history at this path. */}
-              <div className="bg-gradient-to-br from-[#0EA5E9]/8 to-[#10B981]/6 border border-[#0EA5E9]/30 rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-8 h-8 rounded-lg bg-[#0EA5E9]/15 border border-[#0EA5E9]/30 flex items-center justify-center">
-                    <Sparkles className="w-4 h-4 text-[#0EA5E9]" />
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-[var(--text)]">Everything is free during beta</div>
-                    <div className="text-[11px] text-[var(--text-2)] mt-0.5">
-                      All features unlocked for every user — no paid tier yet.
+              {isPro ? (
+                <>
+                  <div className="bg-gradient-to-br from-[#0EA5E9]/8 to-[#10B981]/6 border border-[#0EA5E9]/30 rounded-xl p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#0EA5E9]/15 border border-[#0EA5E9]/30 flex items-center justify-center">
+                        <Sparkles className="w-4 h-4 text-[#0EA5E9]" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+                          Hippo Pro
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-[#0EA5E9]/20 text-[#0EA5E9] rounded-full px-2 py-0.5">
+                            {tier === "institution" ? "Institution" : "Pro"}
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[var(--text-2)] mt-0.5">
+                          {status === "lifetime"
+                            ? "Lifetime access, paid once"
+                            : status === "comped"
+                              ? "Complimentary access"
+                              : cancelAtPeriodEnd && currentPeriodEnd
+                                ? `Cancels on ${currentPeriodEnd.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}`
+                                : status === "past_due"
+                                  ? "Payment past due, please update your card"
+                                  : currentPeriodEnd
+                                    ? `Active, renews on ${currentPeriodEnd.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" })}`
+                                    : "Active"}
+                        </div>
+                      </div>
                     </div>
                   </div>
-                </div>
-                <p className="text-xs text-[var(--text-2)] leading-relaxed mt-3">
-                  Hippo is in open beta. Unlimited case logging, AI coaching,
-                  PDF exports, and the full attending toolkit are available to
-                  every user at no cost.
-                </p>
-                <p className="text-[11px] text-[var(--text-3)] mt-3 leading-relaxed">
-                  A paid tier will come later once we know what residents value
-                  most. You&apos;ll hear about it in the app before anything
-                  changes — nothing will be silently removed.
-                </p>
-              </div>
 
-              <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
-                <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">What you have access to</p>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {[
-                    "Unlimited case logging",
-                    "All 10+ specialties",
-                    "Logbook PDF export",
-                    "Unlimited AI Brief Me",
-                    "AI O-score suggestions",
-                    "Bulk EPA sign-off",
-                    "Benchmark percentiles",
-                    "Excel export",
-                    "Social & friends",
-                    "No ads",
-                  ].map(f => (
-                    <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
-                      <CheckCircle className="w-3.5 h-3.5 text-[#22c55e] flex-shrink-0" />
-                      {f}
+                  <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">What&apos;s included</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PRICING.pro.features.map(f => (
+                        <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                          <CheckCircle className="w-3.5 h-3.5 text-[#22c55e] flex-shrink-0" />
+                          {f}
+                        </div>
+                      ))}
                     </div>
-                  ))}
-                </div>
-              </div>
+                  </div>
+
+                  {stripeCustomerId && (
+                    <button
+                      onClick={handleManageBilling}
+                      disabled={portalLoading}
+                      className="flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[var(--surface2)] border border-[var(--border-mid)] text-[var(--text)] text-sm font-medium disabled:opacity-60"
+                    >
+                      <CreditCard className="w-4 h-4" />
+                      {portalLoading ? "Opening..." : "Manage billing"}
+                    </button>
+                  )}
+                </>
+              ) : (
+                <>
+                  <div className="bg-gradient-to-br from-[#0EA5E9]/8 to-[#10B981]/6 border border-[#0EA5E9]/30 rounded-xl p-5">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-8 h-8 rounded-lg bg-[#0EA5E9]/15 border border-[#0EA5E9]/30 flex items-center justify-center">
+                        <Zap className="w-4 h-4 text-[#0EA5E9]" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-bold text-[var(--text)]">Upgrade to Hippo Pro</div>
+                        <div className="text-[11px] text-[var(--text-2)] mt-0.5">
+                          {PRICING.pro.monthlyDisplay}/month, cancel any time
+                        </div>
+                      </div>
+                    </div>
+                    <p className="text-xs text-[var(--text-2)] leading-relaxed mt-3">
+                      {PRICING.pro.description}
+                    </p>
+                    <button
+                      onClick={handleUpgrade}
+                      disabled={checkoutLoading}
+                      className="mt-4 flex items-center gap-2 px-4 py-2.5 rounded-lg bg-[#0EA5E9] text-white text-sm font-semibold disabled:opacity-60"
+                    >
+                      <Zap className="w-4 h-4" />
+                      {checkoutLoading ? "Redirecting..." : `Upgrade to Pro, ${PRICING.pro.monthlyDisplay}/month`}
+                    </button>
+                    {checkoutError && (
+                      <div className="flex items-center gap-2 mt-3 text-xs text-[#f59e0b]">
+                        <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
+                        {checkoutError}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">Pro includes</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PRICING.pro.features.map(f => (
+                        <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                          <CheckCircle className="w-3.5 h-3.5 text-[#22c55e] flex-shrink-0" />
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">Free plan includes</p>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {PRICING.free.features.map(f => (
+                        <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
+                          <CheckCircle className="w-3.5 h-3.5 text-[#71717a] flex-shrink-0" />
+                          {f}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           )}
 

@@ -1,17 +1,71 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
 /**
  * Stripe webhook handler.
  *
  * Events handled:
- *   checkout.session.completed    → mark user as Pro
- *   customer.subscription.updated → sync status changes
- *   customer.subscription.deleted → downgrade to free
- *   invoice.payment_failed        → mark past_due
+ *   checkout.session.completed     → mark the Profile as Pro (or lifetime)
+ *   customer.subscription.updated  → sync status / period / cancel flag
+ *   customer.subscription.deleted  → downgrade to free
+ *   invoice.payment_failed         → mark past_due
  *
- * In production: persist these to DB via Prisma.
- * In MVP: events are logged; client reads from localStorage.
+ * This is the ONLY writer of Profile.tier / subscriptionStatus /
+ * stripeCustomerId / stripeSubscriptionId / currentPeriodEnd /
+ * cancelAtPeriodEnd. The client only ever reads these through
+ * /api/subscription.
  */
+
+async function findProfileUserId(
+  stripe: import('stripe').Stripe,
+  session: import('stripe').Stripe.Checkout.Session
+): Promise<string | null> {
+  // 1) metadata.userId (set by our own checkout route)
+  const metaUserId = session.metadata?.userId;
+  if (metaUserId) {
+    const profile = await db.profile.findUnique({ where: { userId: metaUserId }, select: { userId: true } });
+    if (profile) return profile.userId;
+  }
+
+  // 2) client_reference_id (also set by our checkout route, belt and suspenders)
+  if (session.client_reference_id) {
+    const profile = await db.profile.findUnique({
+      where: { userId: session.client_reference_id },
+      select: { userId: true },
+    });
+    if (profile) return profile.userId;
+  }
+
+  // 3) customer email, case-insensitive
+  let email = session.customer_email ?? session.customer_details?.email ?? null;
+  if (!email && typeof session.customer === 'string') {
+    try {
+      const customer = await stripe.customers.retrieve(session.customer);
+      if (customer && !('deleted' in customer)) email = customer.email ?? null;
+    } catch {
+      // ignore — fall through with no email
+    }
+  }
+  if (email) {
+    const user = await db.user.findFirst({
+      where: { email: { equals: email, mode: 'insensitive' } },
+      select: { id: true },
+    });
+    if (user) return user.id;
+  }
+
+  return null;
+}
+
+async function findProfileBySubscription(subscriptionId: string, customerId: string | null) {
+  const bySub = await db.profile.findFirst({ where: { stripeSubscriptionId: subscriptionId } });
+  if (bySub) return bySub;
+  if (customerId) {
+    return db.profile.findFirst({ where: { stripeCustomerId: customerId } });
+  }
+  return null;
+}
+
 export async function POST(req: NextRequest) {
   const stripeSecret = process.env.STRIPE_SECRET_KEY;
   const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
@@ -38,36 +92,110 @@ export async function POST(req: NextRequest) {
     switch (event.type) {
       case 'checkout.session.completed': {
         const session = event.data.object as import('stripe').Stripe.Checkout.Session;
-        console.log('✅ Checkout completed:', session.id);
-        // TODO (production): find user by session.customer_email,
-        // update DB: { tier: 'pro', stripeCustomerId: session.customer, stripeSubscriptionId: session.subscription }
+        const userId = await findProfileUserId(stripe, session);
+
+        if (!userId) {
+          console.error('checkout.session.completed: no matching Profile for session', session.id);
+          break;
+        }
+
+        const customerId = typeof session.customer === 'string' ? session.customer : null;
+        const isLifetime = session.mode === 'payment';
+
+        await db.profile.update({
+          where: { userId },
+          data: isLifetime
+            ? {
+                tier: 'pro',
+                subscriptionStatus: 'lifetime',
+                stripeCustomerId: customerId,
+                stripeSubscriptionId: null,
+                cancelAtPeriodEnd: false,
+              }
+            : {
+                tier: 'pro',
+                subscriptionStatus: 'active',
+                stripeCustomerId: customerId,
+                stripeSubscriptionId:
+                  typeof session.subscription === 'string' ? session.subscription : null,
+              },
+        });
         break;
       }
 
       case 'customer.subscription.updated': {
         const sub = event.data.object as import('stripe').Stripe.Subscription;
-        console.log('🔄 Subscription updated:', sub.id, sub.status);
-        // TODO (production): update user subscription status in DB
+        const customerId = typeof sub.customer === 'string' ? sub.customer : null;
+        const profile = await findProfileBySubscription(sub.id, customerId);
+
+        if (!profile) {
+          console.error('customer.subscription.updated: no matching Profile for subscription', sub.id);
+          break;
+        }
+
+        const currentPeriodEndUnix = (sub as unknown as { current_period_end?: number }).current_period_end;
+
+        await db.profile.update({
+          where: { userId: profile.userId },
+          data: {
+            subscriptionStatus: sub.status,
+            currentPeriodEnd: currentPeriodEndUnix ? new Date(currentPeriodEndUnix * 1000) : null,
+            cancelAtPeriodEnd: sub.cancel_at_period_end,
+            stripeSubscriptionId: sub.id,
+            stripeCustomerId: customerId ?? profile.stripeCustomerId,
+          },
+        });
         break;
       }
 
       case 'customer.subscription.deleted': {
         const sub = event.data.object as import('stripe').Stripe.Subscription;
-        console.log('❌ Subscription canceled:', sub.id);
-        // TODO (production): downgrade user to free in DB
+        const customerId = typeof sub.customer === 'string' ? sub.customer : null;
+        const profile = await findProfileBySubscription(sub.id, customerId);
+
+        if (!profile) {
+          console.error('customer.subscription.deleted: no matching Profile for subscription', sub.id);
+          break;
+        }
+
+        await db.profile.update({
+          where: { userId: profile.userId },
+          data: {
+            tier: 'free',
+            subscriptionStatus: 'canceled',
+            cancelAtPeriodEnd: false,
+          },
+        });
         break;
       }
 
       case 'invoice.payment_failed': {
         const invoice = event.data.object as import('stripe').Stripe.Invoice;
-        console.log('💳 Payment failed for customer:', invoice.customer);
-        // TODO (production): send payment failed email, mark past_due
+        const subscriptionId =
+          typeof invoice.subscription === 'string' ? invoice.subscription : null;
+        const customerId = typeof invoice.customer === 'string' ? invoice.customer : null;
+
+        const profile = subscriptionId
+          ? await findProfileBySubscription(subscriptionId, customerId)
+          : customerId
+            ? await db.profile.findFirst({ where: { stripeCustomerId: customerId } })
+            : null;
+
+        if (!profile) {
+          console.error('invoice.payment_failed: no matching Profile for invoice', invoice.id);
+          break;
+        }
+
+        await db.profile.update({
+          where: { userId: profile.userId },
+          data: { subscriptionStatus: 'past_due' },
+        });
         break;
       }
 
       case 'invoice.payment_succeeded': {
         const invoice = event.data.object as import('stripe').Stripe.Invoice;
-        console.log('💰 Payment succeeded:', invoice.id);
+        console.log('Payment succeeded:', invoice.id);
         break;
       }
 
