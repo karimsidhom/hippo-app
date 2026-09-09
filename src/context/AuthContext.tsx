@@ -15,6 +15,7 @@ interface AuthUser {
   id:    string;
   name:  string;
   email: string;
+  image?: string | null;
 }
 
 export interface AuthResult {
@@ -39,6 +40,10 @@ interface AuthContextValue {
   profile:        Profile | null;
   updateProfile:  (updates: Partial<Profile> & { name?: string }) => Promise<void>;
   onboardingDone: boolean;
+  /** Patch the in-memory user object (e.g. after a photo upload/removal)
+   *  without a full profile reload, so the new image shows everywhere
+   *  (TopBar, Sidebar, profile page) immediately. */
+  updateUser: (patch: Partial<AuthUser>) => void;
   // Cases
   cases:      CaseLog[];
   addCase:    (c: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>) => CaseLog;
@@ -177,6 +182,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           // signup and never changes when the user edits their name.
           const dbName = typeof data.user?.name === 'string' ? data.user.name.trim() : '';
           if (dbName) setUser(prev => (prev ? { ...prev, name: dbName } : prev));
+          // Same reasoning as the name sync above: the DB row (not the
+          // auth token) is the source of truth for the profile photo, so
+          // the shell (TopBar / Sidebar avatars) picks up a newly
+          // uploaded/removed photo on the next load without a full logout.
+          const dbImage =
+            typeof data.user?.image === 'string' || data.user?.image === null
+              ? (data.user.image as string | null)
+              : undefined;
+          if (dbImage !== undefined) setUser(prev => (prev ? { ...prev, image: dbImage } : prev));
         } catch (err) {
           console.warn('[AuthContext] profile parse failed:', err);
         }
@@ -366,6 +380,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser(prev => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
   // ── Cases ──────────────────────────────────────────────────────────────────
 
   const addCase = useCallback((
@@ -527,7 +545,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value: AuthContextValue = {
     user, loading,
     register, login, sendPasswordReset, logout,
-    profile, updateProfile, onboardingDone,
+    profile, updateProfile, onboardingDone, updateUser,
     cases, addCase, addCaseAsync, updateCase, deleteCase,
     milestones, addMilestone,
     deleteAccount,

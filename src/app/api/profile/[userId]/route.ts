@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 
+type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
+
 /** GET /api/profile/:userId — public profile for any user */
 export async function GET(
   _req: NextRequest,
@@ -30,6 +32,8 @@ export async function GET(
           trainingYearLabel: true,
           bio: true,
           publicProfile: true,
+          shareCasesWithFriends: true,
+          allowFriendRequests: true,
         },
       },
     },
@@ -51,11 +55,14 @@ export async function GET(
       followingCount: 0,
       isFollowing: false,
       isOwnProfile: false,
+      isFriend: false,
+      friendStatus: "none" as FriendStatus,
+      sharesCases: false,
     });
   }
 
-  // Compute stats
-  const [cases, followerCount, followingCount, isFollowingRow] = await Promise.all([
+  // Compute stats + friend relationship
+  const [cases, followerCount, followingCount, isFollowingRow, friendship, pendingRequest] = await Promise.all([
     db.caseLog.findMany({
       where: { userId },
       select: {
@@ -71,7 +78,57 @@ export async function GET(
     isOwn ? null : db.follow.findUnique({
       where: { followerId_followingId: { followerId: user.id, followingId: userId } },
     }),
+    isOwn ? null : db.friendship.findFirst({
+      where: {
+        OR: [
+          { user1Id: user.id, user2Id: userId },
+          { user1Id: userId, user2Id: user.id },
+        ],
+      },
+    }),
+    isOwn ? null : db.friendRequest.findFirst({
+      where: {
+        status: "PENDING",
+        OR: [
+          { fromUserId: user.id, toUserId: userId },
+          { fromUserId: userId, toUserId: user.id },
+        ],
+      },
+    }),
   ]);
+
+  let friendStatus: FriendStatus = "none";
+  let requestId: string | undefined;
+  let friendshipId: string | undefined;
+  const isFriend = !!friendship;
+
+  if (isFriend && friendship) {
+    friendStatus = "friends";
+    friendshipId = friendship.id;
+  } else if (pendingRequest) {
+    friendStatus = pendingRequest.fromUserId === user.id ? "pending_sent" : "pending_received";
+    requestId = pendingRequest.id;
+  }
+
+  const sharesCases = !!target.profile?.shareCasesWithFriends;
+
+  // Only ever surface PHIA-safe fields here — never notes, never patient data.
+  const sharedCases = (!isOwn && isFriend && sharesCases)
+    ? await db.caseLog.findMany({
+        where: { userId },
+        select: {
+          id: true,
+          procedureName: true,
+          caseDate: true,
+          role: true,
+          autonomyLevel: true,
+          surgicalApproach: true,
+          institutionSite: true,
+        },
+        orderBy: { caseDate: "desc" },
+        take: 30,
+      })
+    : undefined;
 
   // Calculate streak
   let streak = 0;
@@ -130,5 +187,11 @@ export async function GET(
     followingCount,
     isFollowing: !!isFollowingRow,
     isOwnProfile: isOwn,
+    isFriend,
+    friendStatus,
+    requestId,
+    friendshipId,
+    sharesCases,
+    sharedCases,
   });
 }

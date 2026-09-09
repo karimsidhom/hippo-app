@@ -1,14 +1,21 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import {
   Search, UserPlus, Users, UserCheck, ChevronRight,
-  Share2, MessageSquare, Link as LinkIcon, Check, Copy,
+  Share2, MessageSquare, Link as LinkIcon, Check, Copy, X,
 } from "lucide-react";
 import { PostFeed } from "@/components/social/PostFeed";
 import { PostComposer } from "@/components/social/PostComposer";
+import { FriendCard, type FriendSummary } from "@/components/social/FriendCard";
+import type { Profile } from "@/lib/types";
+
+/** Mirrors the `friendStatus` shape returned by /api/social/discover and
+ * /api/profile/:userId — kept local since it isn't part of the shared
+ * Profile/PublicProfile types owned by other files. */
+type FriendStatus = "none" | "pending_sent" | "pending_received" | "friends";
 
 interface DiscoverUser {
   id: string;
@@ -21,6 +28,10 @@ interface DiscoverUser {
   followerCount: number;
   caseCount: number;
   isFollowing: boolean;
+  friendStatus: FriendStatus;
+  requestId?: string;
+  friendshipId?: string;
+  allowFriendRequests: boolean;
 }
 
 interface FollowUser {
@@ -34,6 +45,35 @@ interface FollowUser {
   } | null;
 }
 
+/** A user attached to a pending friend request (either direction). */
+interface RequestUser {
+  id: string;
+  name: string | null;
+  image: string | null;
+  profile?: {
+    specialty: string | null;
+    trainingYearLabel: string | null;
+    institution: string | null;
+    roleType?: string | null;
+  } | null;
+}
+
+interface ReceivedRequest {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  createdAt: string;
+  fromUser: RequestUser;
+}
+
+interface SentRequest {
+  id: string;
+  fromUserId: string;
+  toUserId: string;
+  createdAt: string;
+  toUser: RequestUser;
+}
+
 // Demo storyboard (S9 — Community) shows three primary tabs: Feed,
 // Pearls, Leaderboard. Discover/Following/Followers/Invite remain
 // reachable from the secondary chip strip below the tabs so we don't
@@ -43,13 +83,14 @@ type Tab =
   | "Feed"
   | "Pearls"
   | "Leaderboard"
+  | "Friends"
   | "Discover"
   | "Following"
   | "Followers"
   | "Invite";
 
 export default function SocialPage() {
-  const { user } = useAuth();
+  const { user, profile, updateProfile } = useAuth();
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<Tab>("Feed");
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,6 +105,21 @@ export default function SocialPage() {
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [followingLoading, setFollowingLoading] = useState(false);
   const [followersLoading, setFollowersLoading] = useState(false);
+
+  // Friends state
+  const [friends, setFriends] = useState<FriendSummary[]>([]);
+  const [friendsLoading, setFriendsLoading] = useState(false);
+  const [receivedRequests, setReceivedRequests] = useState<ReceivedRequest[]>([]);
+  const [sentRequests, setSentRequests] = useState<SentRequest[]>([]);
+  const [requestsLoading, setRequestsLoading] = useState(false);
+  const [friendActionError, setFriendActionError] = useState<string | null>(null);
+
+  // The current user's own sharing preferences — read with a local cast
+  // since `shareCasesWithFriends` isn't yet part of the shared Profile
+  // type (owned by another file in this workstream).
+  const shareCasesWithFriends =
+    (profile as unknown as { shareCasesWithFriends?: boolean } | null)?.shareCasesWithFriends ?? false;
+  const isPublicProfile = profile?.publicProfile ?? false;
 
   // Invite state
   const [copied, setCopied] = useState(false);
@@ -89,7 +145,7 @@ export default function SocialPage() {
     try {
       const params = new URLSearchParams();
       if (searchDebounced) params.set("q", searchDebounced);
-      params.set("limit", "30");
+      params.set("limit", "50");
       const res = await fetch(`/api/social/discover?${params}`);
       if (res.ok) setDiscoverUsers(await res.json());
     } catch { /* ignore */ }
@@ -118,17 +174,44 @@ export default function SocialPage() {
     setFollowersLoading(false);
   }, [user?.id]);
 
-  // Load counts on mount (for stats strip)
+  // Fetch friends list
+  const fetchFriends = useCallback(async () => {
+    setFriendsLoading(true);
+    try {
+      const res = await fetch("/api/social/friends");
+      if (res.ok) setFriends(await res.json());
+    } catch { /* ignore */ }
+    setFriendsLoading(false);
+  }, []);
+
+  // Fetch incoming + outgoing friend requests
+  const fetchRequests = useCallback(async () => {
+    setRequestsLoading(true);
+    try {
+      const res = await fetch("/api/social/requests");
+      if (res.ok) {
+        const data = await res.json();
+        setReceivedRequests(data.received || []);
+        setSentRequests(data.sent || []);
+      }
+    } catch { /* ignore */ }
+    setRequestsLoading(false);
+  }, []);
+
+  // Load counts on mount (for stats strip + Friends badge)
   useEffect(() => {
     fetchFollowing();
     fetchFollowers();
-  }, [fetchFollowing, fetchFollowers]);
+    fetchFriends();
+    fetchRequests();
+  }, [fetchFollowing, fetchFollowers, fetchFriends, fetchRequests]);
 
   useEffect(() => {
     if (activeTab === "Discover") fetchDiscover();
     if (activeTab === "Following") fetchFollowing();
     if (activeTab === "Followers") fetchFollowers();
-  }, [activeTab, fetchDiscover, fetchFollowing, fetchFollowers]);
+    if (activeTab === "Friends") { fetchFriends(); fetchRequests(); }
+  }, [activeTab, fetchDiscover, fetchFollowing, fetchFollowers, fetchFriends, fetchRequests]);
 
   // Follow/unfollow handler
   const handleFollow = async (targetId: string, currentlyFollowing: boolean) => {
@@ -149,6 +232,99 @@ export default function SocialPage() {
       // Always refresh following/followers after a follow/unfollow action
       fetchFollowing();
       fetchFollowers();
+    } catch { /* ignore */ }
+  };
+
+  // Send a friend request from a Discover row.
+  const handleSendFriendRequest = async (targetId: string) => {
+    setFriendActionError(null);
+    try {
+      const res = await fetch("/api/social/requests", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ toUserId: targetId }),
+      });
+      if (res.ok) {
+        const created = await res.json();
+        setDiscoverUsers((prev) => prev.map((u) =>
+          u.id === targetId ? { ...u, friendStatus: "pending_sent", requestId: created.id } : u
+        ));
+        fetchRequests();
+      } else {
+        const body = await res.json().catch(() => ({}));
+        setFriendActionError(body?.error || "Could not send that friend request.");
+      }
+    } catch {
+      setFriendActionError("Could not send that friend request.");
+    }
+  };
+
+  // Cancel a pending request I sent — usable from Discover or the Friends tab.
+  const handleCancelRequest = async (requestId: string, targetId?: string) => {
+    try {
+      const res = await fetch("/api/social/requests", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId }),
+      });
+      if (res.ok) {
+        if (targetId) {
+          setDiscoverUsers((prev) => prev.map((u) =>
+            u.id === targetId ? { ...u, friendStatus: "none", requestId: undefined } : u
+          ));
+        }
+        setSentRequests((prev) => prev.filter((r) => r.id !== requestId));
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Accept or decline a request I received — usable from Discover or the Friends tab.
+  const handleRespondToRequest = async (requestId: string, action: "ACCEPT" | "REJECT", targetId?: string) => {
+    try {
+      const res = await fetch("/api/social/requests", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ requestId, action }),
+      });
+      if (res.ok) {
+        setReceivedRequests((prev) => prev.filter((r) => r.id !== requestId));
+        if (action === "ACCEPT") {
+          if (targetId) {
+            setDiscoverUsers((prev) => prev.map((u) =>
+              u.id === targetId ? { ...u, friendStatus: "friends", requestId: undefined } : u
+            ));
+          }
+          fetchFriends();
+        }
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Unfriend from the Friends tab.
+  const handleUnfriend = async (friendshipId: string) => {
+    try {
+      const res = await fetch(`/api/social/friends/${friendshipId}`, { method: "DELETE" });
+      if (res.ok) {
+        setFriends((prev) => prev.filter((f) => f.friendshipId !== friendshipId));
+        fetchDiscover();
+      }
+    } catch { /* ignore */ }
+  };
+
+  // Toggle "share my cases with friends" — persisted via updateProfile.
+  // `shareCasesWithFriends` isn't yet part of the shared Profile type
+  // (owned by another file in this workstream), so the patch is cast
+  // through `unknown` rather than widening that type here.
+  const handleToggleShareCases = async () => {
+    try {
+      const patch = { shareCasesWithFriends: !shareCasesWithFriends };
+      await updateProfile(patch as unknown as Partial<Profile>);
+    } catch { /* ignore */ }
+  };
+
+  const handleTogglePublicProfile = async () => {
+    try {
+      await updateProfile({ publicProfile: !isPublicProfile });
     } catch { /* ignore */ }
   };
 
@@ -194,8 +370,10 @@ export default function SocialPage() {
     { key: "Leaderboard", label: "Leaderboard" },
   ];
   // Secondary chips — preserve the existing functionality without
-  // crowding the primary nav.
+  // crowding the primary nav. Friends comes first since it's the main
+  // way to add colleagues and decide whether to share cases with them.
   const SECONDARY_CHIPS: { key: Tab; label: string }[] = [
+    { key: "Friends", label: "Friends" },
     { key: "Discover", label: "Discover" },
     { key: "Following", label: "Following" },
     { key: "Followers", label: "Followers" },
@@ -216,7 +394,7 @@ export default function SocialPage() {
 
       {/* Stats strip */}
       <div style={{
-        display: "grid", gridTemplateColumns: "1fr 1fr",
+        display: "grid", gridTemplateColumns: "1fr 1fr 1fr",
         gap: 8, marginBottom: 20,
       }}>
         <button
@@ -247,6 +425,21 @@ export default function SocialPage() {
           </div>
           <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
             Followers
+          </div>
+        </button>
+        <button
+          onClick={() => setActiveTab("Friends")}
+          style={{
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 10, padding: "12px 14px", textAlign: "center",
+            cursor: "pointer", transition: "border-color .15s",
+          }}
+        >
+          <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+            {friends.length || 0}
+          </div>
+          <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".7px", marginTop: 2 }}>
+            Friends
           </div>
         </button>
       </div>
@@ -285,11 +478,13 @@ export default function SocialPage() {
       >
         {SECONDARY_CHIPS.map(({ key, label }) => {
           const active = activeTab === key;
+          const badgeCount = key === "Friends" ? receivedRequests.length : 0;
           return (
             <button
               key={key}
               onClick={() => setActiveTab(key)}
               style={{
+                display: "inline-flex", alignItems: "center", gap: 5,
                 padding: "6px 12px",
                 fontSize: 11,
                 fontWeight: 500,
@@ -303,6 +498,17 @@ export default function SocialPage() {
               }}
             >
               {label}
+              {badgeCount > 0 && (
+                <span style={{
+                  display: "inline-flex", alignItems: "center", justifyContent: "center",
+                  minWidth: 15, height: 15, padding: "0 4px",
+                  background: "var(--primary)", color: "#fff",
+                  borderRadius: 99, fontSize: 9, fontWeight: 700,
+                  fontFamily: "'Geist Mono', monospace",
+                }}>
+                  {badgeCount}
+                </span>
+              )}
             </button>
           );
         })}
@@ -430,6 +636,173 @@ export default function SocialPage() {
         onPublished={() => { setComposerOpen(false); setFeedBump(b => b + 1); }}
       />
 
+      {/* ═══ Friends Tab ═══ */}
+      {activeTab === "Friends" && (
+        <div>
+          {/* Share cases toggle */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "14px", marginBottom: 10,
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: 12,
+          }}>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                Share my cases with friends
+              </div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 3, lineHeight: 1.5 }}>
+                Friends can see your recent cases (procedure, date, role). Notes and patient details are never shared.
+              </div>
+            </div>
+            <ToggleSwitch checked={shareCasesWithFriends} onClick={handleToggleShareCases} />
+          </div>
+
+          {/* Public profile nudge — only shown if the user is currently private */}
+          {!isPublicProfile && (
+            <div style={{
+              display: "flex", alignItems: "center", gap: 12,
+              padding: "12px 14px", marginBottom: 16,
+              background: "var(--surface2)", border: "1px solid var(--border)",
+              borderRadius: 10,
+            }}>
+              <div style={{ flex: 1, minWidth: 0, fontSize: 11, color: "var(--text-3)", lineHeight: 1.5 }}>
+                Your profile is private, so colleagues can&apos;t find you in Discover. Make it public to be found and add friends.
+              </div>
+              <ToggleSwitch checked={isPublicProfile} onClick={handleTogglePublicProfile} />
+            </div>
+          )}
+
+          {friendActionError && (
+            <div style={{
+              padding: "10px 14px", marginBottom: 14,
+              background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.25)",
+              borderRadius: 10, fontSize: 12, color: "#ef4444",
+            }}>
+              {friendActionError}
+            </div>
+          )}
+
+          {/* Incoming requests */}
+          {receivedRequests.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6,
+              }}>
+                Requests ({receivedRequests.length})
+              </div>
+              {receivedRequests.map((r) => (
+                <RequestRow
+                  key={r.id}
+                  user={r.fromUser}
+                  router={router}
+                  actions={
+                    <>
+                      <button
+                        onClick={() => handleRespondToRequest(r.id, "ACCEPT", r.fromUserId)}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          padding: "6px 10px", background: "var(--primary)",
+                          border: "1px solid var(--primary)", color: "#fff",
+                          borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                        }}
+                      >
+                        <Check size={12} /> Accept
+                      </button>
+                      <button
+                        onClick={() => handleRespondToRequest(r.id, "REJECT")}
+                        style={{
+                          display: "flex", alignItems: "center", gap: 4,
+                          padding: "6px 10px", background: "none",
+                          border: "1px solid var(--border-mid)", color: "var(--text-3)",
+                          borderRadius: 8, fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                        }}
+                      >
+                        <X size={12} /> Decline
+                      </button>
+                    </>
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Sent requests */}
+          {sentRequests.length > 0 && (
+            <div style={{ marginBottom: 20 }}>
+              <div style={{
+                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6,
+              }}>
+                Sent ({sentRequests.length})
+              </div>
+              {sentRequests.map((r) => (
+                <RequestRow
+                  key={r.id}
+                  user={r.toUser}
+                  router={router}
+                  actions={
+                    <button
+                      onClick={() => handleCancelRequest(r.id, r.toUserId)}
+                      style={{
+                        padding: "6px 10px", background: "none",
+                        border: "1px solid var(--border-mid)", color: "var(--text-3)",
+                        borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {/* Friends list */}
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 8,
+          }}>
+            Friends ({friends.length})
+          </div>
+          {friendsLoading ? (
+            <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>Loading...</div>
+          ) : friends.length === 0 ? (
+            <div style={{ textAlign: "center", padding: 40 }}>
+              <Users size={24} color="var(--text-3)" style={{ margin: "0 auto 8px" }} />
+              <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", marginBottom: 4 }}>
+                No friends yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
+                Add colleagues from Discover to build your circle and decide what to share.
+              </div>
+              <button
+                onClick={() => setActiveTab("Discover")}
+                style={{
+                  padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                  border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
+                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                }}
+              >
+                Discover colleagues
+              </button>
+            </div>
+          ) : (
+            friends.map((f) => (
+              <FriendCard
+                key={f.friendshipId}
+                friend={f}
+                onOpen={(id) => router.push(`/profile/${id}`)}
+                onUnfriend={handleUnfriend}
+              />
+            ))
+          )}
+        </div>
+      )}
+
       {/* ═══ Discover Tab ═══ */}
       {activeTab === "Discover" && (
         <div>
@@ -531,26 +904,79 @@ export default function SocialPage() {
                   </div>
                 </div>
 
-                {/* Follow button */}
-                <button
-                  onClick={() => handleFollow(u.id, u.isFollowing)}
-                  style={{
-                    display: "flex", alignItems: "center", gap: 4,
-                    padding: "6px 12px",
-                    background: u.isFollowing ? "none" : "var(--primary)",
-                    border: u.isFollowing ? "1px solid var(--border-mid)" : "1px solid var(--primary)",
-                    color: u.isFollowing ? "var(--text-3)" : "#fff",
-                    borderRadius: 8, fontSize: 11, fontWeight: 600,
-                    cursor: "pointer", fontFamily: "'Geist', sans-serif",
-                    transition: "all .15s", flexShrink: 0,
-                  }}
-                >
-                  {u.isFollowing ? (
-                    <><UserCheck size={12} /> Following</>
-                  ) : (
-                    <><UserPlus size={12} /> Follow</>
-                  )}
-                </button>
+                {/* Friend action (primary) + Follow (smaller, secondary) */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-end", flexShrink: 0 }}>
+                  {u.friendStatus === "friends" ? (
+                    <span style={{
+                      display: "flex", alignItems: "center", gap: 4,
+                      padding: "6px 12px", background: "none",
+                      border: "1px solid var(--border-mid)", color: "var(--text-2)",
+                      borderRadius: 8, fontSize: 11, fontWeight: 600,
+                      fontFamily: "'Geist', sans-serif",
+                    }}>
+                      <UserCheck size={12} /> Friends
+                    </span>
+                  ) : u.friendStatus === "pending_received" ? (
+                    <button
+                      onClick={() => handleRespondToRequest(u.requestId!, "ACCEPT", u.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        padding: "6px 12px", background: "var(--primary)",
+                        border: "1px solid var(--primary)", color: "#fff",
+                        borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                      }}
+                    >
+                      <UserCheck size={12} /> Accept
+                    </button>
+                  ) : u.friendStatus === "pending_sent" ? (
+                    <button
+                      onClick={() => handleCancelRequest(u.requestId!, u.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        padding: "6px 12px", background: "none",
+                        border: "1px solid var(--border-mid)", color: "var(--text-3)",
+                        borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                      }}
+                    >
+                      Requested
+                    </button>
+                  ) : u.allowFriendRequests ? (
+                    <button
+                      onClick={() => handleSendFriendRequest(u.id)}
+                      style={{
+                        display: "flex", alignItems: "center", gap: 4,
+                        padding: "6px 12px", background: "none",
+                        border: "1px solid var(--primary)", color: "var(--primary)",
+                        borderRadius: 8, fontSize: 11, fontWeight: 600,
+                        cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                      }}
+                    >
+                      <UserPlus size={12} /> Add friend
+                    </button>
+                  ) : null}
+
+                  <button
+                    onClick={() => handleFollow(u.id, u.isFollowing)}
+                    style={{
+                      display: "flex", alignItems: "center", gap: 3,
+                      padding: "3px 8px",
+                      background: "none",
+                      border: "none",
+                      color: "var(--text-3)",
+                      borderRadius: 6, fontSize: 10, fontWeight: 500,
+                      cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                      transition: "all .15s",
+                    }}
+                  >
+                    {u.isFollowing ? (
+                      <><UserCheck size={10} /> Following</>
+                    ) : (
+                      <><UserPlus size={10} /> Follow</>
+                    )}
+                  </button>
+                </div>
               </div>
             ))
           )}
@@ -839,5 +1265,78 @@ function UserRow({ user, router }: { user: FollowUser; router: ReturnType<typeof
       </div>
       <ChevronRight size={14} color="var(--text-3)" />
     </div>
+  );
+}
+
+/** Reusable row for incoming/outgoing friend request lists. */
+function RequestRow({
+  user, actions, router,
+}: {
+  user: RequestUser;
+  actions: ReactNode;
+  router: ReturnType<typeof useRouter>;
+}) {
+  const initials = user.name
+    ? user.name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
+    : "??";
+
+  return (
+    <div style={{
+      display: "flex", alignItems: "center", gap: 12,
+      padding: "10px 0", borderBottom: "1px solid var(--border)",
+    }}>
+      <div onClick={() => router.push(`/profile/${user.id}`)} style={{ cursor: "pointer", flexShrink: 0 }}>
+        {user.image ? (
+          <img
+            src={user.image}
+            alt=""
+            style={{ width: 36, height: 36, borderRadius: 10, objectFit: "cover" }}
+          />
+        ) : (
+          <div style={{
+            width: 36, height: 36, borderRadius: 10,
+            background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            fontSize: 11, fontWeight: 700, color: "#fff",
+            fontFamily: "'Geist', sans-serif",
+          }}>
+            {initials}
+          </div>
+        )}
+      </div>
+      <div onClick={() => router.push(`/profile/${user.id}`)} style={{ flex: 1, minWidth: 0, cursor: "pointer" }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+          {user.name || "Anonymous"}
+        </div>
+        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 1 }}>
+          {[user.profile?.trainingYearLabel, user.profile?.specialty, user.profile?.institution].filter(Boolean).join(" · ")}
+        </div>
+      </div>
+      <div style={{ display: "flex", gap: 6, flexShrink: 0 }}>{actions}</div>
+    </div>
+  );
+}
+
+/** Small pill toggle matching the app's inline-style token design. */
+function ToggleSwitch({ checked, onClick }: { checked: boolean; onClick: () => void }) {
+  return (
+    <button
+      onClick={onClick}
+      aria-pressed={checked}
+      style={{
+        position: "relative", flexShrink: 0,
+        width: 42, height: 24, borderRadius: 99,
+        border: "none", padding: 0, cursor: "pointer",
+        background: checked ? "var(--primary)" : "var(--border-mid)",
+        transition: "background .15s",
+      }}
+    >
+      <span style={{
+        position: "absolute", top: 2, left: checked ? 20 : 2,
+        width: 20, height: 20, borderRadius: "50%",
+        background: "#fff", boxShadow: "0 1px 3px rgba(0,0,0,0.3)",
+        transition: "left .15s",
+      }} />
+    </button>
   );
 }

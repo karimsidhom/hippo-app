@@ -208,7 +208,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
 
       {/* User Info + Logout */}
       <div className={`border-t border-[var(--border)] px-3 py-3 flex items-center gap-3 flex-shrink-0 ${collapsed ? "justify-center flex-col" : ""}`}>
-        <Avatar src={undefined} name={user?.name} size="sm" online />
+        <Avatar src={user?.image} name={user?.name} size="sm" online />
         {!collapsed && (
           <div className="flex-1 min-w-0">
             <p className="text-sm font-medium text-[var(--text)] truncate">

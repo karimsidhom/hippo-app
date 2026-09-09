@@ -1,21 +1,42 @@
 'use client';
 
-import { ArrowLeft, Check, Sparkles } from 'lucide-react';
+import { useState } from 'react';
+import { ArrowLeft, Check, Sparkles, AlertCircle, Zap } from 'lucide-react';
 import Link from 'next/link';
+import { PRICING } from '@/lib/pricing';
+import { useSubscription } from '@/context/SubscriptionContext';
 
 // ---------------------------------------------------------------------------
-// /upgrade — beta mode
+// /upgrade — real Pro pricing page.
 //
-// Hippo is fully free during the beta. This page used to host the Pro
-// pricing + Stripe checkout; we've pulled those out of the user-facing
-// surface intentionally so everyone gets the full feature set while we
-// learn what's valuable enough to charge for later.
-//
-// The route is kept alive so stale links (old emails, saved tabs, OG
-// previews) land on something friendly rather than a 404.
+// Shows Hippo Pro (monthly) and, only when a live Stripe price id is
+// configured for it, a one-time Lifetime option. Both go through
+// startCheckout, which hits /api/stripe/checkout server-side.
 // ---------------------------------------------------------------------------
 
 export default function UpgradePage() {
+  const { isPro, startCheckout } = useSubscription();
+  const [loadingPlan, setLoadingPlan] = useState<'monthly' | 'lifetime' | null>(null);
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
+
+  const hasLifetime = Boolean(PRICING.lifetime.stripePriceId);
+
+  async function handleUpgrade(plan: 'monthly' | 'lifetime') {
+    setCheckoutError(null);
+    setLoadingPlan(plan);
+    try {
+      await startCheckout(plan);
+    } catch (err) {
+      setCheckoutError(
+        err instanceof Error && err.message.toLowerCase().includes('not switched on')
+          ? 'Payments are not switched on yet. Check back soon.'
+          : 'Could not start checkout. Please try again.'
+      );
+    } finally {
+      setLoadingPlan(null);
+    }
+  }
+
   return (
     <div
       style={{
@@ -80,7 +101,7 @@ export default function UpgradePage() {
               marginBottom: 12,
             }}
           >
-            <Sparkles size={11} /> Open beta
+            <Sparkles size={11} /> Hippo Pro
           </div>
           <h1
             style={{
@@ -92,15 +113,125 @@ export default function UpgradePage() {
               marginBottom: 10,
             }}
           >
-            Hippo is completely free right now.
+            {isPro ? 'You are already on Pro.' : 'Unlock everything Hippo can do.'}
           </h1>
           <p style={{ fontSize: 14, lineHeight: 1.55, color: '#94A3B8' }}>
-            No paid tier, no paywalls, no &ldquo;Pro&rdquo; anywhere. Every
-            resident, fellow, attending, and PD gets the full feature set while
-            we&apos;re in beta. You don&apos;t need to do anything — just go
-            use it.
+            {isPro
+              ? 'Manage your plan from Settings, then Subscription.'
+              : PRICING.pro.description}
           </p>
         </div>
+
+        {!isPro && (
+          <>
+            {/* Monthly plan */}
+            <div
+              style={{
+                padding: '18px 20px',
+                borderRadius: 14,
+                border: '1px solid #1f1f23',
+                background: '#111113',
+                marginBottom: 12,
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                <span style={{ fontSize: 26, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
+                  {PRICING.pro.monthlyDisplay}
+                </span>
+                <span style={{ fontSize: 13, color: '#64748B' }}>/month, cancel any time</span>
+              </div>
+              <button
+                onClick={() => handleUpgrade('monthly')}
+                disabled={loadingPlan !== null}
+                style={{
+                  width: '100%',
+                  marginTop: 12,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 8,
+                  padding: '13px 20px',
+                  borderRadius: 10,
+                  background: '#0EA5E9',
+                  color: '#fff',
+                  border: 'none',
+                  fontSize: 14,
+                  fontWeight: 600,
+                  cursor: loadingPlan ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                  opacity: loadingPlan && loadingPlan !== 'monthly' ? 0.6 : 1,
+                }}
+              >
+                <Zap size={14} />
+                {loadingPlan === 'monthly' ? 'Redirecting...' : `Start Pro, ${PRICING.pro.monthlyDisplay}/month`}
+              </button>
+            </div>
+
+            {/* Lifetime plan, only shown once a live price id exists */}
+            {hasLifetime && (
+              <div
+                style={{
+                  padding: '18px 20px',
+                  borderRadius: 14,
+                  border: '1px solid #1f1f23',
+                  background: '#111113',
+                  marginBottom: 12,
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontSize: 26, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
+                    {PRICING.lifetime.oneTimeDisplay}
+                  </span>
+                  <span style={{ fontSize: 13, color: '#64748B' }}>once, {PRICING.lifetime.tagline.toLowerCase()}</span>
+                </div>
+                <button
+                  onClick={() => handleUpgrade('lifetime')}
+                  disabled={loadingPlan !== null}
+                  style={{
+                    width: '100%',
+                    marginTop: 12,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                    padding: '13px 20px',
+                    borderRadius: 10,
+                    background: 'transparent',
+                    color: '#F1F5F9',
+                    border: '1px solid #27272a',
+                    fontSize: 14,
+                    fontWeight: 600,
+                    cursor: loadingPlan ? 'wait' : 'pointer',
+                    fontFamily: 'inherit',
+                    opacity: loadingPlan && loadingPlan !== 'lifetime' ? 0.6 : 1,
+                  }}
+                >
+                  {loadingPlan === 'lifetime' ? 'Redirecting...' : `Lifetime Pro, ${PRICING.lifetime.oneTimeDisplay} once`}
+                </button>
+              </div>
+            )}
+
+            {checkoutError && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 14px',
+                  borderRadius: 10,
+                  background: 'rgba(245,158,11,0.1)',
+                  border: '1px solid rgba(245,158,11,0.25)',
+                  color: '#F59E0B',
+                  fontSize: 13,
+                  marginBottom: 12,
+                }}
+              >
+                <AlertCircle size={14} style={{ flexShrink: 0 }} />
+                {checkoutError}
+              </div>
+            )}
+          </>
+        )}
 
         {/* Feature list */}
         <div
@@ -121,21 +252,10 @@ export default function UpgradePage() {
               marginBottom: 14,
             }}
           >
-            Included for everyone
+            Pro includes
           </div>
           <div style={{ display: 'grid', gap: 10 }}>
-            {[
-              'Unlimited case logging',
-              'All specialties',
-              'Logbook PDF export — interview-ready',
-              'Unlimited AI Brief Me (pre-case coaching)',
-              'AI O-score suggestions for attendings',
-              'Bulk EPA sign-off queue',
-              'Benchmark percentiles & leaderboards',
-              'Excel export (PHIA-safe)',
-              'Social & friends system',
-              'No ads — ever',
-            ].map((f) => (
+            {PRICING.pro.features.map((f) => (
               <div
                 key={f}
                 style={{
@@ -153,21 +273,6 @@ export default function UpgradePage() {
           </div>
         </div>
 
-        {/* Footer note */}
-        <div
-          style={{
-            marginTop: 16,
-            fontSize: 12,
-            color: '#64748B',
-            textAlign: 'center',
-            lineHeight: 1.55,
-          }}
-        >
-          We&apos;ll introduce a paid tier later. You&apos;ll hear about it in
-          the app before anything changes — nothing you rely on today will
-          silently disappear.
-        </div>
-
         <div style={{ marginTop: 22, textAlign: 'center' }}>
           <Link
             href="/dashboard"
@@ -177,14 +282,15 @@ export default function UpgradePage() {
               justifyContent: 'center',
               padding: '12px 22px',
               borderRadius: 10,
-              background: '#0EA5E9',
-              color: '#fff',
+              background: 'transparent',
+              color: '#64748B',
+              border: '1px solid #1f1f23',
               fontSize: 14,
               fontWeight: 600,
               textDecoration: 'none',
             }}
           >
-            Open Hippo →
+            {isPro ? 'Back to dashboard' : 'Not now, take me back'}
           </Link>
         </div>
       </div>

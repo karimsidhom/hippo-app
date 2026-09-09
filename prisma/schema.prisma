@@ -267,6 +267,20 @@ model Profile {
   acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
   tier                          String       @default("free")
 
+  // ── Subscription (Stripe) ────────────────────────────────────────────────
+  // Server-side source of truth for the paid tier. The Stripe webhook writes
+  // these; the client only ever reads them through /api/subscription.
+  stripeCustomerId              String?
+  stripeSubscriptionId          String?
+  subscriptionStatus            String?      // "active" | "trialing" | "past_due" | "canceled" | "comped" | null
+  currentPeriodEnd              DateTime?
+  cancelAtPeriodEnd             Boolean      @default(false)
+
+  // ── Social ───────────────────────────────────────────────────────────────
+  // When true, accepted friends can see this user's recent case list
+  // (procedure, date, role, autonomy — never notes or patient data).
+  shareCasesWithFriends         Boolean      @default(false)
+
   // ── Theme preference (cross-device sync) ─────────────────────────────────
   // Mirrors localStorage["hippo-theme"] but syncs across devices through
   // Supabase. Bootstrap script in <head> still reads localStorage as the

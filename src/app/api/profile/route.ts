@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { stripHonorific } from '@/lib/names';
+import { trainingYearLabelFor } from '@/lib/training-year';
 
 /**
  * GET /api/profile — fetch the current user's profile
@@ -76,6 +77,7 @@ export async function PATCH(req: NextRequest) {
       allowLeaderboardParticipation,
       allowBenchmarkSharing,
       allowWeeklyDigest,
+      shareCasesWithFriends,
       bio,
       onboardingCompleted,
       tier,
@@ -91,6 +93,44 @@ export async function PATCH(req: NextRequest) {
         ? theme
         : undefined;
 
+    // Validate pgyYear — must be a whole number 1..10, or explicitly null
+    // to clear it (e.g. switching to a STAFF role). Anything else (NaN,
+    // strings, floats, out-of-range) is a client bug, not silently coerced.
+    let safePgyYear: number | null | undefined;
+    if (pgyYear === undefined) {
+      safePgyYear = undefined;
+    } else if (pgyYear === null) {
+      safePgyYear = null;
+    } else if (Number.isInteger(pgyYear) && pgyYear >= 1 && pgyYear <= 10) {
+      safePgyYear = pgyYear;
+    } else {
+      return NextResponse.json(
+        { error: 'pgyYear must be a whole number between 1 and 10, or null.' },
+        { status: 400 },
+      );
+    }
+
+    // Root cause of "training year cannot be changed": the label displayed
+    // everywhere (dashboard, PD cohort view, exports, this profile header)
+    // is a separate stored column that was only ever written once at
+    // onboarding. If the caller updates pgyYear but doesn't explicitly send
+    // a trainingYearLabel, derive it here so the two never drift apart
+    // again. roleType comes from the request if present, otherwise from
+    // the existing stored profile (a pgyYear-only edit shouldn't require
+    // resending roleType).
+    let derivedTrainingYearLabel: string | null | undefined;
+    if (safePgyYear !== undefined && trainingYearLabel === undefined) {
+      let effectiveRoleType: string | null | undefined = roleType;
+      if (effectiveRoleType === undefined) {
+        const existing = await db.profile.findUnique({
+          where: { userId: user.id },
+          select: { roleType: true },
+        });
+        effectiveRoleType = existing?.roleType;
+      }
+      derivedTrainingYearLabel = trainingYearLabelFor(effectiveRoleType, safePgyYear);
+    }
+
     const updated = await db.profile.upsert({
       where: { userId: user.id },
       update: {
@@ -100,13 +140,18 @@ export async function PATCH(req: NextRequest) {
         ...(institution !== undefined && { institution }),
         ...(city !== undefined && { city }),
         ...(trainingCountry !== undefined && { trainingCountry }),
-        ...(pgyYear !== undefined && { pgyYear }),
+        ...(safePgyYear !== undefined && { pgyYear: safePgyYear }),
         ...(trainingYearLabel !== undefined && { trainingYearLabel }),
+        ...(trainingYearLabel === undefined &&
+          derivedTrainingYearLabel !== undefined && {
+            trainingYearLabel: derivedTrainingYearLabel,
+          }),
         ...(publicProfile !== undefined && { publicProfile }),
         ...(allowFriendRequests !== undefined && { allowFriendRequests }),
         ...(allowLeaderboardParticipation !== undefined && { allowLeaderboardParticipation }),
         ...(allowBenchmarkSharing !== undefined && { allowBenchmarkSharing }),
         ...(allowWeeklyDigest !== undefined && { allowWeeklyDigest }),
+        ...(shareCasesWithFriends !== undefined && { shareCasesWithFriends }),
         ...(bio !== undefined && { bio }),
         ...(onboardingCompleted !== undefined && { onboardingCompleted }),
         ...(tier !== undefined && { tier }),
@@ -126,13 +171,14 @@ export async function PATCH(req: NextRequest) {
         institution,
         city,
         trainingCountry,
-        pgyYear,
-        trainingYearLabel,
+        pgyYear: safePgyYear,
+        trainingYearLabel: trainingYearLabel !== undefined ? trainingYearLabel : derivedTrainingYearLabel,
         publicProfile,
         allowFriendRequests,
         allowLeaderboardParticipation,
         allowBenchmarkSharing,
         allowWeeklyDigest: allowWeeklyDigest ?? true,
+        shareCasesWithFriends,
         bio,
         onboardingCompleted: onboardingCompleted ?? false,
         tier: tier ?? 'free',

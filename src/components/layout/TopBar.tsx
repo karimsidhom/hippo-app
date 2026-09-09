@@ -101,7 +101,7 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
             onClick={() => { setUserMenuOpen(!userMenuOpen); setNotificationsOpen(false); }}
             className="flex items-center gap-2 p-1.5 rounded-lg hover:bg-[var(--surface2)] transition-colors"
           >
-            <Avatar src={undefined} name={user?.name} size="sm" />
+            <Avatar src={user?.image} name={user?.name} size="sm" />
             <ChevronDown className="w-3 h-3 text-[var(--text-3)] hidden sm:block" />
           </button>
 

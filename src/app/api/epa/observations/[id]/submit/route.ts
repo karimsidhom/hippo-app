@@ -11,6 +11,14 @@ type RouteContext = { params: Promise<{ id: string }> };
 // fact; a 24-hour expiry is incompatible with real residency workflows.
 const TOKEN_TTL_DAYS = 365;
 
+/** What the caller needs to render an honest post-submit confirmation. */
+interface DeliveryInfo {
+  channel: 'in_app' | 'email' | 'none';
+  emailSent: boolean;
+  emailError?: string;
+  reviewUrl?: string;
+}
+
 /**
  * POST /api/epa/observations/[id]/submit
  * Submits an EPA observation for review.
@@ -21,6 +29,11 @@ const TOKEN_TTL_DAYS = 365;
  *   fallback.
  * - If no Hippo user matches → email-only with a 365-day signed link.
  * - If no assessorEmail → status becomes SUBMITTED (no review requested).
+ *
+ * Delivery is always reported truthfully in `delivery.emailSent` — the email
+ * send is awaited (Resend's own domain-verification failures land here), and
+ * the observation stays PENDING_REVIEW either way since the review link
+ * itself keeps working even when the email never arrived.
  */
 export async function POST(req: NextRequest, context: RouteContext) {
   const { user, error } = await requireAuth();
@@ -63,7 +76,8 @@ export async function POST(req: NextRequest, context: RouteContext) {
       });
 
       const expiresAt = new Date(Date.now() + TOKEN_TTL_DAYS * 24 * 60 * 60 * 1000);
-      const channel = attendingUser ? 'in_app' : 'email';
+      const isHippoUser = Boolean(attendingUser);
+      const channel: 'in_app' | 'email' = isHippoUser ? 'in_app' : 'email';
 
       const [updated, notification] = await db.$transaction([
         db.epaObservation.update({
@@ -99,18 +113,35 @@ export async function POST(req: NextRequest, context: RouteContext) {
           ? new Date(linkedCase.caseDate).toLocaleDateString('en-CA')
           : new Date(observation.observationDate).toLocaleDateString('en-CA'),
         reviewUrl,
-        inAppUrl: attendingUser ? inAppUrl : undefined,
-        isHippoUser: Boolean(attendingUser),
+        inAppUrl: isHippoUser ? inAppUrl : undefined,
+        isHippoUser,
       });
 
-      sendEmail({
+      // Awaited on purpose — Resend's domain-verification rejections land
+      // here, and the resident needs to know about them before they walk
+      // away believing their attending was notified.
+      const emailResult = await sendEmail({
         to: observation.assessorEmail,
         subject: emailData.subject,
         html: emailData.html,
         text: emailData.text,
-      }).catch((err) => {
-        console.error('[submit] Email send failed (non-fatal):', err);
       });
+
+      // `attending_notifications.sentAt` is NOT NULL with a DB default of
+      // now() (prisma/schema.prisma — out of scope for this change), so a
+      // failed send can't be represented as sentAt = null. Instead, a failed
+      // email-only send is recorded as channel "email_failed" so the
+      // review-link/remind endpoints (and any future reporting) can tell a
+      // real send apart from one Resend silently swallowed. In-app delivery
+      // is unaffected by the fallback email's outcome.
+      if (!isHippoUser && !emailResult.ok) {
+        await db.attendingNotification.update({
+          where: { id: notification.id },
+          data: { channel: 'email_failed' },
+        }).catch((err) => {
+          console.warn('[submit] failed to mark notification channel as email_failed:', err);
+        });
+      }
 
       // In-app notification for the attending — only when they have a
       // Hippo account. Non-users are notified via the email above.
@@ -133,11 +164,22 @@ export async function POST(req: NextRequest, context: RouteContext) {
         metadata: {
           transition: 'DRAFT→PENDING_REVIEW',
           channel,
-          attendingIsHippoUser: Boolean(attendingUser),
+          attendingIsHippoUser: isHippoUser,
           assessorUserId: attendingUser?.id ?? null,
+          emailSent: emailResult.ok,
+          emailError: emailResult.ok ? undefined : emailResult.reason,
         },
         req,
       });
+
+      const delivery: DeliveryInfo = {
+        channel,
+        emailSent: emailResult.ok,
+        emailError: emailResult.ok ? undefined : emailResult.reason,
+        // The resident owns this observation, so they may see their own
+        // link — always included whenever a notification/token exists.
+        reviewUrl,
+      };
 
       return NextResponse.json({
         ...updated,
@@ -148,8 +190,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
           reviewUrl,
           channel,
           expiresAt,
-          inAppDelivered: Boolean(attendingUser),
+          inAppDelivered: isHippoUser,
         },
+        delivery,
       });
     }
 
@@ -158,7 +201,9 @@ export async function POST(req: NextRequest, context: RouteContext) {
       data: { status: 'SUBMITTED' },
     });
 
-    return NextResponse.json(updated);
+    const delivery: DeliveryInfo = { channel: 'none', emailSent: false };
+
+    return NextResponse.json({ ...updated, delivery });
   } catch (err) {
     console.error('[POST /api/epa/observations/[id]/submit]', err);
     return NextResponse.json({ error: 'Failed to submit observation' }, { status: 500 });

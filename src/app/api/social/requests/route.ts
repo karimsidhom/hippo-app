@@ -5,14 +5,15 @@ import { db } from '@/lib/db';
 /**
  * GET /api/social/requests
  *
- * Returns pending friend requests RECEIVED by the current user,
- * plus a count of pending requests SENT by the current user.
+ * Returns pending friend requests RECEIVED by the current user, pending
+ * requests SENT by the current user (so the UI can offer a Cancel
+ * action), and a count of those sent requests.
  */
 export async function GET() {
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  const [received, sentCount] = await Promise.all([
+  const [received, sent] = await Promise.all([
     db.friendRequest.findMany({
       where: { toUserId: user.id, status: 'PENDING' },
       include: {
@@ -25,12 +26,21 @@ export async function GET() {
       },
       orderBy: { createdAt: 'desc' },
     }),
-    db.friendRequest.count({
+    db.friendRequest.findMany({
       where: { fromUserId: user.id, status: 'PENDING' },
+      include: {
+        toUser: {
+          select: {
+            id: true, name: true, image: true,
+            profile: { select: { specialty: true, trainingYearLabel: true, institution: true, roleType: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
     }),
   ]);
 
-  return NextResponse.json({ received, sentCount });
+  return NextResponse.json({ received, sent, sentCount: sent.length });
 }
 
 /**
@@ -49,6 +59,18 @@ export async function POST(req: NextRequest) {
   }
   if (toUserId === user.id) {
     return NextResponse.json({ error: 'Cannot send a friend request to yourself' }, { status: 400 });
+  }
+
+  // Respect the target's "allow friend requests" preference
+  const targetProfile = await db.profile.findUnique({
+    where: { userId: toUserId },
+    select: { allowFriendRequests: true },
+  });
+  if (targetProfile && !targetProfile.allowFriendRequests) {
+    return NextResponse.json(
+      { error: 'This user is not accepting friend requests right now' },
+      { status: 403 }
+    );
   }
 
   // Check if already friends

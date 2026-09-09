@@ -9,6 +9,7 @@ import { CelebrationModal } from "@/components/shared/CelebrationModal";
 import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
+import { EpaDeliveryConfirmation, type EpaDeliveryInfo } from "@/components/epa/EpaDeliveryConfirmation";
 import { PostComposer } from "@/components/social/PostComposer";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES } from "@/lib/constants";
@@ -20,7 +21,7 @@ import type {
   ComplicationCategory, AgeBin, Milestone, PersonalRecord,
   EpaSuggestion, EpaObservationInput,
 } from "@/lib/types";
-import { X, Check } from "lucide-react";
+import { X, Check, AlertTriangle } from "lucide-react";
 import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
 import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
 import { OprsObservationForm } from "@/components/smsna/OprsObservationForm";
@@ -81,6 +82,12 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [savedAttending, setSavedAttending] = useState("");
   const [savedCaseDate, setSavedCaseDate] = useState<Date>(new Date());
   const [shareAsPearl, setShareAsPearl] = useState(false);
+  // Inline error shown inside the EPA/OPRS form on a failed create/submit —
+  // previously console-only, so a resident could get a 400 and never know.
+  const [epaSubmitError, setEpaSubmitError] = useState<string | null>(null);
+  // Post-submit delivery confirmation. Closing the modal is deferred until
+  // this is dismissed so the resident actually sees who was notified.
+  const [epaDelivery, setEpaDelivery] = useState<{ info: EpaDeliveryInfo; assessorName: string } | null>(null);
 
   // SMSNA fellows never see EPA suggestions — they go straight to the OPRS form.
   const [showOprs, setShowOprs] = useState(false);
@@ -250,6 +257,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
   /** Handle user selecting an EPA suggestion */
   const handleEpaSelect = (suggestion: EpaSuggestion) => {
+    setEpaSubmitError(null);
     setSelectedEpaSuggestion(suggestion);
     setShowEpaSuggestions(false);
   };
@@ -264,6 +272,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
 
   /** Handle EPA observation form submission */
   const handleEpaObservationSubmit = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
     try {
       const createRes = await fetch("/api/epa/observations", {
         method: "POST",
@@ -276,26 +285,43 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             : data.observationDate,
         }),
       });
-      if (!createRes.ok) throw new Error("Failed to create observation");
-      const observation = await createRes.json();
+      const createBody = await createRes.json().catch(() => null);
+      if (!createRes.ok) {
+        throw new Error(createBody?.error ?? "Failed to create observation");
+      }
+      const observation = createBody;
 
       // Submit the observation
-      await fetch(`/api/epa/observations/${observation.id}/submit`, {
+      const submitRes = await fetch(`/api/epa/observations/${observation.id}/submit`, {
         method: "POST",
         credentials: "include",
       });
+      const submitBody = await submitRes.json().catch(() => null);
+      if (!submitRes.ok) {
+        throw new Error(submitBody?.error ?? "Failed to submit observation");
+      }
+
+      // Hold the modal open (as the delivery-confirmation portal) so the
+      // resident sees who was notified and how — full close/reset happens
+      // once they dismiss it.
+      setSelectedEpaSuggestion(null);
+      setEpaDelivery({
+        info: submitBody?.delivery ?? { channel: "none", emailSent: false },
+        assessorName: data.assessorName,
+      });
     } catch (err) {
       console.error("EPA observation submit failed:", err);
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to submit observation. Please try again.",
+      );
     }
-    setSelectedEpaSuggestion(null);
-    onClose();
-    resetForm();
   };
 
   /** Handle EPA observation save as draft */
   const handleEpaObservationDraft = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
     try {
-      await fetch("/api/epa/observations", {
+      const res = await fetch("/api/epa/observations", {
         method: "POST",
         credentials: "include",
         headers: { "content-type": "application/json" },
@@ -306,10 +332,24 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             : data.observationDate,
         }),
       });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Failed to save draft");
+      }
+      setSelectedEpaSuggestion(null);
+      onClose();
+      resetForm();
     } catch (err) {
       console.error("EPA observation draft save failed:", err);
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to save draft. Please try again.",
+      );
     }
-    setSelectedEpaSuggestion(null);
+  };
+
+  /** Dismiss the delivery confirmation and finish closing the modal. */
+  const finishAfterEpaDelivery = () => {
+    setEpaDelivery(null);
     onClose();
     resetForm();
   };
@@ -345,9 +385,25 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     setSavedCaseDate(new Date());
     setShareAsPearl(false);
     setShowOprs(false);
+    setEpaSubmitError(null);
+    setEpaDelivery(null);
   };
 
-  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl && !showOprs) return null;
+  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl && !showOprs && !epaDelivery) return null;
+
+  // ── Post-submit delivery confirmation ──
+  // Rendered on its own so the resident sees who was actually notified even
+  // after the case form itself has gone away. The toast self-positions.
+  if (epaDelivery && portalRoot) {
+    return createPortal(
+      <EpaDeliveryConfirmation
+        delivery={epaDelivery.info}
+        assessorName={epaDelivery.assessorName}
+        onClose={finishAfterEpaDelivery}
+      />,
+      portalRoot,
+    );
+  }
 
   // ── PostComposer (Share as pearl from the Next-steps banner) ──
   if (shareAsPearl && portalRoot) {
@@ -435,6 +491,27 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
             onCancel={() => { setSelectedEpaSuggestion(null); onClose(); resetForm(); }}
             onSaveDraft={handleEpaObservationDraft}
           />
+          {epaSubmitError && (
+            <div
+              role="alert"
+              style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 8,
+                margin: "0 20px 20px",
+                padding: "10px 12px",
+                background: "rgba(239,68,68,0.08)",
+                border: "1px solid rgba(239,68,68,0.25)",
+                borderRadius: 8,
+                fontSize: 12,
+                lineHeight: 1.5,
+                color: "#fca5a5",
+              }}
+            >
+              <AlertTriangle size={14} style={{ flexShrink: 0, marginTop: 1 }} />
+              <span style={{ flex: 1 }}>{epaSubmitError}</span>
+            </div>
+          )}
         </div>
       </div>,
       portalRoot,
