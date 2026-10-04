@@ -367,7 +367,7 @@ export function EpaObservationForm({
               Send for sign-off
             </div>
             <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
-              Optional \u2014 you can also request later
+              Optional. You can also request later.
             </span>
           </div>
 
@@ -534,7 +534,7 @@ export function EpaObservationForm({
                     ? <>Checking{"\u2026"}</>
                     : assessorLookup?.isHippoUser
                       ? <><span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"}</span>{" "}This email matches a Hippo user \u2014 we\u2019ll route as in-app + email backup.</>
-                      : <>We\u2019ll email a secure sign-off link valid for 12 months. No login needed.</>
+                      : <>We’ll email a secure sign-off link valid for 12 months. No login needed.</>
                   }
                 </div>
               )}

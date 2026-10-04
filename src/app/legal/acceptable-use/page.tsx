@@ -1,4 +1,4 @@
-export const metadata = { title: "Acceptable Use Policy · Hippo" };
+export const metadata = { title: "Acceptable Use Policy" };
 
 export default function AcceptableUsePage() {
   return (

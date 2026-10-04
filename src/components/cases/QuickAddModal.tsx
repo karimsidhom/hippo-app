@@ -220,11 +220,6 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
           });
           if (res.ok) {
             const json = await res.json();
-            console.log('[QuickAdd EPA] ai-suggest response:', {
-              suggestionCount: Array.isArray(json.suggestions) ? json.suggestions.length : 0,
-              note: json.note,
-              diagnostics: json.diagnostics,
-            });
             setEpaSuggestions(Array.isArray(json.suggestions) ? json.suggestions : []);
             setEpaNote(typeof json.note === "string" ? json.note : null);
           } else {

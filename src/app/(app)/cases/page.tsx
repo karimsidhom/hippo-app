@@ -11,6 +11,8 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
+import { useUser } from "@/hooks/useUser";
+import { inferUserSpecialty, resolveCaseSection, SPECIALTY_SECTIONS, OFF_SERVICE, OTHER } from "@/lib/subspecialty";
 // NOTE: import directly from the operative builder + learn module rather
 // than the @/lib/dictation barrel. The barrel re-exports the revision
 // engine (revise.ts → llm.ts) which has no business in a client bundle.
@@ -729,6 +731,23 @@ export default function CasesPage() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [pdfPaywall, setPdfPaywall] = useState(false);
   const { isPro } = useSubscription();
+  const { profile } = useUser();
+
+  // Subspecialty filter: Stats > By subspecialty links here with ?section=.
+  // Read once on mount (no useSearchParams, so no Suspense boundary needed).
+  const [section, setSection] = useState<string | null>(null);
+  useEffect(() => {
+    const wanted = new URLSearchParams(window.location.search).get("section");
+    if (wanted) setSection(wanted);
+  }, []);
+  const userSpecialty = useMemo(() => inferUserSpecialty(profile?.specialty, cases), [profile?.specialty, cases]);
+  const sectionLabel = section
+    ? [...(userSpecialty ? SPECIALTY_SECTIONS[userSpecialty] ?? [] : []), OFF_SERVICE, OTHER].find(x => x.key === section)?.label ?? null
+    : null;
+  const clearSection = () => {
+    setSection(null);
+    window.history.replaceState(null, "", window.location.pathname);
+  };
 
   const years = useMemo(() => {
     const ys = [...new Set(cases.map(c => new Date(c.caseDate).getFullYear()))].sort((a, b) => b - a);
@@ -740,8 +759,9 @@ export default function CasesPage() {
     if (approach !== "All" && c.surgicalApproach !== approach) return false;
     if (role !== "All" && c.role !== role) return false;
     if (year !== "All" && String(new Date(c.caseDate).getFullYear()) !== year) return false;
+    if (section && resolveCaseSection(c, userSpecialty).key !== section) return false;
     return true;
-  }).sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime()), [cases, search, approach, role, year]);
+  }).sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime()), [cases, search, approach, role, year, section, userSpecialty]);
 
   const hasFilters = approach !== "All" || role !== "All";
 
@@ -876,6 +896,34 @@ export default function CasesPage() {
           onChange={e => setSearch(e.target.value)}
         />
       </div>
+
+      {/* Active subspecialty filter (from Stats) */}
+      {section && (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12, flexWrap: "wrap" }}>
+          <span style={{
+            display: "inline-flex", alignItems: "center", gap: 6,
+            padding: "5px 6px 5px 10px", borderRadius: 999,
+            background: "var(--primary-dim)", border: "1px solid var(--border-glow)",
+            color: "var(--text)", fontSize: 12, fontWeight: 500,
+          }}>
+            {sectionLabel ?? section}
+            <button
+              onClick={clearSection}
+              aria-label="Clear subspecialty filter"
+              style={{
+                display: "inline-flex", alignItems: "center", justifyContent: "center",
+                width: 20, height: 20, borderRadius: 999, border: "none",
+                background: "transparent", color: "var(--text-2)", cursor: "pointer", padding: 0,
+              }}
+            >
+              <X size={12} />
+            </button>
+          </span>
+          <Link href="/analytics" style={{ fontSize: 12, color: "var(--text-2)", textDecoration: "none" }}>
+            Back to Stats
+          </Link>
+        </div>
+      )}
 
       {/* Year tabs + filter toggle */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>

@@ -8,12 +8,11 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
-import { getStreak } from "@/lib/milestones";
+import { getStreak, milestoneBadge } from "@/lib/milestones";
 import { MILESTONE_THRESHOLDS } from "@/lib/constants";
 import { getLearningCurveData, getWeeklyHeatmapData } from "@/lib/stats";
 import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
-import { BADGE_KEYS } from "@/lib/constants";
 import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
@@ -280,7 +279,7 @@ export default function DashboardPage() {
   const learningCurve = topProcName ? getLearningCurveData(cases ?? [], topProcName) : [];
 
   // "Justin Chan" greets as "Dr. Chan"; a stored "Dr. ..." is stripped first.
-  const greetName = doctorName(user?.name, "Surgeon");
+  const greetName = doctorName(user?.name, "Welcome back");
 
   // Role label for staff identity
   const roleLabel = profile?.roleType
@@ -535,7 +534,7 @@ export default function DashboardPage() {
           The whole point of this strip: case-logging should feel like
           climbing a ladder, not filling a database. We surface the user's
           most recent earned badges (left) plus their two closest next
-          targets (right). Tappable — leads to /milestones for the full
+          targets (right). Tappable, leads to the Stats Milestones tab for the full
           history. */}
       {isResident && (cases.length > 0 || milestones.length > 0) && (() => {
         const independentCount = cases.filter(
@@ -556,7 +555,7 @@ export default function DashboardPage() {
 
         return (
           <Link
-            href="/milestones"
+            href="/analytics?tab=Milestones"
             style={{
               display: "block",
               padding: "16px",
@@ -613,11 +612,7 @@ export default function DashboardPage() {
                 }}
               >
                 {recentMilestones.map((m) => {
-                  const badge = BADGE_KEYS[m.badgeKey] ?? {
-                    label: m.badgeKey,
-                    color: "#0EA5E9",
-                    emoji: "🏆",
-                  };
+                  const badge = milestoneBadge(m);
                   return (
                     <div
                       key={m.id}
@@ -654,6 +649,9 @@ export default function DashboardPage() {
                           fontWeight: 500,
                           color: "var(--text-2)",
                           whiteSpace: "nowrap",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          maxWidth: 260,
                         }}
                       >
                         {badge.label}
@@ -1042,6 +1040,10 @@ export default function DashboardPage() {
         </section>
       )}
 
+      {/* Desktop: activity + procedures on the left, recent cases on the
+          right. Below 1024px the two columns simply stack. */}
+      <div className="dash-split">
+      <div className="dash-col">
       {/* ── Activity (all roles) ─────────────────────────────────────── */}
       <section style={{ marginBottom: 28 }}>
         <div style={{
@@ -1108,11 +1110,13 @@ export default function DashboardPage() {
             fontSize: 10, fontWeight: 600, color: "var(--text-3)",
             textTransform: "uppercase", letterSpacing: "1px",
             marginBottom: 14,
-          }}>Learning Curve — {topProcName}</div>
+          }}>Learning curve: {topProcName}</div>
           <LearningCurveChart data={learningCurve} height={120} procedureName={topProcName} />
         </section>
       )}
 
+      </div>
+      <div className="dash-col">
       {/* ── Recent cases (all roles) ─────────────────────────────────── */}
       <section>
         <div style={{
@@ -1228,6 +1232,9 @@ export default function DashboardPage() {
           after the metrics row above) where it actually drives behaviour
           — recent badges as a visual reward, plus the closest two
           unearned thresholds with live progress bars. */}
+
+      </div>
+      </div>
 
       {/* ── Sheets (rendered at the end so they overlay) ──────────────── */}
       <BriefMeSheet

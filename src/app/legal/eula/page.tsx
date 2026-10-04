@@ -1,4 +1,4 @@
-export const metadata = { title: "End User Licence Agreement · Hippo" };
+export const metadata = { title: "End User Licence Agreement" };
 
 export default function EulaPage() {
   return (

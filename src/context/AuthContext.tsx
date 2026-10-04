@@ -119,12 +119,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchWithRetry = useCallback(
     async (path: string): Promise<Response | null> => {
-      const attempt = async () =>
-        fetch(path, {
-          cache: 'no-store',
-          credentials: 'same-origin',
-          headers: { 'cache-control': 'no-cache' },
-        });
+      // Each attempt is capped at 8 s. Without a cap a hung request kept
+      // the app on the loading spinner indefinitely.
+      const attempt = async () => {
+        const ctrl = new AbortController();
+        const timer = setTimeout(() => ctrl.abort(), 8000);
+        try {
+          return await fetch(path, {
+            cache: 'no-store',
+            credentials: 'same-origin',
+            headers: { 'cache-control': 'no-cache' },
+            signal: ctrl.signal,
+          });
+        } finally {
+          clearTimeout(timer);
+        }
+      };
       try {
         const r1 = await attempt();
         if (r1.ok) return r1;
@@ -221,19 +231,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Auth state listener ────────────────────────────────────────────────────
 
   useEffect(() => {
-    // Hydrate from existing session on mount
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        const su = session.user;
-        loadUserData(
-          su.id,
-          su.user_metadata?.name ?? su.email ?? '',
-          su.email ?? '',
-        ).finally(() => setLoading(false));
-      } else {
-        setLoading(false);
-      }
-    });
+    // Hydrate from existing session on mount. getSession() is raced
+    // against a 6 s timeout and any failure ends the loading state, so a
+    // stalled auth call can no longer leave the app on the spinner.
+    // (loading still waits for the profile/cases/milestones loads, each
+    // capped by fetchWithRetry's timeout, because the shell's onboarding
+    // gate needs the profile before it can route.)
+    let cancelled = false;
+    const sessionTimeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('getSession timed out')), 6000),
+    );
+    Promise.race([supabase.auth.getSession(), sessionTimeout])
+      .then(({ data: { session } }) => {
+        if (session?.user) {
+          const su = session.user;
+          return loadUserData(
+            su.id,
+            su.user_metadata?.name ?? su.email ?? '',
+            su.email ?? '',
+          );
+        }
+      })
+      .catch((err) => {
+        console.warn('[AuthContext] session hydrate failed:', err);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
 
     // Keep in sync with Supabase auth changes (login from another tab, token refresh, etc.)
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -253,7 +277,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
   }, [loadUserData, supabase]);
 
   // ── Auth actions ───────────────────────────────────────────────────────────

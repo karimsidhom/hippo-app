@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { Trophy, Star, Zap, X } from 'lucide-react';
 import { Milestone, PersonalRecord } from '@/lib/types';
-import { BADGE_KEYS } from '@/lib/constants';
+import { milestoneBadge } from '@/lib/milestones';
 
 interface CelebrationModalProps {
   milestones: Milestone[];
@@ -78,7 +78,7 @@ export function CelebrationModal({ milestones, prs, onClose }: CelebrationModalP
         {hasMilestones && (
           <div className="space-y-3 mb-4">
             {milestones.map(m => {
-              const badge = BADGE_KEYS[m.badgeKey] ?? { emoji: "🏆", label: m.badgeKey, color: "#6c7fff" };
+              const badge = milestoneBadge(m);
               return (
                 <div key={m.id} className="flex items-center gap-3 bg-[var(--surface)] border border-blue-500/20 rounded-xl p-4 text-left">
                   <span className="text-2xl">{badge.emoji}</span>

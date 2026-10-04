@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { CHART, ChartEmpty } from "./chartKit";
 
 interface DonutDataPoint {
   label: string;
@@ -10,127 +11,121 @@ interface DonutDataPoint {
 
 interface DonutChartProps {
   data: DonutDataPoint[];
+  /** Diameter of the ring in px. */
   height?: number;
-  innerRadius?: number;
-  outerRadius?: number;
+  /** Ring thickness as a fraction of the radius (0-1). */
+  thickness?: number;
   showLegend?: boolean;
+  /** Word under the centre number ("cases"). */
+  unit?: string;
+}
+
+function arcPath(cx: number, cy: number, r: number, inner: number, a0: number, a1: number): string {
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const p = (rad: number, a: number) => `${(cx + rad * Math.cos(a)).toFixed(2)} ${(cy + rad * Math.sin(a)).toFixed(2)}`;
+  return [
+    `M ${p(r, a0)}`,
+    `A ${r} ${r} 0 ${large} 1 ${p(r, a1)}`,
+    `L ${p(inner, a1)}`,
+    `A ${inner} ${inner} 0 ${large} 0 ${p(inner, a0)}`,
+    "Z",
+  ].join(" ");
 }
 
 export function DonutChart({
   data,
-  height = 200,
-  innerRadius = 45,
-  outerRadius = 80,
+  height = 168,
+  thickness = 0.28,
   showLegend = true,
+  unit = "total",
 }: DonutChartProps) {
-  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+  const [hovered, setHovered] = useState<number | null>(null);
 
-  const validData = data.filter((d) => d.value > 0);
-  if (validData.length === 0) {
-    return (
-      <div style={{ height }} className="flex items-center justify-center text-[#64748b] text-sm">
-        No data available
-      </div>
-    );
-  }
+  const valid = data.filter((d) => d.value > 0);
+  if (valid.length === 0) return <ChartEmpty height={height}>No data yet</ChartEmpty>;
 
-  const total = validData.reduce((sum, d) => sum + d.value, 0);
-  const cx = height / 2;
-  const cy = height / 2;
+  const total = valid.reduce((s, d) => s + d.value, 0);
+  const size = height;
+  const cx = size / 2;
+  const cy = size / 2;
+  const outer = size / 2 - 4;
+  const inner = outer * (1 - thickness);
+  const gap = valid.length > 1 ? 0.012 : 0; // hairline gap between segments
 
-  // Calculate SVG arc paths
-  let currentAngle = -Math.PI / 2; // Start from top
-
-  const segments = validData.map((d, i) => {
-    const angle = (d.value / total) * 2 * Math.PI;
-    const startAngle = currentAngle;
-    const endAngle = currentAngle + angle;
-    currentAngle = endAngle;
-
-    const r = hoveredIndex === i ? outerRadius + 5 : outerRadius;
-
-    const x1 = cx + r * Math.cos(startAngle);
-    const y1 = cy + r * Math.sin(startAngle);
-    const x2 = cx + r * Math.cos(endAngle);
-    const y2 = cy + r * Math.sin(endAngle);
-    const ix1 = cx + innerRadius * Math.cos(startAngle);
-    const iy1 = cy + innerRadius * Math.sin(startAngle);
-    const ix2 = cx + innerRadius * Math.cos(endAngle);
-    const iy2 = cy + innerRadius * Math.sin(endAngle);
-
-    const largeArc = angle > Math.PI ? 1 : 0;
-
-    const path = `
-      M ${ix1.toFixed(2)} ${iy1.toFixed(2)}
-      L ${x1.toFixed(2)} ${y1.toFixed(2)}
-      A ${r} ${r} 0 ${largeArc} 1 ${x2.toFixed(2)} ${y2.toFixed(2)}
-      L ${ix2.toFixed(2)} ${iy2.toFixed(2)}
-      A ${innerRadius} ${innerRadius} 0 ${largeArc} 0 ${ix1.toFixed(2)} ${iy1.toFixed(2)}
-      Z
-    `.trim();
-
-    return { ...d, path, angle, percentage: Math.round((d.value / total) * 100) };
+  let angle = -Math.PI / 2;
+  const segments = valid.map((d) => {
+    const sweep = (d.value / total) * Math.PI * 2;
+    const a0 = angle + gap;
+    const a1 = angle + sweep - gap;
+    angle += sweep;
+    return { ...d, a0, a1, pct: Math.round((d.value / total) * 100) };
   });
 
-  const hoveredSegment = hoveredIndex !== null ? segments[hoveredIndex] : null;
+  const active = hovered !== null ? segments[hovered] : null;
 
   return (
-    <div className="flex flex-col items-center gap-4">
-      <div className="relative flex items-center justify-center">
-        <svg width={height} height={height}>
-          {segments.map((seg, i) => (
+    <div style={{
+      display: "flex", flexWrap: "wrap", alignItems: "center",
+      justifyContent: "center", gap: "16px 24px",
+    }}>
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} role="img"
+        aria-label={segments.map((s) => `${s.label} ${s.value}`).join(", ")}
+        style={{ flexShrink: 0, fontFamily: CHART.font }}>
+        {segments.length === 1 ? (
+          // A single 100% arc is degenerate in SVG (start == end), which
+          // used to render an empty ring. Draw a stroked circle instead.
+          <circle cx={cx} cy={cy} r={(outer + inner) / 2} fill="none"
+            stroke={segments[0].color} strokeWidth={outer - inner} opacity={0.9}
+            onMouseEnter={() => setHovered(0)} onMouseLeave={() => setHovered(null)} />
+        ) : (
+          segments.map((s, i) => (
             <path
-              key={seg.label}
-              d={seg.path}
-              fill={seg.color}
-              opacity={hoveredIndex === null || hoveredIndex === i ? 0.9 : 0.4}
-              className="cursor-pointer transition-all duration-150"
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
+              key={s.label}
+              d={arcPath(cx, cy, hovered === i ? outer + 2 : outer, inner, s.a0, s.a1)}
+              fill={s.color}
+              opacity={hovered === null || hovered === i ? 0.92 : 0.35}
+              style={{ transition: "opacity .15s cubic-bezier(.16,1,.3,1)", cursor: "default" }}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
             />
-          ))}
+          ))
+        )}
+        <text x={cx} y={cy - 2} textAnchor="middle" fill={CHART.value}
+          fontSize={22} fontWeight={700} fontFamily={CHART.mono}>
+          {active ? `${active.pct}%` : total.toLocaleString()}
+        </text>
+        <text x={cx} y={cy + 16} textAnchor="middle" fill={CHART.axis} fontSize={11}>
+          {active ? (active.label.length > 16 ? active.label.slice(0, 15) + "…" : active.label) : unit}
+        </text>
+      </svg>
 
-          {/* Center text */}
-          <text
-            x={cx}
-            y={cy - 6}
-            textAnchor="middle"
-            fill="#f1f5f9"
-            fontSize={hoveredSegment ? 20 : 22}
-            fontWeight="bold"
-          >
-            {hoveredSegment ? `${hoveredSegment.percentage}%` : total}
-          </text>
-          <text
-            x={cx}
-            y={cy + 10}
-            textAnchor="middle"
-            fill="#64748b"
-            fontSize={10}
-          >
-            {hoveredSegment ? hoveredSegment.label.split(" ")[0] : "total"}
-          </text>
-        </svg>
-      </div>
-
-      {/* Legend */}
       {showLegend && (
-        <div className="flex flex-wrap justify-center gap-x-4 gap-y-1.5">
-          {segments.map((seg, i) => (
-            <div
-              key={seg.label}
-              className={`flex items-center gap-1.5 cursor-pointer transition-opacity ${
-                hoveredIndex === null || hoveredIndex === i ? "opacity-100" : "opacity-40"
-              }`}
-              onMouseEnter={() => setHoveredIndex(i)}
-              onMouseLeave={() => setHoveredIndex(null)}
+        <ul style={{
+          listStyle: "none", margin: 0, padding: 0,
+          display: "flex", flexDirection: "column", gap: 7,
+          minWidth: 160, flex: "1 1 160px", maxWidth: 280,
+        }}>
+          {segments.map((s, i) => (
+            <li
+              key={s.label}
+              onMouseEnter={() => setHovered(i)}
+              onMouseLeave={() => setHovered(null)}
+              style={{
+                display: "grid", gridTemplateColumns: "10px minmax(0,1fr) auto auto",
+                alignItems: "center", gap: 8, fontSize: 12.5,
+                opacity: hovered === null || hovered === i ? 1 : 0.45,
+                transition: "opacity .15s cubic-bezier(.16,1,.3,1)",
+              }}
             >
-              <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: seg.color }} />
-              <span className="text-xs text-[#94a3b8]">{seg.label}</span>
-              <span className="text-xs text-[#64748b]">({seg.percentage}%)</span>
-            </div>
+              <span style={{ width: 10, height: 10, borderRadius: 3, background: s.color }} />
+              <span style={{ color: CHART.label, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {s.label}
+              </span>
+              <span style={{ color: CHART.value, fontFamily: CHART.mono, fontWeight: 600 }}>{s.value}</span>
+              <span style={{ color: CHART.axis, fontFamily: CHART.mono, minWidth: 34, textAlign: "right" }}>{s.pct}%</span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </div>
   );

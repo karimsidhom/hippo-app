@@ -1,4 +1,4 @@
-export const metadata = { title: "PHIA Notice · Hippo" };
+export const metadata = { title: "PHIA Notice" };
 
 export default function PhiaPage() {
   return (

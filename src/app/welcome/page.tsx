@@ -86,7 +86,7 @@ const FEATURES: Feature[] = [
     description:
       "Auto-fired badges when you hit case-volume milestones. Personal records track your fastest " +
       "lap-chole, smallest-EBL TURP, longest case streak. Optional, can be hidden in settings.",
-    cta: { href: "/milestones", label: "See milestones" },
+    cta: { href: "/analytics?tab=Milestones", label: "See milestones" },
   },
   {
     icon: Users,

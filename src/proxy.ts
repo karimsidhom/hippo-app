@@ -7,8 +7,13 @@ import { createServerClient } from '@supabase/ssr';
 // unsupported-browser states honestly.
 // /offline is the service-worker fallback — if it requires auth the SW
 // can't serve it to a logged-out user who lost connectivity.
+// /forgot-password and /reset-password must be public: the reset email
+// link lands a logged-out user on /reset-password?code=..., and bouncing
+// them to /login dropped the code and broke password reset.
+// /legal (exact) is the legal index; /legal/* is covered by the prefix list.
 const PUBLIC_ROUTES = new Set([
   '/', '/login', '/signup', '/onboarding', '/install', '/offline',
+  '/forgot-password', '/reset-password', '/legal',
 ]);
 const PUBLIC_API_PREFIXES = [
   '/api/auth/',
@@ -56,7 +61,8 @@ export async function proxy(request: NextRequest) {
     pathname === '/manifest.json' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
-    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json)$/)
+    pathname === '/sw.js' ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json|js|map|txt|webmanifest)$/)
   ) {
     return NextResponse.next();
   }
@@ -134,7 +140,8 @@ export async function proxy(request: NextRequest) {
   // ── Redirect unauthenticated users away from app pages ────────────────────
   if (!isPublicPage && !isApiRoute && !isAuthed) {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
+    // Keep the query string (e.g. ?code=, ?tab=) so nothing is lost.
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
     return NextResponse.redirect(loginUrl);
   }
 
