@@ -1,5 +1,5 @@
 import type { CaseLog, Milestone, PersonalRecord, MilestoneType, StreakInfo } from "./types";
-import { MILESTONE_THRESHOLDS } from "./constants";
+import { MILESTONE_THRESHOLDS, BADGE_KEYS } from "./constants";
 
 // ============================================================
 // MILESTONE DEFINITIONS
@@ -456,7 +456,7 @@ export function formatMilestone(milestone: Milestone): {
   // Generate from badgeKey if definition not found
   if (milestone.type === "PROCEDURE_COUNT" && milestone.procedureName) {
     return {
-      title: `${milestone.value}× ${milestone.procedureName.split(" ").slice(0, 3).join(" ")}`,
+      title: milestoneBadge(milestone).label,
       description: `Logged ${milestone.value} ${milestone.procedureName} cases`,
       emoji: "🔬",
       color: "#6366f1",
@@ -465,7 +465,7 @@ export function formatMilestone(milestone: Milestone): {
 
   if (milestone.type === "AUTONOMY_UNLOCK" && milestone.procedureName) {
     return {
-      title: `First Independent ${milestone.procedureName.split(" ").slice(-1)[0]}`,
+      title: milestoneBadge(milestone).label,
       description: `Achieved independence in ${milestone.procedureName}`,
       emoji: "🎖️",
       color: "#10b981",
@@ -473,9 +473,73 @@ export function formatMilestone(milestone: Milestone): {
   }
 
   return {
-    title: `Milestone: ${milestone.badgeKey}`,
+    title: milestoneBadge(milestone).label,
     description: `Value: ${milestone.value}`,
     emoji: "⭐",
     color: "#6366f1",
   };
+}
+
+// ============================================================
+// BADGE LABELS
+// ============================================================
+
+function ordinal(n: number): string {
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${n}th`;
+  switch (n % 10) {
+    case 1: return `${n}st`;
+    case 2: return `${n}nd`;
+    case 3: return `${n}rd`;
+    default: return `${n}th`;
+  }
+}
+
+/** "Laparoscopic partial nephrectomy" -> "laparoscopic partial nephrectomy" mid-sentence; acronyms (TURBT, PCNL) kept. */
+function inSentence(name: string): string {
+  if (name.length > 1 && name[0] === name[0].toUpperCase() && name[1] === name[1].toLowerCase()) {
+    return name[0].toLowerCase() + name.slice(1);
+  }
+  return name;
+}
+
+/** "penile_plication/nesbit" -> "penile plication/nesbit" */
+function humanizeSlug(slug: string): string {
+  return slug.replace(/_+/g, " ").replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Human label for an earned badge. Procedure badges are stored with slug keys
+ * ("laparoscopic_partial_nephrectomy_1", "turbt_independent"), which used to
+ * leak straight into the UI. This turns them into "First laparoscopic partial
+ * nephrectomy" / "First independent TURBT".
+ */
+export function milestoneBadge(m: Pick<Milestone, "badgeKey" | "procedureName" | "value" | "type">): {
+  label: string;
+  color: string;
+  emoji: string;
+} {
+  const known = BADGE_KEYS[m.badgeKey];
+  if (known) return known;
+  const def = MILESTONE_DEFINITIONS.find((d) => d.badgeKey === m.badgeKey);
+  if (def) return { label: def.title.replace(/!$/, ""), color: def.color, emoji: def.emoji };
+
+  const key = m.badgeKey ?? "";
+  const indep = key.match(/^(.+)_independent$/);
+  if (indep || m.type === "AUTONOMY_UNLOCK") {
+    const name = m.procedureName || humanizeSlug(indep ? indep[1] : key);
+    return { label: `First independent ${inSentence(name)}`, color: "#10b981", emoji: "🎖️" };
+  }
+  const count = key.match(/^(.+)_(\d+)$/);
+  if (count) {
+    const n = Number(count[2]);
+    const name = m.procedureName || humanizeSlug(count[1]);
+    return {
+      label: n === 1 ? `First ${inSentence(name)}` : `${ordinal(n)} ${inSentence(name)}`,
+      color: "#0EA5E9",
+      emoji: "🏆",
+    };
+  }
+  const plain = humanizeSlug(key);
+  return { label: plain.charAt(0).toUpperCase() + plain.slice(1), color: "#0EA5E9", emoji: "🏆" };
 }

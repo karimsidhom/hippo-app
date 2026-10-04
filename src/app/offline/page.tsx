@@ -14,7 +14,7 @@ import { HippoMark } from "@/components/HippoMark";
 // ---------------------------------------------------------------------------
 
 export const metadata: Metadata = {
-  title: "Offline · Hippo",
+  title: "Offline",
   robots: { index: false },
 };
 

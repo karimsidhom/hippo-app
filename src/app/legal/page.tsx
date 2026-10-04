@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export const metadata = { title: "Legal · Hippo" };
+export const metadata = { title: "Legal" };
 
 const DOCS: { href: string; title: string; desc: string; badge?: string }[] = [
   {

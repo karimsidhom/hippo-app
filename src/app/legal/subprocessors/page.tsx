@@ -1,4 +1,4 @@
-export const metadata = { title: "Subprocessors · Hippo" };
+export const metadata = { title: "Subprocessors" };
 
 const ROWS: { vendor: string; purpose: string; data: string; region: string }[] = [
   { vendor: "Supabase (Postgres + Storage + Auth)", purpose: "Primary database, file storage, authentication", data: "All account and training data", region: "Canada (Central) — ca-central-1" },

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState } from "react";
+import { CHART, ChartEmpty, ChartTooltip, niceTicks, useContainerWidth } from "./chartKit";
 
 interface LineChartDataPoint {
   label: string;
@@ -29,38 +30,37 @@ export function LineChart({
   showArea = true,
   showPoints = true,
 }: LineChartProps) {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [width, setWidth] = useState(400);
+  const { ref: containerRef, width } = useContainerWidth();
   const [tooltip, setTooltip] = useState<{
     x: number;
     y: number;
     label: string;
     value: number;
+    secondary?: number;
   } | null>(null);
-
-  useEffect(() => {
-    const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setWidth(entry.contentRect.width);
-      }
-    });
-    if (containerRef.current) observer.observe(containerRef.current);
-    return () => observer.disconnect();
-  }, []);
 
   const activeData = data.filter((d) => d.value > 0 || d.value === 0);
   if (!activeData.length) {
-    return <div style={{ height }} className="flex items-center justify-center text-[#64748b] text-sm">No data</div>;
+    return <div ref={containerRef}><ChartEmpty height={height}>No data yet</ChartEmpty></div>;
   }
 
-  const margin = { top: 16, right: 16, bottom: 36, left: 48 };
-  const chartWidth = width - margin.left - margin.right;
-  const chartHeight = height - margin.top - margin.bottom;
+  const fmt = formatY || ((v: number) => Math.round(v).toString());
 
   const values = data.map((d) => d.value);
-  const dataMin = yMin ?? Math.max(0, Math.min(...values) - 5);
-  const dataMax = yMax ?? Math.max(...values) + 5;
+  const nice = niceTicks(
+    yMin ?? Math.max(0, Math.min(...values)),
+    yMax ?? Math.max(...values),
+    yMin !== undefined && yMax !== undefined ? 5 : 4,
+  );
+  const dataMin = yMin ?? nice.min;
+  const dataMax = yMax ?? nice.max;
   const range = dataMax - dataMin || 1;
+  const ticks = nice.ticks.filter((t) => t >= dataMin && t <= dataMax);
+
+  const tickLabelWidth = Math.max(...ticks.map((t) => fmt(t).length)) * 7 + 12;
+  const margin = { top: 16, right: 16, bottom: 32, left: tickLabelWidth };
+  const chartWidth = Math.max(40, width - margin.left - margin.right);
+  const chartHeight = height - margin.top - margin.bottom;
 
   const xScale = (i: number) => (i / Math.max(data.length - 1, 1)) * chartWidth;
   const yScale = (v: number) => chartHeight - ((v - dataMin) / range) * chartHeight;
@@ -71,22 +71,19 @@ export function LineChart({
 
   const areaPath = `${linePath} L ${xScale(data.length - 1).toFixed(1)} ${chartHeight} L 0 ${chartHeight} Z`;
 
-  const yGridLines = Array.from({ length: 5 }, (_, i) => {
-    const value = dataMin + (range / 4) * i;
-    return { y: yScale(value), value };
-  });
-
-  const fmt = formatY || ((v: number) => Math.round(v).toString());
+  const yGridLines = ticks.map((value) => ({ y: yScale(value), value }));
+  const showEvery = Math.max(1, Math.ceil(data.length / Math.max(2, Math.floor(chartWidth / 56))));
+  const gradId = `lineGrad-${color.replace(/[^a-z0-9]/gi, "")}`;
 
   return (
     <div ref={containerRef} className="relative w-full">
-      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`}>
+      <svg width="100%" height={height} viewBox={`0 0 ${width} ${height}`} style={{ display: "block", fontFamily: CHART.font }}>
         <g transform={`translate(${margin.left}, ${margin.top})`}>
           {/* Grid lines */}
           {yGridLines.map(({ y, value }) => (
             <g key={value}>
-              <line x1={0} x2={chartWidth} y1={y} y2={y} stroke="#1e2130" strokeWidth={1} />
-              <text x={-8} y={y} textAnchor="end" dominantBaseline="middle" fill="#64748b" fontSize={10}>
+              <line x1={0} x2={chartWidth} y1={y} y2={y} stroke={CHART.grid} strokeWidth={1} />
+              <text x={-8} y={y} textAnchor="end" dominantBaseline="middle" fill={CHART.axis} fontSize={11}>
                 {fmt(value)}
               </text>
             </g>
@@ -94,16 +91,15 @@ export function LineChart({
 
           {/* X axis labels */}
           {data.map((d, i) => {
-            const showEvery = Math.ceil(data.length / 6);
             if (i % showEvery !== 0 && i !== data.length - 1) return null;
             return (
               <text
                 key={i}
                 x={xScale(i)}
-                y={chartHeight + 16}
-                textAnchor="middle"
-                fill="#64748b"
-                fontSize={10}
+                y={chartHeight + 20}
+                textAnchor={i === 0 ? "start" : i === data.length - 1 ? "end" : "middle"}
+                fill={CHART.axis}
+                fontSize={11}
               >
                 {d.label}
               </text>
@@ -113,7 +109,7 @@ export function LineChart({
           {/* Area fill */}
           {showArea && (
             <defs>
-              <linearGradient id={`lineGrad-${color.replace("#", "")}`} x1="0" x2="0" y1="0" y2="1">
+              <linearGradient id={gradId} x1="0" x2="0" y1="0" y2="1">
                 <stop offset="0%" stopColor={color} stopOpacity={0.25} />
                 <stop offset="100%" stopColor={color} stopOpacity={0.02} />
               </linearGradient>
@@ -122,7 +118,7 @@ export function LineChart({
           {showArea && (
             <path
               d={areaPath}
-              fill={`url(#lineGrad-${color.replace("#", "")})`}
+              fill={`url(#${gradId})`}
             />
           )}
 
@@ -143,13 +139,13 @@ export function LineChart({
                 key={i}
                 cx={xScale(i)}
                 cy={yScale(d.value)}
-                r={d.value > 0 ? 4 : 0}
+                r={d.value > 0 ? (tooltip?.label === d.label ? 5.5 : 4) : 0}
                 fill={color}
-                stroke="#111118"
+                stroke="var(--bg)"
                 strokeWidth={1.5}
                 className="cursor-pointer"
                 onMouseEnter={() =>
-                  setTooltip({ x: xScale(i) + margin.left, y: yScale(d.value) + margin.top, label: d.label, value: d.value })
+                  setTooltip({ x: xScale(i) + margin.left, y: yScale(d.value) + margin.top, label: d.label, value: d.value, secondary: d.secondary })
                 }
                 onMouseLeave={() => setTooltip(null)}
               />
@@ -158,13 +154,13 @@ export function LineChart({
       </svg>
 
       {tooltip && (
-        <div
-          className="absolute pointer-events-none bg-[#1a1a26] border border-[#252838] rounded-lg px-2.5 py-1.5 text-xs z-10 shadow-card-hover whitespace-nowrap"
-          style={{ left: Math.min(tooltip.x + 8, width - 120), top: Math.max(0, tooltip.y - 36) }}
-        >
-          <p className="font-semibold text-[#f1f5f9]">{tooltip.label}</p>
-          <p className="text-[#94a3b8]">{fmt(tooltip.value)}</p>
-        </div>
+        <ChartTooltip x={tooltip.x} y={tooltip.y} containerWidth={width}>
+          <div style={{ fontWeight: 600 }}>{tooltip.label}</div>
+          <div style={{ color: "var(--text-2)", fontFamily: CHART.mono }}>
+            {fmt(tooltip.value)}
+            {tooltip.secondary !== undefined ? ` · ${tooltip.secondary} ${tooltip.secondary === 1 ? "case" : "cases"}` : ""}
+          </div>
+        </ChartTooltip>
       )}
     </div>
   );

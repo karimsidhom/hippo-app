@@ -35,6 +35,25 @@ export function lastNameOf(name?: string | null, fallback = ""): string {
  * The fallback is returned as-is (it is the whole greeting word).
  */
 export function doctorName(name?: string | null, fallback = "Doctor"): string {
+  if (looksLikeHandle(name)) return fallback;
   const last = lastNameOf(name);
-  return last ? `Dr. ${last}` : fallback;
+  if (!last) return fallback;
+  // "karim sidhom" greets as "Dr. Sidhom"; mixed case ("McLeod") is kept.
+  const shown = last === last.toLowerCase() ? last.charAt(0).toUpperCase() + last.slice(1) : last;
+  return `Dr. ${shown}`;
+}
+
+/**
+ * True when the stored name is really an email or a username rather than a
+ * person's name. Accounts created before onboarding captured a name were
+ * seeded with the email's local part ("karimsidhom"), and "Dr. karimsidhom"
+ * reads as a bug. Such names fall back to the caller's greeting word. The
+ * stored value is left untouched (the DB stays the source of truth).
+ */
+export function looksLikeHandle(name?: string | null): boolean {
+  const clean = stripHonorific(name);
+  if (!clean) return false;
+  if (/[@_\d]/.test(clean)) return true;
+  // A single all-lowercase token ("karimsidhom") is a handle, not a name.
+  return !clean.includes(" ") && clean === clean.toLowerCase();
 }

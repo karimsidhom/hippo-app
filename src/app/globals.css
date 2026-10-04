@@ -1268,3 +1268,155 @@ button:not(:disabled):not([aria-disabled="true"]):active {
     filter: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════
+   Page head + Stats (analytics) cards
+   One card container for every chart: surface, 1px border, 10px radius,
+   consistent title / subtitle. Two columns from 1024px; full-width cards
+   (.wide) span both.
+   ═══════════════════════════════════════════════════════════════════════ */
+.page-head { margin: 4px 0 18px; }
+.page-title {
+  margin: 0;
+  font-size: 24px;
+  font-weight: 700;
+  letter-spacing: -0.6px;
+  color: var(--text);
+  line-height: 1.15;
+}
+.page-sub { margin: 4px 0 0; font-size: 13px; color: var(--text-2); }
+
+.stats-tabs {
+  display: flex;
+  gap: 4px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 4px;
+  margin-bottom: 20px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: 10px;
+}
+.stats-tabs::-webkit-scrollbar { display: none; }
+.stats-tab {
+  flex-shrink: 0;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid transparent;
+  border-radius: 7px;
+  background: none;
+  color: var(--text-2);
+  font: 500 13px 'Geist', sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+  transition: background .15s cubic-bezier(.16,1,.3,1), color .15s cubic-bezier(.16,1,.3,1);
+}
+.stats-tab:hover { color: var(--text); }
+.stats-tab.on {
+  background: var(--surface2);
+  border-color: var(--border-mid);
+  color: var(--text);
+  font-weight: 600;
+}
+.stats-tab.link { color: var(--primary); font-weight: 600; }
+.stats-tab:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+.stats-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+@media (min-width: 1024px) {
+  .stats-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+  .stats-card.wide { grid-column: 1 / -1; }
+}
+.stats-card {
+  min-width: 0;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--rl, 10px);
+  padding: 18px 18px 20px;
+}
+@media (min-width: 768px) { .stats-card { padding: 20px 22px 22px; } }
+.stats-card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.stats-card-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  letter-spacing: -0.1px;
+}
+.stats-card-sub { margin: 3px 0 0; font-size: 12px; color: var(--text-2); line-height: 1.4; }
+.stats-select { width: auto !important; max-width: 100%; font-size: 12px !important; padding: 7px 10px !important; }
+.stats-empty {
+  min-height: 140px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 16px;
+  font-size: 13px;
+  color: var(--text-2);
+  line-height: 1.5;
+}
+
+/* Small segmented control (Case mix breakdown) */
+.seg {
+  display: inline-flex;
+  padding: 3px;
+  gap: 2px;
+  background: var(--bg);
+  border: 1px solid var(--border-mid);
+  border-radius: 8px;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seg-btn {
+  min-height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-2);
+  font: 500 12px 'Geist', sans-serif;
+  white-space: nowrap;
+  cursor: pointer;
+}
+.seg-btn.on { background: var(--surface2); color: var(--text); font-weight: 600; }
+.seg-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+
+/* Dashboard lower half: two columns on desktop */
+.dash-split { display: block; }
+.dash-col { min-width: 0; }
+@media (min-width: 1024px) {
+  .dash-split {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+}
+
+/* Subspecialty rows (Stats > By subspecialty) */
+.section-row {
+  display: block;
+  padding: 9px 10px;
+  margin: 0 -10px;
+  border-radius: 8px;
+  text-decoration: none;
+  color: inherit;
+  transition: background .15s cubic-bezier(.16,1,.3,1);
+}
+a.section-row:hover { background: var(--surface2); }
+a.section-row:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }

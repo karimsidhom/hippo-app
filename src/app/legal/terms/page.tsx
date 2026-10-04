@@ -1,4 +1,4 @@
-export const metadata = { title: "Terms of Use · Hippo" };
+export const metadata = { title: "Terms of Use" };
 
 export default function TermsPage() {
   return (

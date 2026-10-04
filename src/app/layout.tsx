@@ -18,7 +18,7 @@ const isClinic = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic";
 export const metadata: Metadata = {
   title: isClinic
     ? { default: "Hippo Clinic — AI Clinic Scribe", template: "%s | Hippo Clinic" }
-    : { default: "Hippo — Strava for Surgeons", template: "%s | Hippo" },
+    : { default: "Hippo Logs", template: "%s · Hippo Logs" },
   description: isClinic
     ? "Hippo Clinic is an outpatient AI scribe for clinicians — ambient or dictated capture, structured clinic notes, follow-up tracking, PHIA/HIPAA-aware."
     : "Hippo is the premier surgical case logging platform for residents, fellows, and staff surgeons. Track your operative volume, learning curves, milestones, and benchmarks — with full PHIA/HIPAA privacy compliance.",
