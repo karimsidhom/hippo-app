@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { PostCard } from "@/components/profile/PostCard";
 import { Plus, TrendingUp, Sparkles, UserPlus, ChevronRight, Users as UsersIcon, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/context/AuthContext";
 import type { Pearl, UserRoleType } from "@/lib/types";
 
@@ -55,6 +56,8 @@ const FEED_MODE_LABEL: Record<FeedMode, string> = {
 export function PostFeed({ onCreatePost }: Props) {
   const router = useRouter();
   const { profile } = useAuth();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
   const viewerRoleType = profile?.roleType as UserRoleType | undefined;
 
   // Default to "program" (specialty feed) only when we actually know the
@@ -341,10 +344,14 @@ export function PostFeed({ onCreatePost }: Props) {
         </>
       )}
 
-      {/* FAB — Create post */}
-      {onCreatePost && (
+      {/* FAB — Create post. Portalled to <body>: the page's fadeIn
+          animation leaves a transform on an ancestor, which would otherwise
+          pin this "fixed" button to the page instead of the viewport. */}
+      {onCreatePost && mounted && createPortal(
         <button
           onClick={onCreatePost}
+          className="feed-fab"
+          aria-label="Share a pearl"
           style={{
             position: "fixed",
             bottom: 80,
@@ -365,7 +372,8 @@ export function PostFeed({ onCreatePost }: Props) {
           }}
         >
           <Plus size={22} />
-        </button>
+        </button>,
+        document.body,
       )}
     </div>
   );

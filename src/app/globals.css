@@ -1268,3 +1268,118 @@ button:not(:disabled):not([aria-disabled="true"]):active {
     filter: none !important;
   }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP SHELL (≥ 1024px)
+   Phones keep the bottom-nav PWA layout untouched. On a computer the app
+   gets a fixed left sidebar, no bottom bar, a wider canvas and slightly
+   stronger text/border contrast (the phone values read too faint on a
+   monitor at arm's length).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desk-sidebar { display: none; }
+
+@media (min-width: 1024px) {
+  :root:not([data-theme="light"]) {
+    --text-2:     #8494a8;
+    --text-3:     #66768c;
+    --muted:      #4a5a70;
+    --border:     rgba(255,255,255,0.07);
+    --border-mid: rgba(255,255,255,0.10);
+  }
+
+  .desk-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--desk-sidebar-w);
+    padding: 22px 14px 16px;
+    background: var(--bg-elevated);
+    border-right: 1px solid var(--border);
+    z-index: 60;
+    overflow-y: auto;
+  }
+  .app-shell { padding-left: var(--desk-sidebar-w); }
+  .app-header, .app-nav, .app-nav-backdrop { display: none !important; }
+  .app-shell .app-main {
+    max-width: 1240px !important;
+    padding: 36px 48px 64px !important;
+  }
+
+  .desk-nav-link {
+    display: flex; align-items: center; gap: 11px;
+    height: 38px; padding: 0 12px;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: background .15s, color .15s;
+  }
+  .desk-nav-link:hover { background: var(--surface2); color: var(--text); }
+  .desk-nav-link[aria-current="page"] {
+    background: var(--primary-dim);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+  .desk-nav-link[aria-current="page"] svg { color: var(--primary); }
+  .desk-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-3);
+    padding: 18px 12px 6px;
+  }
+}
+:root { --desk-sidebar-w: 240px; }
+
+/* Dashboard: one column on phones (wrappers vanish, `order` keeps the
+   original sequence); main column + right rail on wide screens. */
+.dash-grid { display: flex; flex-direction: column; }
+.dash-main, .dash-side { display: contents; }
+@media (min-width: 1180px) {
+  .dash-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 48px;
+    align-items: start;
+  }
+  .dash-main, .dash-side { display: flex; flex-direction: column; min-width: 0; }
+  .dash-mobile-only { display: none; }
+}
+
+/* Case list: compact cards on phones, a scannable table on a computer. */
+.case-thead, .case-col { display: none; }
+@media (min-width: 1024px) {
+  .case-thead, .case-card {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 2.4fr) minmax(0, 1.3fr) minmax(0, 1fr) 56px 64px 34px 34px 34px;
+    column-gap: 14px;
+    align-items: center;
+  }
+  .case-thead {
+    padding: 0 10px 10px;
+    margin: 0 -10px;
+    border-bottom: 1px solid var(--border-mid);
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  .case-card,
+  .case-card:hover {
+    padding: 10px;
+    margin: 0 -10px;
+    border-radius: 0;
+  }
+  .case-card:hover { background: var(--surface2); border-color: var(--border); }
+  .case-card > div:first-child { padding-top: 0 !important; }
+  .case-body, .case-top, .case-actions { display: contents !important; }
+  .case-meta { display: none; }
+  .case-proc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .case-col {
+    display: block;
+    font-size: 13px; color: var(--text-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .case-col-num { font-family: 'Geist Mono', monospace; font-size: 12px; }
+  .case-date { font-size: 12px; font-family: 'Geist Mono', monospace; }
+}
+@media (min-width: 1024px) {
+  .feed-fab { bottom: 32px !important; right: 32px !important; }
+}
