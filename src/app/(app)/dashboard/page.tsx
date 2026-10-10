@@ -196,6 +196,16 @@ export default function DashboardPage() {
   // PostComposer seeded from a recent case
   const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
+  // Wide screens get a taller learning-curve chart (main column is ~800px).
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1180px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
   // ── Staff-specific data ────────────────────────────────────────────────
   const [staffStats, setStaffStats] = useState<StaffStats | null>(null);
   useEffect(() => {
@@ -437,433 +447,370 @@ export default function DashboardPage() {
         </Link>
       </div>
 
-      {/* ── Principle ─────────────────────────────────────────────────── */}
-      <TodaysPrinciple />
-
-      {/* ── On track (Pro): projections against program minimums ─────── */}
-      <OnTrackCard />
-
-      {/* ── Thin divider ──────────────────────────────────────────────── */}
-      <div style={{
-        height: 1,
-        background: "var(--border)",
-        margin: "28px 0",
-      }} />
-
-      {/* ── Hero number — left-aligned, massive, mono ─────────────────── */}
-      <div style={{ marginBottom: 8 }}>
+      {/* ── Desktop: main column + right rail. On phones both wrappers are
+          display:contents and each block's `order` keeps the original
+          single-column sequence. ─────────────────────────────────── */}
+      <div className="dash-grid">
+      <div className="dash-main">
+      <div className="dash-b dash-mobile-only" style={{ order: 3 }}>
+        {/* ── Thin divider ──────────────────────────────────────────────── */}
         <div style={{
-          fontSize: 64,
-          fontWeight: 800,
-          color: "var(--text)",
-          letterSpacing: "-3px",
-          lineHeight: .85,
-          fontFamily: "'Geist Mono', monospace",
-        }}>
-          {cases.length}
-        </div>
-        <div style={{
-          fontSize: 10,
-          color: "var(--text-3)",
-          marginTop: 8,
-          textTransform: "uppercase",
-          letterSpacing: "1.2px",
-          fontWeight: 500,
-        }}>
-          Total Cases Logged
-        </div>
+          height: 1,
+          background: "var(--border)",
+          margin: "28px 0",
+        }} />
       </div>
-
-      {/* ── Metrics row — monospace numbers, no boxes ─────────────────── */}
-      <div style={{
-        display: "grid",
-        gridTemplateColumns: isStaff ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr",
-        gap: 0,
-        padding: "20px 0",
-        borderTop: "1px solid var(--border)",
-        borderBottom: "1px solid var(--border)",
-        marginBottom: 28,
-      }}>
-        {(isStaff
-          ? [
-              { n: String(thisMonth), l: "This mo" },
-              { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
-              { n: String(staffStats?.signedThisMonth ?? 0), l: "Signed" },
-              { n: String(staffStats?.signedYtd ?? 0), l: "YTD sign" },
-            ]
-          : [
-              { n: String(thisMonth), l: "This mo" },
-              { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
-              { n: `${firstSurgeonRate}%`, l: "Primary" },
-              { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
-            ]
-        ).map((s, i) => (
-          <div key={i} style={{
-            paddingLeft: i > 0 ? 16 : 0,
-            borderLeft: i > 0 ? "1px solid var(--border)" : "none",
+      <div className="dash-b" style={{ order: 4 }}>
+        {/* ── Hero number — left-aligned, massive, mono ─────────────────── */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{
+            fontSize: 64,
+            fontWeight: 800,
+            color: "var(--text)",
+            letterSpacing: "-3px",
+            lineHeight: .85,
+            fontFamily: "'Geist Mono', monospace",
           }}>
-            <div style={{
-              display: "flex", alignItems: "baseline", gap: 3,
-            }}>
-              <span style={{
-                fontSize: 18,
-                fontWeight: 700,
-                color: "var(--text)",
-                fontFamily: "'Geist Mono', monospace",
-                letterSpacing: "-0.5px",
-                lineHeight: 1,
-              }}>
-                {s.n}
-              </span>
-              {s.icon && <Flame size={11} color="var(--warning)" />}
-            </div>
-            <div style={{
-              fontSize: 9,
-              color: "var(--text-3)",
-              marginTop: 4,
-              textTransform: "uppercase",
-              letterSpacing: ".8px",
-              fontWeight: 500,
-            }}>
-              {s.l}
-            </div>
+            {cases.length}
           </div>
-        ))}
+          <div style={{
+            fontSize: 10,
+            color: "var(--text-3)",
+            marginTop: 8,
+            textTransform: "uppercase",
+            letterSpacing: "1.2px",
+            fontWeight: 500,
+          }}>
+            Total Cases Logged
+          </div>
+        </div>
       </div>
+      <div className="dash-b" style={{ order: 5 }}>
+        {/* ── Metrics row — monospace numbers, no boxes ─────────────────── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isStaff ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr",
+          gap: 0,
+          padding: "20px 0",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+          marginBottom: 28,
+        }}>
+          {(isStaff
+            ? [
+                { n: String(thisMonth), l: "This mo" },
+                { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+                { n: String(staffStats?.signedThisMonth ?? 0), l: "Signed" },
+                { n: String(staffStats?.signedYtd ?? 0), l: "YTD sign" },
+              ]
+            : [
+                { n: String(thisMonth), l: "This mo" },
+                { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+                { n: `${firstSurgeonRate}%`, l: "Primary" },
+                { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
+              ]
+          ).map((s, i) => (
+            <div key={i} style={{
+              paddingLeft: i > 0 ? 16 : 0,
+              borderLeft: i > 0 ? "1px solid var(--border)" : "none",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "baseline", gap: 3,
+              }}>
+                <span style={{
+                  fontSize: 18,
+                  fontWeight: 700,
+                  color: "var(--text)",
+                  fontFamily: "'Geist Mono', monospace",
+                  letterSpacing: "-0.5px",
+                  lineHeight: 1,
+                }}>
+                  {s.n}
+                </span>
+                {s.icon && <Flame size={11} color="var(--warning)" />}
+              </div>
+              <div style={{
+                fontSize: 9,
+                color: "var(--text-3)",
+                marginTop: 4,
+                textTransform: "uppercase",
+                letterSpacing: ".8px",
+                fontWeight: 500,
+              }}>
+                {s.l}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="dash-b" style={{ order: 6 }}>
+        {/* ── Progress / next-up milestones (residents only) ─────────────────
+            The whole point of this strip: case-logging should feel like
+            climbing a ladder, not filling a database. We surface the user's
+            most recent earned badges (left) plus their two closest next
+            targets (right). Tappable — leads to /milestones for the full
+            history. */}
+        {isResident && (cases.length > 0 || milestones.length > 0) && (() => {
+          const independentCount = cases.filter(
+            (c) => c.autonomyLevel === "INDEPENDENT" || c.autonomyLevel === "TEACHING",
+          ).length;
+          const nextUp = getNextUpMilestones(
+            cases.length,
+            independentCount,
+            streakInfo.currentStreak,
+            topProcName,
+            topProcs[0]?.[1] ?? 0,
+          );
+          const recentMilestones = [...milestones]
+            .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
+            .slice(0, 4);
 
-      {/* ── Progress / next-up milestones (residents only) ─────────────────
-          The whole point of this strip: case-logging should feel like
-          climbing a ladder, not filling a database. We surface the user's
-          most recent earned badges (left) plus their two closest next
-          targets (right). Tappable — leads to /milestones for the full
-          history. */}
-      {isResident && (cases.length > 0 || milestones.length > 0) && (() => {
-        const independentCount = cases.filter(
-          (c) => c.autonomyLevel === "INDEPENDENT" || c.autonomyLevel === "TEACHING",
-        ).length;
-        const nextUp = getNextUpMilestones(
-          cases.length,
-          independentCount,
-          streakInfo.currentStreak,
-          topProcName,
-          topProcs[0]?.[1] ?? 0,
-        );
-        const recentMilestones = [...milestones]
-          .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
-          .slice(0, 4);
+          if (nextUp.length === 0 && recentMilestones.length === 0) return null;
 
-        if (nextUp.length === 0 && recentMilestones.length === 0) return null;
-
-        return (
-          <Link
-            href="/milestones"
-            style={{
-              display: "block",
-              padding: "16px",
-              marginBottom: 28,
-              background: "var(--surface)",
-              border: "1px solid var(--border)",
-              borderRadius: 12,
-              textDecoration: "none",
-              color: "var(--text)",
-              transition: "border-color .15s",
-            }}
-          >
-            <div
+          return (
+            <Link
+              href="/milestones"
               style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                marginBottom: 12,
+                display: "block",
+                padding: "16px",
+                marginBottom: 28,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                textDecoration: "none",
+                color: "var(--text)",
+                transition: "border-color .15s",
               }}
             >
-              <span
-                style={{
-                  fontSize: 10,
-                  fontWeight: 700,
-                  textTransform: "uppercase",
-                  letterSpacing: "0.06em",
-                  color: "var(--text-3)",
-                }}
-              >
-                Progress
-              </span>
-              <span
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 4,
-                  fontSize: 11,
-                  color: "var(--text-3)",
-                }}
-              >
-                {milestones.length} earned
-                <ChevronRight size={11} />
-              </span>
-            </div>
-
-            {/* Recently earned — visual reward strip */}
-            {recentMilestones.length > 0 && (
               <div
                 style={{
                   display: "flex",
-                  gap: 8,
-                  marginBottom: nextUp.length > 0 ? 14 : 0,
-                  flexWrap: "wrap",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
                 }}
               >
-                {recentMilestones.map((m) => {
-                  const badge = BADGE_KEYS[m.badgeKey] ?? {
-                    label: m.badgeKey,
-                    color: "#0EA5E9",
-                    emoji: "🏆",
-                  };
-                  return (
-                    <div
-                      key={m.id}
-                      title={badge.label}
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                        padding: "5px 10px 5px 6px",
-                        background: "var(--surface2)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 99,
-                      }}
-                    >
-                      <span
-                        aria-hidden
+                <span
+                  style={{
+                    fontSize: 10,
+                    fontWeight: 700,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--text-3)",
+                  }}
+                >
+                  Progress
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    color: "var(--text-3)",
+                  }}
+                >
+                  {milestones.length} earned
+                  <ChevronRight size={11} />
+                </span>
+              </div>
+
+              {/* Recently earned — visual reward strip */}
+              {recentMilestones.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: nextUp.length > 0 ? 14 : 0,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {recentMilestones.map((m) => {
+                    const badge = BADGE_KEYS[m.badgeKey] ?? {
+                      label: m.badgeKey,
+                      color: "#0EA5E9",
+                      emoji: "🏆",
+                    };
+                    return (
+                      <div
+                        key={m.id}
+                        title={badge.label}
                         style={{
-                          width: 22,
-                          height: 22,
-                          borderRadius: "50%",
-                          background: `${badge.color}22`,
-                          border: `1px solid ${badge.color}55`,
                           display: "inline-flex",
                           alignItems: "center",
-                          justifyContent: "center",
-                          fontSize: 11,
+                          gap: 6,
+                          padding: "5px 10px 5px 6px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 99,
                         }}
                       >
-                        {badge.emoji ?? "🏆"}
-                      </span>
-                      <span
-                        style={{
-                          fontSize: 11,
-                          fontWeight: 500,
-                          color: "var(--text-2)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {badge.label}
-                      </span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            background: `${badge.color}22`,
+                            border: `1px solid ${badge.color}55`,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                            fontSize: 11,
+                          }}
+                        >
+                          {badge.emoji ?? "🏆"}
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: "var(--text-2)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
 
-            {/* Next up — closest two thresholds with progress bars */}
-            {nextUp.length > 0 && (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns:
-                    nextUp.length > 1 ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
-                  gap: 10,
-                }}
-              >
-                {nextUp.map((nu) => {
-                  const pct = Math.max(0, Math.min(1, nu.progress)) * 100;
-                  return (
-                    <div
-                      key={nu.key}
-                      style={{
-                        padding: "10px 12px",
-                        background: "var(--surface2)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                      }}
-                    >
+              {/* Next up — closest two thresholds with progress bars */}
+              {nextUp.length > 0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      nextUp.length > 1 ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
+                    gap: 10,
+                  }}
+                >
+                  {nextUp.map((nu) => {
+                    const pct = Math.max(0, Math.min(1, nu.progress)) * 100;
+                    return (
                       <div
+                        key={nu.key}
                         style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          marginBottom: 6,
-                          gap: 8,
+                          padding: "10px 12px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
                         }}
                       >
                         <div
                           style={{
                             display: "flex",
                             alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 6,
                             gap: 8,
-                            minWidth: 0,
                           }}
                         >
-                          <span
-                            aria-hidden
+                          <div
                             style={{
-                              fontSize: 14,
-                              lineHeight: 1,
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              minWidth: 0,
                             }}
                           >
-                            {nu.emoji}
-                          </span>
+                            <span
+                              aria-hidden
+                              style={{
+                                fontSize: 14,
+                                lineHeight: 1,
+                              }}
+                            >
+                              {nu.emoji}
+                            </span>
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--text)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {nu.label}
+                            </span>
+                          </div>
                           <span
                             style={{
-                              fontSize: 12,
-                              fontWeight: 600,
-                              color: "var(--text)",
+                              fontSize: 11,
+                              color: "var(--text-3)",
+                              fontFamily: "'Geist Mono', monospace",
                               whiteSpace: "nowrap",
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
                             }}
                           >
-                            {nu.label}
+                            {nu.current}/{nu.target}
                           </span>
                         </div>
-                        <span
-                          style={{
-                            fontSize: 11,
-                            color: "var(--text-3)",
-                            fontFamily: "'Geist Mono', monospace",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          {nu.current}/{nu.target}
-                        </span>
-                      </div>
-                      <div
-                        style={{
-                          height: 4,
-                          background: "var(--border)",
-                          borderRadius: 99,
-                          overflow: "hidden",
-                        }}
-                      >
                         <div
                           style={{
-                            width: `${pct}%`,
-                            height: "100%",
-                            background: nu.color,
-                            transition: "width .3s",
+                            height: 4,
+                            background: "var(--border)",
+                            borderRadius: 99,
+                            overflow: "hidden",
                           }}
-                        />
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: nu.color,
+                              transition: "width .3s",
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-3)",
+                            marginTop: 5,
+                          }}
+                        >
+                          {nu.hint}
+                        </div>
                       </div>
-                      <div
-                        style={{
-                          fontSize: 10,
-                          color: "var(--text-3)",
-                          marginTop: 5,
-                        }}
-                      >
-                        {nu.hint}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </Link>
-        );
-      })()}
-
-      {/* ── Pre-Op Brief CTA ──────────────────────────────────────────── */}
-      <button
-        onClick={() => {
-          setBriefPrefill(undefined);
-          setBriefOpen(true);
-        }}
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          gap: 12,
-          width: "100%",
-          padding: "14px 16px",
-          marginBottom: 28,
-          background:
-            "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
-          border: "1px solid rgba(168,85,247,0.28)",
-          borderRadius: 10,
-          color: "var(--text)",
-          cursor: "pointer",
-          fontFamily: "inherit",
-          textAlign: "left",
-          transition: "background .15s, border-color .15s",
-        }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
-          <div
-            style={{
-              width: 32,
-              height: 32,
-              borderRadius: 8,
-              background: "rgba(168,85,247,0.16)",
-              border: "1px solid rgba(168,85,247,0.35)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              flexShrink: 0,
-            }}
-          >
-            <Sparkles size={14} style={{ color: "#c4b5fd" }} />
-          </div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
-              Brief me for tomorrow
-            </div>
-            <div
-              style={{
-                fontSize: 11,
-                color: "var(--text-3)",
-                marginTop: 2,
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-              }}
-            >
-              Personalized prep from your case history
-            </div>
-          </div>
-        </div>
-        <ChevronRight
-          size={14}
-          style={{ color: "var(--text-3)", flexShrink: 0 }}
-        />
-      </button>
-
-      {/* ── This Week (scheduled cases) ──────────────────────────────── */}
-      <ScheduleSection
-        onBrief={(procedure, attending, when) => {
-          const parts = [procedure];
-          if (when) parts.push(when);
-          if (attending) parts.push(`with ${attending}`);
-          setBriefPrefill(parts.join(" "));
-          setBriefOpen(true);
-        }}
-        onDebrief={(sc) => {
-          setDebriefCase({
-            id: sc.caseLogId ?? sc.id,
-            procedureName: sc.procedureName,
-            caseDate: sc.scheduledAt,
-          });
-        }}
-      />
-
-      {/* ── Shared program calendar (self-hides if user in no programs) ── */}
-      <ProgramCalendar />
-
-      {/* ══════════════════════════════════════════════════════════════════
-          ROLE-SPECIFIC MODULES — layered below the shared core
-          ══════════════════════════════════════════════════════════════════ */}
-
-      {/* ── Staff / PD: teaching load section ────────────────────────────── */}
-      {isStaff && staffStats?.recentSigned && staffStats.recentSigned.length > 0 && (
+                    );
+                  })}
+                </div>
+              )}
+            </Link>
+          );
+        })()}
+      </div>
+      <div className="dash-b" style={{ order: 12 }}>
+        {/* ── Activity (all roles) ─────────────────────────────────────── */}
         <section style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "1px",
+            marginBottom: 12,
+          }}>Activity</div>
+          <VolumeHeatmap data={heatmapData} />
+        </section>
+      </div>
+      <div className="dash-b" style={{ order: 14 }}>
+        {/* ── Resident: learning curve ─────────────────────────────────── */}
+        {isResident && learningCurve.length >= 3 && (
+          <section style={{ marginBottom: 28 }}>
+            <div style={{
+              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "1px",
+              marginBottom: 14,
+            }}>Learning Curve — {topProcName}</div>
+            <LearningCurveChart data={learningCurve} height={wide ? 220 : 120} procedureName={topProcName} />
+          </section>
+        )}
+      </div>
+      <div className="dash-b" style={{ order: 15 }}>
+        {/* ── Recent cases (all roles) ─────────────────────────────────── */}
+        <section>
           <div style={{
             display: "flex",
             alignItems: "center",
@@ -873,8 +820,8 @@ export default function DashboardPage() {
             <span style={{
               fontSize: 10, fontWeight: 600, color: "var(--text-3)",
               textTransform: "uppercase", letterSpacing: "1px",
-            }}>Recent Sign-offs</span>
-            <Link href="/inbox" style={{
+            }}>Recent</span>
+            <Link href="/cases" style={{
               fontSize: 11, color: "var(--text-3)", textDecoration: "none",
               display: "flex", alignItems: "center", gap: 2,
               transition: "color .15s",
@@ -882,20 +829,32 @@ export default function DashboardPage() {
               All <ArrowUpRight size={10} />
             </Link>
           </div>
-          {staffStats.recentSigned.slice(0, 4).map((e, i) => (
-            <div key={e.id} style={{
+
+          {recentCases.length === 0 ? (
+            <div style={{
+              padding: "48px 0",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
+                No cases yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+                Tap Log to record your first procedure
+              </div>
+            </div>
+          ) : recentCases.map((c, i) => (
+            <div key={c.id} style={{
               display: "flex",
               alignItems: "flex-start",
               gap: 10,
               padding: "10px 0",
-              borderBottom: i < Math.min(staffStats.recentSigned.length, 4) - 1
-                ? "1px solid var(--border)"
-                : "none",
+              borderBottom: i < recentCases.length - 1 ? "1px solid var(--border)" : "none",
+              animation: `fadeIn .3s cubic-bezier(.16,1,.3,1) ${i * 50}ms both`,
             }}>
               <div style={{ paddingTop: 5, flexShrink: 0 }}>
                 <div style={{
                   width: 5, height: 5, borderRadius: "50%",
-                  background: "#10B981",
+                  background: approachColor(c.surgicalApproach),
                 }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
@@ -903,27 +862,54 @@ export default function DashboardPage() {
                   <span style={{
                     fontSize: 13, fontWeight: 500, color: "var(--text)",
                     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                    flex: 1, minWidth: 0,
-                  }}>{e.epaId} — {e.epaTitle}</span>
-                  {e.signedAt && (
+                    marginRight: 8, flex: 1, minWidth: 0,
+                  }}>{c.procedureName}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
+                      title="Share as pearl"
+                      aria-label="Share as pearl"
+                      style={{
+                        background: "transparent",
+                        border: "1px solid var(--border-mid)",
+                        borderRadius: 5,
+                        // 30×30 — small enough not to crowd the card footer,
+                        // big enough to hit on mobile without mis-tapping the
+                        // share onto the wrong case.
+                        width: 30, height: 30,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        cursor: "pointer", color: "var(--text-3)",
+                        transition: "all .15s",
+                        flexShrink: 0,
+                      }}
+                      onMouseEnter={e => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
+                      }}
+                      onMouseLeave={e => {
+                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
+                        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
+                      }}
+                    >
+                      <Share2 size={13} />
+                    </button>
                     <span style={{
                       fontSize: 11, color: "var(--text-3)",
                       fontFamily: "'Geist Mono', monospace",
-                      flexShrink: 0,
                     }}>
-                      {new Date(e.signedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
                     </span>
-                  )}
+                  </div>
                 </div>
                 <div style={{
                   display: "flex", gap: 6, marginTop: 2,
                   fontSize: 11, color: "var(--text-3)",
                 }}>
-                  <span>{e.residentName ?? "Resident"}</span>
-                  {e.entrustmentScore && (
+                  <span>{c.role}</span>
+                  {c.operativeDurationMinutes && (
                     <>
                       <span style={{ color: "var(--muted)" }}>&middot;</span>
-                      <span style={{ fontFamily: "'Geist Mono', monospace" }}>O-Score {e.entrustmentScore}</span>
+                      <span style={{ fontFamily: "'Geist Mono', monospace" }}>{c.operativeDurationMinutes}m</span>
                     </>
                   )}
                 </div>
@@ -931,296 +917,341 @@ export default function DashboardPage() {
             </div>
           ))}
         </section>
-      )}
-
-      {/* ── PD only: big, obvious PD Dashboard CTA ─────────────────────
-          Intentionally gated to PROGRAM_DIRECTOR. Attendings (ATTENDING/
-          STAFF) don't see this — they don't manage the cohort, just
-          review their residents' sign-offs via the inbox above. */}
-      {isPD && (
-        <section style={{ marginBottom: 28 }}>
-          <Link
-            href="/pd-dashboard"
-            style={{
+      </div>
+      <div className="dash-b" style={{ order: 10 }}>
+        {/* ── Staff / PD: teaching load section ────────────────────────────── */}
+        {isStaff && staffStats?.recentSigned && staffStats.recentSigned.length > 0 && (
+          <section style={{ marginBottom: 28 }}>
+            <div style={{
               display: "flex",
               alignItems: "center",
-              gap: 14,
-              padding: "18px 18px",
-              background:
-                "linear-gradient(135deg, rgba(14,165,233,0.08), rgba(16,185,129,0.06))",
-              border: "1px solid rgba(14,165,233,0.35)",
-              borderRadius: 12,
-              color: "var(--text)",
-              textDecoration: "none",
-              transition: "background .15s, border-color .15s",
-            }}
-          >
-            <div
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 10,
-                background: "rgba(14,165,233,0.15)",
-                border: "1px solid rgba(14,165,233,0.35)",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}>
+              <span style={{
+                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "1px",
+              }}>Recent Sign-offs</span>
+              <Link href="/inbox" style={{
+                fontSize: 11, color: "var(--text-3)", textDecoration: "none",
+                display: "flex", alignItems: "center", gap: 2,
+                transition: "color .15s",
+              }}>
+                All <ArrowUpRight size={10} />
+              </Link>
+            </div>
+            {staffStats.recentSigned.slice(0, 4).map((e, i) => (
+              <div key={e.id} style={{
                 display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "#0EA5E9",
-                flexShrink: 0,
-              }}
-            >
-              <LayoutDashboard size={20} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div
-                style={{
-                  fontSize: 15,
-                  fontWeight: 700,
-                  color: "var(--text)",
-                  letterSpacing: "-0.2px",
-                  marginBottom: 2,
-                }}
-              >
-                Program Director Dashboard
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "10px 0",
+                borderBottom: i < Math.min(staffStats.recentSigned.length, 4) - 1
+                  ? "1px solid var(--border)"
+                  : "none",
+              }}>
+                <div style={{ paddingTop: 5, flexShrink: 0 }}>
+                  <div style={{
+                    width: 5, height: 5, borderRadius: "50%",
+                    background: "#10B981",
+                  }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 500, color: "var(--text)",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      flex: 1, minWidth: 0,
+                    }}>{e.epaId} — {e.epaTitle}</span>
+                    {e.signedAt && (
+                      <span style={{
+                        fontSize: 11, color: "var(--text-3)",
+                        fontFamily: "'Geist Mono', monospace",
+                        flexShrink: 0,
+                      }}>
+                        {new Date(e.signedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    display: "flex", gap: 6, marginTop: 2,
+                    fontSize: 11, color: "var(--text-3)",
+                  }}>
+                    <span>{e.residentName ?? "Resident"}</span>
+                    {e.entrustmentScore && (
+                      <>
+                        <span style={{ color: "var(--muted)" }}>&middot;</span>
+                        <span style={{ fontFamily: "'Geist Mono', monospace" }}>O-Score {e.entrustmentScore}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
               </div>
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "var(--text-3)",
-                  lineHeight: 1.4,
-                }}
-              >
-                Full cohort view — resident logbooks, EPA progress, and
-                inactivity alerts
-                {cohortKpis
-                  ? ` · ${cohortKpis.totalResidents} resident${cohortKpis.totalResidents === 1 ? "" : "s"}`
-                  : ""}
-                {cohortKpis && cohortKpis.silentResidents > 0 ? (
-                  <span style={{ color: "#F59E0B", fontWeight: 600 }}>
-                    {" · "}
-                    {cohortKpis.silentResidents} silent
-                  </span>
-                ) : null}
-              </div>
-            </div>
-            <ChevronRight
-              size={18}
-              style={{ color: "var(--text-3)", flexShrink: 0 }}
-            />
-          </Link>
-
-          {/* Silent residents — actionable, stays as a top-level alert */}
-          {cohortKpis && cohortKpis.silentResidents > 0 && (
+            ))}
+          </section>
+        )}
+      </div>
+      <div className="dash-b" style={{ order: 11 }}>
+        {/* ── PD only: big, obvious PD Dashboard CTA ─────────────────────
+            Intentionally gated to PROGRAM_DIRECTOR. Attendings (ATTENDING/
+            STAFF) don't see this — they don't manage the cohort, just
+            review their residents' sign-offs via the inbox above. */}
+        {isPD && (
+          <section style={{ marginBottom: 28 }}>
             <Link
               href="/pd-dashboard"
               style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 8,
-                padding: "10px 14px",
-                marginTop: 10,
-                background: "#F59E0B10",
-                border: "1px solid #F59E0B25",
-                borderRadius: 8,
-                fontSize: 12,
-                color: "var(--text-2)",
+                gap: 14,
+                padding: "18px 18px",
+                background:
+                  "linear-gradient(135deg, rgba(14,165,233,0.08), rgba(16,185,129,0.06))",
+                border: "1px solid rgba(14,165,233,0.35)",
+                borderRadius: 12,
+                color: "var(--text)",
                 textDecoration: "none",
+                transition: "background .15s, border-color .15s",
               }}
             >
-              <AlertTriangle
-                size={13}
-                style={{ color: "#F59E0B", flexShrink: 0 }}
-              />
-              <span style={{ flex: 1 }}>
-                {cohortKpis.silentResidents === 1
-                  ? "1 resident hasn\u2019t logged a case in 14+ days"
-                  : `${cohortKpis.silentResidents} residents haven\u2019t logged a case in 14+ days`}
-              </span>
-              <ChevronRight size={12} style={{ color: "var(--text-3)" }} />
-            </Link>
-          )}
-        </section>
-      )}
-
-      {/* ── Activity (all roles) ─────────────────────────────────────── */}
-      <section style={{ marginBottom: 28 }}>
-        <div style={{
-          fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-          textTransform: "uppercase", letterSpacing: "1px",
-          marginBottom: 12,
-        }}>Activity</div>
-        <VolumeHeatmap data={heatmapData} />
-      </section>
-
-      {/* ── Top procedures (all roles) ───────────────────────────────── */}
-      {topProcs.length > 0 && (
-        <section style={{ marginBottom: 28 }}>
-          <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px",
-            marginBottom: 14,
-          }}>Top Procedures</div>
-          {topProcs.map(([name, count], i) => (
-            <div key={name} style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 12,
-              padding: "8px 0",
-              borderBottom: i < topProcs.length - 1 ? "1px solid var(--border)" : "none",
-            }}>
-              <span style={{
-                fontSize: 10,
-                fontWeight: 600,
-                color: "var(--text-3)",
-                fontFamily: "'Geist Mono', monospace",
-                width: 16,
-                flexShrink: 0,
-              }}>{i + 1}</span>
-              <span style={{
-                flex: 1, fontSize: 13, fontWeight: 500,
-                color: "var(--text)", minWidth: 0,
-                whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-              }}>{name}</span>
-              <div style={{ width: 60, height: 2, background: "var(--border-mid)", borderRadius: 1, flexShrink: 0 }}>
-                <div style={{
-                  height: "100%",
-                  width: `${Math.round((count / maxCount) * 100)}%`,
-                  background: "var(--primary)",
-                  borderRadius: 1,
-                  transition: "width .5s cubic-bezier(.16,1,.3,1)",
-                }} />
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  background: "rgba(14,165,233,0.15)",
+                  border: "1px solid rgba(14,165,233,0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#0EA5E9",
+                  flexShrink: 0,
+                }}
+              >
+                <LayoutDashboard size={20} />
               </div>
-              <span style={{
-                fontSize: 12, fontWeight: 600,
-                color: "var(--text-2)",
-                fontFamily: "'Geist Mono', monospace",
-                minWidth: 20, textAlign: "right",
-              }}>{count}</span>
-            </div>
-          ))}
-        </section>
-      )}
-
-      {/* ── Resident: learning curve ─────────────────────────────────── */}
-      {isResident && learningCurve.length >= 3 && (
-        <section style={{ marginBottom: 28 }}>
-          <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px",
-            marginBottom: 14,
-          }}>Learning Curve — {topProcName}</div>
-          <LearningCurveChart data={learningCurve} height={120} procedureName={topProcName} />
-        </section>
-      )}
-
-      {/* ── Recent cases (all roles) ─────────────────────────────────── */}
-      <section>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 12,
-        }}>
-          <span style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px",
-          }}>Recent</span>
-          <Link href="/cases" style={{
-            fontSize: 11, color: "var(--text-3)", textDecoration: "none",
-            display: "flex", alignItems: "center", gap: 2,
-            transition: "color .15s",
-          }}>
-            All <ArrowUpRight size={10} />
-          </Link>
-        </div>
-
-        {recentCases.length === 0 ? (
-          <div style={{
-            padding: "48px 0",
-            textAlign: "center",
-          }}>
-            <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
-              No cases yet
-            </div>
-            <div style={{ fontSize: 12, color: "var(--text-3)" }}>
-              Tap Log to record your first procedure
-            </div>
-          </div>
-        ) : recentCases.map((c, i) => (
-          <div key={c.id} style={{
-            display: "flex",
-            alignItems: "flex-start",
-            gap: 10,
-            padding: "10px 0",
-            borderBottom: i < recentCases.length - 1 ? "1px solid var(--border)" : "none",
-            animation: `fadeIn .3s cubic-bezier(.16,1,.3,1) ${i * 50}ms both`,
-          }}>
-            <div style={{ paddingTop: 5, flexShrink: 0 }}>
-              <div style={{
-                width: 5, height: 5, borderRadius: "50%",
-                background: approachColor(c.surgicalApproach),
-              }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
-                <span style={{
-                  fontSize: 13, fontWeight: 500, color: "var(--text)",
-                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
-                  marginRight: 8, flex: 1, minWidth: 0,
-                }}>{c.procedureName}</span>
-                <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
-                    title="Share as pearl"
-                    aria-label="Share as pearl"
-                    style={{
-                      background: "transparent",
-                      border: "1px solid var(--border-mid)",
-                      borderRadius: 5,
-                      // 30×30 — small enough not to crowd the card footer,
-                      // big enough to hit on mobile without mis-tapping the
-                      // share onto the wrong case.
-                      width: 30, height: 30,
-                      display: "flex", alignItems: "center", justifyContent: "center",
-                      cursor: "pointer", color: "var(--text-3)",
-                      transition: "all .15s",
-                      flexShrink: 0,
-                    }}
-                    onMouseEnter={e => {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
-                      (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
-                    }}
-                    onMouseLeave={e => {
-                      (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                      (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                    }}
-                  >
-                    <Share2 size={13} />
-                  </button>
-                  <span style={{
-                    fontSize: 11, color: "var(--text-3)",
-                    fontFamily: "'Geist Mono', monospace",
-                  }}>
-                    {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
-                  </span>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 700,
+                    color: "var(--text)",
+                    letterSpacing: "-0.2px",
+                    marginBottom: 2,
+                  }}
+                >
+                  Program Director Dashboard
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-3)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Full cohort view — resident logbooks, EPA progress, and
+                  inactivity alerts
+                  {cohortKpis
+                    ? ` · ${cohortKpis.totalResidents} resident${cohortKpis.totalResidents === 1 ? "" : "s"}`
+                    : ""}
+                  {cohortKpis && cohortKpis.silentResidents > 0 ? (
+                    <span style={{ color: "#F59E0B", fontWeight: 600 }}>
+                      {" · "}
+                      {cohortKpis.silentResidents} silent
+                    </span>
+                  ) : null}
                 </div>
               </div>
-              <div style={{
-                display: "flex", gap: 6, marginTop: 2,
-                fontSize: 11, color: "var(--text-3)",
-              }}>
-                <span>{c.role}</span>
-                {c.operativeDurationMinutes && (
-                  <>
-                    <span style={{ color: "var(--muted)" }}>&middot;</span>
-                    <span style={{ fontFamily: "'Geist Mono', monospace" }}>{c.operativeDurationMinutes}m</span>
-                  </>
-                )}
+              <ChevronRight
+                size={18}
+                style={{ color: "var(--text-3)", flexShrink: 0 }}
+              />
+            </Link>
+
+            {/* Silent residents — actionable, stays as a top-level alert */}
+            {cohortKpis && cohortKpis.silentResidents > 0 && (
+              <Link
+                href="/pd-dashboard"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 14px",
+                  marginTop: 10,
+                  background: "#F59E0B10",
+                  border: "1px solid #F59E0B25",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  textDecoration: "none",
+                }}
+              >
+                <AlertTriangle
+                  size={13}
+                  style={{ color: "#F59E0B", flexShrink: 0 }}
+                />
+                <span style={{ flex: 1 }}>
+                  {cohortKpis.silentResidents === 1
+                    ? "1 resident hasn\u2019t logged a case in 14+ days"
+                    : `${cohortKpis.silentResidents} residents haven\u2019t logged a case in 14+ days`}
+                </span>
+                <ChevronRight size={12} style={{ color: "var(--text-3)" }} />
+              </Link>
+            )}
+          </section>
+        )}
+      </div>
+      </div>
+      <aside className="dash-side">
+      <div className="dash-b" style={{ order: 1 }}>
+        {/* ── Principle ─────────────────────────────────────────────────── */}
+        <TodaysPrinciple />
+      </div>
+      <div className="dash-b" style={{ order: 2 }}>
+        {/* ── On track (Pro): projections against program minimums ─────── */}
+        <OnTrackCard />
+      </div>
+      <div className="dash-b" style={{ order: 7 }}>
+        {/* ── Pre-Op Brief CTA ──────────────────────────────────────────── */}
+        <button
+          onClick={() => {
+            setBriefPrefill(undefined);
+            setBriefOpen(true);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            width: "100%",
+            padding: "14px 16px",
+            marginBottom: 28,
+            background:
+              "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
+            border: "1px solid rgba(168,85,247,0.28)",
+            borderRadius: 10,
+            color: "var(--text)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            textAlign: "left",
+            transition: "background .15s, border-color .15s",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: "rgba(168,85,247,0.16)",
+                border: "1px solid rgba(168,85,247,0.35)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={14} style={{ color: "#c4b5fd" }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                Brief me for tomorrow
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-3)",
+                  marginTop: 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                Personalized prep from your case history
               </div>
             </div>
           </div>
-        ))}
-      </section>
+          <ChevronRight
+            size={14}
+            style={{ color: "var(--text-3)", flexShrink: 0 }}
+          />
+        </button>
+      </div>
+      <div className="dash-b" style={{ order: 8 }}>
+        {/* ── This Week (scheduled cases) ──────────────────────────────── */}
+        <ScheduleSection
+          onBrief={(procedure, attending, when) => {
+            const parts = [procedure];
+            if (when) parts.push(when);
+            if (attending) parts.push(`with ${attending}`);
+            setBriefPrefill(parts.join(" "));
+            setBriefOpen(true);
+          }}
+          onDebrief={(sc) => {
+            setDebriefCase({
+              id: sc.caseLogId ?? sc.id,
+              procedureName: sc.procedureName,
+              caseDate: sc.scheduledAt,
+            });
+          }}
+        />
+      </div>
+      <div className="dash-b" style={{ order: 9 }}>
+        {/* ── Shared program calendar (self-hides if user in no programs) ── */}
+        <ProgramCalendar />
+      </div>
+      <div className="dash-b" style={{ order: 13 }}>
+        {/* ── Top procedures (all roles) ───────────────────────────────── */}
+        {topProcs.length > 0 && (
+          <section style={{ marginBottom: 28 }}>
+            <div style={{
+              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "1px",
+              marginBottom: 14,
+            }}>Top Procedures</div>
+            {topProcs.map(([name, count], i) => (
+              <div key={name} style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "8px 0",
+                borderBottom: i < topProcs.length - 1 ? "1px solid var(--border)" : "none",
+              }}>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "var(--text-3)",
+                  fontFamily: "'Geist Mono', monospace",
+                  width: 16,
+                  flexShrink: 0,
+                }}>{i + 1}</span>
+                <span style={{
+                  flex: 1, fontSize: 13, fontWeight: 500,
+                  color: "var(--text)", minWidth: 0,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>{name}</span>
+                <div style={{ width: 60, height: 2, background: "var(--border-mid)", borderRadius: 1, flexShrink: 0 }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${Math.round((count / maxCount) * 100)}%`,
+                    background: "var(--primary)",
+                    borderRadius: 1,
+                    transition: "width .5s cubic-bezier(.16,1,.3,1)",
+                  }} />
+                </div>
+                <span style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: "var(--text-2)",
+                  fontFamily: "'Geist Mono', monospace",
+                  minWidth: 20, textAlign: "right",
+                }}>{count}</span>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+      </aside>
+      </div>
 
       {/* The bottom-of-page "Milestones" footer used to live here. It was
           a quiet 3-row list that nobody scrolled to. The same data now

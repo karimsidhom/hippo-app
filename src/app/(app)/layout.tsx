@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, Inbox, GraduationCap, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
@@ -72,6 +72,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-module={moduleAttr}
+      className="app-shell"
       style={{
         background: "var(--bg)",
         minHeight: "100dvh",
@@ -87,6 +88,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     >
       <ShadowRecordBanner />
       <SubprocessorBanner />
+      <DesktopSidebar
+        inClinic={inClinic}
+        pathname={pathname}
+        name={user.name}
+        subtitle={[profile?.trainingYearLabel, profile?.specialty].filter(Boolean).join(" \u00b7 ")}
+        roleType={profile?.roleType}
+        onLog={() => { fx.tap(); setQuickAddOpen(true); }}
+        onLogout={() => { logout(); router.replace("/login"); }}
+      />
       {/* Responsive breakpoint styles.
        *
        * Width strategy:
@@ -328,6 +338,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       */}
       <div
         aria-hidden
+        className="app-nav-backdrop"
         style={{
           position: "fixed",
           bottom: 0,
@@ -603,3 +614,129 @@ function NavTab({
     </Link>
   );
 }
+
+/** Desktop-only left sidebar (hidden below 1024px via .desk-sidebar). */
+function DesktopSidebar({
+  inClinic, pathname, name, subtitle, roleType, onLog, onLogout,
+}: {
+  inClinic: boolean;
+  pathname: string;
+  name: string;
+  subtitle: string;
+  roleType?: string;
+  onLog: () => void;
+  onLogout: () => void;
+}) {
+  const isStaff = roleType === "STAFF" || roleType === "ATTENDING" || roleType === "PROGRAM_DIRECTOR";
+  const isPD = roleType === "PROGRAM_DIRECTOR";
+  const items: { href: string; label: string; icon: LucideIcon; active: boolean }[] = inClinic
+    ? [
+        { href: "/clinic", label: "Home", icon: LayoutDashboard, active: pathname === "/clinic" },
+        { href: "/clinic/patients", label: "Patients", icon: Users, active: pathname.startsWith("/clinic/patients") },
+        { href: "/clinic/follow-ups", label: "Follow-ups", icon: CalendarClock, active: pathname.startsWith("/clinic/follow-ups") },
+        { href: "/clinic/settings", label: "Settings", icon: SettingsIcon, active: pathname.startsWith("/clinic/settings") },
+      ]
+    : [
+        { href: "/dashboard", label: "Home", icon: LayoutDashboard, active: pathname === "/dashboard" },
+        { href: "/cases", label: "Cases", icon: ClipboardList, active: pathname.startsWith("/cases") },
+        { href: "/analytics", label: "Stats", icon: BarChart2, active: pathname.startsWith("/analytics") },
+        ...(isStaff ? [{ href: "/inbox", label: "EPA inbox", icon: Inbox, active: pathname.startsWith("/inbox") }] : []),
+        ...(isPD ? [{ href: "/pd-dashboard", label: "Program", icon: GraduationCap, active: pathname.startsWith("/pd-dashboard") }] : []),
+        { href: "/social", label: "Community", icon: Users, active: pathname.startsWith("/social") },
+        { href: "/profile", label: "Profile", icon: User, active: pathname.startsWith("/profile") },
+      ];
+  const settingsActive = pathname.startsWith("/settings");
+
+  return (
+    <aside className="desk-sidebar" aria-label="Main navigation">
+      <Link
+        href={inClinic ? "/clinic" : "/dashboard"}
+        style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px", textDecoration: "none" }}
+      >
+        <HippoMark size={26} />
+        <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Hippo</span>
+        {inClinic && (
+          <span style={{
+            padding: "2px 6px", fontSize: 9, fontWeight: 600, letterSpacing: ".08em",
+            textTransform: "uppercase", color: "var(--primary)", background: "var(--primary-dim)",
+            border: "1px solid var(--border-glow)", borderRadius: 4,
+          }}>Clinic</span>
+        )}
+      </Link>
+
+      {inClinic ? (
+        <Link href="/clinic/new" className="press" style={deskPrimaryBtn}>
+          <FilePlus size={16} strokeWidth={2.25} /> New note
+        </Link>
+      ) : (
+        <button type="button" className="press" onClick={onLog} style={deskPrimaryBtn}>
+          <Plus size={16} strokeWidth={2.5} /> Log a case
+        </button>
+      )}
+
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {items.map(({ href, label, icon: Icon, active }) => (
+          <Link key={href} href={href} className="desk-nav-link" aria-current={active ? "page" : undefined}>
+            <Icon size={17} strokeWidth={active ? 2 : 1.75} />
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      <div style={{ flex: 1 }} />
+
+      {!inClinic && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 4 }}>
+            <Link href="/settings" className="desk-nav-link" aria-current={settingsActive ? "page" : undefined} style={{ flex: 1 }}>
+              <SettingsIcon size={17} strokeWidth={settingsActive ? 2 : 1.75} />
+              Settings
+            </Link>
+            <NotificationBell />
+          </div>
+        </div>
+      )}
+
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 10px 4px", borderTop: "1px solid var(--border)",
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: "var(--text)",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>{name}</div>
+          {subtitle && (
+            <div style={{
+              fontSize: 11, color: "var(--text-3)", marginTop: 2,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>{subtitle}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+          style={{
+            background: "none", border: "1px solid var(--border-mid)", borderRadius: 7,
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text-2)", cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          <LogOut size={14} />
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+const deskPrimaryBtn: React.CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+  height: 40, margin: "24px 0 18px",
+  background: "var(--primary)", color: "#fff",
+  border: "none", borderRadius: 9,
+  fontSize: 14, fontWeight: 600, fontFamily: "inherit",
+  cursor: "pointer", textDecoration: "none",
+  boxShadow: "0 2px 10px rgba(14,165,233,.22)",
+};

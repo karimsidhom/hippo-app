@@ -941,7 +941,18 @@ export default function CasesPage() {
           <div className="empty-title">No cases found</div>
           <div className="empty-text">Try adjusting your search or filters</div>
         </div>
-      ) : filtered.map(c => (
+      ) : (<>
+      {/* Column headings — desktop table view only (hidden on phones). */}
+      <div className="case-thead" aria-hidden>
+        <span />
+        <span>Procedure</span>
+        <span>Role</span>
+        <span>Approach</span>
+        <span>Time</span>
+        <span>Date</span>
+        <span style={{ gridColumn: "span 3", textAlign: "center" }}>Actions</span>
+      </div>
+      {filtered.map(c => (
         <div
           key={c.id}
           className="case-card"
@@ -956,10 +967,14 @@ export default function CasesPage() {
             }} />
           </div>
           {/* Content */}
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div className="case-body" style={{ flex: 1, minWidth: 0 }}>
+            <div className="case-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
               <div className="case-proc">{c.procedureName}</div>
-              <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+              {/* Desktop table cells (hidden on phones, where .case-meta shows) */}
+              <div className="case-col">{c.role}</div>
+              <div className="case-col">{APPROACH_LABELS[c.surgicalApproach] ?? c.surgicalApproach}</div>
+              <div className="case-col case-col-num">{c.operativeDurationMinutes ? `${c.operativeDurationMinutes}m` : "\u2014"}</div>
+              <div className="case-actions" style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                 <div className="case-date">
                   {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
                 </div>
@@ -1084,6 +1099,7 @@ export default function CasesPage() {
           </div>
         </div>
       ))}
+      </>)}
 
       {expanded && (
         <Sheet
