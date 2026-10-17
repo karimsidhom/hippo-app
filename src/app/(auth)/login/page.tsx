@@ -226,7 +226,7 @@ export default function LoginPage() {
     if (!email.trim()) { setError("Please enter your email."); return; }
     if (!password) { setError("Please enter your password."); return; }
     setLoading(true);
-    const result = await login(email.trim(), password);
+    const result = await login(email.trim(), password, new URLSearchParams(window.location.search).get("next"));
     if (result.ok) {
       setAuthSuccess(true);
     } else {

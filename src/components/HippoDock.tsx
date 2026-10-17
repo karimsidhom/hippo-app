@@ -4,7 +4,7 @@
  * HippoDock: the suite switcher and account chip for app headers.
  *
  * Copied byte-identical into each suite repo that shows it (Cases and
- * Handover in Phase 1), next to src/lib/hippo-id.ts. Styling uses the house
+ * Handover), next to src/lib/hippo-id.ts. Styling uses the house
  * tokens every Hippo app already defines (--surface, --border, --text-*,
  * --primary, --r, --rl), so it takes on each app's light and dark theme.
  */
@@ -23,15 +23,23 @@ interface HippoDockProps {
   current: SuiteAppId;
   /** The app's Supabase browser client. The dock reads the session and hub profile itself. */
   supabase: Parameters<typeof getHippoUser>[0];
-  /** Unread handoffs. Phase 2 (Hippo Link) fills this; nothing renders while it is 0 or absent. */
+  /** Pending Hippo Link handoffs for this user. Nothing renders while it is 0 or absent. */
   inbox?: number;
+  /** Where the Inbox row goes. Cases passes its own /inbox. */
+  inboxHref?: string;
   /** Where "Edit profile" goes. Cases passes its own /profile. */
   profileHref?: string;
 }
 
 const EASE = "cubic-bezier(.16,1,.3,1)";
 
-export function HippoDock({ current, supabase, inbox, profileHref = HIPPO_PROFILE_URL }: HippoDockProps) {
+export function HippoDock({
+  current,
+  supabase,
+  inbox,
+  inboxHref = "https://hippomedicine.com/inbox",
+  profileHref = HIPPO_PROFILE_URL,
+}: HippoDockProps) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<HippoUser | null>(null);
   const root = useRef<HTMLDivElement>(null);
@@ -78,7 +86,10 @@ export function HippoDock({ current, supabase, inbox, profileHref = HIPPO_PROFIL
         className="hippo-dock-trigger"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={user?.displayName ? `Hippo Suite apps and account, ${user.displayName}` : "Hippo Suite apps and account"}
+        aria-label={
+          (user?.displayName ? `Hippo Suite apps and account, ${user.displayName}` : "Hippo Suite apps and account") +
+          (unread > 0 ? `, ${unread} waiting in your inbox` : "")
+        }
         onClick={() => setOpen((o) => !o)}
         style={styles.trigger}
       >
@@ -96,6 +107,16 @@ export function HippoDock({ current, supabase, inbox, profileHref = HIPPO_PROFIL
               <div style={styles.sub}>{detail || "One sign-in for every Hippo app"}</div>
             </div>
           </div>
+
+          {unread > 0 && (
+            <a href={inboxHref} className="hippo-dock-row" style={{ ...styles.row, ...styles.inboxRow }}>
+              <span aria-hidden="true" style={styles.inboxCount}>{unread > 9 ? "9+" : unread}</span>
+              <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
+                <span style={styles.appName}>Inbox</span>
+                <span style={styles.blurb}>{unread === 1 ? "1 waiting to review" : `${unread} waiting to review`}</span>
+              </span>
+            </a>
+          )}
 
           <nav aria-label="Hippo Suite apps" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             {HIPPO_SUITE_APPS.map((app, i) => {
@@ -248,6 +269,24 @@ const styles: Record<string, CSSProperties> = {
     animation: `hippo-dock-row .4s ${EASE} both`,
   },
   icon: { width: 32, height: 32, borderRadius: 8, flexShrink: 0, objectFit: "cover" },
+  inboxRow: {
+    marginBottom: 4,
+    border: "1px solid var(--border-mid, rgba(255,255,255,0.06))",
+    background: "var(--primary-dim, rgba(14,165,233,0.08))",
+  },
+  inboxCount: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    flexShrink: 0,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "var(--primary, #0EA5E9)",
+    color: "#fff",
+    fontSize: 13,
+    fontWeight: 700,
+  },
   appName: { fontSize: 14, fontWeight: 600, letterSpacing: "-0.01em" },
   blurb: { fontSize: 12, color: "var(--text-2, #64748B)", marginTop: 1 },
   here: {

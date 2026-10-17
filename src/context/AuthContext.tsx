@@ -8,6 +8,7 @@ import React, {
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Profile, CaseLog, Milestone } from '@/lib/types';
+import { safeNext } from '@/lib/safe-next';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -29,7 +30,7 @@ interface AuthContextValue {
   loading: boolean;
   // Auth actions
   register: (name: string, email: string, password: string) => Promise<AuthResult>;
-  login:    (email: string, password: string) => Promise<AuthResult>;
+  login:    (email: string, password: string, next?: string | null) => Promise<AuthResult>;
   /**
    * Send a password-reset email via Supabase Auth. The reset link in the
    * email lands on /reset-password where the user can set a new password.
@@ -286,7 +287,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [supabase, router]);
 
   const login = useCallback(async (
-    email: string, password: string,
+    email: string, password: string, next?: string | null,
   ): Promise<AuthResult> => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
@@ -299,7 +300,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const meRes = await fetch('/api/auth/me');
       if (meRes.ok) {
         const { profile: p } = await meRes.json();
-        router.push(p?.onboardingCompleted ? '/dashboard' : '/onboarding');
+        router.push(p?.onboardingCompleted ? (safeNext(next) ?? '/dashboard') : '/onboarding');
       } else {
         router.push('/onboarding');
       }
