@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
-import { cookies } from 'next/headers';
+import { cookies, headers } from 'next/headers';
+import { hippoCookieOptions } from './hippo-id';
 
 /**
  * Server-side Supabase client (anon key).
@@ -12,11 +13,16 @@ export async function createServerSupabaseClient() {
   }
 
   const cookieStore = await cookies();
+  const h = await headers();
+  const host = h.get('x-forwarded-host') ?? h.get('host');
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      // Hippo ID: on *.hippomedicine.com the session cookie lives on the
+      // parent domain so one sign-in covers every suite app.
+      cookieOptions: hippoCookieOptions(host),
       cookies: {
         getAll() {
           return cookieStore.getAll();
