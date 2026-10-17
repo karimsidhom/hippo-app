@@ -271,25 +271,37 @@ function trigrams(s: string): Set<string> {
   return set;
 }
 
+// "Cysto + L stent" names the access, then the operation: a candidate that
+// matches only the access step ("Cystoscopy") should not win.
+const ACCESS = new Set(["cystoscopy"]);
+// A candidate's action ("stent removal") counts against it when the text never said it.
+const ACTIONS = new Set([
+  "removal", "exchange", "insertion", "placement", "replacement", "revision", "repair",
+  "reversal", "implantation", "explantation", "change",
+]);
+
 function similarity(raw: string[], cand: string[]): number {
   if (!raw.length || !cand.length) return 0;
   if (raw.join(" ") === cand.join(" ")) return 1;
   const used = new Set<number>();
-  let matched = 0;
+  const hits: string[] = [];
   for (const t of raw) {
     const j = cand.findIndex((c, i) => !used.has(i) && tokenMatch(t, c));
     if (j >= 0) {
       used.add(j);
-      matched++;
+      hits.push(t);
     }
   }
-  const dice = (2 * matched) / (raw.length + cand.length);
+  const dice = (2 * hits.length) / (raw.length + cand.length);
   const a = trigrams(raw.join(" "));
   const b = trigrams(cand.join(" "));
   let inter = 0;
   for (const g of a) if (b.has(g)) inter++;
   const tri = inter / (a.size + b.size - inter);
-  return 0.8 * dice + 0.2 * tri;
+  const unsaidActions = cand.filter((c, i) => !used.has(i) && ACTIONS.has(c)).length;
+  const score = 0.8 * dice + 0.2 * tri - 0.1 * unsaidActions;
+  const onlyAccess = hits.length > 0 && hits.every((t) => ACCESS.has(t)) && raw.some((t) => !ACCESS.has(t));
+  return onlyAccess ? score * 0.5 : score;
 }
 
 export const PROCEDURE_MATCH_THRESHOLD = 0.35;
@@ -301,11 +313,17 @@ export function matchProcedure<T extends { name: string; aliases?: readonly stri
 ): { match: T | null; score: number; alternatives: T[] } {
   const rt = procTokens(raw || "");
   if (!rt.length) return { match: null, score: 0, alternatives: [] };
+  // Also score the text without its access step, when it names something else.
+  const core = rt.filter((t) => !ACCESS.has(t));
+  const variants = core.length && core.length < rt.length ? [rt, core] : [rt];
   const scored = procedures.map((p, i) => {
-    let best = similarity(rt, procTokens(p.name));
-    for (const a of p.aliases ?? []) {
-      if (best === 1) break;
-      best = Math.max(best, similarity(rt, procTokens(a)));
+    const names = [p.name, ...(p.aliases ?? [])].map(procTokens);
+    let best = 0;
+    for (const v of variants) {
+      for (const n of names) {
+        if (best === 1) break;
+        best = Math.max(best, similarity(v, n));
+      }
     }
     return { p, i, score: best };
   });
