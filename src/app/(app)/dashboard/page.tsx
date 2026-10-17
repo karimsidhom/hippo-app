@@ -6,6 +6,8 @@ import Link from "next/link";
 import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
+import { HippoDock } from "@/components/HippoDock";
+import { createClient } from "@/lib/supabase";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
 import { getStreak } from "@/lib/milestones";
@@ -424,6 +426,8 @@ export default function DashboardPage() {
           </div>
         </div>
 
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <HippoDock current="cases" supabase={createClient()} profileHref="/profile" />
         <Link
           href="/settings"
           aria-label="Settings"
@@ -445,6 +449,7 @@ export default function DashboardPage() {
         >
           <Settings size={16} strokeWidth={1.75} />
         </Link>
+        </div>
       </div>
 
       {/* ── Desktop: main column + right rail. On phones both wrappers are

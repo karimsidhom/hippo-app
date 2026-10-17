@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { db } from '@/lib/db';
+import { syncHubProfile } from '@/lib/hub-profile';
 import { stripHonorific } from '@/lib/names';
 import { checkRateLimit, LIMITS } from '@/lib/rate-limit';
 
@@ -69,6 +70,8 @@ export async function POST(req: NextRequest) {
         profile: { create: { onboardingCompleted: false } },
       },
     });
+    // Hippo ID: the shared profile exists from the first sign-in.
+    await syncHubProfile(authUserId);
 
     // ── 3. Sign in to get session tokens ─────────────────────────────────
     const { data: signInData, error: signInError } =

@@ -3,6 +3,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { createServiceRoleClient } from '@/lib/supabase-server';
 import { stripHonorific } from '@/lib/names';
+import { syncHubProfile } from '@/lib/hub-profile';
 import { trainingYearLabelFor } from '@/lib/training-year';
 
 /**
@@ -185,6 +186,10 @@ export async function PATCH(req: NextRequest) {
         theme: safeTheme ?? 'dark',
       },
     });
+
+    // Hippo ID: the shared profile follows the Cases one (name, specialty,
+    // program, level, country). Never fails the save.
+    await syncHubProfile(user.id);
 
     return NextResponse.json(updated);
   } catch (err) {

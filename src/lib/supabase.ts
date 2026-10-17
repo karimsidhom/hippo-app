@@ -1,4 +1,5 @@
 import { createBrowserClient } from '@supabase/ssr';
+import { hippoCookieOptions } from './hippo-id';
 
 /**
  * Browser-side Supabase client.
@@ -17,5 +18,8 @@ export function createClient() {
     );
   }
 
-  return createBrowserClient(url, key);
+  // Hippo ID: parent-domain session cookie on *.hippomedicine.com.
+  return createBrowserClient(url, key, {
+    cookieOptions: hippoCookieOptions(typeof window === 'undefined' ? null : window.location.hostname),
+  });
 }

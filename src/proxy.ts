@@ -1,5 +1,12 @@
 import { NextResponse, type NextRequest } from 'next/server';
 import { createServerClient } from '@supabase/ssr';
+import {
+  applyCookieMigration,
+  hippoCookieOptions,
+  normaliseRequestCookies,
+  planCookieMigration,
+  supabaseRef,
+} from '@/lib/hippo-id';
 
 // Routes that don't need auth
 // /install is public so the link works as a shareable "get the app" URL —
@@ -66,11 +73,30 @@ export async function proxy(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Hippo ID: the one-time move of host-only auth cookies to the parent
+  // domain (null in the steady state). It runs before anything reads the
+  // session so this request and every handler after it see one session.
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const migration = planCookieMigration(
+    host,
+    request.headers.get('cookie'),
+    supabaseRef(process.env.NEXT_PUBLIC_SUPABASE_URL),
+  );
+  if (migration) normaliseRequestCookies(request.cookies, migration);
+
   let response = NextResponse.next({ request });
+  // Every exit below goes through here: redirects and JSON replies keep any
+  // cookies Supabase refreshed, and the migration's raw Set-Cookie headers
+  // go on last (response.cookies.set after this would drop them).
+  const finish = (out: NextResponse) => {
+    if (out !== response) for (const c of response.cookies.getAll()) out.cookies.set(c);
+    if (migration) applyCookieMigration(out.headers, migration);
+    return out;
+  };
 
   // Skip auth if Supabase isn't configured (build-time / missing env)
   if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
-    return response;
+    return finish(response);
   }
 
   // Build server Supabase client — syncs session cookies on every request
@@ -78,6 +104,7 @@ export async function proxy(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     {
+      cookieOptions: hippoCookieOptions(host),
       cookies: {
         getAll() {
           return request.cookies.getAll();
@@ -118,7 +145,7 @@ export async function proxy(request: NextRequest) {
   // attempt the authed GET.
   const isExtensionApi = pathname.startsWith("/api/clinic/extension/");
   if (isExtensionApi && request.method === "OPTIONS") {
-    return response;
+    return finish(response);
   }
 
   // ── Protect API routes ─────────────────────────────────────────────────────
@@ -126,24 +153,24 @@ export async function proxy(request: NextRequest) {
     // Allow the GET-only invite preview through so the join page works for
     // logged-out users. The POST accept path re-checks auth at the route level.
     if (isInvitePreviewGet && request.method === 'GET') {
-      return response;
+      return finish(response);
     }
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    return finish(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
   }
 
   // ── Redirect unauthenticated users away from app pages ────────────────────
   if (!isPublicPage && !isApiRoute && !isAuthed) {
     const loginUrl = new URL('/login', request.url);
     loginUrl.searchParams.set('next', pathname);
-    return NextResponse.redirect(loginUrl);
+    return finish(NextResponse.redirect(loginUrl));
   }
 
   // ── Redirect authenticated users away from auth pages ─────────────────────
   if (isAuthed && (pathname === '/login' || pathname === '/signup')) {
-    return NextResponse.redirect(new URL('/dashboard', request.url));
+    return finish(NextResponse.redirect(new URL('/dashboard', request.url)));
   }
 
-  return response;
+  return finish(response);
 }
 
 export const config = {

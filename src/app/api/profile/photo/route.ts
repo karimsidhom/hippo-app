@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth } from "@/lib/api-auth";
 import { createServiceRoleClient } from "@/lib/supabase-server";
 import { db } from "@/lib/db";
+import { syncHubProfile } from "@/lib/hub-profile";
 
 const MAX_SIZE = 5 * 1024 * 1024; // 5 MB
 const ALLOWED_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -171,6 +172,7 @@ export async function POST(req: NextRequest) {
     where: { id: user.id },
     data: { image: imageUrl },
   });
+  await syncHubProfile(user.id);
 
   return NextResponse.json({ image: imageUrl });
 }
@@ -204,6 +206,7 @@ export async function DELETE() {
     where: { id: user.id },
     data: { image: null },
   });
+  await syncHubProfile(user.id);
 
   return NextResponse.json({ image: null });
 }
