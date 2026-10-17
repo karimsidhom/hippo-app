@@ -7,6 +7,7 @@ import {
   planCookieMigration,
   supabaseRef,
 } from '@/lib/hippo-id';
+import { safeNext } from '@/lib/safe-next';
 
 // Routes that don't need auth
 // /install is public so the link works as a shareable "get the app" URL —
@@ -161,13 +162,15 @@ export async function proxy(request: NextRequest) {
   // ── Redirect unauthenticated users away from app pages ────────────────────
   if (!isPublicPage && !isApiRoute && !isAuthed) {
     const loginUrl = new URL('/login', request.url);
-    loginUrl.searchParams.set('next', pathname);
+    // Keep the query (e.g. /log?handoff=<id> from Hippo Link) through sign-in.
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
     return finish(NextResponse.redirect(loginUrl));
   }
 
   // ── Redirect authenticated users away from auth pages ─────────────────────
   if (isAuthed && (pathname === '/login' || pathname === '/signup')) {
-    return finish(NextResponse.redirect(new URL('/dashboard', request.url)));
+    const next = safeNext(request.nextUrl.searchParams.get('next'));
+    return finish(NextResponse.redirect(new URL(next ?? '/dashboard', request.url)));
   }
 
   return finish(response);

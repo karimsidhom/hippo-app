@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { useCases } from "@/hooks/useCases";
@@ -11,9 +11,12 @@ import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
 import { validateNotes } from "@/lib/phia";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES, DIFFICULTY_SCORES } from "@/lib/constants";
-import { getProceduresBySpecialty } from "@/lib/procedureLibrary";
+import { getProceduresBySpecialty, type Procedure } from "@/lib/procedureLibrary";
+import { matchProcedure, HUB_LINK_APP_LABELS } from "@/lib/hub-link";
+import type { InboxItem } from "@/lib/link/types";
+import { timeAgo } from "@/components/link/HandoffInbox";
 import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord, EpaSuggestion, EpaObservationInput } from "@/lib/types";
-import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles } from "lucide-react";
+import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles, ClipboardCheck } from "lucide-react";
 import { VoiceTextarea } from "@/components/VoiceTextarea";
 import { DeriveFromNote, type DerivePrefill } from "@/components/log/DeriveFromNote";
 import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
@@ -63,7 +66,7 @@ export default function LogCasePage() {
   const fx = useInteraction();
   const { cases, addCase, addCaseAsync } = useCases();
   const { milestones, personalRecords, addMilestone } = useMilestones();
-  const { user, profile } = useUser();
+  const { user, profile, loading: authLoading } = useUser();
 
   const isSmsna = isSmsnaProfile(profile);
 
@@ -222,6 +225,84 @@ export default function LogCasePage() {
     setForm((prev) => ({ ...prev, ...updates }));
   };
 
+  // What picking a procedure sets: shared by the picker and the Hippo Link prefill.
+  const procedureUpdates = (name: string, proc: Procedure): Partial<LogFormState> => {
+    const rawApproach = proc.approaches[0] ?? '';
+    const approach = (rawApproach.toUpperCase().replace(/ /g, '_') || 'OPEN') as SurgicalApproach;
+    return {
+      procedureName: name,
+      procedureCategory: proc.category || null,
+      surgicalApproach: approach,
+      difficultyScore: proc.complexityTier + 1,
+    };
+  };
+
+  // Hippo Link: /log?handoff=<id> (the inbox Log button and Handover's deep
+  // link) prefills the form once from a de-identified Handover draft. Nothing
+  // saves until the user does; the handoff is marked consumed only after the
+  // case is saved with a real id.
+  const [handoff, setHandoff] = useState<{ id: string; raw: string; fromApp: string; createdAt: string } | null>(null);
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
+  const handoffLoaded = useRef(false);
+  useEffect(() => {
+    if (authLoading || handoffLoaded.current) return;
+    const id = new URLSearchParams(window.location.search).get("handoff");
+    if (!id) return;
+    handoffLoaded.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/link/handoffs/${encodeURIComponent(id)}`, { credentials: "include", cache: "no-store" });
+        if (!res.ok) {
+          setHandoffNotice("That case from Handover was not found on this account.");
+          return;
+        }
+        const item = (await res.json()) as InboxItem;
+        if (item.status !== "pending") {
+          setHandoffNotice(item.status === "consumed"
+            ? "That case from Handover is already logged."
+            : "That case from Handover was dismissed.");
+          return;
+        }
+        if (item.expired) {
+          setHandoffNotice("That case from Handover has expired.");
+          return;
+        }
+        const p = item.payload;
+        const procs = isSmsna ? getSmsnaProcedures() : getProceduresBySpecialty(userSpecialtySlug);
+        const { match } = matchProcedure(p.procedureName, procs);
+        updateForm({
+          specialtySlug: userSpecialtySlug,
+          specialtyName: userSpecialtyName,
+          ...(match
+            ? procedureUpdates(match.name, match)
+            : { procedureName: p.procedureName, procedureCategory: null }),
+          ...(p.caseDate ? { caseDate: new Date(p.caseDate) } : {}),
+          role: p.roleGuess,
+          attendingLabel: p.attendingLabel,
+          institutionSite: p.institutionSite,
+          diagnosisCategory: p.diagnosisCategory,
+        });
+        setHandoff({ id: item.id, raw: p.procedureName, fromApp: item.fromApp, createdAt: item.createdAt });
+      } catch {
+        setHandoffNotice("Couldn't load the case from Handover. Check your connection.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  const consumeHandoff = async (id: string) => {
+    try {
+      await fetch(`/api/link/handoffs/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "consumed" }),
+      });
+    } catch {
+      // The case is saved; the inbox card can still be dismissed by hand.
+    }
+  };
+
   const handleNotesChange = (text: string) => {
     updateForm({ notes: text });
     if (text.length > 10) {
@@ -302,6 +383,10 @@ export default function LogCasePage() {
       if (newCase && !newCase.id.startsWith('tmp_')) {
         realCaseId = newCase.id;
         setSavedCaseId(newCase.id);
+        if (handoff) {
+          void consumeHandoff(handoff.id);
+          setHandoff(null);
+        }
       }
     } catch (e) {
       console.error('[doSubmit] addCaseAsync threw:', e);
@@ -485,6 +570,29 @@ export default function LogCasePage() {
         <h1 className="text-2xl font-bold text-[var(--text)]">Log a Case</h1>
         <p className="text-[var(--text-2)] text-sm mt-1">Record your operative experience</p>
       </div>
+
+      {handoff && (
+        <div role="status" style={{
+          display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 20, padding: "12px 14px",
+          borderRadius: 8, border: "1px solid var(--border-mid)", background: "var(--primary-dim)",
+        }}>
+          <ClipboardCheck size={16} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-2)" }}>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
+              From {HUB_LINK_APP_LABELS[handoff.fromApp] ?? "Handover"}, {timeAgo(handoff.createdAt)}.
+            </span>{" "}
+            Check each field, then save. Nothing is saved until you do.
+          </div>
+        </div>
+      )}
+      {handoffNotice && (
+        <div role="status" style={{
+          marginBottom: 20, padding: "12px 14px", borderRadius: 8, fontSize: 13,
+          border: "1px solid var(--border-mid)", background: "var(--surface)", color: "var(--text-2)",
+        }}>
+          {handoffNotice}
+        </div>
+      )}
 
       {/* Step Indicators */}
       <div className="flex items-center gap-2 mb-8">
@@ -671,17 +779,13 @@ export default function LogCasePage() {
               <ProcedurePicker
                 procedures={specialtyProcedures}
                 value={form.procedureName || ""}
-                onChange={(name, proc) => {
-                  const rawApproach = proc.approaches[0] ?? '';
-                  const approach = (rawApproach.toUpperCase().replace(/ /g, '_') || 'OPEN') as SurgicalApproach;
-                  updateForm({
-                    procedureName: name,
-                    procedureCategory: proc.category || null,
-                    surgicalApproach: approach,
-                    difficultyScore: proc.complexityTier + 1,
-                  });
-                }}
+                onChange={(name, proc) => updateForm(procedureUpdates(name, proc))}
               />
+              {handoff?.raw && handoff.raw !== form.procedureName && (
+                <p style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6 }}>
+                  From {HUB_LINK_APP_LABELS[handoff.fromApp] ?? "Handover"}: {handoff.raw}
+                </p>
+              )}
             </div>
 
             {/* Case Date */}

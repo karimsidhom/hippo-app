@@ -7,6 +7,7 @@ import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { HippoDock } from "@/components/HippoDock";
+import { useLinkInbox } from "@/hooks/useLinkInbox";
 import { createClient } from "@/lib/supabase";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
@@ -185,6 +186,8 @@ export default function DashboardPage() {
   const isResident = !isStaff;
 
   // Pre-Op Brief sheet
+  // Hippo Link: handoffs from Handover waiting to be logged (polled every 60 s).
+  const linkInbox = useLinkInbox({ pollMs: 60_000 });
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefPrefill, setBriefPrefill] = useState<string | undefined>();
 
@@ -427,7 +430,7 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <HippoDock current="cases" supabase={createClient()} profileHref="/profile" />
+        <HippoDock current="cases" supabase={createClient()} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />
         <Link
           href="/settings"
           aria-label="Settings"
@@ -451,6 +454,35 @@ export default function DashboardPage() {
         </Link>
         </div>
       </div>
+
+      {linkInbox.count > 0 && (
+        <Link
+          href="/inbox"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minHeight: 44,
+            marginTop: 16,
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid var(--border-mid)",
+            background: "var(--surface)",
+            color: "var(--text-2)",
+            fontSize: 13,
+            textDecoration: "none",
+            animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) both",
+          }}
+        >
+          <span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: "var(--primary)", flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {linkInbox.count === 1
+              ? "1 case from Handover is waiting."
+              : `${linkInbox.count} cases from Handover are waiting.`}
+          </span>
+          <span style={{ color: "var(--primary)", fontWeight: 600 }}>Review</span>
+        </Link>
+      )}
 
       {/* ── Desktop: main column + right rail. On phones both wrappers are
           display:contents and each block's `order` keeps the original

@@ -11,6 +11,7 @@ import { useSubscription } from "@/context/SubscriptionContext";
 import { PaywallModal } from "@/components/PaywallModal";
 import { EpaStatusBadge, type EpaStatus } from "@/components/epa/EpaStatusBadge";
 import { useInteraction } from "@/hooks/useInteraction";
+import { HandoffInbox } from "@/components/link/HandoffInbox";
 
 const ENTRUSTMENT_LABELS: Record<number, string> = {
   1: "Had to do",
@@ -70,7 +71,29 @@ interface AttendingSummary {
   pearlsMentioning: number;
 }
 
+/**
+ * /inbox: Hippo Link handoffs (from Handover) for everyone, first; the EPA
+ * sign-off inbox below is unchanged and stays for attendings, PDs and staff.
+ */
 export default function InboxPage() {
+  const { profile } = useAuth();
+  const roleType = profile?.roleType;
+  const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
+  return (
+    <>
+      {!isStaff && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+          <Inbox size={20} style={{ color: "var(--text)" }} />
+          <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Inbox</h1>
+        </div>
+      )}
+      <HandoffInbox showEmpty={!isStaff} />
+      {isStaff && <SignOffInbox />}
+    </>
+  );
+}
+
+function SignOffInbox() {
   const { profile } = useAuth();
   const { isPro } = useSubscription();
   const fx = useInteraction();
