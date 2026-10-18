@@ -19,7 +19,7 @@ const MAX_AGE = 400 * 24 * 60 * 60;
 
 // ─── Suite registry ──────────────────────────────────────────────────────────
 
-export type SuiteAppId = "cases" | "research" | "handover" | "study";
+export type SuiteAppId = "cases" | "pulse" | "research" | "handover" | "study";
 
 export interface SuiteApp {
   id: SuiteAppId;
@@ -33,6 +33,7 @@ export interface SuiteApp {
 
 export const HIPPO_SUITE_APPS: SuiteApp[] = [
   { id: "cases", name: "Cases", url: "https://hippomedicine.com/dashboard", icon: "/suite/cases.png", blurb: "Case log and EPAs" },
+  { id: "pulse", name: "Pulse", url: "https://pulse.hippomedicine.com/today", icon: "/suite/pulse.png", blurb: "Daily edition and colleagues" },
   { id: "research", name: "Research", url: "https://research.hippomedicine.com", icon: "/suite/research.png", blurb: "Papers in your field" },
   { id: "handover", name: "Handover", url: "https://handover.hippomedicine.com/teams", icon: "/suite/handover.png", blurb: "Shared patient lists" },
   { id: "study", name: "Study", url: "https://study.hippomedicine.com", icon: "/suite/study.png", blurb: "Royal College questions" },
