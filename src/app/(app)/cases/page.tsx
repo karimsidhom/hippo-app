@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, Share2, ClipboardList, Plus, Printer } from "lucide-react";
+import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, MessagesSquare, Share2, ClipboardList, Plus, Printer } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
 import { PaywallModal } from "@/components/PaywallModal";
 import { PostComposer } from "@/components/social/PostComposer";
@@ -49,6 +49,16 @@ const APPROACH_LABELS: Record<string, string> = {
   OPEN: "Open", LAPAROSCOPIC: "Laparoscopic", ROBOTIC: "Robotic",
   ENDOSCOPIC: "Endoscopic", HYBRID: "Hybrid", PERCUTANEOUS: "Percutaneous", OTHER: "Other",
 };
+
+/**
+ * Hippo Pulse: start a case discussion. Only the procedure and the diagnosis
+ * category travel, never the date, site, attending or anything about the
+ * patient; Pulse checks the post for identifiers again before it goes up.
+ */
+function pulseCaseUrl(c: CaseLog): string {
+  const q = new URLSearchParams({ type: "case", procedure: c.procedureName ?? "", dx: c.diagnosisCategory ?? "" });
+  return `https://pulse.hippomedicine.com/compose?${q.toString()}`;
+}
 
 function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: () => void; onDelete: (id: string) => void; onShareAsPearl: (id: string) => void }) {
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -180,6 +190,24 @@ function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: 
           >
             <Share2 size={12} /> Share as pearl
           </button>
+          <a
+            href={pulseCaseUrl(c)}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              display: "flex", alignItems: "center", gap: 6,
+              flex: 1, justifyContent: "center",
+              padding: "9px",
+              background: "rgba(255,107,87,0.08)",
+              border: "1px solid rgba(255,107,87,0.3)",
+              borderRadius: 6,
+              color: "#ff6b57",
+              fontSize: 12, fontWeight: 600,
+              textDecoration: "none",
+            }}
+          >
+            <MessagesSquare size={12} /> Discuss on Pulse
+          </a>
           {!confirmDelete ? (
             <button
               onClick={() => setConfirmDelete(true)}
