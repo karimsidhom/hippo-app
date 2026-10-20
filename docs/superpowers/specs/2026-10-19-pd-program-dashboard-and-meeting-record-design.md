@@ -136,14 +136,19 @@ the resident a waiting state on their dashboard.
 
 ### 5.3 PD searches and invites an existing user
 
-On `/programs`, a PD-like member searches Hippo users by name or email. Results show
-name, role type and institution, enough to identify the right person and no more.
-Sending creates a `ProgramJoinRequest` with `invitedById` set, which reaches the
-resident as a notification plus an inbox item. The resident accepts or declines.
+Most of this already exists. `GET /api/programs/[id]/search-users` searches Hippo
+users by name or email, is scoped to program owners, caps at 8 results, requires 2
+characters, and already excludes the caller, existing members, and anyone holding an
+outstanding invite. It returns name, role type, training year and institution.
 
-Search is limited to 20 results, requires at least 3 characters, and is rate limited
-through the existing `src/lib/rate-limit.ts`. It never exposes an email the caller did
-not already type in full.
+The gap is the send. Today the only way to invite is `ProgramInvite`, which is
+email-and-token based, so inviting someone who already has a Hippo account emails them
+a link instead of simply asking them in the app. The new work is a send endpoint that
+creates a `ProgramJoinRequest` with `invitedById` set, reaching the resident as a
+notification plus an inbox item they accept or decline in one tap.
+
+`search-users` is reused as-is. Its exclusion list gains pending join requests so an
+already-invited resident stops appearing in results.
 
 ### 5.4 Email invite
 
