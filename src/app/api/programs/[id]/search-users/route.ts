@@ -37,7 +37,7 @@ export async function GET(
     return NextResponse.json({ users: [] });
   }
 
-  const [existingMembers, pendingInvites] = await Promise.all([
+  const [existingMembers, pendingInvites, pendingRequests] = await Promise.all([
     db.programMember.findMany({
       where: { programId: id },
       select: { userId: true },
@@ -51,10 +51,17 @@ export async function GET(
       },
       select: { email: true },
     }),
+    // Someone already asked, or was already asked. Either way they
+    // should not show up as someone still to invite.
+    db.programJoinRequest.findMany({
+      where: { programId: id, status: 'PENDING' },
+      select: { userId: true },
+    }),
   ]);
 
   const excludeUserIds = new Set(existingMembers.map((m) => m.userId));
   excludeUserIds.add(user.id);
+  for (const r of pendingRequests) excludeUserIds.add(r.userId);
   const excludeEmails = new Set(pendingInvites.map((i) => i.email.toLowerCase()));
 
   const matches = await db.user.findMany({
