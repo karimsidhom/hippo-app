@@ -25,6 +25,7 @@ import { PostComposer } from "@/components/social/PostComposer";
 import { ProgramCalendar } from "@/components/ProgramCalendar";
 import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
 import { OnTrackCard } from "@/components/dashboard/OnTrackCard";
+import { MyProgramStatus } from "@/components/programs/MyProgramStatus";
 
 // Role types that see staff-specific modules (sign-offs, teaching load).
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
@@ -311,6 +312,7 @@ export default function DashboardPage() {
 
       {/* ── Pending program invites (in-app, self-hides if none) ───────── */}
       <ProgramInviteBanner />
+      <MyProgramStatus />
 
       {/* ── Staff: EPAs to complete — persistent link to inbox ──────────
           Always shown for attendings/PDs so the entry point is stable,
