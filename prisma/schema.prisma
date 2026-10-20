@@ -120,6 +120,17 @@ enum ProgramMemberRole {
   DEPT_HEAD     // Department head — read across multiple programmes
                 // they have membership in. Above PD; rolled-up view
                 // only.
+  RESIDENT      // A trainee on the roster. Sees their own record only.
+                // Distinct from legacy MEMBER, which this file documents
+                // as an alias for FACULTY, and which would therefore file
+                // a resident under a supervising-attending role.
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  WITHDRAWN
 }
 
 enum ProgramEventType {
@@ -185,6 +196,9 @@ model User {
   sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
   acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
   createdProgramEvents  ProgramEvent[]
+  programJoinRequests    ProgramJoinRequest[] @relation("ProgramJoinRequests")
+  programJoinInvitesSent ProgramJoinRequest[] @relation("ProgramJoinInvitesSent")
+  programJoinDecisions   ProgramJoinRequest[] @relation("ProgramJoinDecisions")
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
   notificationPreferences UserNotificationPreferences?
@@ -927,7 +941,9 @@ model AuditLog {
 // ─── Programs ─────────────────────────────────────────────────────────────────
 // A Program is a private group created by a PD that contains residents,
 // fellows, attendings, and other staff. Members share a calendar.
-// Only PDs can create programs. Members join by invitation only.
+// Only PDs can create programs. Members join three ways: the resident
+// requests a discoverable program, the director invites an existing
+// user, or an emailed ProgramInvite token is redeemed.
 
 model Program {
   id          String   @id @default(cuid())
@@ -935,6 +951,14 @@ model Program {
   institution String?
   specialty   String?
   description String?
+
+  // Appears in the onboarding program search. False runs the program
+  // invite-only.
+  discoverable          Boolean  @default(true)
+  // Drives the next-meeting-due date on the PD dashboard. Semi-annual
+  // by default, matching the University of Manitoba Urology cycle.
+  meetingIntervalMonths Int      @default(6)
+
   createdById String
   createdBy   User     @relation("CreatedPrograms", fields: [createdById], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -946,6 +970,7 @@ model Program {
   rotations    Rotation[]
   ccReviews    CCReview[]
   formTemplates FormTemplate[]
+  joinRequests ProgramJoinRequest[]
 
   @@index([createdById])
   @@map("programs")
@@ -1150,6 +1175,44 @@ model ProgramInvite {
   @@index([programId])
   @@index([email])
   @@map("program_invites")
+}
+
+// A pending handshake between a user and a program. One table covers
+// both directions: invitedById null means the resident asked to join,
+// invitedById set means the director invited them. The transition rules
+// live in src/lib/program-join/state.ts, not here and not in the route
+// handlers.
+model ProgramJoinRequest {
+  id           String            @id @default(cuid())
+  programId    String
+  program      Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation("ProgramJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  status       JoinRequestStatus @default(PENDING)
+
+  // What the resident told us at sign-up, shown to the director so they
+  // can recognise the person before approving. Never authoritative.
+  claimedPgy   Int?
+  message      String?
+
+  // Set when the director invited this user rather than the user asking
+  // to join. Flips the handshake: the resident accepts instead of the
+  // director approving.
+  invitedById  String?
+  invitedBy    User?             @relation("ProgramJoinInvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  decidedById   String?
+  decidedBy     User?            @relation("ProgramJoinDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt     DateTime?
+  declineReason String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([programId, userId])
+  @@index([programId, status])
+  @@index([userId, status])
+  @@map("program_join_requests")
 }
 
 model ProgramEvent {
