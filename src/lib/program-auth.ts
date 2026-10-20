@@ -55,6 +55,12 @@ const READ_ALL: ProgramMemberRole[] = [
 ];
 const FINALISES_CC: ProgramMemberRole[] = ['OWNER', 'PD', 'CHAIR'];
 const PHI_BLIND: ProgramMemberRole[] = ['COORDINATOR'];
+// PD 1:1 meeting records are a private conversation between the director
+// and one resident, so they get a bucket of their own. Deliberately
+// narrower than READ_ALL: a CC member or coordinator holding roster
+// access must NOT thereby see someone's 1:1 record. Keep this list at
+// two entries unless a programme explicitly asks otherwise.
+const READS_PD_MEETINGS: ProgramMemberRole[] = ['OWNER', 'PD'];
 
 export function roleCanManageProgram(role: ProgramMemberRole): boolean {
   return PD_LIKE.includes(role);
@@ -64,6 +70,9 @@ export function roleCanReadAllResidents(role: ProgramMemberRole): boolean {
 }
 export function roleCanFinaliseCC(role: ProgramMemberRole): boolean {
   return FINALISES_CC.includes(role);
+}
+export function roleCanReadPdMeetings(role: ProgramMemberRole): boolean {
+  return READS_PD_MEETINGS.includes(role);
 }
 export function roleSeesPhi(role: ProgramMemberRole): boolean {
   return !PHI_BLIND.includes(role);
