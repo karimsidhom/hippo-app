@@ -36,7 +36,7 @@ export const HIPPO_SUITE_APPS: SuiteApp[] = [
   { id: "pulse", name: "Pulse", url: "https://pulse.hippomedicine.com/today", icon: "/suite/pulse.png", blurb: "Daily edition and colleagues" },
   { id: "research", name: "Research", url: "https://research.hippomedicine.com", icon: "/suite/research.png", blurb: "Papers in your field" },
   { id: "handover", name: "Handover", url: "https://handover.hippomedicine.com/teams", icon: "/suite/handover.png", blurb: "Shared patient lists" },
-  { id: "study", name: "Study", url: "https://study.hippomedicine.com", icon: "/suite/study.png", blurb: "Urology exam prep" },
+  // Study rejoins this list at launch; it stays off every switcher until then (2026-10-19).
 ];
 
 /** Where a profile is edited. Cases owns identity. */
