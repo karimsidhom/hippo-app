@@ -10,6 +10,14 @@
 -- existing column changes type.
 -- ─────────────────────────────────────────────────────────────────────────────
 
+-- This database is shared by several Hippo apps and is NOT single-schema.
+-- The handover schema already owns a type called "JoinRequestStatus"
+-- (HippoHandover's ServiceJoinRequest, values PENDING/APPROVED/DENIED),
+-- which is a different type that happens to share our name. Pin the
+-- search_path so every unqualified name below resolves to public and
+-- neither migration can ever touch the other's type.
+SET search_path TO public;
+
 -- New member role. Note that a value added to an enum cannot be USED in
 -- the same transaction that adds it, which is fine here because nothing
 -- below references it.
