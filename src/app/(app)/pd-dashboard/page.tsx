@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
+import { JoinRequestQueue } from "@/components/programs/JoinRequestQueue";
 import {
   GraduationCap,
   Download,
@@ -797,6 +798,12 @@ export default function PDDashboardPage() {
           )}
         </div>
       )}
+
+      {/* ── People waiting to join ─────────────────────────────────────
+          Deliberately outside the residents.length guard below: a
+          director whose roster is still empty is exactly the one with
+          requests waiting. Renders nothing when the queue is empty. */}
+      <JoinRequestQueue onChanged={fetchResidents} />
 
       {/* ── Cohort: table OR cards ────────────────────────────────────── */}
       {residents.length > 0 && (
