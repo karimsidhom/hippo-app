@@ -23,3 +23,6 @@ dist/
 public/sw.js
 public/sw.js.map
 public/workbox-*.js
+
+# Local demo credentials, never committed
+*.local.md
