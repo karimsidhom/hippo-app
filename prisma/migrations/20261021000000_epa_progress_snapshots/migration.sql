@@ -21,4 +21,7 @@ CREATE UNIQUE INDEX "epa_progress_snapshots_userId_specialtySlug_key"
 -- Match the app's server-mediated privacy boundary. Direct Supabase client
 -- roles cannot read or write this table; the authenticated API scopes by owner.
 ALTER TABLE "epa_progress_snapshots" ENABLE ROW LEVEL SECURITY;
+-- Supabase default privileges may grant newly created public tables to clients.
+-- Remove client grants explicitly; direct server grants and ownership remain.
+REVOKE ALL ON TABLE public.epa_progress_snapshots FROM PUBLIC, anon, authenticated;
 -- No client policies or grants: access is through the owner-scoped server API.
