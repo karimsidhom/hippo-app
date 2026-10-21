@@ -26,13 +26,40 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: 'Expected a JSON body.' }, { status: 400 });
   }
 
-  const { programId, residentId } = body;
-  if (!programId || !residentId) {
-    return NextResponse.json(
-      { error: 'programId and residentId are required.' },
-      { status: 400 },
-    );
+  const { residentId } = body;
+  if (!residentId) {
+    return NextResponse.json({ error: 'residentId is required.' }, { status: 400 });
   }
+
+  // Resolve the programme server-side. The caller knows a resident, not
+  // which of the caller's programmes that resident sits in, and the PD
+  // dashboard is institution-scoped so it never has a programId to hand.
+  let programId = body.programId;
+  if (!programId) {
+    const mine = await db.programMember.findMany({
+      where: { userId: user.id, role: { in: ['OWNER', 'PD'] } },
+      select: { programId: true },
+    });
+    const shared = await db.programMember.findMany({
+      where: { userId: residentId, programId: { in: mine.map((m) => m.programId) } },
+      select: { programId: true },
+    });
+    if (shared.length === 0) {
+      return NextResponse.json(
+        { error: 'That resident is not in a program you direct.' },
+        { status: 400 },
+      );
+    }
+    if (shared.length > 1) {
+      // Genuinely ambiguous. Make the caller say which, rather than guess.
+      return NextResponse.json(
+        { error: 'They are in more than one of your programs. Pass programId.' },
+        { status: 400 },
+      );
+    }
+    programId = shared[0].programId;
+  }
+
   if (!(await canDirectMeetings(user.id, programId))) {
     return NextResponse.json({ error: 'Not found.' }, { status: 404 });
   }
