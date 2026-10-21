@@ -1,0 +1,290 @@
+<meta name="claude:viewport-fit-sides" content="cover">
+<title>Running the 1:1 in Hippo</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+  /* Layout: a single reading column; each step is a captioned plate, the
+     way a procedure is written up, with the screen beneath the words. */
+  :root {
+    --paper:   #f7f5f1;
+    --card:    #ffffff;
+    --ink:     #1b1f1d;
+    --ink-2:   #4d5551;
+    --ink-3:   #7d8783;
+    --rule:    #ddd8d0;
+    --accent:  #0f6f63;
+    --accent-soft: #e2efec;
+    --warn:    #b06a12;
+
+    --display: "Source Serif 4", Georgia, "Times New Roman", serif;
+    --body:    "IBM Plex Sans", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --mono:    "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #121413;
+      --card:  #1a1e1c;
+      --ink:   #eef0ee;
+      --ink-2: #b4bcb8;
+      --ink-3: #828b87;
+      --rule:  #2b312e;
+      --accent: #4fc4b2;
+      --accent-soft: #15302c;
+      --warn:  #e0a257;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #121413;
+    --card:  #1a1e1c;
+    --ink:   #eef0ee;
+    --ink-2: #b4bcb8;
+    --ink-3: #828b87;
+    --rule:  #2b312e;
+    --accent: #4fc4b2;
+    --accent-soft: #15302c;
+    --warn:  #e0a257;
+    color-scheme: dark;
+  }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--body);
+    font-size: 16px;
+    line-height: 1.6;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+    padding-block: 0 72px;
+  }
+  .wrap { max-width: 760px; margin: 0 auto; }
+
+  header.masthead { padding-block: 48px 10px; border-bottom: 1px solid var(--rule); }
+  .eyebrow {
+    font-size: 11px; letter-spacing: .14em; text-transform: uppercase;
+    color: var(--ink-3); font-weight: 600; margin: 0 0 14px;
+  }
+  h1 {
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(30px, 6vw, 42px); line-height: 1.12;
+    margin: 0 0 14px; text-wrap: balance; letter-spacing: -0.015em;
+  }
+  .standfirst {
+    font-size: 17px; color: var(--ink-2); margin: 0 0 30px; max-width: 60ch;
+  }
+
+  .callout {
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    padding: 14px 16px; margin: 26px 0; border-radius: 0 8px 8px 0;
+    font-size: 15px; color: var(--ink-2);
+  }
+  .callout strong { color: var(--ink); font-weight: 600; }
+
+  ol.steps { list-style: none; counter-reset: step; margin: 34px 0 0; padding: 0; }
+  li.step { counter-increment: step; margin-bottom: 46px; }
+  .step-head { display: flex; gap: 14px; align-items: baseline; margin-bottom: 8px; }
+  .step-num {
+    font-family: var(--mono); font-size: 12px; font-weight: 500;
+    color: var(--accent); flex-shrink: 0; padding-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-num::before { content: counter(step, decimal-leading-zero); }
+  h2 {
+    font-family: var(--display); font-weight: 600; font-size: 23px;
+    margin: 0; line-height: 1.25; text-wrap: balance;
+  }
+  .step p { margin: 0 0 12px 0; color: var(--ink-2); }
+  .step p:first-of-type { margin-top: 6px; }
+  .step .body { padding-left: 0; }
+  @media (min-width: 620px) { .step .body { padding-left: 34px; } }
+
+  figure {
+    margin: 16px 0 0; padding: 0;
+  }
+  figure img {
+    display: block; width: 100%; max-width: 100%; height: auto;
+    border: 1px solid var(--rule); border-radius: 10px;
+    background: var(--card);
+  }
+  figcaption {
+    font-size: 13px; color: var(--ink-3); margin-top: 8px; line-height: 1.5;
+  }
+
+  .pill {
+    display: inline-block; font-size: 12px; font-weight: 600;
+    padding: 1px 8px; border-radius: 999px; vertical-align: 1px;
+    font-family: var(--body);
+  }
+  .pill.met     { background: var(--accent); color: #fff; }
+  .pill.partly  { background: var(--warn);   color: #fff; }
+  .pill.carried { background: var(--rule);   color: var(--ink-2); }
+
+  .closing {
+    margin-top: 10px; padding-top: 26px; border-top: 1px solid var(--rule);
+  }
+  .closing h2 { font-size: 20px; margin-bottom: 10px; }
+  .closing p { color: var(--ink-2); margin: 0 0 12px; }
+  .closing ul { margin: 0 0 14px; padding-left: 20px; color: var(--ink-2); }
+  .closing li { margin-bottom: 6px; }
+  code {
+    font-family: var(--mono); font-size: 0.9em;
+    background: var(--accent-soft); padding: 1px 5px; border-radius: 4px;
+    color: var(--ink);
+  }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div class="wrap">
+  <header class="masthead">
+    <p class="eyebrow">University of Manitoba Urology</p>
+    <h1>Running the 1:1 in Hippo</h1>
+    <p class="standfirst">
+      Your semi-annual resident meeting letter, with last meeting already on the page.
+      Same eight sections, same order, same wording. The difference is that you stop
+      retyping what has not changed.
+    </p>
+  </header>
+
+  <div class="callout">
+    <strong>What you are looking at.</strong> Every screen below is the real
+    application, filled with Dr. Sidhom's signed letter of 16 July 2025. Nothing here
+    is a mockup.
+  </div>
+
+  <ol class="steps">
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Open the resident</h2></div>
+      <div class="body">
+        <p>
+          Your cohort page lists the residents on your program. Case volume, EPA
+          completion and who has gone quiet are on the front screen; you click through
+          to the one you are meeting.
+        </p>
+        <figure>
+          <img src="01-cohort.jpg" alt="The Hippo cohort page listing residents with case volume, EPA completion and last activity.">
+          <figcaption>The cohort page. Residents appear here because they are on your program.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Find the 1:1 block</h2></div>
+      <div class="body">
+        <p>
+          On a resident's page, their meeting history sits at the top, above the case
+          and EPA data. Here there is one record: 16 July 2025, PGY-3 mid-year, published.
+        </p>
+        <figure>
+          <img src="02-resident.jpg" alt="A resident page showing the Program Director 1:1 block with a Start a meeting button and one published meeting from July 2025.">
+          <figcaption>One button starts the next meeting. It carries today's date and their training year across.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Last meeting is already there</h2></div>
+      <div class="body">
+        <p>
+          This is the part that matters. Every section shows July on the left and today
+          on the right, laid out the way your letter is: progress in training, immediate
+          goals, career planning, concerns from the resident then from faculty, T-RES,
+          CBD levels, Entrada reminders.
+        </p>
+        <p>
+          The left side is read only. You cannot change history by accident. The right
+          side is today, and it is the only thing you fill in.
+        </p>
+        <figure>
+          <img src="03-editor-empty.jpg" alt="The meeting editor showing eight sections, each with the July 2025 column on the left and an empty This meeting column on the right.">
+          <figcaption>A fresh record. July 2025 on the left, today empty on the right.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Carry across what has not changed</h2></div>
+      <div class="body">
+        <p>
+          Press <strong>Carry</strong> on any point from July and it moves to today's
+          column, where you can edit the wording if it has moved on. Things that have
+          not changed cost one tap each instead of a retype.
+        </p>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Say what happened to each goal</h2></div>
+      <div class="body">
+        <p>
+          Immediate goals works slightly differently, and this is the one thing the app
+          asks for that paper does not. Under each goal you set in July there are four
+          answers: <span class="pill met">Met</span>
+          <span class="pill partly">Partly</span>
+          <span class="pill carried">Carried</span> and Not met.
+        </p>
+        <p>
+          On paper, goals get restated every six months and nobody records whether they
+          happened. Here it is one tap, and next July you can see the whole run of them.
+          Publishing is blocked until every goal from last time has an answer.
+        </p>
+        <figure>
+          <img src="05-carried-outcomes.jpg" alt="The editor with points carried into today's column and the three July goals answered as carried, partly and met.">
+          <figcaption>Points carried into today's column, and July's three goals answered.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>It will not let you publish an empty record</h2></div>
+      <div class="body">
+        <p>
+          If something is missing, the record says so against the section it belongs to
+          and takes you there, rather than showing one unhelpful error at the bottom.
+        </p>
+        <figure>
+          <img src="04-publish-refused.jpg" alt="The editor refusing to publish, with the message There is nothing in this record yet shown against the first section.">
+          <figcaption>Publishing refused, with the reason on the section it concerns.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+    <li class="step">
+      <div class="step-head"><span class="step-num"></span><h2>Publish, and it becomes next time's left column</h2></div>
+      <div class="body">
+        <p>
+          Publishing locks the record. Your exam tables and curriculum ticks stay on the
+          resident, so every sitting you have ever entered is still there next time and
+          a module ticked in PGY-1 stays ticked.
+        </p>
+        <p>
+          Your signature line stays blank. The app will never sign anything for you.
+        </p>
+        <figure>
+          <img src="06-published.jpg" alt="The published meeting record, locked and read only, with a green Published badge.">
+          <figcaption>Published and locked.</figcaption>
+        </figure>
+        <figure>
+          <img src="07-two-meetings.jpg" alt="The resident page now listing two published meetings, October 2026 and July 2025.">
+          <figcaption>Two meetings on file. Today's record is what you will see on the left next time.</figcaption>
+        </figure>
+      </div>
+    </li>
+
+  </ol>
+
+  <section class="closing">
+    <h2>What is still coming</h2>
+    <p>
+      The record is complete and it carries forward. Two pieces are not built yet:
+    </p>
+    <ul>
+      <li>The PDF in Manitoba letterhead, so the published record prints as the letter you sign today.</li>
+      <li>Delivery to the resident inside Hippo, with one tap to confirm they have read it, replacing the scan-and-chase.</li>
+    </ul>
+    <p>
+      Everything needed to print that letter is already frozen when you publish, so the
+      PDF is a rendering job rather than more data entry.
+    </p>
+  </section>
+</div>
