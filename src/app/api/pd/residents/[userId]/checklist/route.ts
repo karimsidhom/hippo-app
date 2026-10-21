@@ -4,7 +4,7 @@ import { db } from '@/lib/db';
 import { canDirectMeetings } from '@/lib/pd-meeting/access';
 
 /**
- * PUT /api/pd/residents/[residentId]/checklist
+ * PUT /api/pd/residents/[userId]/checklist
  * Body: { programId, itemId, completed, note? }
  *
  * Curriculum and QI ticks persist on the resident, so a module ticked in
@@ -12,11 +12,11 @@ import { canDirectMeetings } from '@/lib/pd-meeting/access';
  */
 export async function PUT(
   req: Request,
-  { params }: { params: Promise<{ residentId: string }> },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  const { residentId } = await params;
+  const { userId: residentId } = await params;
 
   let body: { programId?: string; itemId?: string; completed?: unknown; note?: string };
   try {

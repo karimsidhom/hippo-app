@@ -12,11 +12,11 @@ import { canDirectMeetings } from '@/lib/pd-meeting/access';
 /** POST body: { programId, tableId, sittingAt, values, note? } */
 export async function POST(
   req: Request,
-  { params }: { params: Promise<{ residentId: string }> },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  const { residentId } = await params;
+  const { userId: residentId } = await params;
 
   let body: {
     programId?: string;
@@ -74,14 +74,14 @@ export async function POST(
   );
 }
 
-/** DELETE /api/pd/residents/[residentId]/scores?id=... */
+/** DELETE /api/pd/residents/[userId]/scores?id=... */
 export async function DELETE(
   req: Request,
-  { params }: { params: Promise<{ residentId: string }> },
+  { params }: { params: Promise<{ userId: string }> },
 ) {
   const { user, error } = await requireAuth();
   if (error) return error;
-  const { residentId } = await params;
+  const { userId: residentId } = await params;
 
   const id = new URL(req.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id is required.' }, { status: 400 });
