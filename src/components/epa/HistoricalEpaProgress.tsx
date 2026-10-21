@@ -4,12 +4,12 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { HistoricalEpaCriterion, HistoricalEpaParent, HistoricalEpaRecord, HistoricalEpaSnapshot } from "@/lib/epa/historical-progress";
 import { historicalEpaSnapshotSchema, MAX_HISTORICAL_EPA_BYTES, parseHistoricalProgressImport } from "@/lib/epa/historical-progress";
 import { SPECIALTIES } from "@/lib/constants";
-import { summarizeHistoricalProgress } from "@/lib/epa/progress-summary";
+import { pendingSharedLogbookParents, summarizeHistoricalProgress } from "@/lib/epa/progress-summary";
 import type { HistoricalProgressSummary } from "@/lib/epa/progress-summary";
 import styles from "./HistoricalEpaProgress.module.css";
 
 type ProgressResponse = { snapshot: unknown };
-type ProgressRow = HistoricalEpaParent & { stage: string; records: HistoricalEpaRecord[] };
+type ProgressRow = HistoricalEpaParent & { stage: string; records: HistoricalEpaRecord[]; sharedLogbookPending: boolean };
 type StatusFilter = "outstanding" | "complete" | "all";
 
 const STAGES = ["Transition to Discipline", "Urology Foundations", "Core of Discipline", "Transition to Practice"];
@@ -65,10 +65,12 @@ export function buildHistoricalProgressView(snapshot: HistoricalEpaSnapshot) {
     if (knownParents.has(code)) continue;
     parents.push({ code, title: records[0].title, completion_status: records.every(record => record.completion_status === "complete") ? "complete" : "outstanding", actual_completed_count: null });
   }
+  const pendingLogbookParents = new Set(pendingSharedLogbookParents(snapshot));
   const rows: ProgressRow[] = parents.map(parent => ({
     ...parent,
     stage: stageFor(parent.code),
     records: recordsByParent.get(parent.code) ?? [],
+    sharedLogbookPending: pendingLogbookParents.has(parent.code.toUpperCase()),
   }));
   return {
     rows,
@@ -119,7 +121,7 @@ function ProgressEpaRow({ row }: { row: ProgressRow }) {
     <details className={styles.epaRow}>
       <summary className={styles.epaSummary}>
         <span className={styles.epaCode}>{row.code}</span>
-        <span className={styles.epaTitle}>{row.title}<span className={styles.rowStage}>{row.stage}</span></span>
+        <span className={styles.epaTitle}>{row.title}<span className={styles.rowStage}>{row.stage}</span>{row.sharedLogbookPending ? <span className={styles.sharedLogbookBadge}>Shared Part B logbook pending</span> : null}</span>
         <span className={complete ? styles.completeBadge : styles.remainingBadge}>{complete ? "Complete" : "Remaining"}</span>
         <span className={styles.chevron} aria-hidden="true">›</span>
       </summary>
@@ -137,6 +139,7 @@ export function EpaProgressTotals({ summary }: { summary: HistoricalProgressSumm
   const completedCredits = individual.creditedMinimum;
   const remainingCredits = individual.remainingMaximum;
   const requiredCredits = individual.requiredMinimum;
+  const sharedLogbookNotes = summary.limitations.filter(note => note.startsWith("Category status follows your source report. The shared "));
   return (
     <div>
       <div className={styles.scorecard} aria-label="EPA category and individual progress totals">
@@ -147,6 +150,7 @@ export function EpaProgressTotals({ summary }: { summary: HistoricalProgressSumm
         <div className={styles.progressSummary}><span>{categories.total ? Math.round(categories.completed / categories.total * 100) : 0}% of categories completed</span><progress aria-label="EPA categories completed" value={categories.completed} max={categories.total || 1} /></div>
       </div>
       <p className={styles.totalsExplanation}>{requiredCredits === null ? "Individual totals are unavailable for this framework. " : "Individual totals count credits toward required minimums. Completed categories are credited at their required minimums; actual submission totals are unavailable. "}Extra observations may still be needed to meet case and assessor requirements.{categories.unknown > 0 ? ` ${categories.unknown} category statuses are unknown.` : ""}</p>
+      {sharedLogbookNotes.map(note => <p key={note} className={styles.totalsExplanation}>{note}</p>)}
     </div>
   );
 }

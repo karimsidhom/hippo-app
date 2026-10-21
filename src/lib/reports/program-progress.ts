@@ -41,7 +41,7 @@ export async function reportProgramProgress(programId: string, asOf = new Date()
       signedObservations: native.filter((o) => o.status === 'SIGNED').length,
       signedAchieved: native.filter((o) => o.status === 'SIGNED' && o.achievement === 'ACHIEVED').length,
       pendingObservations: native.filter((o) => ['DRAFT', 'SUBMITTED', 'PENDING_REVIEW'].includes(o.status)).length,
-      countingNote: 'Imported minimum credits and native observations are separate; overlapping history is not added. Blank counts are unknown. Remaining is an upper bound toward baseline minimums; case/assessor requirements can need extra observations.',
+      countingNote: ['Category statuses follow the imported source and resident interpretation. Reviewing an import does not itself grant official EPA entrustment. Imported minimum credits and native observations are separate; overlapping history is not added. Blank counts are unknown. Remaining is an upper bound toward baseline minimums; case/assessor requirements can need extra observations.', ...(summary?.limitations ?? [])].join(' '),
     };
   });
 }
