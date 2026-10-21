@@ -235,9 +235,25 @@ export default function MeetingPage() {
             </span>
           )}
           {readOnly && (
-            <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
-              The PDF and the resident&apos;s copy arrive in the next phase.
-            </span>
+            <>
+              <a
+                href={`/api/pd/meetings/${meetingId}/pdf`}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  border: '1px solid var(--primary)', color: 'var(--primary)',
+                  textDecoration: 'none',
+                }}
+              >
+                Open the letter
+              </a>
+              <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
+                {meeting.acknowledgedAt
+                  ? `Confirmed by the resident on ${new Date(meeting.acknowledgedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}`
+                  : 'Sent to the resident, awaiting their confirmation.'}
+              </span>
+            </>
           )}
         </div>
       </header>

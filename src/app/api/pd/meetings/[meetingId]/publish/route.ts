@@ -8,6 +8,7 @@ import {
 import { validateForPublish } from '@/lib/pd-meeting/carry-forward';
 import { meetingMetrics } from '@/lib/pd-meeting/metrics';
 import { asSections } from '@/lib/pd-meeting/types';
+import { createNotification } from '@/lib/notifications/create';
 
 /**
  * POST /api/pd/meetings/[meetingId]/publish
@@ -99,6 +100,16 @@ export async function POST(
     },
     select: { id: true, status: true, publishedAt: true },
   });
+
+  // Hand it to the resident. Failure here must not undo the publish; the
+  // record is already on their meetings page either way.
+  await createNotification({
+    userId: meeting.residentId,
+    type: 'pd_meeting.published',
+    title: 'Your 1:1 record is ready',
+    body: 'Your program director published the record of your meeting. Open it to read and confirm.',
+    actionUrl: '/profile/meetings',
+  }).catch(() => null);
 
   await db.auditLog
     .create({

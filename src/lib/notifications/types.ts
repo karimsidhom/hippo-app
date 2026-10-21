@@ -16,7 +16,8 @@ export type NotificationType =
   | "epa.returned"         // resident: your EPA was returned for edits
   | "epa.batch_signed"     // resident: N of your EPAs were signed in a batch
   | "epa.reminder"         // attending: pending EPAs still awaiting your action
-  | "program.invite";      // resident: a director invited you to their program
+  | "program.invite"       // resident: a director invited you to their program
+  | "pd_meeting.published";// resident: your 1:1 record is ready to read
 
 export interface NotificationMeta {
   icon: "check" | "clock" | "return" | "inbox" | "bell";
@@ -36,4 +37,5 @@ export const NOTIFICATION_META: Record<NotificationType, NotificationMeta> = {
   "epa.batch_signed":    { icon: "check",  accent: "success", label: "Batch signed" },
   "epa.reminder":        { icon: "clock",  accent: "muted",   label: "Reminder" },
   "program.invite":      { icon: "inbox",  accent: "teal",    label: "Program invite" },
+  "pd_meeting.published":{ icon: "inbox",  accent: "teal",    label: "1:1 record" },
 };
