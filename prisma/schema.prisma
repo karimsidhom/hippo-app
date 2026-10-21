@@ -177,6 +177,7 @@ model User {
   pearlEndorsements PearlEndorsement[]
   pollVotes       PollVote[]
   epaObservations  EpaObservation[]
+  epaProgressSnapshots EpaProgressSnapshot[]
   assessedObservations EpaObservation[] @relation("AssessorObservations")
   auditLogs        AuditLog[]
   legalAcceptances LegalAcceptance[]
@@ -817,6 +818,25 @@ model PollVote {
 }
 
 // ─── EPA Observations ────────────────────────────────────────────────────────
+
+// User-owned historical progress summaries. These are deliberately separate
+// from individual observations, assessor sign-offs and operative case counts.
+model EpaProgressSnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialtySlug    String
+  schemaVersion    Int      @default(1)
+  sourceFilename   String
+  sourceReviewDate DateTime @db.Date
+  provenance       String   @default("user_imported_summary")
+  payload          Json
+  importedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, specialtySlug])
+  @@map("epa_progress_snapshots")
+}
 
 model EpaObservation {
   id                String                @id @default(cuid())
