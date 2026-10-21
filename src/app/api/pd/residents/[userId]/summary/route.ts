@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { directsResident } from '@/lib/program-auth';
+import { getProgramResidentProgressAccess } from '@/lib/program-auth';
+import { loadProgramHistoricalProgress } from '@/lib/epa/program-progress';
+import { SPECIALTIES } from '@/lib/constants';
+
+const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 
 /**
  * GET /api/pd/residents/:userId/summary
@@ -11,35 +15,34 @@ import { directsResident } from '@/lib/program-auth';
  * distribution (last 30d vs prior 30d), the EPA heatmap data, and recent
  * pearls in a single round-trip.
  *
- * Gated on PROGRAM_DIRECTOR role + the target being a member of a program
- * the caller directs.
+ * Gated on PROGRAM_DIRECTOR role + the target being a member of the
+ * selected program the caller directs.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
   const { user, error } = await requireAuth();
-  if (error) return error;
+  if (error) { error.headers.set('Cache-Control', 'private, no-store'); return error; }
 
   // PD role check
   const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
   if (!pdProfile || pdProfile.roleType !== 'PROGRAM_DIRECTOR') {
-    return NextResponse.json(
-      { error: 'Access denied. Program Director role required.' },
-      { status: 403 },
-    );
+    return reply({ error: 'Access denied. Program Director role required.' }, 403);
   }
+  const programId = req.nextUrl.searchParams.get('programId')?.trim();
+  if (!programId) return reply({ error: 'Choose a program to view resident progress.' }, 400);
+
   const { userId: targetUserId } = await params;
 
-  // The caller must actually direct this resident. Institution string
-  // equality used to stand in for this, which meant anyone who set their
-  // own profile to the right free-text institution could read the record.
-  if (!(await directsResident(user.id, targetUserId))) {
-    return NextResponse.json(
-      { error: 'Resident not found in a program you direct.' },
-      { status: 404 },
-    );
-  }
+  // The caller must actually direct this resident in the selected program.
+  // Institution string equality used to stand in for this, which meant
+  // anyone who set their own profile to the right free-text institution
+  // could read the record. The program-scoped check is narrower than
+  // directsResident: one program, no coordinators, faculty only through a
+  // current assignment.
+  const access = await getProgramResidentProgressAccess(user.id, programId, targetUserId);
+  if (!access) return reply({ error: 'Resident not found in a program you direct.' }, 404);
 
   const targetProfile = await db.profile.findUnique({
     where: { userId: targetUserId },
@@ -47,12 +50,9 @@ export async function GET(
       user: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  if (!targetProfile) {
-    return NextResponse.json(
-      { error: 'Resident not found in a program you direct.' },
-      { status: 404 },
-    );
-  }
+  if (!targetProfile) return reply({ error: 'Resident not found in a program you direct.' }, 404);
+  const specialtyName = (targetProfile.specialty || access.program.specialty || '').trim().toLowerCase();
+  const specialtySlug = SPECIALTIES.find(specialty => specialty.name.toLowerCase() === specialtyName || specialty.slug === specialtyName)?.slug ?? specialtyName;
 
   // ── Date windows ─────────────────────────────────────────────────────────
   const now = new Date();
@@ -91,6 +91,7 @@ export async function GET(
     epaObservationsRaw,
     recentPearls,
     endorsementsReceived,
+    historicalProgressMap,
   ] = await Promise.all([
     db.caseLog.count({ where: { userId: targetUserId } }),
     db.caseLog.count({
@@ -119,7 +120,7 @@ export async function GET(
       select: { caseDate: true, autonomyLevel: true },
     }),
     db.epaObservation.findMany({
-      where: { userId: targetUserId },
+      where: { userId: targetUserId, status: 'SIGNED' },
       select: {
         epaId: true,
         status: true,
@@ -144,6 +145,7 @@ export async function GET(
     db.pearlEndorsement.count({
       where: { pearl: { authorId: targetUserId } },
     }),
+    loadProgramHistoricalProgress(programId, [targetUserId]),
   ]);
 
   // Bucket the sparkline cases into their matching week.
@@ -168,7 +170,9 @@ export async function GET(
     bucket[key] = (bucket[key] || 0) + 1;
   }
 
-  return NextResponse.json({
+  return reply({
+    program: { id: access.program.id, name: access.program.name },
+    historicalProgress: historicalProgressMap.get(`${targetUserId}:${specialtySlug}`) ?? null,
     resident: {
       id: targetProfile.user.id,
       name: targetProfile.user.name,

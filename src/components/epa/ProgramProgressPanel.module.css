@@ -1,0 +1,17 @@
+.panel { margin: 20px 0; padding: 20px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); }
+.panel h2 { font-size: 18px; margin: 0 0 8px; }
+.panel h3 { font-size: 15px; margin: 24px 0 8px; }
+.panel p, .panel li { font-size: 13px; line-height: 1.6; color: var(--text-2); }
+.panel button, .field input, .field select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--surface-2, var(--surface)); color: var(--text); font: inherit; font-size: 13px; }
+.panel button { cursor: pointer; }
+.panel button:disabled { opacity: .5; cursor: default; }
+.panel button:focus-visible, .panel input:focus-visible, .panel select:focus-visible, .panel summary:focus-visible { outline: 2px solid var(--primary); outline-offset: 3px; }
+.field { display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin: 12px 0; }
+.field select { max-width: 100%; }
+.form { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 12px; align-items: end; }
+.agreement { grid-column: 1 / -1; font-size: 13px; }
+.form button { justify-self: start; grid-column: 1 / -1; }
+.actions { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+.panel details { margin: 16px 0; }
+.panel summary { cursor: pointer; font-size: 13px; }
+@media (max-width: 640px) { .form { grid-template-columns: 1fr; gap: 4px; } .panel { padding: 14px; } }

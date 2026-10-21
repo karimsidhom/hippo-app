@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, ensureDbUser } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { isProgramOwner } from '@/lib/program-auth';
+import { reportProgramProgress, reportProgramTargets } from '@/lib/reports/program-progress';
 import { buildCsv, csvResponse, type CsvColumn } from '@/lib/reports/csv';
 import {
   REPORTS,
@@ -71,6 +72,39 @@ export async function GET(req: NextRequest, ctx: ParamsCtx) {
   // build the CSV with the columns specific to that report.
   let csv: string;
   switch (reportId) {
+    case 'reconciled-progress': {
+      const rows = await reportProgramProgress(programId);
+      type Row = typeof rows[number];
+      const cols: CsvColumn<Row>[] = [
+        { header: 'Resident', value: r => r.residentName }, { header: 'Email', value: r => r.residentEmail },
+        { header: 'Training year', value: r => r.trainingYear }, { header: 'Captured at', value: r => r.capturedAt },
+        { header: 'Categories completed', value: r => r.categoriesCompleted }, { header: 'Categories remaining', value: r => r.categoriesRemaining },
+        { header: 'Categories total', value: r => r.categoriesTotal },
+        { header: 'Individual minimum credits completed (at least)', value: r => r.individualMinimumCredited },
+        { header: 'Individual required minimum', value: r => r.individualRequiredMinimum },
+        { header: 'Individual baseline credits remaining (at most)', value: r => r.individualRemainingMaximum },
+        { header: 'Actual historical submissions (blank if unknown)', value: r => r.actualHistoricalSubmissions },
+        { header: 'Import review status', value: r => r.reconciliationStatus }, { header: 'Source review date', value: r => r.sourceReviewDate },
+        { header: 'Source', value: r => r.sourceFilename }, { header: 'Source hash', value: r => r.sourceHash },
+        { header: 'Framework', value: r => r.frameworkVersion }, { header: 'Reviewed at', value: r => r.reviewedAt },
+        { header: 'Native signed observations', value: r => r.signedObservations }, { header: 'Native signed achieved', value: r => r.signedAchieved },
+        { header: 'Native pending observations', value: r => r.pendingObservations }, { header: 'Counting note', value: r => r.countingNote },
+      ];
+      csv = buildCsv(cols, rows); break;
+    }
+    case 'procedure-targets': {
+      const rows = await reportProgramTargets(programId);
+      type Row = typeof rows[number];
+      const cols: CsvColumn<Row>[] = [
+        { header: 'Resident', value: r => r.residentName }, { header: 'Email', value: r => r.residentEmail },
+        { header: 'Procedure', value: r => r.procedure }, { header: 'Agreed target', value: r => r.target },
+        { header: 'Recorded cases', value: r => r.recordedCases }, { header: 'Remaining', value: r => r.remaining },
+        { header: 'Target version', value: r => r.version }, { header: 'Target ID', value: r => r.targetId },
+        { header: 'Agreed at', value: r => r.agreedAt }, { header: 'Effective at', value: r => r.effectiveAt },
+        { header: 'Captured at', value: r => r.capturedAt }, { header: 'Counting note', value: r => r.countingNote },
+      ];
+      csv = buildCsv(cols, rows); break;
+    }
     case 'epa-matrix': {
       const rows = await reportEpaMatrix(programId);
       const cols: CsvColumn<EpaMatrixRow>[] = [
@@ -93,8 +127,8 @@ export async function GET(req: NextRequest, ctx: ParamsCtx) {
         { header: 'Resident',         value: (r) => r.residentName },
         { header: 'Email',            value: (r) => r.residentEmail },
         { header: 'Training year',    value: (r) => r.trainingYear },
-        { header: 'Total EPAs',       value: (r) => r.totalEpas },
-        { header: 'Signed EPAs',      value: (r) => r.signedEpas },
+        { header: 'Total observations', value: (r) => r.totalEpas },
+        { header: 'Signed observations', value: (r) => r.signedEpas },
         { header: '% Signed',         value: (r) => r.percentSigned },
         { header: 'TD %',             value: (r) => r.td },
         { header: 'F %',              value: (r) => r.f },

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { buildHistoricalProgressView, HistoricalEpaProgress, normalizeHistoricalSpecialty, parseHistoricalProgressForSpecialty } from "@/components/epa/HistoricalEpaProgress";
+import { buildHistoricalProgressView, EpaProgressTotals, HistoricalEpaProgress, normalizeHistoricalSpecialty, parseHistoricalProgressForSpecialty } from "@/components/epa/HistoricalEpaProgress";
 import { historicalEpaSnapshotSchema } from "@/lib/epa/historical-progress";
+import type { HistoricalProgressSummary } from "@/lib/epa/progress-summary";
 
 function fixture() {
   return historicalEpaSnapshotSchema.parse({
@@ -75,7 +76,7 @@ describe("historical EPA progress display", () => {
     expect(html).toContain("Required: 20 observations · actual count not recorded");
     expect(html).toContain("2 observations remaining");
     expect(html).toContain("Shared requirements");
-    expect(html).toContain("EPAs and criteria omitted from your source are marked complete");
+    expect(html).toContain("EPA categories and criteria omitted from your source are marked complete");
   });
 
   it("renders nested category requirements without labelling overall totals as categories", () => {
@@ -87,5 +88,50 @@ describe("historical EPA progress display", () => {
     const html = renderToStaticMarkup(createElement(HistoricalEpaProgress, { initialSnapshot: snapshot }));
     expect(html.match(/Category total/g)).toHaveLength(1);
     expect(html).toContain("padding-left:14px");
+  });
+
+  it("renders program source review without owner import controls or owner-only copy", () => {
+    const html = renderToStaticMarkup(createElement(HistoricalEpaProgress, { initialSnapshot: fixture(), readOnly: true }));
+    expect(html).toContain("Source record shown for program review");
+    expect(html).toContain("resident’s stated interpretation");
+    expect(html).not.toContain("Import progress");
+    expect(html).not.toContain("Update progress");
+    expect(html).not.toContain("private to your account");
+  });
+});
+
+describe("EPA category and individual totals", () => {
+  function summary(): HistoricalProgressSummary {
+    return {
+      categories: { completed: 2, remaining: 3, total: 5, unknown: 0 },
+      individual: { creditedMinimum: 27, requiredMinimum: 50, remainingMaximum: 23, additionalBeyondMinimum: 3, minimumFurtherRequired: 26, actualCompleted: null, countsAreMinimums: true },
+      frameworkVersion: "test-framework", sourceReviewDate: "2026-09-29", limitations: [],
+    };
+  }
+
+  it("shows four clearly distinct metrics and preserves individual credit bounds", () => {
+    const html = renderToStaticMarkup(createElement(EpaProgressTotals, { summary: summary() }));
+    expect(html).toContain("EPA categories completed");
+    expect(html).toContain("EPA categories remaining");
+    expect(html).toContain("Individual EPAs completed");
+    expect(html).toContain("Individual EPAs remaining");
+    expect(html).toContain("≥27");
+    expect(html).toContain("≤23");
+    expect(html).toContain("of 50 required minimums");
+    expect(html).toContain("40% of categories completed");
+    expect(html).toContain("actual submission totals are unavailable");
+    expect(html).toContain("Extra observations may still be needed");
+  });
+
+  it("keeps unavailable framework totals unknown", () => {
+    const unknown = summary();
+    unknown.individual.creditedMinimum = null;
+    unknown.individual.requiredMinimum = null;
+    unknown.individual.remainingMaximum = null;
+    const html = renderToStaticMarkup(createElement(EpaProgressTotals, { summary: unknown }));
+    expect(html).toContain("Individual EPA completion total unavailable");
+    expect(html).toContain("Individual EPA remaining total unavailable");
+    expect(html).not.toContain("≥0");
+    expect(html).not.toContain("≤0");
   });
 });

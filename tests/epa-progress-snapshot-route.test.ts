@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { NextResponse } from "next/server";
-const m = vi.hoisted(() => ({ auth: vi.fn(), ensure: vi.fn(), find: vi.fn(), upsert: vi.fn(), createObservation: vi.fn(), createCase: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), ensure: vi.fn(), find: vi.fn(), upsert: vi.fn(), revision: vi.fn(), transaction: vi.fn(), createObservation: vi.fn(), createCase: vi.fn() }));
 vi.mock("@/lib/api-auth", () => ({ requireAuth: m.auth, ensureDbUser: m.ensure }));
 vi.mock("@/lib/db", () => ({ db: {
   epaProgressSnapshot: { findUnique: m.find, upsert: m.upsert },
+  $transaction: m.transaction,
   epaObservation: { create: m.createObservation }, caseLog: { create: m.createCase },
 } }));
 import { GET, PUT } from "@/app/api/epa/progress-snapshot/route";
@@ -26,6 +27,7 @@ beforeEach(() => {
   vi.resetAllMocks();
   m.auth.mockResolvedValue({ user, error: null });
   m.find.mockResolvedValue(null);
+  m.transaction.mockImplementation(async callback => callback({ epaProgressSnapshot: { findUnique: m.find, upsert: m.upsert }, epaProgressRevision: { upsert: m.revision } }));
   m.upsert.mockImplementation(async ({ create }) => ({
     id: "snapshot-row", importedAt: new Date("2026-10-21T00:00:00Z"), updatedAt: new Date("2026-10-21T00:00:00Z"), ...create,
   }));
