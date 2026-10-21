@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { CaseLog, EpaObservation, EpaObservationInput } from "@/lib/types";
 import { getSpecialtyEpaData, getSystemLabel, getMilestoneFramework } from "@/lib/epa/data";
 import type { SpecialtyEpaData } from "@/lib/epa/data";
@@ -12,6 +12,7 @@ import { EpaSubReqChecklist } from "./EpaSubReqChecklist";
 import { trackSubRequirements } from "@/lib/epa/subreqs";
 import type { ObservationForTracking, EpaSubRequirementSummary } from "@/lib/epa/subreqs";
 import { Check, AlertTriangle, Clock, Target, TrendingUp, ChevronRight } from "lucide-react";
+import { HistoricalEpaProgress } from "./HistoricalEpaProgress";
 
 // ── Colors ──
 const STAGE_COLORS: Record<string, string> = {
@@ -261,6 +262,26 @@ interface EpaAnalyticsPanelProps {
 }
 
 export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnalyticsPanelProps) {
+  const [view, setView] = useState<"progress" | "observations" | null>(null);
+  const manualView = useRef(false);
+  const handleSnapshotLoaded = useCallback((exists: boolean) => {
+    if (!manualView.current) setView(exists ? "progress" : "observations");
+  }, []);
+
+  return (
+    <div>
+      <div role="group" aria-label="EPA view" style={{ display: "flex", gap: 4, padding: 3, border: "1px solid var(--border)", borderRadius: 8, marginBottom: 22, width: "fit-content", maxWidth: "100%", background: "var(--surface2)" }}>
+        {([{ key: "progress", label: "My progress" }, { key: "observations", label: "Observations" }] as const).map(item => (
+          <button key={item.key} type="button" aria-pressed={view === item.key} onClick={() => { manualView.current = true; setView(item.key); }} style={{ padding: "9px 15px", fontSize: 12, fontWeight: view === item.key ? 650 : 500, fontFamily: "inherit", cursor: "pointer", borderRadius: 5, border: "1px solid", borderColor: view === item.key ? "var(--border-mid)" : "transparent", background: view === item.key ? "var(--surface)" : "transparent", color: view === item.key ? "var(--text)" : "var(--text-3)" }}>{item.label}</button>
+        ))}
+      </div>
+      <div hidden={view !== "progress"}><HistoricalEpaProgress specialty={specialty || "urology"} onSnapshotLoaded={handleSnapshotLoaded} /></div>
+      {view === null ? <p role="status" style={{ color: "var(--text-3)", fontSize: 12 }}>Loading your EPA view…</p> : view === "observations" ? <EpaObservationAnalytics cases={cases} specialty={specialty} trainingCountry={trainingCountry} /> : null}
+    </div>
+  );
+}
+
+function EpaObservationAnalytics({ cases, specialty, trainingCountry }: EpaAnalyticsPanelProps) {
   // Hippo is a Manitoba-based CBD app. Absent an explicit non-CA country,
   // always show Surgical Foundations so every resident — regardless of specialty —
   // has the SF track visible.

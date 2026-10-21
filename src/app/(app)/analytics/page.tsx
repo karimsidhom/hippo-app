@@ -53,6 +53,10 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProcedure, setSelectedProcedure] = useState("");
 
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab")?.toLowerCase() === "epas") setActiveTab("EPAs");
+  }, []);
+
   const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
   const isSmsna = isSmsnaProfile(profile);
@@ -250,7 +254,7 @@ export default function AnalyticsPage() {
         })}
       </div>
 
-      {hasNoCases && (
+      {hasNoCases && activeTab !== "EPAs" && (
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
           padding: "48px 20px 20px", textAlign: "center",
@@ -341,7 +345,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── EPAs ── */}
-      {!hasNoCases && activeTab === "EPAs" && (
+      {activeTab === "EPAs" && (
         isSmsna ? (
           <SmsnaAssessmentPanel />
         ) : (
