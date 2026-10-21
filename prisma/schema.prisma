@@ -177,6 +177,7 @@ model User {
   pearlEndorsements PearlEndorsement[]
   pollVotes       PollVote[]
   epaObservations  EpaObservation[]
+  epaProgressSnapshots EpaProgressSnapshot[]
   assessedObservations EpaObservation[] @relation("AssessorObservations")
   auditLogs        AuditLog[]
   legalAcceptances LegalAcceptance[]
@@ -818,6 +819,59 @@ model PollVote {
 
 // ─── EPA Observations ────────────────────────────────────────────────────────
 
+// User-owned historical progress summaries. These are deliberately separate
+// from individual observations, assessor sign-offs and operative case counts.
+model EpaProgressSnapshot {
+  id               String   @id @default(cuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialtySlug    String
+  schemaVersion    Int      @default(1)
+  sourceFilename   String
+  sourceReviewDate DateTime @db.Date
+  provenance       String   @default("user_imported_summary")
+  payload          Json
+  importedAt       DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@unique([userId, specialtySlug])
+  @@map("epa_progress_snapshots")
+}
+
+// Immutable source copies; the current snapshot can be replaced without
+// erasing the evidence used in earlier programme reviews.
+model EpaProgressRevision {
+  id               String   @id @default(cuid())
+  userId           String
+  specialtySlug    String
+  contentHash      String
+  sourceReviewDate DateTime @db.Date
+  payload          Json
+  createdAt        DateTime @default(now())
+
+  @@unique([userId, specialtySlug, contentHash])
+  @@index([userId, specialtySlug, createdAt])
+  @@map("epa_progress_revisions")
+}
+
+// A decision applies to a particular imported version, never every future
+// replacement uploaded by the resident. Database FKs are in the migration.
+model ProgramEpaReconciliation {
+  id            String   @id @default(cuid())
+  programId     String
+  residentId    String
+  specialtySlug String
+  contentHash   String
+  reviewedById  String
+  reviewedAt    DateTime @default(now())
+  decision      String
+  note          String?  @db.VarChar(2000)
+
+  @@index([programId, residentId, specialtySlug, reviewedAt], map: "program_epa_reconciliations_scope_reviewed_idx")
+  @@index([contentHash])
+  @@map("program_epa_reconciliations")
+}
+
 model EpaObservation {
   id                String                @id @default(cuid())
   userId            String
@@ -949,6 +1003,24 @@ model Program {
 
   @@index([createdById])
   @@map("programs")
+}
+
+// An agreed canonical procedure minimum. Changes append a new version;
+// existing personal CaseTarget rows are independent of programme agreements.
+model ProgramProcedureTarget {
+  id                    String   @id @default(cuid())
+  programId             String
+  procedureDefinitionId String
+  target                Int
+  version               Int
+  effectiveAt           DateTime
+  agreedAt              DateTime @default(now())
+  agreedById            String
+  createdAt             DateTime @default(now())
+
+  @@unique([programId, procedureDefinitionId, version], map: "program_procedure_targets_program_procedure_version_key")
+  @@index([programId, effectiveAt])
+  @@map("program_procedure_targets")
 }
 
 model ProgramMember {

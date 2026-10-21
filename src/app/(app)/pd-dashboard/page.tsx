@@ -1,9 +1,10 @@
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
+import { ProgramProgressPanel, type ProgramProgressResident } from "@/components/epa/ProgramProgressPanel";
 import {
   GraduationCap,
   Download,
@@ -37,7 +38,7 @@ type SortDir = "asc" | "desc";
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-interface ResidentData {
+interface ResidentData extends ProgramProgressResident {
   userId: string;
   name: string | null;
   email: string;
@@ -67,6 +68,9 @@ export default function PDDashboardPage() {
 
   const [loading, setLoading] = useState(true);
   const [institution, setInstitution] = useState("");
+  const [programs, setPrograms] = useState<{id:string;name:string;myRole:string}[]>([]);
+  const [programId, setProgramId] = useState("");
+  const requestVersion = useRef(0);
   const [residents, setResidents] = useState<ResidentData[]>([]);
   const [fetchError, setFetchError] = useState<string | null>(null);
   const [exportLoading, setExportLoading] = useState(false);
@@ -79,6 +83,16 @@ export default function PDDashboardPage() {
   const [viewMode, setViewMode] = useState<ViewMode>("table");
   const [sortKey, setSortKey] = useState<SortKey>("lastCase");
   const [sortDir, setSortDir] = useState<SortDir>("desc");
+
+  function changeProgram(nextProgramId: string) {
+    requestVersion.current++;
+    setLoading(true); setResidents([]); setFetchError(null); setInstitution("");
+    setQuery(""); setPgyFilter("ALL"); setSpecialtyFilter("ALL");
+    setProgramId(nextProgramId);
+    const url = new URL(window.location.href);
+    url.searchParams.set("programId", nextProgramId);
+    window.history.replaceState(null, "", url);
+  }
 
   // Default to cards on mobile; remember the user's last choice in
   // localStorage so it sticks across sessions.
@@ -99,23 +113,42 @@ export default function PDDashboardPage() {
   }, [viewMode]);
 
   const fetchResidents = useCallback(async () => {
+    if (!programId) return;
+    const version = ++requestVersion.current;
+    setFetchError(null);
     try {
-      const res = await fetch("/api/pd/residents", { credentials: "include" });
+      const res = await fetch(`/api/pd/residents?programId=${encodeURIComponent(programId)}`, { credentials: "include", cache: "no-store" });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        setFetchError(data.error || "Failed to load residents");
+        if (version === requestVersion.current) setFetchError(data.error || "Failed to load residents");
         return;
       }
       const data = await res.json();
-      setInstitution(data.institution || "");
+      if (version !== requestVersion.current) return;
+      setInstitution(data.programName || data.institution || "");
       setResidents(data.residents || []);
     } catch {
-      setFetchError("Network error loading dashboard");
+      if (version === requestVersion.current) setFetchError("Network error loading dashboard");
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
-  }, []);
+  }, [programId]);
 
+  useEffect(() => {
+    if (!profile?.roleType || !PD_STAFF_ROLES.includes(profile.roleType)) return;
+    const controller = new AbortController();
+    void fetch("/api/programs", { signal: controller.signal, credentials: "include", cache: "no-store" }).then(async response => {
+      if (!response.ok) throw new Error("Could not load your programs.");
+      const data = await response.json();
+      if (controller.signal.aborted) return;
+      const available = (data.programs ?? []).filter((program: { myRole: string }) => program.myRole !== "COORDINATOR");
+      setPrograms(available);
+      const requested = new URLSearchParams(window.location.search).get("programId");
+      setProgramId(available.find((p: {id:string}) => p.id === requested)?.id ?? available[0]?.id ?? "");
+      if (!available.length) { setFetchError("No program membership currently grants access to resident progress."); setLoading(false); }
+    }).catch(e => { if (!controller.signal.aborted) { setFetchError(e.message); setLoading(false); } });
+    return () => controller.abort();
+  }, [profile?.roleType]);
 
   useEffect(() => {
     if (profile?.roleType && PD_STAFF_ROLES.includes(profile.roleType)) {
@@ -128,7 +161,7 @@ export default function PDDashboardPage() {
   const handleExport = async () => {
     setExportLoading(true);
     try {
-      const res = await fetch("/api/pd/export?format=csv", { credentials: "include" });
+      const res = await fetch(`/api/pd/reports/reconciled-progress?programId=${encodeURIComponent(programId)}`, { credentials: "include" });
       if (!res.ok) throw new Error("Export failed");
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
@@ -250,19 +283,7 @@ export default function PDDashboardPage() {
           style={{ color: "var(--danger)", margin: "0 auto 12px", display: "block" }}
         />
         <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 16 }}>{fetchError}</p>
-        {fetchError.toLowerCase().includes("institution") && (
-          <Link
-            href="/settings"
-            style={{
-              fontSize: 13,
-              color: "var(--primary)",
-              fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            Edit profile →
-          </Link>
-        )}
+        {programs.length ? <><label style={{ display: "grid", gap: 8, color: "var(--text-2)", fontSize: 12, marginBottom: 16 }}>Program<select style={selectStyle} value={programId} onChange={event => changeProgram(event.target.value)}>{programs.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label><button type="button" style={{ ...selectStyle, cursor: "pointer" }} onClick={() => { setLoading(true); void fetchResidents(); }}>Retry</button></> : <Link href="/dashboard" style={{ fontSize: 13, color: "var(--primary)", textDecoration: "none" }}>Back to dashboard →</Link>}
       </div>
     );
   }
@@ -355,6 +376,11 @@ export default function PDDashboardPage() {
         }
       `}</style>
 
+      <label style={{display:"flex",gap:12,alignItems:"center",marginBottom:20,fontSize:13}}>Program
+        <select aria-label="Program" style={selectStyle} value={programId} onChange={e => changeProgram(e.target.value)}>
+          {programs.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+        </select>
+      </label>
       {/* ── Institution header ─────────────────────────────────────────── */}
       <div
         style={{
@@ -390,7 +416,7 @@ export default function PDDashboardPage() {
               letterSpacing: "-0.01em",
             }}
           >
-            {institution || "Your institution"}
+            {institution || "Selected program"}
           </h1>
           <p
             style={{
@@ -431,7 +457,7 @@ export default function PDDashboardPage() {
           </Link>
           <button
             onClick={handleExport}
-            disabled={exportLoading}
+            disabled={exportLoading || !programs.some(p => p.id === programId && ["OWNER", "PD"].includes(p.myRole))}
             style={{
               display: "flex",
               alignItems: "center",
@@ -449,7 +475,7 @@ export default function PDDashboardPage() {
             }}
           >
             <Download size={14} />
-            {exportLoading ? "Exporting…" : "Export CSV"}
+            {exportLoading ? "Exporting…" : "Export program progress"}
           </button>
         </div>
       </div>
@@ -480,7 +506,7 @@ export default function PDDashboardPage() {
         />
         <KpiCard
           icon={<CheckCircle2 size={16} />}
-          label="EPA Completion"
+          label="Observations signed"
           value={avgEpaCompletion}
           color="var(--success)"
           suffix="%"
@@ -501,6 +527,8 @@ export default function PDDashboardPage() {
           sublabel={`${residentCount} residents · ${fellowCount} fellows`}
         />
       </div>
+
+      {programId ? <ProgramProgressPanel key={programId} programId={programId} residents={residents} canManage={programs.some(p => p.id === programId && ["OWNER","PD"].includes(p.myRole))} onRefresh={fetchResidents} /> : null}
 
       {/* ── Action queue ──────────────────────────────────────────────── */}
       {/* Residents who need PD attention right now: silent ≥ 14 days OR
@@ -561,7 +589,7 @@ export default function PDDashboardPage() {
                 <button
                   key={r.userId}
                   type="button"
-                  onClick={() => router.push(`/pd-dashboard/${r.userId}`)}
+                  onClick={() => router.push(`/pd-dashboard/${r.userId}?programId=${encodeURIComponent(programId)}`)}
                   style={{
                     display: "inline-flex",
                     alignItems: "center",
@@ -772,27 +800,14 @@ export default function PDDashboardPage() {
               <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 4 }}>
                 No residents linked yet.
               </p>
-              <p style={{ fontSize: 12, color: "var(--text-3)" }}>
-                Residents who set their institution to{" "}
-                <strong style={{ color: "var(--text-2)" }}>{institution}</strong> will appear here.
-              </p>
+              <p style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.7 }}>Resident and fellow program members will appear within your authorized scope. Faculty see their current assigned residents.</p>
             </>
           ) : (
             <>
               <p style={{ fontSize: 14, color: "var(--text-2)", marginBottom: 10 }}>
-                Your institution isn&rsquo;t set.
+                No residents are visible in this program.
               </p>
-              <Link
-                href="/settings"
-                style={{
-                  fontSize: 13,
-                  color: "var(--primary)",
-                  fontWeight: 600,
-                  textDecoration: "none",
-                }}
-              >
-                Edit profile →
-              </Link>
+              <p style={{ fontSize: 12, color: "var(--text-3)", lineHeight: 1.7 }}>Visibility follows program membership and current faculty assignments.</p>
             </>
           )}
         </div>
@@ -827,7 +842,7 @@ export default function PDDashboardPage() {
                 <ResidentCard
                   key={r.userId}
                   resident={r}
-                  onClick={() => router.push(`/pd-dashboard/${r.userId}`)}
+                  onClick={() => router.push(`/pd-dashboard/${r.userId}?programId=${encodeURIComponent(programId)}`)}
                 />
               ))}
             </div>
@@ -844,7 +859,7 @@ export default function PDDashboardPage() {
                   setSortDir(defaultSortDirFor(key));
                 }
               }}
-              onRowClick={(id) => router.push(`/pd-dashboard/${id}`)}
+              onRowClick={(id) => router.push(`/pd-dashboard/${id}?programId=${encodeURIComponent(programId)}`)}
             />
           )}
         </>
@@ -878,7 +893,7 @@ function ResidentTable({
     { key: "year", label: "Year" },
     { key: "casesMonth", label: "Cases / mo", align: "right" },
     { key: "lastCase", label: "Last case", align: "right" },
-    { key: "epaProgress", label: "EPAs", align: "right" },
+    { key: "epaProgress", label: "Signed observations", align: "right" },
     { key: "epaPending", label: "Pending", align: "right" },
   ];
   return (
@@ -911,7 +926,7 @@ function ResidentTable({
                 return (
                   <th
                     key={h.key}
-                    onClick={() => onSort(h.key)}
+                    aria-sort={active ? sortDir === "asc" ? "ascending" : "descending" : "none"}
                     style={{
                       textAlign: h.align ?? "left",
                       padding: "10px 14px",
@@ -927,13 +942,14 @@ function ResidentTable({
                       background: "var(--surface)",
                     }}
                   >
-                    <span
+                    <button type="button" onClick={() => onSort(h.key)}
                       style={{
                         display: "inline-flex",
                         alignItems: "center",
                         gap: 4,
                         justifyContent: h.align === "right" ? "flex-end" : "flex-start",
                         width: "100%",
+                        border: "none", background: "transparent", color: "inherit", font: "inherit", textTransform: "inherit", letterSpacing: "inherit", cursor: "pointer", padding: 0,
                       }}
                     >
                       {h.label}
@@ -945,7 +961,7 @@ function ResidentTable({
                           transition: "transform .15s",
                         }}
                       />
-                    </span>
+                    </button>
                   </th>
                 );
               })}
@@ -1104,7 +1120,7 @@ function ResidentRow({
             : `${lastDays}d ago`}
       </td>
 
-      {/* EPA progress — bar + count */}
+      {/* Observation sign-off — bar + count */}
       <td
         style={{
           padding: "10px 14px",
@@ -1377,7 +1393,7 @@ function ResidentCard({
         )}
       </div>
 
-      {/* EPA progress */}
+      {/* Observation sign-off */}
       <div style={{ marginBottom: resident.epaPending > 0 ? 10 : 0 }}>
         <div
           style={{
@@ -1396,7 +1412,7 @@ function ResidentCard({
               color: "var(--text-3)",
             }}
           >
-            EPA progress
+            Observation sign-off
           </span>
           <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: MONO }}>
             {resident.epaSigned} / {resident.epaTotal} signed

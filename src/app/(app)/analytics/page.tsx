@@ -18,6 +18,8 @@ import {
 } from "@/lib/stats";
 import { EpaDashboard } from "@/components/epa/EpaDashboard";
 import { EpaAnalyticsPanel } from "@/components/epa/EpaAnalyticsPanel";
+import { EpaProgressTotals } from "@/components/epa/HistoricalEpaProgress";
+import type { ProgramProgressResident } from "@/components/epa/ProgramProgressPanel";
 import { useUser } from "@/hooks/useUser";
 import Link from "next/link";
 import { BarChart2, Plus, AlertTriangle, ChevronRight, LayoutDashboard, Users2, Inbox } from "lucide-react";
@@ -28,7 +30,7 @@ import { SmsnaAssessmentPanel } from "@/components/smsna/SmsnaAssessmentPanel";
 // Staff (attendings, PDs) see a Cohort tab instead of Learning Curve / Volume.
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
 
-type CohortResident = {
+type CohortResident = ProgramProgressResident & {
   userId: string;
   name: string | null;
   totalCases: number;
@@ -42,6 +44,7 @@ type CohortResident = {
 
 type CohortData = {
   institution: string;
+  programName: string;
   residents: CohortResident[];
 };
 
@@ -52,6 +55,10 @@ export default function AnalyticsPage() {
   const { profile } = useUser();
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProcedure, setSelectedProcedure] = useState("");
+
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("tab")?.toLowerCase() === "epas") setActiveTab("EPAs");
+  }, []);
 
   const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
@@ -83,19 +90,39 @@ export default function AnalyticsPage() {
 
   // ── Cohort data fetch (staff only) ────────────────────────────────
   const [cohortData, setCohortData] = useState<CohortData | null>(null);
+  const [cohortPrograms, setCohortPrograms] = useState<{ id: string; name: string; myRole: string }[]>([]);
+  const [cohortProgramId, setCohortProgramId] = useState("");
+  const [cohortError, setCohortError] = useState("");
+  const [cohortProgressResidentId, setCohortProgressResidentId] = useState("");
   useEffect(() => {
     if (!isStaff) return;
-    let cancelled = false;
-    fetch("/api/pd/residents", { credentials: "include" })
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!cancelled && d) setCohortData(d);
-      })
-      .catch(() => {});
-    return () => {
-      cancelled = true;
-    };
+    const controller = new AbortController();
+    void fetch("/api/programs", { credentials: "include", cache: "no-store", signal: controller.signal }).then(async response => {
+      if (!response.ok) throw new Error("Could not load your programs.");
+      const data = await response.json();
+      const available = (data.programs ?? []).filter((program: { myRole: string }) => program.myRole !== "COORDINATOR");
+      if (controller.signal.aborted) return;
+      setCohortPrograms(available);
+      const preferred = new URLSearchParams(window.location.search).get("programId");
+      setCohortProgramId(available.find((program: { id: string }) => program.id === preferred)?.id ?? available[0]?.id ?? "");
+      if (!available.length) setCohortError("Join a program with access to resident progress to view a cohort.");
+    }).catch(error => { if (!controller.signal.aborted) setCohortError(error instanceof Error ? error.message : "Could not load your programs."); });
+    return () => controller.abort();
   }, [isStaff]);
+
+  useEffect(() => {
+    if (!isStaff || !cohortProgramId) return;
+    const controller = new AbortController();
+    setCohortData(null); setCohortError(""); setCohortProgressResidentId("");
+    void fetch(`/api/pd/residents?programId=${encodeURIComponent(cohortProgramId)}`, { credentials: "include", cache: "no-store", signal: controller.signal }).then(async response => {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not load this program’s cohort.");
+      if (!controller.signal.aborted) setCohortData(data);
+    }).catch(error => { if (!controller.signal.aborted) setCohortError(error instanceof Error ? error.message : "Could not load this program’s cohort."); });
+    return () => controller.abort();
+  }, [isStaff, cohortProgramId]);
+  const cohortDashboardHref = cohortProgramId ? `/pd-dashboard?programId=${encodeURIComponent(cohortProgramId)}` : "/pd-dashboard";
+  const cohortProgressResident = cohortData?.residents.find(resident => resident.userId === cohortProgressResidentId) ?? cohortData?.residents[0];
 
   // ── Pending sign-off count for the persistent "EPAs to complete" card.
   // Mirrors the dashboard behaviour so staff have the inbox entry point
@@ -211,7 +238,7 @@ export default function AnalyticsPage() {
             return (
               <Link
                 key={tab}
-                href="/pd-dashboard"
+                href={cohortDashboardHref}
                 style={{
                   flexShrink: 0, padding: "5px 12px",
                   background: "none",
@@ -250,7 +277,7 @@ export default function AnalyticsPage() {
         })}
       </div>
 
-      {hasNoCases && (
+      {hasNoCases && activeTab !== "EPAs" && (
         <div style={{
           display: "flex", flexDirection: "column", alignItems: "center",
           padding: "48px 20px 20px", textAlign: "center",
@@ -341,7 +368,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* ── EPAs ── */}
-      {!hasNoCases && activeTab === "EPAs" && (
+      {activeTab === "EPAs" && (
         isSmsna ? (
           <SmsnaAssessmentPanel />
         ) : (
@@ -524,7 +551,11 @@ export default function AnalyticsPage() {
       {/* ── Cohort (staff only) ── */}
       {isStaff && activeTab === "Cohort" && (
         <div>
-          {!cohortData ? (
+          {cohortPrograms.length ? <label style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, color: "var(--text-2)", fontSize: 12, marginBottom: 20 }}>Program<select value={cohortProgramId} onChange={event => {
+            setCohortData(null); setCohortProgramId(event.target.value);
+            const url = new URL(window.location.href); url.searchParams.set("programId", event.target.value); window.history.replaceState(null, "", url);
+          }} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--surface)", color: "var(--text)", font: "inherit", maxWidth: "100%" }}>{cohortPrograms.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label> : null}
+          {cohortError ? <p role="alert" style={{ color: "var(--text-3)", fontSize: 13, lineHeight: 1.7, padding: "28px 0" }}>{cohortError}</p> : !cohortData ? (
             <div
               style={{
                 padding: "48px 0",
@@ -559,14 +590,14 @@ export default function AnalyticsPage() {
                 No residents yet
               </div>
               <div style={{ fontSize: 12, lineHeight: 1.5 }}>
-                Once residents join your institution they'll show up here.
+                Residents who join this program and fall within your assigned scope will show up here.
               </div>
             </div>
           ) : (
             <div>
               {isPD && (
                 <Link
-                  href="/pd-dashboard"
+                  href={cohortDashboardHref}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -624,6 +655,12 @@ export default function AnalyticsPage() {
                 </Link>
               )}
 
+              {cohortProgressResident ? <section style={{ marginBottom: 24 }} aria-label="Resident EPA progress totals">
+                <h2 style={{ fontSize: 14, color: "var(--text)", margin: "0 0 12px", fontWeight: 650 }}>Resident EPA progress</h2>
+                <label style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, color: "var(--text-2)", fontSize: 12, marginBottom: 14 }}>Resident<select value={cohortProgressResident.userId} onChange={event => setCohortProgressResidentId(event.target.value)} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--surface)", color: "var(--text)", font: "inherit", maxWidth: "100%" }}>{cohortData.residents.map(resident => <option key={resident.userId} value={resident.userId}>{resident.name ?? resident.email}</option>)}</select></label>
+                {cohortProgressResident.historicalProgress?.summary ? <><EpaProgressTotals summary={cohortProgressResident.historicalProgress.summary} /><p style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.7, marginTop: 10 }}>Source: {cohortProgressResident.historicalProgress.sourceFilename} · reviewed {cohortProgressResident.historicalProgress.reviewDate} · {cohortProgressResident.historicalProgress.reconciliationStatus.replaceAll("_", " ")}</p></> : <p style={{ color: "var(--text-3)", fontSize: 12 }}>No historical EPA progress is imported for this resident. Individual totals are unknown.</p>}
+              </section> : null}
+
               {/* KPI grid */}
               {cohortKpis && (
                 <section style={{ marginBottom: 22 }}>
@@ -667,12 +704,12 @@ export default function AnalyticsPage() {
                     </Link>
                     <CohortKpi
                       value={`${cohortKpis.avgEpaCompletion}%`}
-                      label="Avg EPA done"
+                      label="Avg observations signed"
                     />
                   </div>
                   {cohortKpis.silentResidents > 0 && (
                     <Link
-                      href="/pd-dashboard"
+                      href={cohortDashboardHref}
                       style={{
                         display: "flex",
                         alignItems: "center",
@@ -729,7 +766,7 @@ export default function AnalyticsPage() {
                   </div>
                   {isPD && (
                     <Link
-                      href="/pd-dashboard"
+                      href={cohortDashboardHref}
                       style={{
                         fontSize: 11,
                         color: "var(--text-3)",
@@ -785,7 +822,7 @@ export default function AnalyticsPage() {
                             <tr key={r.userId}>
                               <td style={cohortTd}>
                                 <Link
-                                  href={`/pd-dashboard/${r.userId}`}
+                                  href={`/pd-dashboard/${encodeURIComponent(r.userId)}?programId=${encodeURIComponent(cohortProgramId)}`}
                                   style={{
                                     color: "var(--text)",
                                     textDecoration: "none",
