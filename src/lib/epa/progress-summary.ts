@@ -84,6 +84,17 @@ function totalCriterion(record: HistoricalEpaRecord) {
     /^(overall requirement|total observation threshold|logbook submission)$/i.test(criterion.criterion));
 }
 
+export function pendingSharedLogbookParents(snapshot: HistoricalEpaSnapshot): string[] {
+  const shared = snapshot.records.find(record => record.code.toUpperCase() === "C5B-C13B");
+  if (!shared || (shared.completion_status !== "outstanding" && shared.completion_status !== "in_progress")) return [];
+  const statuses = genericCategoryStatuses(snapshot);
+  const specific = new Map(snapshot.records.map(record => [record.code.toUpperCase(), record]));
+  return Array.from({ length: 9 }, (_, index) => `C${index + 5}`).filter(code => {
+    const status = statuses.get(code) ?? snapshot.interpretation.unlisted_epa_status;
+    return status === "complete" && specific.get(`${code}B`)?.completion_status !== "complete";
+  });
+}
+
 /** Summary credits describe satisfied minimum requirements, not assessment history. */
 export function summarizeHistoricalProgress(snapshot: HistoricalEpaSnapshot, specialty = "urology"): HistoricalProgressSummary {
   const statuses = genericCategoryStatuses(snapshot);
@@ -123,6 +134,11 @@ export function summarizeHistoricalProgress(snapshot: HistoricalEpaSnapshot, spe
   let credited = 0, required = 0, further = 0, additional = 0;
   let futureUnknown = false, inferredCounts = false;
   const sharedLogbook = records.get("C5B-C13B");
+  const pendingCompletedParents = pendingSharedLogbookParents(snapshot);
+  if (pendingCompletedParents.length) {
+    const categories = pendingCompletedParents.length === 1 ? pendingCompletedParents[0] : `${pendingCompletedParents.slice(0, -1).join(", ")} and ${pendingCompletedParents[pendingCompletedParents.length - 1]}`;
+    base.limitations.push(`Category status follows your source report. The shared C5B–C13B logbook remains pending separately, including ${categories}.`);
+  }
   for (const component of UROLOGY_CREDIT_COMPONENTS) {
     required += component.required;
     const shared = component.unit === "logbook" && /^C(?:[5-9]|1[0-3])B$/.test(component.code) ? sharedLogbook : undefined;

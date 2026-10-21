@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { historicalEpaSnapshotSchema } from "@/lib/epa/historical-progress";
 import type { HistoricalEpaCriterion, HistoricalEpaRecord, HistoricalEpaSnapshot } from "@/lib/epa/historical-progress";
-import { summarizeHistoricalProgress, UROLOGY_CREDIT_COMPONENTS } from "@/lib/epa/progress-summary";
+import { pendingSharedLogbookParents, summarizeHistoricalProgress, UROLOGY_CREDIT_COMPONENTS } from "@/lib/epa/progress-summary";
 
 function fixture(): HistoricalEpaSnapshot {
   const parents = [...new Set(UROLOGY_CREDIT_COMPONENTS.map(component => component.parentCode))];
@@ -45,6 +45,7 @@ describe("historical minimum-credit aggregation", () => {
     expect(summary.individual).toMatchObject({ creditedMinimum: 257, requiredMinimum: 266, remainingMaximum: 9, minimumFurtherRequired: 9 });
     expect(summary.categories.completed).toBe(39);
     expect(summary.limitations.join(" ")).toContain("not nine separate logbook uploads");
+    expect(summary.limitations.join(" ")).toContain("Category status follows your source report");
   });
 
   it("uses an explicit B-component record instead of counting its shared evidence twice", () => {
@@ -53,6 +54,7 @@ describe("historical minimum-credit aggregation", () => {
     const completed = record("C7B", 1, 1); completed.completion_status = "complete";
     put(snapshot, completed);
     expect(summarizeHistoricalProgress(snapshot).individual).toMatchObject({ creditedMinimum: 258, remainingMaximum: 8, minimumFurtherRequired: 8 });
+    expect(pendingSharedLogbookParents(snapshot)).not.toContain("C7");
   });
 
   it("does not turn logbook breadth cases or nested procedures into EPA credits", () => {

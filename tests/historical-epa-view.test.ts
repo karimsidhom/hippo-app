@@ -55,6 +55,13 @@ describe("historical EPA progress display", () => {
     expect(view.rows.find(row => row.code === "C5")?.records.map(record => record.code)).toEqual(["C5A"]);
   });
 
+  it("flags shared pending Part B evidence while preserving source-reported completed categories", () => {
+    const view = buildHistoricalProgressView(fixture());
+    expect(view.rows.find(row => row.code === "C6")).toMatchObject({ completion_status: "complete", sharedLogbookPending: true });
+    expect(view.rows.find(row => row.code === "C5")?.sharedLogbookPending).toBe(false);
+    expect(view.completed).toBe(1);
+  });
+
   it("retains record-only parents when the imported parent inventory is partial", () => {
     const snapshot = fixture();
     snapshot.all_parent_epas = snapshot.all_parent_epas.filter(parent => parent.code !== "F4");
@@ -133,5 +140,13 @@ describe("EPA category and individual totals", () => {
     expect(html).toContain("Individual EPA remaining total unavailable");
     expect(html).not.toContain("≥0");
     expect(html).not.toContain("≤0");
+  });
+
+  it("discloses the shared logbook separately from source-reported category completion", () => {
+    const progress = summary();
+    progress.limitations.push("Category status follows your source report. The shared C5B–C13B logbook remains pending separately, including C7 and C9.");
+    const html = renderToStaticMarkup(createElement(EpaProgressTotals, { summary: progress }));
+    expect(html).toContain("shared C5B–C13B logbook remains pending separately, including C7 and C9");
+    expect(html).toContain("EPA categories completed");
   });
 });
