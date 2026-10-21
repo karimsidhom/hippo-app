@@ -46,6 +46,10 @@ export interface MeetingPdfInput {
   acknowledgedAt: Date | null;
 }
 
+/** Tidy an account display name for print. Whitespace only: the letter
+ *  must not invent a spelling the account does not have. */
+const tidyName = (n: string) => n.replace(/\s+/g, ' ').trim();
+
 const fmtLong = (d: Date) =>
   d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
 const fmtShort = (d: Date) =>
@@ -87,7 +91,7 @@ function bulletBlock(
   let cursor = y + pad;
   if (bullets.length === 0) {
     if (!opts.measure) {
-      doc.fontSize(9).fillColor(SOFT).text('—', x + pad, cursor, { width: w - pad * 2 });
+      doc.fontSize(9).fillColor(SOFT).text('None', x + pad, cursor, { width: w - pad * 2 });
     }
     return 16 + pad * 2;
   }
@@ -247,7 +251,14 @@ function checklistTable(
     if (hasYear) {
       doc.text(item.targetYear ?? '', x + wSession + 4, y + 4, { width: wYear - 8 });
     }
-    doc.text(done ? '✓' : '', x + wSession + wYear + 4, y + 4, { width: wDone - 8 });
+    if (done) {
+      // Drawn, not typed: U+2713 is absent from Helvetica's WinAnsi
+      // encoding and renders as an apostrophe.
+      const cx = x + wSession + wYear + 8;
+      const cy = y + rowH / 2;
+      doc.save().lineWidth(1.1).strokeColor(INK)
+        .moveTo(cx, cy).lineTo(cx + 3, cy + 3).lineTo(cx + 9, cy - 4).stroke().restore();
+    }
     y += rowH;
   }
 
@@ -291,7 +302,7 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
 
   const pgy = input.pgyAtMeeting ? ` PGY${input.pgyAtMeeting}` : '';
   doc.font('Helvetica-Bold').text(
-    `RE: Program Director – Resident 1:1 meeting for Dr. ${input.residentName}${pgy}`,
+    `RE: Program Director – Resident 1:1 meeting for Dr. ${tidyName(input.residentName)}${pgy}`,
     x, doc.y, { width: w, align: 'center' },
   );
   doc.font('Helvetica');
@@ -301,7 +312,7 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
   }
   doc.moveDown(1.2);
 
-  doc.fontSize(10).fillColor(INK).text(`Dr. ${input.residentName},`, x, doc.y, { width: w });
+  doc.fontSize(10).fillColor(INK).text(`Dr. ${tidyName(input.residentName)},`, x, doc.y, { width: w });
   doc.moveDown(0.6);
   if (input.introText) {
     doc.text(input.introText, x, doc.y, { width: w, align: 'left' });
@@ -352,7 +363,7 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
   doc.moveTo(x + colW, sigY).lineTo(x + w, sigY).stroke();
 
   doc.fontSize(9).fillColor(INK).font('Helvetica-Bold')
-    .text(input.directorName ?? 'Program Director', x, sigY + 5, { width: colW - 24 });
+    .text(input.directorName ? tidyName(input.directorName) : 'Program Director', x, sigY + 5, { width: colW - 24 });
   doc.font('Helvetica').fillColor(SOFT).fontSize(8);
   for (const l of input.directorTitleLines) {
     doc.text(l, x, doc.y, { width: colW - 24 });
@@ -360,11 +371,11 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
 
   const residentBlockY = sigY + 5;
   doc.fontSize(9).fillColor(INK).font('Helvetica-Bold')
-    .text(`Dr. ${input.residentName}`, x + colW, residentBlockY, { width: colW });
+    .text(`Dr. ${tidyName(input.residentName)}`, x + colW, residentBlockY, { width: colW });
   doc.font('Helvetica').fillColor(SOFT).fontSize(8);
   if (input.acknowledgedAt) {
     doc.text(
-      `Acknowledged in Hippo by ${input.acknowledgedName ?? input.residentName} on ${fmtLong(input.acknowledgedAt)}`,
+      `Acknowledged in Hippo by ${tidyName(input.acknowledgedName ?? input.residentName)} on ${fmtLong(input.acknowledgedAt)}`,
       x + colW, doc.y, { width: colW },
     );
   } else {

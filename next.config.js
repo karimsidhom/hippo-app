@@ -2,6 +2,11 @@
 const path = require("path");
 
 const nextConfig = {
+  // pdfkit reads its AFM font metrics from disk at runtime. Bundling it
+  // rewrites those paths to /ROOT/... and every render dies with ENOENT,
+  // so it has to be required from node_modules instead.
+  serverExternalPackages: ['pdfkit'],
+
   reactStrictMode: true,
   // Small hardening win — no "X-Powered-By: Next.js" header on responses.
   poweredByHeader: false,
