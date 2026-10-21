@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { getProgramResidentProgressAccess } from '@/lib/program-auth';
+import { loadProgramHistoricalProgress } from '@/lib/epa/program-progress';
+import { SPECIALTIES } from '@/lib/constants';
+
+const reply = (body: unknown, status = 200) => NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store' } });
 
 /**
  * GET /api/pd/residents/:userId/summary
@@ -10,48 +15,30 @@ import { db } from '@/lib/db';
  * distribution (last 30d vs prior 30d), the EPA heatmap data, and recent
  * pearls in a single round-trip.
  *
- * Gated on PROGRAM_DIRECTOR role + same institution as the target resident.
+ * Requires the selected program and current access to this program member.
  */
 export async function GET(
-  _req: NextRequest,
+  req: NextRequest,
   { params }: { params: Promise<{ userId: string }> },
 ) {
   const { user, error } = await requireAuth();
-  if (error) return error;
-
-  // PD role check
-  const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!pdProfile || pdProfile.roleType !== 'PROGRAM_DIRECTOR') {
-    return NextResponse.json(
-      { error: 'Access denied. Program Director role required.' },
-      { status: 403 },
-    );
-  }
-  if (!pdProfile.institution) {
-    return NextResponse.json(
-      { error: 'No institution set on your profile.' },
-      { status: 400 },
-    );
-  }
+  if (error) { error.headers.set('Cache-Control', 'private, no-store'); return error; }
+  const programId = req.nextUrl.searchParams.get('programId')?.trim();
+  if (!programId) return reply({ error: 'Choose a program to view resident progress.' }, 400);
 
   const { userId: targetUserId } = await params;
+  const access = await getProgramResidentProgressAccess(user.id, programId, targetUserId);
+  if (!access) return reply({ error: 'Resident progress is not available in this program.' }, 403);
 
-  // Target must exist and belong to the same institution.
   const targetProfile = await db.profile.findUnique({
     where: { userId: targetUserId },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  if (
-    !targetProfile ||
-    targetProfile.institution !== pdProfile.institution
-  ) {
-    return NextResponse.json(
-      { error: 'Resident not found in your institution.' },
-      { status: 404 },
-    );
-  }
+  if (!targetProfile) return reply({ error: 'Resident profile not found.' }, 404);
+  const specialtyName = (targetProfile.specialty || access.program.specialty || '').trim().toLowerCase();
+  const specialtySlug = SPECIALTIES.find(specialty => specialty.name.toLowerCase() === specialtyName || specialty.slug === specialtyName)?.slug ?? specialtyName;
 
   // ── Date windows ─────────────────────────────────────────────────────────
   const now = new Date();
@@ -90,6 +77,7 @@ export async function GET(
     epaObservationsRaw,
     recentPearls,
     endorsementsReceived,
+    historicalProgressMap,
   ] = await Promise.all([
     db.caseLog.count({ where: { userId: targetUserId } }),
     db.caseLog.count({
@@ -118,7 +106,7 @@ export async function GET(
       select: { caseDate: true, autonomyLevel: true },
     }),
     db.epaObservation.findMany({
-      where: { userId: targetUserId },
+      where: { userId: targetUserId, status: 'SIGNED' },
       select: {
         epaId: true,
         status: true,
@@ -143,6 +131,7 @@ export async function GET(
     db.pearlEndorsement.count({
       where: { pearl: { authorId: targetUserId } },
     }),
+    loadProgramHistoricalProgress(programId, [targetUserId]),
   ]);
 
   // Bucket the sparkline cases into their matching week.
@@ -167,7 +156,9 @@ export async function GET(
     bucket[key] = (bucket[key] || 0) + 1;
   }
 
-  return NextResponse.json({
+  return reply({
+    program: { id: access.program.id, name: access.program.name },
+    historicalProgress: historicalProgressMap.get(`${targetUserId}:${specialtySlug}`) ?? null,
     resident: {
       id: targetProfile.user.id,
       name: targetProfile.user.name,

@@ -4,6 +4,8 @@ import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import type { HistoricalEpaCriterion, HistoricalEpaParent, HistoricalEpaRecord, HistoricalEpaSnapshot } from "@/lib/epa/historical-progress";
 import { historicalEpaSnapshotSchema, MAX_HISTORICAL_EPA_BYTES, parseHistoricalProgressImport } from "@/lib/epa/historical-progress";
 import { SPECIALTIES } from "@/lib/constants";
+import { summarizeHistoricalProgress } from "@/lib/epa/progress-summary";
+import type { HistoricalProgressSummary } from "@/lib/epa/progress-summary";
 import styles from "./HistoricalEpaProgress.module.css";
 
 type ProgressResponse = { snapshot: unknown };
@@ -122,7 +124,7 @@ function ProgressEpaRow({ row }: { row: ProgressRow }) {
         <span className={styles.chevron} aria-hidden="true">›</span>
       </summary>
       <div className={styles.epaDetails}>
-        {complete ? <p className={styles.completionNote}>Marked complete in your imported progress. {row.actual_completed_count === null ? "The actual assessment count was not recorded." : `Recorded assessment count: ${row.actual_completed_count}.`} This historical status is separate from signed assessments.</p> : null}
+        {complete ? <p className={styles.completionNote}>Marked complete in the imported progress. {row.actual_completed_count === null ? "The actual assessment count was not recorded." : `Recorded assessment count: ${row.actual_completed_count}.`} This historical status is separate from signed assessments.</p> : null}
         {row.records.map(record => <RecordRequirements key={record.code} record={record} />)}
         {!complete && row.records.length === 0 ? <p className={styles.completionNote}>This EPA remains outstanding. Detailed requirements were not included in this import.</p> : null}
       </div>
@@ -130,7 +132,26 @@ function ProgressEpaRow({ row }: { row: ProgressRow }) {
   );
 }
 
-export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", onSnapshotLoaded, initialSnapshot }: { specialty?: string; onSnapshotLoaded?: (exists: boolean) => void; initialSnapshot?: HistoricalEpaSnapshot | null }) {
+export function EpaProgressTotals({ summary }: { summary: HistoricalProgressSummary }) {
+  const { categories, individual } = summary;
+  const completedCredits = individual.creditedMinimum;
+  const remainingCredits = individual.remainingMaximum;
+  const requiredCredits = individual.requiredMinimum;
+  return (
+    <div>
+      <div className={styles.scorecard} aria-label="EPA category and individual progress totals">
+        <div className={styles.stat}><span className={styles.completeNumber}>{categories.completed}</span><div><strong>EPA categories completed</strong><span>of {categories.total} categories</span></div></div>
+        <div className={styles.stat}><span className={styles.remainingNumber}>{categories.remaining}</span><div><strong>EPA categories remaining</strong><span>Still have requirements</span></div></div>
+        <div className={styles.stat}><span className={styles.completeNumber} aria-label={completedCredits === null ? "Individual EPA completion total unavailable" : `At least ${completedCredits} individual EPA minimum credits completed`}>{completedCredits === null ? "—" : `≥${completedCredits}`}</span><div><strong>Individual EPAs completed</strong><span>{requiredCredits === null ? "Required totals unavailable" : `At least · of ${requiredCredits} required minimums`}</span></div></div>
+        <div className={styles.stat}><span className={styles.remainingNumber} aria-label={remainingCredits === null ? "Individual EPA remaining total unavailable" : `At most ${remainingCredits} individual EPA baseline credits remaining`}>{remainingCredits === null ? "—" : `≤${remainingCredits}`}</span><div><strong>Individual EPAs remaining</strong><span>{remainingCredits === null ? "Required totals unavailable" : "At most · to the baseline minimum"}</span></div></div>
+        <div className={styles.progressSummary}><span>{categories.total ? Math.round(categories.completed / categories.total * 100) : 0}% of categories completed</span><progress aria-label="EPA categories completed" value={categories.completed} max={categories.total || 1} /></div>
+      </div>
+      <p className={styles.totalsExplanation}>{requiredCredits === null ? "Individual totals are unavailable for this framework. " : "Individual totals count credits toward required minimums. Completed categories are credited at their required minimums; actual submission totals are unavailable. "}Extra observations may still be needed to meet case and assessor requirements.{categories.unknown > 0 ? ` ${categories.unknown} category statuses are unknown.` : ""}</p>
+    </div>
+  );
+}
+
+export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", onSnapshotLoaded, initialSnapshot, readOnly = false }: { specialty?: string; onSnapshotLoaded?: (exists: boolean) => void; initialSnapshot?: HistoricalEpaSnapshot | null; readOnly?: boolean }) {
   const specialty = normalizeHistoricalSpecialty(specialtyInput);
   const [snapshot, setSnapshot] = useState<HistoricalEpaSnapshot | null>(() => initialSnapshot ?? null);
   const [loading, setLoading] = useState(initialSnapshot === undefined);
@@ -148,6 +169,12 @@ export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", o
   const inputId = useId();
 
   useEffect(() => {
+    if (readOnly) {
+      setSnapshot(initialSnapshot ?? null);
+      setLoading(false);
+      onSnapshotLoaded?.(initialSnapshot != null);
+      return;
+    }
     const controller = new AbortController();
     setLoading(true);
     setLoadError("");
@@ -170,10 +197,11 @@ export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", o
       }
     })();
     return () => controller.abort();
-  }, [specialty, reload, onSnapshotLoaded]);
+  }, [specialty, reload, onSnapshotLoaded, initialSnapshot, readOnly]);
 
   const view = useMemo(() => snapshot ? buildHistoricalProgressView(snapshot) : null, [snapshot]);
-  const pendingView = useMemo(() => pending ? buildHistoricalProgressView(pending) : null, [pending]);
+  const summary = useMemo(() => snapshot ? summarizeHistoricalProgress(snapshot, specialty) : null, [snapshot, specialty]);
+  const pendingSummary = useMemo(() => pending ? summarizeHistoricalProgress(pending, specialty) : null, [pending, specialty]);
   const query = search.trim().toLocaleLowerCase();
   const filteredRows = view?.rows.filter(row => (status === "all" || (status === "outstanding" ? row.completion_status !== "complete" : row.completion_status === "complete"))
     && (stage === "all" || row.stage === stage)
@@ -225,12 +253,12 @@ export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", o
   return (
     <div className={styles.root}>
       <div className={styles.heading}>
-        <div><h2>My EPA progress</h2><p>{snapshot ? `Reviewed ${formatDate(snapshot.source.review_date)} · ${snapshot.source.filename}` : "Bring your existing completion record and remaining requirements into Hippo."}</p></div>
-        <button className={styles.secondaryButton} type="button" onClick={() => { setShowImport(current => !current); setImportError(""); }}>{showImport ? "Close import" : snapshot ? "Update progress" : "Import progress"}</button>
+        <div><h2>{readOnly ? "EPA progress" : "My EPA progress"}</h2><p>{snapshot ? `Reviewed ${formatDate(snapshot.source.review_date)} · ${snapshot.source.filename}` : readOnly ? "No imported progress summary is available." : "Bring your existing completion record and remaining requirements into Hippo."}</p></div>
+        {!readOnly ? <button className={styles.secondaryButton} type="button" onClick={() => { setShowImport(current => !current); setImportError(""); }}>{showImport ? "Close import" : snapshot ? "Update progress" : "Import progress"}</button> : null}
       </div>
       {savedMessage ? <p className={styles.success} role="status">{savedMessage}</p> : null}
       {loadError ? <div className={styles.error} role="alert">{loadError} <button type="button" onClick={() => setReload(current => current + 1)}>Retry</button></div> : null}
-      {showImport ? (
+      {!readOnly && showImport ? (
         <section className={styles.importPanel} aria-label="Import existing EPA progress">
           <h3>Import your existing progress</h3>
           <p>Choose a prepared progress JSON file or paste its contents. Review the summary before saving. Saving replaces your previous progress snapshot.</p>
@@ -244,35 +272,32 @@ export function HistoricalEpaProgress({ specialty: specialtyInput = "urology", o
           <label className={styles.fileLabel} htmlFor={`${inputId}-json`}>Or paste progress JSON</label>
           <textarea id={`${inputId}-json`} className={styles.textarea} value={importText} spellCheck={false} placeholder="Paste the prepared progress JSON here" disabled={saving} onChange={event => { setImportText(event.target.value); setPending(null); setImportError(""); }} />
           <button type="button" className={styles.secondaryButton} disabled={!importText.trim() || saving} onClick={() => reviewImport(importText)}>Review import</button>
-          {pending && pendingView ? <div className={styles.importReview}>
+          {pending && pendingSummary ? <div className={styles.importReview}>
             <strong>Ready to save: {pending.source.filename}</strong>
-            <p>Reviewed {formatDate(pending.source.review_date)} · {pendingView.completed} complete · {pendingView.outstanding} remaining · {pendingView.rows.length} total EPAs</p>
+            <p>Reviewed {formatDate(pending.source.review_date)}</p>
+            <EpaProgressTotals summary={pendingSummary} />
             <p>{pending.records.length} requirement components. Existing case logs and individual assessments stay separate.</p>
             <button type="button" className={styles.primaryButton} disabled={saving} onClick={() => void saveImport()}>{saving ? "Saving progress…" : "Save progress to my account"}</button>
           </div> : null}
           {importError ? <p className={styles.error} role="alert">{importError}</p> : null}
         </section>
       ) : null}
-      {loading ? <p className={styles.loading} role="status">Loading your progress…</p> : snapshot && view ? (
+      {loading ? <p className={styles.loading} role="status">Loading your progress…</p> : snapshot && view && summary ? (
         <>
-          <div className={styles.scorecard}>
-            <div className={styles.stat}><span className={styles.completeNumber}>{view.completed}</span><div><strong>Completed EPAs</strong><span>of {view.rows.length} total</span></div></div>
-            <div className={styles.stat}><span className={styles.remainingNumber}>{view.outstanding}</span><div><strong>EPAs remaining</strong><span>Your checklist below</span></div></div>
-            <div className={styles.progressSummary}><span>{view.rows.length ? Math.round(view.completed / view.rows.length * 100) : 0}% complete</span><progress aria-label="Parent EPAs complete" value={view.completed} max={view.rows.length || 1} /></div>
-          </div>
-          <p className={styles.explanation}>{snapshot.interpretation?.unlisted_epa_status === "complete" ? `EPAs${snapshot.interpretation?.unlisted_criterion_status === "complete" ? " and criteria" : ""} omitted from your source are marked complete, as you confirmed. ` : "Completion follows your imported record. "}Actual counts remain unknown where the source does not give them. This progress is private to your account.</p>
+          <EpaProgressTotals summary={summary} />
+          <p className={styles.explanation}>{snapshot.interpretation?.unlisted_epa_status === "complete" ? `EPA categories${snapshot.interpretation?.unlisted_criterion_status === "complete" ? " and criteria" : ""} omitted from ${readOnly ? "the" : "your"} source are marked complete${readOnly ? " under the resident’s stated interpretation" : ", as you confirmed"}. ` : `Completion follows ${readOnly ? "the" : "your"} imported record. `}Actual counts remain unknown where the source does not give them. {readOnly ? "Source record shown for program review." : "This progress is private to your account."}</p>
           <div className={styles.filters}>
             <label className={styles.searchLabel}>Search EPAs and requirements<input type="search" placeholder="Search code, procedure or requirement" value={search} onChange={event => setSearch(event.target.value)} /></label>
-            <label>Status<select value={status} onChange={event => setStatus(event.target.value as StatusFilter)}><option value="outstanding">Remaining ({view.outstanding})</option><option value="complete">Completed ({view.completed})</option><option value="all">All EPAs ({view.rows.length})</option></select></label>
+            <label>Category status<select value={status} onChange={event => setStatus(event.target.value as StatusFilter)}><option value="outstanding">Remaining ({view.outstanding})</option><option value="complete">Completed ({view.completed})</option><option value="all">All categories ({view.rows.length})</option></select></label>
             <label>Stage<select value={stage} onChange={event => setStage(event.target.value)}><option value="all">All stages</option>{STAGES.filter(item => view.rows.some(row => row.stage === item)).map(item => <option key={item} value={item}>{item}</option>)}</select></label>
           </div>
-          <div className={styles.listHeading}><h3>{status === "complete" ? "Completed EPAs" : status === "all" ? "All EPAs" : "What you have left"}</h3><span>{filteredRows.length} EPA{filteredRows.length === 1 ? "" : "s"}</span></div>
+          <div className={styles.listHeading}><h3>{status === "complete" ? "Completed EPA categories" : status === "all" ? "All EPA categories" : readOnly ? "Remaining requirements" : "What you have left"}</h3><span>{filteredRows.length} {filteredRows.length === 1 ? "category" : "categories"}</span></div>
           <p className={styles.checklistHint}>Expand an EPA for its checklist. Requirements can overlap; remaining counts are not added together.</p>
           <div className={styles.epaList}>{filteredRows.map(row => <ProgressEpaRow key={row.code} row={row} />)}</div>
-          {sharedRecords.length ? <section className={styles.sharedSection} aria-label="Shared requirements"><h3>Shared requirements</h3><p>This shared logbook is tracked separately from the parent EPA count.</p>{sharedRecords.map(record => <details key={record.code} className={styles.epaRow}><summary className={styles.epaSummary}><span className={styles.epaCode}>{record.code}</span><span className={styles.epaTitle}>{record.title}</span><span className={styles.chevron} aria-hidden="true">›</span></summary><div className={styles.epaDetails}><RecordRequirements record={record} /></div></details>)}</section> : null}
+          {sharedRecords.length ? <section className={styles.sharedSection} aria-label="Shared requirements"><h3>Shared requirements</h3><p>This shared logbook is shown separately from the category checklist.</p>{sharedRecords.map(record => <details key={record.code} className={styles.epaRow}><summary className={styles.epaSummary}><span className={styles.epaCode}>{record.code}</span><span className={styles.epaTitle}>{record.title}</span><span className={styles.chevron} aria-hidden="true">›</span></summary><div className={styles.epaDetails}><RecordRequirements record={record} /></div></details>)}</section> : null}
           {!filteredRows.length && !sharedRecords.length ? <div className={styles.empty}><p>No EPAs match these filters.</p><button className={styles.secondaryButton} type="button" onClick={() => { setSearch(""); setStage("all"); setStatus("all"); }}>Show all EPAs</button></div> : null}
         </>
-      ) : !loadError ? <div className={styles.empty}><h3>Your existing progress belongs here</h3><p>Import a progress summary to see finished EPAs and the exact requirements you have left. Individual observations are available in the Observations tab.</p><button type="button" className={styles.primaryButton} onClick={() => setShowImport(true)}>Import progress</button></div> : null}
+      ) : !loadError ? <div className={styles.empty}>{readOnly ? <p>No imported EPA progress is available.</p> : <><h3>Your existing progress belongs here</h3><p>Import a progress summary to see finished EPAs and the exact requirements you have left. Individual observations are available in the Observations tab.</p><button type="button" className={styles.primaryButton} onClick={() => setShowImport(true)}>Import progress</button></>}</div> : null}
     </div>
   );
 }

@@ -1,97 +1,49 @@
-import { NextRequest, NextResponse } from "next/server";
-import { requireAuth, ensureDbUser } from "@/lib/api-auth";
-import { db } from "@/lib/db";
+import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
+import { requireAuth } from '@/lib/api-auth';
+import { db } from '@/lib/db';
+import { reviewAccess, canWriteReview } from '../access';
 
-// ---------------------------------------------------------------------------
-// /api/cc-reviews/[id]/notes
-//   POST   — append a note from the calling member.
-//   DELETE — remove a note (only the original author).
-// ---------------------------------------------------------------------------
-
-export const runtime = "nodejs";
-
-interface CreateNoteBody {
-  body?: string;
-  category?: string;
+export const runtime = 'nodejs';
+type Context = { params: Promise<{ id: string }> };
+function reply(body: unknown, status = 200) {
+  return NextResponse.json(body, { status, headers: { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' } });
 }
+const noteInput = z.object({ body: z.string().trim().min(1).max(20000), category: z.string().trim().max(200).optional() }).strict();
 
-export async function POST(
-  req: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function POST(req: NextRequest, ctx: Context) {
   const { user, error } = await requireAuth();
-  if (error) return error;
-  await ensureDbUser(user);
-
-  const { id } = await ctx.params;
-  const review = await db.cCReview.findUnique({
-    where: { id },
-    select: { id: true, programId: true, status: true },
-  });
-  if (!review)
-    return NextResponse.json({ error: "Review not found" }, { status: 404 });
-  if (review.status === "FINALISED" || review.status === "ARCHIVED") {
-    return NextResponse.json(
-      { error: "Notes are locked once the review is finalised." },
-      { status: 409 },
-    );
-  }
-
-  const member = await db.programMember.findFirst({
-    where: { programId: review.programId, userId: user.id },
-  });
-  if (!member)
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-
-  let body: CreateNoteBody;
+  if (error) { error.headers.set('Cache-Control', 'private, no-store'); return error; }
   try {
-    body = (await req.json()) as CreateNoteBody;
-  } catch {
-    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
-  }
-  if (!body.body || !body.body.trim()) {
-    return NextResponse.json({ error: "Note body required" }, { status: 400 });
-  }
-
-  const created = await db.cCReviewNote.create({
-    data: {
-      reviewId: id,
-      authorId: user.id,
-      body: body.body.trim(),
-      category: body.category?.trim() || null,
-    },
-    include: { author: { select: { id: true, name: true, image: true } } },
-  });
-
-  return NextResponse.json({ note: created });
+    const { id } = await ctx.params;
+    const access = await reviewAccess(id, user.id);
+    if (access.error) return reply({ error: access.error === 'not_found' ? 'Review not found' : 'Forbidden' }, access.error === 'not_found' ? 404 : 403);
+    if (!canWriteReview(access.role)) return reply({ error: 'Forbidden' }, 403);
+    if (access.review.status !== 'IN_PROGRESS') return reply({ error: 'Notes are locked once the review is finalised.' }, 409);
+    const parsed = noteInput.safeParse(await req.json().catch(() => null));
+    if (!parsed.success) return reply({ error: 'Enter a valid note and optional category.' }, 400);
+    const created = await db.cCReviewNote.create({ data: {
+      reviewId: id, authorId: user.id, body: parsed.data.body, category: parsed.data.category || null,
+    }, include: { author: { select: { id: true, name: true, image: true } } } });
+    return reply({ note: created });
+  } catch { return reply({ error: 'Note could not be saved. Please try again.' }, 503); }
 }
 
-export async function DELETE(
-  req: NextRequest,
-  ctx: { params: Promise<{ id: string }> },
-) {
+export async function DELETE(req: NextRequest, ctx: Context) {
   const { user, error } = await requireAuth();
-  if (error) return error;
-  await ensureDbUser(user);
-
-  const { id } = await ctx.params;
-  const noteId = req.nextUrl.searchParams.get("noteId");
-  if (!noteId)
-    return NextResponse.json({ error: "noteId required" }, { status: 400 });
-
-  const note = await db.cCReviewNote.findUnique({
-    where: { id: noteId },
-  });
-  if (!note || note.reviewId !== id) {
-    return NextResponse.json({ error: "Note not found" }, { status: 404 });
-  }
-  if (note.authorId !== user.id) {
-    return NextResponse.json(
-      { error: "Only the original author can remove their note." },
-      { status: 403 },
-    );
-  }
-
-  await db.cCReviewNote.delete({ where: { id: noteId } });
-  return NextResponse.json({ ok: true });
+  if (error) { error.headers.set('Cache-Control', 'private, no-store'); return error; }
+  try {
+    const { id } = await ctx.params;
+    const access = await reviewAccess(id, user.id);
+    if (access.error) return reply({ error: access.error === 'not_found' ? 'Review not found' : 'Forbidden' }, access.error === 'not_found' ? 404 : 403);
+    if (!canWriteReview(access.role)) return reply({ error: 'Forbidden' }, 403);
+    if (access.review.status !== 'IN_PROGRESS') return reply({ error: 'Notes are locked once the review is finalised.' }, 409);
+    const noteId = req.nextUrl.searchParams.get('noteId');
+    if (!noteId) return reply({ error: 'noteId required' }, 400);
+    const note = await db.cCReviewNote.findUnique({ where: { id: noteId }, select: { id: true, reviewId: true, authorId: true } });
+    if (!note || note.reviewId !== id) return reply({ error: 'Note not found' }, 404);
+    if (note.authorId !== user.id) return reply({ error: 'Only the original author can remove their note.' }, 403);
+    await db.cCReviewNote.delete({ where: { id: noteId } });
+    return reply({ ok: true });
+  } catch { return reply({ error: 'Note could not be removed. Please try again.' }, 503); }
 }

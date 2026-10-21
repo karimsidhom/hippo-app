@@ -225,15 +225,36 @@ export default function DashboardPage() {
 
   // ── Staff-specific: cohort / program data ───────────────────────────
   const [cohortData, setCohortData] = useState<CohortData | null>(null);
+  const [cohortPrograms, setCohortPrograms] = useState<{ id: string; name: string; myRole: string }[]>([]);
+  const [cohortProgramId, setCohortProgramId] = useState("");
+  const [cohortError, setCohortError] = useState("");
   useEffect(() => {
     if (!isStaff) return;
-    let cancelled = false;
-    fetch("/api/pd/residents", { credentials: "include" })
-      .then(r => (r.ok ? r.json() : null))
-      .then(d => { if (!cancelled && d) setCohortData(d); })
-      .catch(() => {});
-    return () => { cancelled = true; };
+    const controller = new AbortController();
+    void fetch("/api/programs", { credentials: "include", cache: "no-store", signal: controller.signal }).then(async response => {
+      if (!response.ok) throw new Error("Could not load your programs.");
+      const data = await response.json();
+      const available = (data.programs ?? []).filter((program: { myRole: string }) => program.myRole !== "COORDINATOR");
+      if (controller.signal.aborted) return;
+      setCohortPrograms(available);
+      const preferred = new URLSearchParams(window.location.search).get("programId");
+      setCohortProgramId(available.find((program: { id: string }) => program.id === preferred)?.id ?? available[0]?.id ?? "");
+      if (!available.length) setCohortError("Join a program with access to resident progress to view a cohort.");
+    }).catch(error => { if (!controller.signal.aborted) setCohortError(error instanceof Error ? error.message : "Could not load your programs."); });
+    return () => controller.abort();
   }, [isStaff]);
+  useEffect(() => {
+    if (!isStaff || !cohortProgramId) return;
+    const controller = new AbortController();
+    setCohortData(null); setCohortError("");
+    void fetch(`/api/pd/residents?programId=${encodeURIComponent(cohortProgramId)}`, { credentials: "include", cache: "no-store", signal: controller.signal }).then(async response => {
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error ?? "Could not load this program’s cohort.");
+      if (!controller.signal.aborted) setCohortData(data);
+    }).catch(error => { if (!controller.signal.aborted) setCohortError(error instanceof Error ? error.message : "Could not load this program’s cohort."); });
+    return () => controller.abort();
+  }, [isStaff, cohortProgramId]);
+  const cohortDashboardHref = cohortProgramId ? `/pd-dashboard?programId=${encodeURIComponent(cohortProgramId)}` : "/pd-dashboard";
 
   // Cohort KPIs (computed client-side from roster data)
   const cohortKpis = (() => {
@@ -1035,8 +1056,13 @@ export default function DashboardPage() {
             review their residents' sign-offs via the inbox above. */}
         {isPD && (
           <section style={{ marginBottom: 28 }}>
+            {cohortPrograms.length ? <label style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 10, color: "var(--text-2)", fontSize: 12, marginBottom: 12 }}>Program<select value={cohortProgramId} onChange={event => {
+              setCohortData(null); setCohortProgramId(event.target.value);
+              const url = new URL(window.location.href); url.searchParams.set("programId", event.target.value); window.history.replaceState(null, "", url);
+            }} style={{ padding: "9px 12px", border: "1px solid var(--border)", borderRadius: 7, background: "var(--surface)", color: "var(--text)", font: "inherit", maxWidth: "100%" }}>{cohortPrograms.map(program => <option key={program.id} value={program.id}>{program.name}</option>)}</select></label> : null}
+            {cohortError ? <p role="alert" style={{ color: "var(--text-3)", fontSize: 12, lineHeight: 1.7 }}>{cohortError}</p> : null}
             <Link
-              href="/pd-dashboard"
+              href={cohortDashboardHref}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -1108,7 +1134,7 @@ export default function DashboardPage() {
             {/* Silent residents — actionable, stays as a top-level alert */}
             {cohortKpis && cohortKpis.silentResidents > 0 && (
               <Link
-                href="/pd-dashboard"
+                href={cohortDashboardHref}
                 style={{
                   display: "flex",
                   alignItems: "center",

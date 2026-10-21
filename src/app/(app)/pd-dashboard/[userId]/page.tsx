@@ -1,7 +1,10 @@
 "use client";
 
-import { use, useEffect, useState, useMemo } from "react";
+import { Suspense, use, useEffect, useState, useMemo } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
+import { EpaProgressTotals } from "@/components/epa/HistoricalEpaProgress";
+import type { HistoricalProgressSummary } from "@/lib/epa/progress-summary";
 import {
   ArrowLeft,
   Activity,
@@ -18,6 +21,13 @@ import type { EpaDefinition } from "@/lib/epa/data";
 // ── Types ────────────────────────────────────────────────────────────────────
 
 interface SummaryResponse {
+  program: { id: string; name: string };
+  historicalProgress: {
+    summary: HistoricalProgressSummary | null;
+    sourceFilename: string;
+    reviewDate: string;
+    reconciliationStatus: string;
+  } | null;
   resident: {
     id: string;
     name: string | null;
@@ -120,22 +130,41 @@ const STAGE_ORDER = [
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 
-export default function ResidentDetailPage({
+export default function ResidentDetailPage(props: { params: Promise<{ userId: string }> }) {
+  return <Suspense fallback={<p style={{ color: "var(--text-3)", fontSize: 13 }}>Loading resident…</p>}><ResidentDetailContent {...props} /></Suspense>;
+}
+
+function ResidentDetailContent({
   params,
 }: {
   params: Promise<{ userId: string }>;
 }) {
   const { userId } = use(params);
+  const searchParams = useSearchParams();
+  const programId = searchParams.get("programId")?.trim() ?? "";
+  const cohortHref = programId ? `/pd-dashboard?programId=${encodeURIComponent(programId)}` : "/pd-dashboard";
   const [summary, setSummary] = useState<SummaryResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!programId) {
+      setSummary(null);
+      setError("Choose a program from the dashboard before opening resident progress.");
+      setLoading(false);
+      return;
+    }
     let cancelled = false;
+    const controller = new AbortController();
+    setLoading(true);
+    setError(null);
+    setSummary(null);
     (async () => {
       try {
-        const res = await fetch(`/api/pd/residents/${userId}/summary`, {
+        const res = await fetch(`/api/pd/residents/${encodeURIComponent(userId)}/summary?programId=${encodeURIComponent(programId)}`, {
           credentials: "include",
+          cache: "no-store",
+          signal: controller.signal,
         });
         if (!res.ok) {
           const data = await res.json().catch(() => ({}));
@@ -152,8 +181,9 @@ export default function ResidentDetailPage({
     })();
     return () => {
       cancelled = true;
+      controller.abort();
     };
-  }, [userId]);
+  }, [userId, programId]);
 
   if (loading) {
     return (
@@ -193,7 +223,7 @@ export default function ResidentDetailPage({
           {error || "Resident not found."}
         </p>
         <Link
-          href="/pd-dashboard"
+          href={cohortHref}
           style={{ fontSize: 13, color: "var(--primary)", fontWeight: 600, textDecoration: "none" }}
         >
           ← Back to cohort
@@ -215,6 +245,7 @@ export default function ResidentDetailPage({
     : undefined;
 
   const observationsByEpa = epaObservations.reduce<Record<string, number>>((acc, o) => {
+    if (o.status !== "SIGNED") return acc;
     acc[o.epaId] = (acc[o.epaId] || 0) + 1;
     return acc;
   }, {});
@@ -223,7 +254,7 @@ export default function ResidentDetailPage({
     <div style={{ maxWidth: 1120, margin: "0 auto", padding: "0 0 60px" }}>
       {/* Back link */}
       <Link
-        href="/pd-dashboard"
+        href={cohortHref}
         style={{
           display: "inline-flex",
           alignItems: "center",
@@ -327,6 +358,12 @@ export default function ResidentDetailPage({
           </div>
         </div>
       </div>
+
+      {summary.historicalProgress?.summary ? <section style={{ marginBottom: 24 }} aria-label="Imported resident EPA progress">
+        <h2 style={{ fontSize: 15, color: "var(--text)", margin: "0 0 8px", fontWeight: 650 }}>Imported EPA progress</h2>
+        <p style={{ fontSize: 11, lineHeight: 1.7, color: "var(--text-3)", margin: "0 0 12px" }}>{summary.historicalProgress.sourceFilename} · Source review: {summary.historicalProgress.reviewDate} · Program review: {summary.historicalProgress.reconciliationStatus === "approved" ? "Approved" : summary.historicalProgress.reconciliationStatus === "needs_review" ? "Needs review" : "Self-reported"}</p>
+        <EpaProgressTotals summary={summary.historicalProgress.summary} />
+      </section> : <p style={{ color: "var(--text-3)", fontSize: 12, margin: "0 0 22px" }}>No imported EPA progress is available for this resident.</p>}
 
       {/* KPI row */}
       <div
@@ -626,7 +663,8 @@ function EpaHeatmap({
   const orderedStages = STAGE_ORDER.filter((s) => grouped[s] && grouped[s].length > 0);
 
   return (
-    <SectionCard icon={<Sparkles size={14} />} title="EPA coverage heatmap">
+    <SectionCard icon={<Sparkles size={14} />} title="Signed observation coverage">
+      <p style={{ fontSize: 11, color: "var(--text-3)", lineHeight: 1.7, margin: "0 0 14px" }}>Signed observations against framework observation targets. Category completion also depends on case and assessor requirements.</p>
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
         {orderedStages.map((stage) => {
           const items = grouped[stage];
@@ -684,7 +722,7 @@ function EpaHeatmap({
                   return (
                     <div
                       key={epa.id}
-                      title={`${epa.id}: ${count}/${target} cases (${Math.round(pct)}%) — ${epa.title}`}
+                      title={`${epa.id}: ${count}/${target} signed observations (${Math.round(pct)}% of observation target) — ${epa.title}`}
                       style={{
                         padding: "8px 4px",
                         borderRadius: 6,

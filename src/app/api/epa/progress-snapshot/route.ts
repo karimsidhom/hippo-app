@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type { EpaProgressSnapshot, Prisma } from "@prisma/client";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { progressContentHash } from '@/lib/epa/progress-hash';
 import {
   HISTORICAL_EPA_SCHEMA_VERSION,
   HistoricalProgressInputError,
@@ -33,6 +34,7 @@ function result(row: EpaProgressSnapshot | null) {
       importedAt: row.importedAt.toISOString(),
       updatedAt: row.updatedAt.toISOString(),
       schemaVersion: row.schemaVersion,
+      contentHash: progressContentHash(row.payload),
     },
   };
 }
@@ -67,10 +69,24 @@ export async function PUT(req: Request) {
       provenance: "user_imported_summary",
       payload: snapshot as Prisma.InputJsonValue,
     };
-    const row = await db.epaProgressSnapshot.upsert({
-      where: { userId_specialtySlug: { userId: user.id, specialtySlug: specialty } },
-      create: { userId: user.id, specialtySlug: specialty, ...data },
-      update: data,
+    const row = await db.$transaction(async (tx) => {
+      const key = { userId: user.id, specialtySlug: specialty };
+      // Preserve the previous version too, including imports made before revisions existed.
+      const previous = await tx.epaProgressSnapshot.findUnique({ where: { userId_specialtySlug: key } });
+      for (const version of [previous, { ...data, ...key }]) {
+        if (!version) continue;
+        const contentHash = progressContentHash(version.payload);
+        await tx.epaProgressRevision.upsert({
+          where: { userId_specialtySlug_contentHash: { ...key, contentHash } },
+          create: { ...key, contentHash, sourceReviewDate: version.sourceReviewDate, payload: version.payload as Prisma.InputJsonValue },
+          update: {},
+        });
+      }
+      return tx.epaProgressSnapshot.upsert({
+        where: { userId_specialtySlug: key },
+        create: { ...key, ...data },
+        update: data,
+      });
     });
     return reply(result(row));
   } catch (error) {

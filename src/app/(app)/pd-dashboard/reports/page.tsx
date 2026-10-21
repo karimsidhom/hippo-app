@@ -35,8 +35,10 @@ interface ReportSpec {
 }
 
 const REPORTS: ReportSpec[] = [
-  { id: "epa-matrix",          title: "EPA completion matrix",         description: "Resident × EPA matrix — total / signed / achieved / percent. The single most-asked-for accreditation table." },
-  { id: "cohort-heatmap",      title: "Cohort progression heatmap",    description: "Per-resident percent signed by stage (TD / F / COD / TTP). Paste into Excel for a heat map." },
+  { id: 'reconciled-progress', title: 'Historical EPA progress', description: 'Categories completed and remaining; bounded individual minimum credits; source versions and review status. Signed observations stay separate. Includes residents with no observations.' },
+  { id: 'procedure-targets', title: 'Agreed procedure targets', description: 'Recorded canonical procedure volumes against the effective program-agreed target and version. Unmapped cases are excluded.' },
+  { id: "epa-matrix",          title: "EPA observation matrix",         description: "Native observations by resident and EPA, including zero rows. Signed achievement and sign-off percentages stay separate from category completion." },
+  { id: "cohort-heatmap",      title: "Observation sign-off by stage",    description: "Sign-off percentages among recorded observations by resident and stage, including residents with no observations. This is not category completion." },
   { id: "signoff-latency",     title: "Sign-off latency",              description: "Days from EPA request to sign-off, median + p90 per attending. Reviewers ask 'how long do attendings sit on EPAs?'" },
   { id: "case-volume",         title: "Case volume by procedure",      description: "Per-resident procedure counts split by autonomy role (primary / assistant / observer / teacher)." },
   { id: "silent-days",         title: "Silent residents",              description: "Days since last logged case + EPA per resident. Anyone silent ≥ 14 days surfaces first." },

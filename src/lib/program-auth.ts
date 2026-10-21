@@ -168,3 +168,45 @@ export async function getResidentRosterScope(
     role: member.role,
   };
 }
+
+export interface ProgramProgressScope {
+  program: { id: string; name: string; institution: string | null; specialty: string | null };
+  role: ProgramMemberRole;
+  residentUserIds: string[];
+}
+
+/** Identifiable training progress is confined to a shared programme and
+ * current faculty assignments. Institution names and profile roles do not
+ * grant access. Coordinators retain their administrative roster elsewhere. */
+export async function getProgramProgressScope(
+  userId: string,
+  programId: string,
+): Promise<ProgramProgressScope | null> {
+  const scope = await getResidentRosterScope(userId, programId, { onlyActive: true });
+  if (!scope || !roleSeesPhi(scope.role)) return null;
+  const [program, members] = await Promise.all([
+    db.program.findUnique({
+      where: { id: programId },
+      select: { id: true, name: true, institution: true, specialty: true },
+    }),
+    db.programMember.findMany({
+      where: {
+        programId,
+        user: { profile: { is: { roleType: { in: ['RESIDENT', 'FELLOW'] } } } },
+        ...(!scope.unbounded ? { userId: { in: scope.residentUserIds } } : {}),
+      },
+      select: { userId: true },
+    }),
+  ]);
+  if (!program) return null;
+  return { program, role: scope.role, residentUserIds: members.map(member => member.userId) };
+}
+
+export async function getProgramResidentProgressAccess(
+  userId: string,
+  programId: string,
+  residentId: string,
+): Promise<ProgramProgressScope | null> {
+  const scope = await getProgramProgressScope(userId, programId);
+  return scope?.residentUserIds.includes(residentId) ? scope : null;
+}

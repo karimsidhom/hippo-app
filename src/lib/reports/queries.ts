@@ -12,16 +12,17 @@
 // ---------------------------------------------------------------------------
 
 import { db } from "@/lib/db";
+import { programResidents } from './program-progress';
+import { getSpecialtyEpaData } from '@/lib/epa/data';
+import { historicalEpaSnapshotSchema } from '@/lib/epa/historical-progress';
+import { normalizeProgressSpecialty } from '@/lib/epa/progress-summary';
 
 const SILENT_DAYS = 14;
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
 async function programMemberUserIds(programId: string): Promise<string[]> {
-  const members = await db.programMember.findMany({
-    where: { programId },
-    select: { userId: true },
-  });
+  const members = await programResidents(programId);
   return members.map((m) => m.userId);
 }
 
@@ -29,10 +30,10 @@ function safeDiv(numerator: number, denominator: number): number {
   return denominator === 0 ? 0 : Math.round((numerator / denominator) * 100);
 }
 
-// ─── 1. EPA completion matrix ──────────────────────────────────────
+// ─── 1. EPA observation matrix ──────────────────────────────────────
 //
 // One row per (resident × EPA). Columns: total observations, signed,
-// percent achievement. Useful as a heatmap when pasted into Excel.
+// sign-off percentage. These are native observations, not category completion.
 
 export interface EpaMatrixRow {
   residentName: string;
@@ -47,28 +48,20 @@ export interface EpaMatrixRow {
 }
 
 export async function reportEpaMatrix(programId: string): Promise<EpaMatrixRow[]> {
-  const userIds = await programMemberUserIds(programId);
+  const residents = await programResidents(programId);
+  const userIds = residents.map(resident => resident.userId);
   if (userIds.length === 0) return [];
 
-  // Pull every observation for every resident in one query, grouped in
-  // memory. That keeps the wire small and the SQL simple.
-  const observations = await db.epaObservation.findMany({
-    where: { userId: { in: userIds } },
-    select: {
-      userId: true,
-      epaId: true,
-      epaTitle: true,
-      status: true,
-      achievement: true,
-      user: {
-        select: {
-          name: true,
-          email: true,
-          profile: { select: { trainingYearLabel: true } },
-        },
-      },
-    },
-  });
+  const [observations, snapshots, profiles] = await Promise.all([
+    db.epaObservation.findMany({
+      where: { userId: { in: userIds } },
+      select: { userId: true, epaId: true, epaTitle: true, status: true, achievement: true },
+    }),
+    db.epaProgressSnapshot.findMany({
+      where: { userId: { in: userIds } }, select: { userId: true, specialtySlug: true, payload: true },
+    }),
+    db.profile.findMany({ where: { userId: { in: userIds } }, select: { userId: true, trainingCountry: true } }),
+  ]);
 
   type Bucket = {
     residentName: string;
@@ -82,14 +75,41 @@ export async function reportEpaMatrix(programId: string): Promise<EpaMatrixRow[]
   };
 
   const map = new Map<string, Bucket>();
+  const roster = new Map(residents.map(resident => [resident.userId, resident]));
+  for (const resident of residents) {
+    const specialty = normalizeProgressSpecialty(resident.specialty ?? '');
+    const country = profiles.find(profile => profile.userId === resident.userId)?.trainingCountry ?? 'CA';
+    const catalog = getSpecialtyEpaData(specialty, country);
+    const inventory = new Map(catalog?.epas.map(epa => [epa.id, epa.title]) ?? []);
+    const source = snapshots.find(snapshot => snapshot.userId === resident.userId && snapshot.specialtySlug === specialty);
+    const parsed = source ? historicalEpaSnapshotSchema.safeParse(source.payload) : null;
+    if (parsed?.success) {
+      for (const parent of parsed.data.all_parent_epas) inventory.set(parent.code, parent.title);
+      for (const record of parsed.data.records) {
+        if (record.code === 'C5B-C13B') continue;
+        const parent = record.code.replace(/^((?:TD|F|C|TTP)\d+)[AB]$/, '$1');
+        if (!inventory.has(parent)) inventory.set(parent, record.title);
+      }
+    }
+    // Keep even a zero-observation resident whose framework is unavailable.
+    if (!inventory.size) inventory.set('', 'EPA framework unavailable');
+    for (const [epaId, epaTitle] of inventory) {
+      map.set(`${resident.userId}::${epaId}`, {
+        residentName: resident.user.name ?? resident.user.email, residentEmail: resident.user.email,
+        trainingYear: resident.trainingYearLabel ?? '', epaId, epaTitle, total: 0, signed: 0, achieved: 0,
+      });
+    }
+  }
   for (const o of observations) {
+    const resident = roster.get(o.userId);
+    if (!resident) continue;
     const key = `${o.userId}::${o.epaId}`;
     let row = map.get(key);
     if (!row) {
       row = {
-        residentName: o.user.name ?? o.user.email,
-        residentEmail: o.user.email,
-        trainingYear: o.user.profile?.trainingYearLabel ?? "",
+        residentName: resident.user.name ?? resident.user.email,
+        residentEmail: resident.user.email,
+        trainingYear: resident.trainingYearLabel ?? "",
         epaId: o.epaId,
         epaTitle: o.epaTitle,
         total: 0,
@@ -100,7 +120,7 @@ export async function reportEpaMatrix(programId: string): Promise<EpaMatrixRow[]
     }
     row.total += 1;
     if (o.status === "SIGNED") row.signed += 1;
-    if (o.achievement === "ACHIEVED") row.achieved += 1;
+    if (o.status === "SIGNED" && o.achievement === "ACHIEVED") row.achieved += 1;
   }
 
   return [...map.values()]
@@ -122,10 +142,10 @@ export async function reportEpaMatrix(programId: string): Promise<EpaMatrixRow[]
     }));
 }
 
-// ─── 2. Cohort progression heatmap ─────────────────────────────────
+// ─── 2. Observation sign-off by stage ──────────────────────────────
 //
-// One row per resident showing per-stage EPA completion percent (TD,
-// F, COD/C, TTP). Stage is inferred from the EPA id prefix.
+// One row per resident showing sign-off percentage among recorded native
+// observations (TD, F, C, TTP). This is not a category-completion percentage.
 
 export interface CohortRow {
   residentName: string;
@@ -149,7 +169,8 @@ const stageOf = (epaId: string): "TD" | "F" | "C" | "TTP" | "OTHER" => {
 };
 
 export async function reportCohortHeatmap(programId: string): Promise<CohortRow[]> {
-  const userIds = await programMemberUserIds(programId);
+  const residents = await programResidents(programId);
+  const userIds = residents.map(resident => resident.userId);
   if (userIds.length === 0) return [];
 
   const observations = await db.epaObservation.findMany({
@@ -158,13 +179,6 @@ export async function reportCohortHeatmap(programId: string): Promise<CohortRow[
       userId: true,
       epaId: true,
       status: true,
-      user: {
-        select: {
-          name: true,
-          email: true,
-          profile: { select: { trainingYearLabel: true } },
-        },
-      },
     },
   });
 
@@ -173,26 +187,17 @@ export async function reportCohortHeatmap(programId: string): Promise<CohortRow[
     signed: Record<"TD" | "F" | "C" | "TTP", number>;
   };
   const map = new Map<string, Bucket>();
+  for (const resident of residents) {
+    map.set(resident.userId, {
+      residentName: resident.user.name ?? resident.user.email, residentEmail: resident.user.email,
+      trainingYear: resident.trainingYearLabel ?? '', totalEpas: 0, signedEpas: 0, percentSigned: 0,
+      td: 0, f: 0, c: 0, ttp: 0, totals: { TD: 0, F: 0, C: 0, TTP: 0 }, signed: { TD: 0, F: 0, C: 0, TTP: 0 },
+    });
+  }
   for (const o of observations) {
     const key = o.userId;
-    let row = map.get(key);
-    if (!row) {
-      row = {
-        residentName: o.user.name ?? o.user.email,
-        residentEmail: o.user.email,
-        trainingYear: o.user.profile?.trainingYearLabel ?? "",
-        totalEpas: 0,
-        signedEpas: 0,
-        percentSigned: 0,
-        td: 0,
-        f: 0,
-        c: 0,
-        ttp: 0,
-        totals: { TD: 0, F: 0, C: 0, TTP: 0 },
-        signed: { TD: 0, F: 0, C: 0, TTP: 0 },
-      };
-      map.set(key, row);
-    }
+    const row = map.get(key);
+    if (!row) continue;
     row.totalEpas += 1;
     if (o.status === "SIGNED") row.signedEpas += 1;
     const stage = stageOf(o.epaId);
@@ -688,17 +693,19 @@ export interface ReportSpec {
 }
 
 export const REPORTS: ReportSpec[] = [
+  { id: 'reconciled-progress', title: 'Historical EPA progress', description: 'Category and individual minimum credits, source versions, review status and separate signed observations. Includes residents with no observations.', filename: (p) => `${p} - Historical EPA progress.csv` },
+  { id: 'procedure-targets', title: 'Agreed procedure targets', description: 'Canonical procedure volumes against the effective agreed target version, including zero counts.', filename: (p) => `${p} - Agreed procedure targets.csv` },
   {
     id: "epa-matrix",
-    title: "EPA completion matrix",
-    description: "Resident × EPA matrix with total / signed / achieved / percent.",
-    filename: (p) => `${p} - EPA completion matrix.csv`,
+    title: "EPA observation matrix",
+    description: "Native observations by resident and EPA, including zero rows. Signed achievement and sign-off percentages are separate from category completion.",
+    filename: (p) => `${p} - EPA observation matrix.csv`,
   },
   {
     id: "cohort-heatmap",
-    title: "Cohort progression heatmap",
-    description: "Per-resident percent signed by stage (TD / F / COD / TTP).",
-    filename: (p) => `${p} - Cohort progression heatmap.csv`,
+    title: "Observation sign-off by stage",
+    description: "Sign-off percentage among recorded observations by resident and stage; includes residents with no observations. This is not category completion.",
+    filename: (p) => `${p} - Observation sign-off by stage.csv`,
   },
   {
     id: "signoff-latency",
