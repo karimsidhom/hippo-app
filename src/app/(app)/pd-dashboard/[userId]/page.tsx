@@ -12,6 +12,7 @@ import {
   Sparkles,
   TrendingUp,
 } from "lucide-react";
+import { MeetingsBlock } from "@/components/pd-meeting/MeetingsBlock";
 import { getSpecialtyEpaData } from "@/lib/epa/data";
 import type { EpaDefinition } from "@/lib/epa/data";
 
@@ -327,6 +328,9 @@ export default function ResidentDetailPage({
           </div>
         </div>
       </div>
+
+      {/* 1:1 meeting history and the button that starts the next one. */}
+      <MeetingsBlock residentId={userId} />
 
       {/* KPI row */}
       <div
