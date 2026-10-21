@@ -24,15 +24,26 @@ export async function GET(
 
   const { userId: targetUserId } = await params;
 
-  // Verify the target user is at the same institution
+  // Same gate as the summary route: membership of a programme the caller
+  // directs grants access on its own, because the institution string is
+  // free text and drops residents who typed it differently or left it blank.
   const targetProfile = await db.profile.findUnique({ where: { userId: targetUserId } });
-  if (
-    !targetProfile ||
-    !pdProfile.institution ||
-    targetProfile.institution !== pdProfile.institution
-  ) {
+  const sharesProgram = await db.programMember.count({
+    where: {
+      userId: targetUserId,
+      program: {
+        members: { some: { userId: user.id, role: { in: ['OWNER', 'PD'] } } },
+      },
+    },
+  });
+  const sameInstitution =
+    !!pdProfile.institution &&
+    !!targetProfile?.institution &&
+    targetProfile.institution === pdProfile.institution;
+
+  if (!targetProfile || (!sharesProgram && !sameInstitution)) {
     return NextResponse.json(
-      { error: 'Resident not found in your institution.' },
+      { error: 'Resident not found in your program or institution.' },
       { status: 404 },
     );
   }

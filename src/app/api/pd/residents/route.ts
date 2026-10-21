@@ -77,12 +77,32 @@ export async function GET() {
   // hasUnbounded === true OR memberships.length === 0 (legacy users)
   // both fall through to the institution-wide roster below.
 
-  // Find all users at the same institution that pass the scope filter.
+  // Everyone on a programme the caller directs, whatever their institution
+  // string says. The institution match alone drops residents who typed
+  // "HSC" instead of "Hsc" or left the field blank at sign-up, which hides
+  // them from their own director. Membership is explicit, so it counts on
+  // its own and the institution sweep stays as the fallback for programmes
+  // that never enrolled anyone.
+  const directedProgramIds = memberships
+    .filter((m) => roleCanReadAllResidents(m.role))
+    .map((m) => m.programId);
+  const programResidentIds = directedProgramIds.length
+    ? (
+        await db.programMember.findMany({
+          where: { programId: { in: directedProgramIds }, userId: { not: user.id } },
+          select: { userId: true },
+        })
+      ).map((m) => m.userId)
+    : [];
+
   const profiles = await db.profile.findMany({
     where: {
-      institution: pdProfile.institution,
       userId: { not: user.id },
       roleType: { in: ['RESIDENT', 'FELLOW'] },
+      OR: [
+        { institution: pdProfile.institution },
+        { userId: { in: programResidentIds } },
+      ],
       ...(allowedResidentUserIds
         ? { userId: { in: allowedResidentUserIds } }
         : {}),

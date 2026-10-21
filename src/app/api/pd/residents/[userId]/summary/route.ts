@@ -27,28 +27,38 @@ export async function GET(
       { status: 403 },
     );
   }
-  if (!pdProfile.institution) {
-    return NextResponse.json(
-      { error: 'No institution set on your profile.' },
-      { status: 400 },
-    );
-  }
-
   const { userId: targetUserId } = await params;
 
-  // Target must exist and belong to the same institution.
   const targetProfile = await db.profile.findUnique({
     where: { userId: targetUserId },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  if (
-    !targetProfile ||
-    targetProfile.institution !== pdProfile.institution
-  ) {
+
+  // Two ways in, and program membership is the reliable one.
+  //
+  // Matching on the institution string alone fails exactly where it
+  // matters: "Hsc" does not equal "HSC" or "University of Manitoba", and a
+  // resident who left the field blank at sign-up is invisible to their own
+  // director. Membership of a programme the caller directs is explicit, so
+  // it grants access on its own.
+  const sharesProgram = await db.programMember.count({
+    where: {
+      userId: targetUserId,
+      program: {
+        members: { some: { userId: user.id, role: { in: ['OWNER', 'PD'] } } },
+      },
+    },
+  });
+  const sameInstitution =
+    !!pdProfile.institution &&
+    !!targetProfile?.institution &&
+    targetProfile.institution === pdProfile.institution;
+
+  if (!targetProfile || (!sharesProgram && !sameInstitution)) {
     return NextResponse.json(
-      { error: 'Resident not found in your institution.' },
+      { error: 'Resident not found in your program or institution.' },
       { status: 404 },
     );
   }
