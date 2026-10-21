@@ -45,3 +45,32 @@ export async function getOrCreateMeetingConfig(programId: string) {
     },
   });
 }
+
+/**
+ * Load a meeting and confirm the caller may direct it. Returns null when it
+ * does not exist OR the caller has no business seeing it, so every caller
+ * answers 404 either way and never discloses that a record exists.
+ */
+export async function loadMeetingForDirector(meetingId: string, userId: string) {
+  const meeting = await db.pdMeeting.findUnique({
+    where: { id: meetingId },
+    select: {
+      id: true,
+      programId: true,
+      residentId: true,
+      meetingDate: true,
+      cycleLabel: true,
+      pgyAtMeeting: true,
+      status: true,
+      publishedAt: true,
+      previousMeetingId: true,
+      acknowledgedAt: true,
+      sections: true,
+      resident: { select: { id: true, name: true, email: true } },
+      previousMeeting: { select: { sections: true, meetingDate: true } },
+    },
+  });
+  if (!meeting) return null;
+  if (!(await canDirectMeetings(userId, meeting.programId))) return null;
+  return meeting;
+}

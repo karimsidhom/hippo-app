@@ -95,6 +95,23 @@ export interface MeetingConfig {
   letterhead: LetterheadDef;
 }
 
+/**
+ * Coerce a Prisma Json column into PdSections.
+ *
+ * Prisma types a Json column as string | number | boolean | JsonObject |
+ * JsonArray, none of which overlaps PdSections, so a direct cast is a type
+ * error and `as unknown as` at every call site invites a real array or
+ * string through. This checks the shape once and hands back empty sections
+ * when the value is anything else, which is also what a legacy row with a
+ * null column should render as.
+ */
+export function asSections(value: unknown): PdSections {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return emptySections();
+  }
+  return value as PdSections;
+}
+
 /** Empty sections for a brand new meeting. */
 export function emptySections(): PdSections {
   const out: PdSections = {};
