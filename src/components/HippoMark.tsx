@@ -1,11 +1,31 @@
+"use client";
+
 /**
  * HippoMark — the brand mark SVG.
  *
- * Geometric hippo head, front-facing. Teal gradient with clean
- * proportions that read well from 16px favicon to 64px splash.
+ * Geometric hippo head, front-facing. By default ships the surgical-teal
+ * gradient. The CLINIC scope ([data-module="clinic"] on any ancestor)
+ * swaps the gradient stops to the medical-red palette via CSS variables,
+ * so the same shape recolours per-module without a second component.
+ *
+ * Uniqueness:
+ *   The CSS-variable handoff uses var(--hippo-mark-stop-1 / --hippo-mark-stop-2)
+ *   with fallbacks to the original teal hexes. Setting those vars within
+ *   [data-module="clinic"] in globals.css gives Hippo Clinic a red logo
+ *   while leaving every other surface unchanged.
  */
+import { useId } from "react";
+
 export function HippoMark({ size = 32 }: { size?: number }) {
-  const id = `hm-${size}`;
+  // A unique id per instance, so two marks on one page do not collide and
+  // unmounting one does not strip the other's gradient (splash + nav).
+  //
+  // This used to be Math.random(), which gave the server one id and the
+  // client another and broke hydration on every page with a logo. useId is
+  // stable across both. Its output contains punctuation that is unsafe
+  // inside url(#...), so strip it down to word characters.
+  const reactId = useId().replace(/[^a-zA-Z0-9]/g, "");
+  const id = `hm-${size}-${reactId}`;
   return (
     <svg
       width={size}
@@ -16,8 +36,8 @@ export function HippoMark({ size = 32 }: { size?: number }) {
     >
       <defs>
         <linearGradient id={`${id}-g`} x1="8" y1="4" x2="56" y2="60" gradientUnits="userSpaceOnUse">
-          <stop stopColor="#22D3EE" />
-          <stop offset="1" stopColor="#0EA5E9" />
+          <stop stopColor="var(--hippo-mark-stop-1, #22D3EE)" />
+          <stop offset="1" stopColor="var(--hippo-mark-stop-2, #0EA5E9)" />
         </linearGradient>
       </defs>
 
