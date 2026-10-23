@@ -2,7 +2,7 @@
  * Hippo ID: one session and one profile across the Hippo Suite.
  *
  * This file is copied byte-identical into every suite repo (Cases, Handover,
- * Research, Study). Change it in one repo, copy it to the others, and check
+ * Research, Study, Pulse). Change it in one repo, copy it to the others, and check
  * with `shasum`. Its tests live in Handover (tests/hippo-id.test.ts).
  *
  * No Next or React imports, so it runs in middleware, on the server and in
@@ -36,7 +36,20 @@ export const HIPPO_SUITE_APPS: SuiteApp[] = [
   { id: "pulse", name: "Pulse", url: "https://pulse.hippomedicine.com/today", icon: "/suite/pulse.png", blurb: "Daily edition and colleagues" },
   { id: "research", name: "Research", url: "https://research.hippomedicine.com", icon: "/suite/research.png", blurb: "Papers in your field" },
   { id: "handover", name: "Handover", url: "https://handover.hippomedicine.com/teams", icon: "/suite/handover.png", blurb: "Shared patient lists" },
-  // Study rejoins this list at launch; it stays off every switcher until then (2026-10-19).
+  // Study rejoins this public list at launch. Until then it is in HIPPO_MEMBER_APPS below.
+];
+
+/**
+ * Apps that are not public yet. A switcher shows one only to an account that
+ * already uses it, proven by a row that account owns in `memberTable` (row
+ * level security returns only the caller's own rows). Nothing else may list
+ * these: HIPPO_SUITE_APPS stays the public list.
+ *
+ * Study: hidden from everyone else until it launches after the 2027 exam;
+ * shown in the switcher to its existing users (Karim, 2026-10-19 and 2026-10-20).
+ */
+export const HIPPO_MEMBER_APPS: (SuiteApp & { memberTable: string })[] = [
+  { id: "study", name: "Study", url: "https://study.hippomedicine.com", icon: "/suite/study.png", blurb: "Exam prep, played as a climb", memberTable: "st_hunter" },
 ];
 
 /** Where a profile is edited. Cases owns identity. */
@@ -434,4 +447,38 @@ export async function getHippoUser(
     level: hub?.level ?? null,
     hasHubName: Boolean(hubName),
   };
+}
+
+// ─── Switcher contents ───────────────────────────────────────────────────────
+
+/** True when this account already has a row in the app's member table. False on any error. */
+export async function isSuiteMember(
+  supabase: SupabaseLike,
+  userId: string | null | undefined,
+  app: { memberTable: string },
+): Promise<boolean> {
+  if (!userId) return false;
+  try {
+    const { data, error } = await supabase.from(app.memberTable).select("user_id").eq("user_id", userId).limit(1);
+    return !error && Array.isArray(data) && data.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * What a switcher shows this user: every public app, then any member-only app
+ * they already use (or are inside right now).
+ */
+export async function suiteAppsFor(
+  supabase: SupabaseLike,
+  user: { id: string } | null,
+  current?: SuiteAppId,
+): Promise<SuiteApp[]> {
+  const extra = await Promise.all(
+    HIPPO_MEMBER_APPS.map(async ({ memberTable, ...app }) =>
+      app.id === current || (await isSuiteMember(supabase, user?.id, { memberTable })) ? app : null,
+    ),
+  );
+  return [...HIPPO_SUITE_APPS, ...extra.filter((a): a is SuiteApp => a !== null)];
 }

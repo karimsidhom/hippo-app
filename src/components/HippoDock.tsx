@@ -3,8 +3,9 @@
 /**
  * HippoDock: the suite switcher and account chip for app headers.
  *
- * Copied byte-identical into each suite repo that shows it (Cases and
- * Handover), next to src/lib/hippo-id.ts. Styling uses the house
+ * Copied byte-identical into each suite repo that shows it (Cases,
+ * Handover and Pulse), next to src/lib/hippo-id.ts. Member-only apps
+ * (Study, until launch) appear only for accounts that already use them. Styling uses the house
  * tokens every Hippo app already defines (--surface, --border, --text-*,
  * --primary, --r, --rl), so it takes on each app's light and dark theme.
  */
@@ -14,7 +15,9 @@ import {
   HIPPO_PROFILE_URL,
   HIPPO_SUITE_APPS,
   getHippoUser,
+  suiteAppsFor,
   type HippoUser,
+  type SuiteApp,
   type SuiteAppId,
 } from "@/lib/hippo-id";
 
@@ -42,18 +45,22 @@ export function HippoDock({
 }: HippoDockProps) {
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<HippoUser | null>(null);
+  const [apps, setApps] = useState<SuiteApp[]>(HIPPO_SUITE_APPS);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let alive = true;
-    getHippoUser(supabase, { verify: false }).then((u) => {
-      if (alive) setUser(u);
+    getHippoUser(supabase, { verify: false }).then(async (u) => {
+      if (!alive) return;
+      setUser(u);
+      const list = await suiteAppsFor(supabase, u, current);
+      if (alive) setApps(list);
     });
     return () => {
       alive = false;
     };
-  }, [supabase]);
+  }, [supabase, current]);
 
   useEffect(() => {
     if (!open) return;
@@ -119,7 +126,7 @@ export function HippoDock({
           )}
 
           <nav aria-label="Hippo Suite apps" style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {HIPPO_SUITE_APPS.map((app, i) => {
+            {apps.map((app, i) => {
               const here = app.id === current;
               return (
                 <a
