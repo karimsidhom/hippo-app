@@ -448,7 +448,6 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 9: Privacy Prefs */}
         {/* Step 9: Program */}
         {step === 9 && (
           <div className="space-y-6 animate-slide-up">
@@ -463,6 +462,7 @@ export default function OnboardingPage() {
           </div>
         )}
 
+        {/* Step 10: Privacy Prefs */}
         {step === 10 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
