@@ -106,7 +106,12 @@ export async function PATCH(
   const meeting = await loadMeetingForDirector(meetingId, user.id);
   if (!meeting) return NextResponse.json({ error: 'Not found.' }, { status: 404 });
 
-  let body: { sections?: unknown; meetingDate?: unknown; cycleLabel?: unknown };
+  let body: {
+    sections?: unknown;
+    meetingDate?: unknown;
+    cycleLabel?: unknown;
+    status?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -115,6 +120,12 @@ export async function PATCH(
 
   const wasPublished = meeting.status === 'PUBLISHED';
   const hadAck = meeting.acknowledgedAt !== null;
+
+  // Reopening a published record. Publishing used to be one click with no
+  // confirmation and no way back, so a mistyped letter stayed signed. Sending
+  // it back to DRAFT clears the published stamp and any acknowledgment, and
+  // the resident is told nothing until it is published again.
+  const reopening = body.status === 'DRAFT' && wasPublished;
 
   const updated = await db.pdMeeting.update({
     where: { id: meeting.id },
@@ -130,6 +141,7 @@ export async function PATCH(
         : {}),
       // Editing after publish invalidates the acknowledgment.
       ...(wasPublished ? { acknowledgedAt: null, acknowledgedName: null } : {}),
+      ...(reopening ? { status: 'DRAFT' as const, publishedAt: null } : {}),
     },
     select: { id: true, updatedAt: true, status: true },
   });
@@ -140,7 +152,9 @@ export async function PATCH(
       .create({
         data: {
           userId: user.id,
-          action: 'pd_meeting.edited_after_publish',
+          action: reopening
+            ? 'pd_meeting.reopened'
+            : 'pd_meeting.edited_after_publish',
           entityType: 'PdMeeting',
           entityId: meeting.id,
           metadata: { clearedAcknowledgment: hadAck } as object,

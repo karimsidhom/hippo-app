@@ -53,6 +53,9 @@ export default function MeetingPage() {
   const [savedAt, setSavedAt] = useState<string | null>(null);
   const [problems, setProblems] = useState<Record<string, string>>({});
   const [publishing, setPublishing] = useState(false);
+  // Publishing freezes the record and notifies the resident, so it asks once.
+  const [confirmPublish, setConfirmPublish] = useState(false);
+  const [reopening, setReopening] = useState(false);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const readOnly = meeting?.status === 'PUBLISHED';
@@ -120,6 +123,54 @@ export default function MeetingPage() {
     setProblems({});
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(() => void persist(next), 2000);
+  };
+
+  /**
+   * The letter's own date and cycle label. PATCH has always accepted both;
+   * nothing in the UI ever sent them, so every record was stamped with the
+   * instant "Start a meeting" was clicked and could never say "PGY-3 mid-year".
+   */
+  const saveMeta = async (patch: { meetingDate?: string; cycleLabel?: string }) => {
+    setSave('saving');
+    try {
+      const res = await fetch(`/api/pd/meetings/${meetingId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setMeeting((m) =>
+        m
+          ? {
+              ...m,
+              ...(patch.meetingDate ? { meetingDate: patch.meetingDate } : {}),
+              ...(patch.cycleLabel !== undefined ? { cycleLabel: patch.cycleLabel || null } : {}),
+            }
+          : m,
+      );
+      setSave('saved');
+      setSavedAt(new Date().toISOString());
+    } catch {
+      setSave('error');
+    }
+  };
+
+  /** Send a published record back to draft so a mistake can be corrected. */
+  const reopen = async () => {
+    if (reopening) return;
+    setReopening(true);
+    try {
+      const res = await fetch(`/api/pd/meetings/${meetingId}`, {
+        method: 'PATCH',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'DRAFT' }),
+      });
+      if (res.ok) await load();
+    } finally {
+      setReopening(false);
+    }
   };
 
   const flush = () => {
@@ -228,10 +279,46 @@ export default function MeetingPage() {
           {meeting.pgyAtMeeting ? ` · PGY-${meeting.pgyAtMeeting}` : ''}
           {' · '}
           {new Date(meeting.meetingDate).toLocaleDateString('en-CA', {
-            year: 'numeric', month: 'long', day: 'numeric',
+            year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
           })}
           {meeting.cycleLabel ? ` · ${meeting.cycleLabel}` : ''}
         </p>
+
+        {!readOnly && (
+          <div
+            style={{
+              display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10,
+              alignItems: 'flex-end',
+            }}
+          >
+            <label style={{ display: 'grid', gap: 4 }}>
+              <span style={metaLabel}>Date of this meeting</span>
+              <input
+                type="date"
+                defaultValue={meeting.meetingDate.slice(0, 10)}
+                onBlur={(e) =>
+                  e.target.value &&
+                  e.target.value !== meeting.meetingDate.slice(0, 10) &&
+                  void saveMeta({ meetingDate: e.target.value })
+                }
+                style={metaInput}
+              />
+            </label>
+            <label style={{ display: 'grid', gap: 4, flex: '1 1 220px' }}>
+              <span style={metaLabel}>Cycle</span>
+              <input
+                type="text"
+                placeholder="e.g. PGY-3 mid-year"
+                defaultValue={meeting.cycleLabel ?? ''}
+                onBlur={(e) =>
+                  e.target.value !== (meeting.cycleLabel ?? '') &&
+                  void saveMeta({ cycleLabel: e.target.value })
+                }
+                style={metaInput}
+              />
+            </label>
+          </div>
+        )}
 
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 12 }}>
           <span
@@ -265,9 +352,23 @@ export default function MeetingPage() {
               </a>
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>
                 {meeting.acknowledgedAt
-                  ? `Confirmed by the resident on ${new Date(meeting.acknowledgedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}`
+                  ? `Confirmed by the resident on ${new Date(meeting.acknowledgedAt).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' })}`
                   : 'Sent to the resident, awaiting their confirmation.'}
               </span>
+              <button
+                type="button"
+                onClick={() => void reopen()}
+                disabled={reopening}
+                title="Send this record back to draft so it can be corrected"
+                style={{
+                  padding: '5px 12px', borderRadius: 7, fontSize: 12, fontWeight: 600,
+                  border: '1px solid var(--border-mid)', background: 'var(--surface)',
+                  color: 'var(--text-2)', cursor: reopening ? 'wait' : 'pointer',
+                  fontFamily: 'inherit',
+                }}
+              >
+                {reopening ? 'Reopening...' : 'Reopen for editing'}
+              </button>
             </>
           )}
         </div>
@@ -330,7 +431,14 @@ export default function MeetingPage() {
           </button>
           <button
             type="button"
-            onClick={publish}
+            onClick={() => {
+              if (!confirmPublish) {
+                setConfirmPublish(true);
+                return;
+              }
+              setConfirmPublish(false);
+              void publish();
+            }}
             disabled={publishing}
             style={{
               padding: '10px 22px', borderRadius: 9, border: '1px solid var(--primary)',
@@ -339,13 +447,57 @@ export default function MeetingPage() {
               opacity: publishing ? 0.6 : 1,
             }}
           >
-            {publishing ? 'Publishing...' : 'Publish this record'}
+            {publishing
+              ? 'Publishing...'
+              : confirmPublish
+                ? 'Yes, publish it'
+                : 'Publish this record'}
           </button>
+          {confirmPublish && !publishing && (
+            <button
+              type="button"
+              onClick={() => setConfirmPublish(false)}
+              style={{
+                padding: '10px 16px', borderRadius: 9,
+                border: '1px solid var(--border-mid)', background: 'var(--surface)',
+                color: 'var(--text-2)', fontSize: 14, fontWeight: 600,
+                cursor: 'pointer', fontFamily: 'inherit', marginLeft: 8,
+              }}
+            >
+              Not yet
+            </button>
+          )}
+          {confirmPublish && !publishing && (
+            <p style={{ margin: '10px 0 0', fontSize: 13, color: 'var(--text-2)' }}>
+              This locks the record, sends it to the resident and freezes the
+              exam tables and checklist as they stand. You can reopen it
+              afterwards, which clears their confirmation.
+            </p>
+          )}
         </div>
       )}
     </div>
   );
 }
+
+const metaLabel: React.CSSProperties = {
+  fontSize: 11,
+  textTransform: 'uppercase',
+  letterSpacing: '0.07em',
+  color: 'var(--text-3)',
+  fontWeight: 600,
+};
+
+const metaInput: React.CSSProperties = {
+  padding: '6px 10px',
+  borderRadius: 8,
+  border: '1px solid var(--border-mid)',
+  background: 'var(--surface)',
+  color: 'var(--text)',
+  fontSize: 13,
+  fontFamily: 'inherit',
+  width: '100%',
+};
 
 const sectionHeading: React.CSSProperties = {
   fontSize: 12,

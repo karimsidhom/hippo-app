@@ -93,6 +93,7 @@ export function ScoreTables({
                     <tr key={r.id}>
                       <td style={cell}>
                         {new Date(r.sittingAt).toLocaleDateString('en-CA', {
+                          timeZone: 'UTC',
                           year: 'numeric', month: 'short', day: 'numeric',
                         })}
                       </td>

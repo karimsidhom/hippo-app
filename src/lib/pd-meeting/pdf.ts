@@ -56,10 +56,19 @@ export interface MeetingPdfInput {
  *  must not invent a spelling the account does not have. */
 const tidyName = (n: string) => n.replace(/\s+/g, ' ').trim();
 
+// Pinned to UTC on purpose. A sitting date is typed as a bare "2026-05-03"
+// and stored as UTC midnight, so formatting it in the server's zone prints
+// the day before anywhere west of Greenwich — and the letter is rendered on
+// Vercel, not on the director's laptop. These are calendar dates, not
+// instants, so UTC is the zone they were written in.
 const fmtLong = (d: Date) =>
-  d.toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  d.toLocaleDateString('en-CA', {
+    year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC',
+  });
 const fmtShort = (d: Date) =>
-  d.toLocaleDateString('en-CA', { year: 'numeric', month: 'short', day: 'numeric' });
+  d.toLocaleDateString('en-CA', {
+    year: 'numeric', month: 'short', day: 'numeric', timeZone: 'UTC',
+  });
 
 const OUTCOME_LABEL: Record<string, string> = {
   met: 'Met',
@@ -100,6 +109,10 @@ function bulletBlock(
 ): number {
   const pad = 6;
   let cursor = y + pad;
+  // "+ Add a point" inserts an empty bullet and the autosave stores it, so a
+  // point started and abandoned mid-meeting would otherwise print as a naked
+  // bullet glyph on the signed letter.
+  bullets = bullets.filter((b) => b.text.trim().length > 0);
   if (bullets.length === 0) {
     if (!opts.measure) {
       doc.fontSize(9).fillColor(SOFT).text('None', x + pad, cursor, { width: w - pad * 2 });

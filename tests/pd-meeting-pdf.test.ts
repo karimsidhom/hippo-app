@@ -224,3 +224,40 @@ describe('answers are not goals', () => {
     expect(text).not.toContain('Partly met');
   });
 });
+
+describe('what should never reach a signed letter', () => {
+  it('drops points that were started and left empty', async () => {
+    const current: PdSections = emptySections();
+    current.progress = {
+      bullets: [b('p1', 'On track.'), b('p2', '   '), b('p3', '')],
+    };
+    const text = visibleText(
+      await renderMeetingPdf(buildInput({ sections: current, previousSections: null })),
+    );
+    expect(text).toContain('On track.');
+    // A bare bullet glyph with nothing after it is the tell.
+    expect(text).not.toMatch(/\u2022\s*$/m);
+  });
+
+  it('says None when every point in a column is empty', async () => {
+    const current: PdSections = emptySections();
+    current.progress = { bullets: [b('p1', '  ')] };
+    current.career = { bullets: [b('c1', 'Something real.')] };
+    const text = visibleText(
+      await renderMeetingPdf(buildInput({ sections: current, previousSections: null })),
+    );
+    expect(text).toContain('None');
+  });
+
+  it('prints a calendar date as the day it was written, not the day before', async () => {
+    // Typed as "2026-05-03" and stored as UTC midnight. Formatted in a western
+    // zone without pinning, this used to come back as 2 May.
+    const text = visibleText(
+      await renderMeetingPdf(
+        buildInput({ meetingDate: new Date('2026-05-03T00:00:00Z') }),
+      ),
+    );
+    expect(text).toContain('May 3, 2026');
+    expect(text).not.toContain('May 2, 2026');
+  });
+});
