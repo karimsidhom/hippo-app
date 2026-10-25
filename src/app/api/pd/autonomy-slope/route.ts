@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { getDirectedResidents } from '@/lib/program-auth';
 import { programSlope, residentSlope, MIN_RESIDENTS_TO_REPORT } from '@/lib/autonomy-slope';
 import type { CaseLog } from '@/lib/types';
 
@@ -22,12 +23,20 @@ export async function GET() {
   if (!pd || pd.roleType !== 'PROGRAM_DIRECTOR') {
     return NextResponse.json({ error: 'Program Director role required.' }, { status: 403 });
   }
-  if (!pd.institution) return NextResponse.json({ error: 'No institution set.' }, { status: 400 });
+  // Scoped to the residents the caller actually directs. This used to be a
+  // plain institution string match, so the slope table leaked per-resident
+  // trajectories to anyone who typed the right institution on their profile.
+  const scope = await getDirectedResidents(user.id);
 
-  const residents = await db.profile.findMany({
-    where: { institution: pd.institution, userId: { not: user.id }, roleType: { in: ['RESIDENT', 'FELLOW'] } },
-    select: { userId: true, residencyStartDate: true, allowBenchmarkSharing: true },
-  });
+  const residents = scope.residentUserIds.length
+    ? await db.profile.findMany({
+        where: {
+          userId: { in: scope.residentUserIds },
+          roleType: { in: ['RESIDENT', 'FELLOW'] },
+        },
+        select: { userId: true, residencyStartDate: true, allowBenchmarkSharing: true },
+      })
+    : [];
 
   const slopes = [];
   let optedOut = 0;

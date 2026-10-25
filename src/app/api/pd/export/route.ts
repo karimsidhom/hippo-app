@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { getDirectedResidents } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/export?format=csv
@@ -19,20 +20,16 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  if (!pdProfile.institution) {
-    return NextResponse.json(
-      { error: 'No institution set.' },
-      { status: 400 },
-    );
-  }
-
   const format = req.nextUrl.searchParams.get('format') || 'csv';
 
-  // Find all residents/fellows at the same institution
+  // Only the residents the caller actually directs. Exporting on the
+  // institution string meant a self-declared director could download the
+  // whole institution's case and EPA counts as a CSV.
+  const scope = await getDirectedResidents(user.id);
+
   const profiles = await db.profile.findMany({
     where: {
-      institution: pdProfile.institution,
-      userId: { not: user.id },
+      userId: { in: scope.residentUserIds },
       roleType: { in: ['RESIDENT', 'FELLOW'] },
     },
     include: {

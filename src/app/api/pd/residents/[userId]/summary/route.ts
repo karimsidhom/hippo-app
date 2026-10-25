@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { directsResident } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/residents/:userId/summary
@@ -10,7 +11,8 @@ import { db } from '@/lib/db';
  * distribution (last 30d vs prior 30d), the EPA heatmap data, and recent
  * pearls in a single round-trip.
  *
- * Gated on PROGRAM_DIRECTOR role + same institution as the target resident.
+ * Gated on PROGRAM_DIRECTOR role + the target being a member of a program
+ * the caller directs.
  */
 export async function GET(
   _req: NextRequest,
@@ -27,28 +29,27 @@ export async function GET(
       { status: 403 },
     );
   }
-  if (!pdProfile.institution) {
+  const { userId: targetUserId } = await params;
+
+  // The caller must actually direct this resident. Institution string
+  // equality used to stand in for this, which meant anyone who set their
+  // own profile to the right free-text institution could read the record.
+  if (!(await directsResident(user.id, targetUserId))) {
     return NextResponse.json(
-      { error: 'No institution set on your profile.' },
-      { status: 400 },
+      { error: 'Resident not found in a program you direct.' },
+      { status: 404 },
     );
   }
 
-  const { userId: targetUserId } = await params;
-
-  // Target must exist and belong to the same institution.
   const targetProfile = await db.profile.findUnique({
     where: { userId: targetUserId },
     include: {
       user: { select: { id: true, name: true, email: true, image: true } },
     },
   });
-  if (
-    !targetProfile ||
-    targetProfile.institution !== pdProfile.institution
-  ) {
+  if (!targetProfile) {
     return NextResponse.json(
-      { error: 'Resident not found in your institution.' },
+      { error: 'Resident not found in a program you direct.' },
       { status: 404 },
     );
   }
