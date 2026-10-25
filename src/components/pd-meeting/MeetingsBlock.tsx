@@ -304,6 +304,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
               >
                 <span style={{ fontSize: 13, color: 'var(--text)' }}>
                   {new Date(m.meetingDate).toLocaleDateString('en-CA', {
+                    timeZone: 'UTC',
                     year: 'numeric', month: 'long', day: 'numeric',
                   })}
                   {m.pgyAtMeeting ? ` · PGY-${m.pgyAtMeeting}` : ''}

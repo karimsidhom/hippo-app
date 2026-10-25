@@ -143,6 +143,7 @@ export function SectionEditor({
           >
             {previousDate
               ? new Date(previousDate).toLocaleDateString('en-CA', {
+                  timeZone: 'UTC',
                   year: 'numeric',
                   month: 'long',
                   day: 'numeric',

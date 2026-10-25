@@ -15,7 +15,7 @@ interface MyMeeting {
 }
 
 const longDate = (iso: string) =>
-  new Date(iso).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' });
+  new Date(iso).toLocaleDateString('en-CA', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' });
 
 /**
  * The resident's own 1:1 records.

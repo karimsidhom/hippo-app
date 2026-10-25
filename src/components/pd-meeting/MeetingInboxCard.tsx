@@ -70,7 +70,7 @@ export function MeetingInboxCard() {
           </div>
           <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
             {one
-              ? `${latest.directorName} published it on ${new Date(latest.meetingDate).toLocaleDateString('en-CA', { year: 'numeric', month: 'long', day: 'numeric' })}.`
+              ? `${latest.directorName} published it on ${new Date(latest.meetingDate).toLocaleDateString('en-CA', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' })}.`
               : 'Open them to read and confirm.'}
           </div>
         </div>
