@@ -168,3 +168,94 @@ export async function getResidentRosterScope(
     role: member.role,
   };
 }
+
+// ─── Who a staff member actually directs ──────────────────────────────
+// The PD surfaces used to answer this with `Profile.institution` string
+// equality, which is self-declared free text: any account could set its
+// own roleType to PROGRAM_DIRECTOR and its institution to a real one and
+// read that institution's whole roster. Membership of a Program is the
+// only trustworthy answer, because a ProgramMember row can only be
+// created by the resident accepting an invite or a director approving a
+// request they opened.
+
+export interface DirectedRoster {
+  /** Programs where the caller has cohort-wide read. */
+  unboundedProgramIds: string[];
+  /** Every other user the caller may look at, across all their programs. */
+  residentUserIds: string[];
+  /** True when the caller belongs to no program at all. */
+  noMemberships: boolean;
+}
+
+/**
+ * The set of users a staff member is allowed to see, derived purely from
+ * program membership. PD / CHAIR / CC_MEMBER / DEPT_HEAD / COORDINATOR get
+ * everyone in those programs; FACULTY (and legacy MEMBER) get only their
+ * actively-assigned residents. Belonging to no program returns an empty
+ * set — never an institution-wide fallback.
+ */
+export async function getDirectedResidents(
+  userId: string,
+): Promise<DirectedRoster> {
+  const memberships = await db.programMember.findMany({
+    where: { userId },
+    select: { id: true, role: true, programId: true },
+  });
+
+  if (memberships.length === 0) {
+    return { unboundedProgramIds: [], residentUserIds: [], noMemberships: true };
+  }
+
+  const unboundedProgramIds = memberships
+    .filter((m) => roleCanReadAllResidents(m.role))
+    .map((m) => m.programId);
+
+  const ids = new Set<string>();
+
+  if (unboundedProgramIds.length > 0) {
+    const rows = await db.programMember.findMany({
+      where: {
+        programId: { in: unboundedProgramIds },
+        userId: { not: userId },
+      },
+      select: { userId: true },
+    });
+    for (const r of rows) ids.add(r.userId);
+  }
+
+  // FACULTY / legacy MEMBER: only their active assignments.
+  const boundedMemberIds = memberships
+    .filter((m) => !roleCanReadAllResidents(m.role))
+    .map((m) => m.id);
+
+  if (boundedMemberIds.length > 0) {
+    const now = new Date();
+    const assignments = await db.facultyAssignment.findMany({
+      where: {
+        facultyId: { in: boundedMemberIds },
+        AND: [
+          { OR: [{ startDate: null }, { startDate: { lte: now } }] },
+          { OR: [{ endDate: null }, { endDate: { gte: now } }] },
+        ],
+      },
+      include: { resident: { select: { userId: true } } },
+    });
+    for (const a of assignments) ids.add(a.resident.userId);
+  }
+
+  return {
+    unboundedProgramIds,
+    residentUserIds: Array.from(ids),
+    noMemberships: false,
+  };
+}
+
+/** True iff `residentUserId` is someone `staffUserId` directs. */
+export async function directsResident(
+  staffUserId: string,
+  residentUserId: string,
+): Promise<boolean> {
+  if (staffUserId === residentUserId) return false;
+  const scope = await getDirectedResidents(staffUserId);
+  return scope.residentUserIds.includes(residentUserId);
+}

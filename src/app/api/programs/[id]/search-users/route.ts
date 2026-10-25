@@ -32,8 +32,15 @@ export async function GET(
   }
 
   const url = new URL(req.url);
-  const q = (url.searchParams.get('q') ?? '').trim();
-  if (q.length < 2) {
+  const q = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+
+  // Exact email only. This was a substring match on name OR email with a
+  // two-character floor, which made the endpoint a directory of every Hippo
+  // account: iterating short queries enumerated the name, email address,
+  // institution and training level of the entire user base, to any member
+  // of any program. A director inviting a colleague knows their address, so
+  // requiring the whole thing costs nothing and removes the enumeration.
+  if (!q.includes('@') || q.length < 5) {
     return NextResponse.json({ users: [] });
   }
 
@@ -61,12 +68,7 @@ export async function GET(
     where: {
       AND: [
         { id: { notIn: Array.from(excludeUserIds) } },
-        {
-          OR: [
-            { name: { contains: q, mode: 'insensitive' } },
-            { email: { contains: q, mode: 'insensitive' } },
-          ],
-        },
+        { email: { equals: q, mode: 'insensitive' } },
       ],
     },
     select: {
@@ -82,7 +84,7 @@ export async function GET(
         },
       },
     },
-    take: 20,
+    take: 1,
   });
 
   const filtered = matches

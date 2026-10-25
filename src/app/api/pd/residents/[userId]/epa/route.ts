@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { directsResident } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/residents/:userId/epa
@@ -24,15 +25,11 @@ export async function GET(
 
   const { userId: targetUserId } = await params;
 
-  // Verify the target user is at the same institution
-  const targetProfile = await db.profile.findUnique({ where: { userId: targetUserId } });
-  if (
-    !targetProfile ||
-    !pdProfile.institution ||
-    targetProfile.institution !== pdProfile.institution
-  ) {
+  // Program membership, not the self-declared institution string, decides
+  // whether the caller may read this resident's entrustment record.
+  if (!(await directsResident(user.id, targetUserId))) {
     return NextResponse.json(
-      { error: 'Resident not found in your institution.' },
+      { error: 'Resident not found in a program you direct.' },
       { status: 404 },
     );
   }

@@ -63,6 +63,16 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    // `tier` is deliberately NOT read from the body. It gates Hippo Pro and
+    // this handler edits the caller's OWN profile, so accepting it let any
+    // account PATCH itself to Pro. It is set by billing, never by the client.
+    //
+    // `roleType` IS still accepted: it is a self-declared identity chosen at
+    // onboarding (a real program director picks "Program Director" there) and
+    // on its own it now grants nothing. Access to anyone else's data comes
+    // from ProgramMember rows, which only exist once the other party accepts
+    // an invite or a director approves a request they opened — see
+    // getDirectedResidents in lib/program-auth.
     // Whitelist updatable profile fields
     const {
       roleType,
@@ -81,7 +91,6 @@ export async function PATCH(req: NextRequest) {
       shareCasesWithFriends,
       bio,
       onboardingCompleted,
-      tier,
       theme,
       expectedGraduation,
       residencyStartDate,
@@ -155,7 +164,6 @@ export async function PATCH(req: NextRequest) {
         ...(shareCasesWithFriends !== undefined && { shareCasesWithFriends }),
         ...(bio !== undefined && { bio }),
         ...(onboardingCompleted !== undefined && { onboardingCompleted }),
-        ...(tier !== undefined && { tier }),
         ...(expectedGraduation !== undefined && {
           expectedGraduation: expectedGraduation ? new Date(expectedGraduation) : null,
         }),
@@ -182,7 +190,7 @@ export async function PATCH(req: NextRequest) {
         shareCasesWithFriends,
         bio,
         onboardingCompleted: onboardingCompleted ?? false,
-        tier: tier ?? 'free',
+        tier: 'free',
         theme: safeTheme ?? 'dark',
       },
     });
