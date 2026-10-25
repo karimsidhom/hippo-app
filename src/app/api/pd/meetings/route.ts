@@ -53,7 +53,12 @@ export async function POST(req: Request) {
     if (shared.length > 1) {
       // Genuinely ambiguous. Make the caller say which, rather than guess.
       return NextResponse.json(
-        { error: 'They are in more than one of your programs. Pass programId.' },
+        {
+          error:
+            'They are in more than one of your programs, so there is no single '
+            + 'program to file this meeting under. Remove them from the one that no '
+            + 'longer applies, under Programs.',
+        },
         { status: 400 },
       );
     }

@@ -30,8 +30,13 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
   // director can apply right here, so we offer it instead of a dead end.
   const [offRoster, setOffRoster] = useState(false);
   const [myPrograms, setMyPrograms] = useState<{ id: string; name: string }[]>([]);
+  // Until the lookup resolves we know nothing about the caller's programs, and
+  // an empty list must not be read as "directs none" — that sentence would be
+  // shown to an actual program director while his own programs were loading.
+  const [programsLoaded, setProgramsLoaded] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [invitedTo, setInvitedTo] = useState<string | null>(null);
+  const [inviteError, setInviteError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -60,7 +65,9 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
       );
       setMyPrograms(mine.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
     } catch {
-      /* the panel copes with an empty list */
+      /* leave the list empty; programsLoaded still flips so the panel settles */
+    } finally {
+      setProgramsLoaded(true);
     }
   }, []);
 
@@ -69,6 +76,8 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
     setStarting(true);
     setError(null);
     setOffRoster(false);
+    setInviteError(null);
+    setInvitedTo(null);
     try {
       const res = await fetch('/api/pd/meetings', {
         method: 'POST',
@@ -82,6 +91,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
         setError(msg);
         if (/not in a program you direct/i.test(msg)) {
           setOffRoster(true);
+          setProgramsLoaded(false);
           void loadMyPrograms();
         }
         return;
@@ -98,6 +108,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
   const invite = async (programId: string, programName: string) => {
     if (inviting) return;
     setInviting(true);
+    setInviteError(null);
     try {
       const res = await fetch(`/api/programs/${programId}/join-requests/invite`, {
         method: 'POST',
@@ -107,14 +118,18 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
       });
       const d = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(typeof d?.error === 'string' ? d.error : 'Could not send the invitation.');
+        // Keep offRoster set so the buttons stay on screen; show the real
+        // reason rather than repeating the generic roster sentence.
+        setInviteError(
+          typeof d?.error === 'string' ? d.error : 'Could not send the invitation.',
+        );
         return;
       }
       setError(null);
       setOffRoster(false);
       setInvitedTo(programName);
     } catch {
-      setError('Could not reach the server. Check your connection and try again.');
+      setInviteError('Could not reach the server. Check your connection and try again.');
     } finally {
       setInviting(false);
     }
@@ -208,7 +223,19 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
               : error}
           </p>
 
-          {offRoster && myPrograms.length > 0 && (
+          {inviteError && (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-2)' }}>
+              {inviteError}
+            </p>
+          )}
+
+          {offRoster && !programsLoaded && (
+            <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
+              Checking your programs...
+            </p>
+          )}
+
+          {offRoster && programsLoaded && myPrograms.length > 0 && (
             <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 8 }}>
               {myPrograms.map((p) => (
                 <button
@@ -238,7 +265,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
             </div>
           )}
 
-          {offRoster && myPrograms.length === 0 && (
+          {offRoster && programsLoaded && myPrograms.length === 0 && (
             <p style={{ margin: '8px 0 0', fontSize: 12, color: 'var(--text-3)' }}>
               You do not direct a program yet. Create one under Programs, then
               invite this resident to it.
