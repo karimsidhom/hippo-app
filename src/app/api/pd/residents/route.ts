@@ -58,6 +58,21 @@ export async function GET() {
       })
     : [];
 
+  // The most recent 1:1 per resident. The cohort page had no meeting column
+  // at all, so the only way to find out who was overdue was to open every
+  // resident in turn.
+  const lastMeetings = await db.pdMeeting.findMany({
+    where: { residentId: { in: profiles.map((p) => p.userId) } },
+    orderBy: { meetingDate: 'desc' },
+    select: { residentId: true, meetingDate: true, status: true },
+  });
+  const lastMeetingBy = new Map<string, { meetingDate: Date; status: string }>();
+  for (const m of lastMeetings) {
+    if (!lastMeetingBy.has(m.residentId)) {
+      lastMeetingBy.set(m.residentId, { meetingDate: m.meetingDate, status: m.status });
+    }
+  }
+
   // Date boundaries
   const now = new Date();
   const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -108,6 +123,8 @@ export async function GET() {
         epaSigned: signedEpas,
         epaPending: pendingEpas,
         lastCaseDate: lastCase?.caseDate ?? null,
+        lastMeetingDate: lastMeetingBy.get(userId)?.meetingDate ?? null,
+        lastMeetingStatus: lastMeetingBy.get(userId)?.status ?? null,
       };
     }),
   );

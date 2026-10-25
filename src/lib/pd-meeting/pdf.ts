@@ -93,60 +93,121 @@ function ensure(doc: PDFKit.PDFDocument, needed: number) {
   if (doc.y + needed > bottom) doc.addPage();
 }
 
-/** One cell's bullet list, measured or drawn. */
-function bulletBlock(
+interface CellLine {
+  /** Drawn at the cell's left padding. */
+  text: string;
+  size: number;
+  colour: string;
+  /** Extra left inset, used by the outcome line under a goal. */
+  inset: number;
+  /** Height of this line plus the gap after it. */
+  height: number;
+}
+
+/**
+ * Flatten a column's bullets into drawable lines with their heights.
+ *
+ * Measuring up front is what lets the caller break a long section across
+ * pages. The old code advanced a cursor by hand and drew at absolute
+ * positions, so once the cursor passed the bottom margin PDFKit started a
+ * fresh page per doc.text() call and the overflow arrived as a run of
+ * near-empty pages with the section border drawn off the bottom of one.
+ */
+function measureColumn(
   doc: PDFKit.PDFDocument,
   bullets: PdBullet[],
-  x: number,
-  y: number,
   w: number,
-  opts: {
-    measure?: boolean;
-    showOutcome?: boolean;
-    /** previous-bullet id -> the outcome THIS meeting recorded for it. */
-    outcomes?: Record<string, string>;
-  } = {},
-): number {
+  opts: { showOutcome?: boolean; outcomes?: Record<string, string> } = {},
+): CellLine[] {
   const pad = 6;
-  let cursor = y + pad;
+  const inner = w - pad * 2;
+  const lines: CellLine[] = [];
+
   // "+ Add a point" inserts an empty bullet and the autosave stores it, so a
   // point started and abandoned mid-meeting would otherwise print as a naked
   // bullet glyph on the signed letter.
-  bullets = bullets.filter((b) => b.text.trim().length > 0);
-  if (bullets.length === 0) {
-    if (!opts.measure) {
-      doc.fontSize(9).fillColor(SOFT).text('None', x + pad, cursor, { width: w - pad * 2 });
-    }
-    return 16 + pad * 2;
+  const shown = bullets.filter((b) => b.text.trim().length > 0);
+
+  if (shown.length === 0) {
+    return [{
+      text: 'None',
+      size: 9,
+      colour: SOFT,
+      inset: 0,
+      height: doc.fontSize(9).heightOfString('None', { width: inner }) + 2,
+    }];
   }
-  for (const b of bullets) {
+
+  for (const b of shown) {
     const text = `•  ${b.text}`;
-    const h = doc.fontSize(9).heightOfString(text, { width: w - pad * 2 });
-    if (!opts.measure) {
-      doc.fillColor(INK).text(text, x + pad, cursor, { width: w - pad * 2 });
-    }
-    cursor += h + 2;
-    // The outcome of a goal is recorded on THIS meeting's bullet, which
-    // points back at the previous one via carriedFrom. So when drawing the
-    // previous column we look the outcome up by that bullet's id rather
-    // than reading b.outcome, which is only ever set on the new side.
+    lines.push({
+      text,
+      size: 9,
+      colour: INK,
+      inset: 0,
+      height: doc.fontSize(9).heightOfString(text, { width: inner }) + 2,
+    });
+
+    // The outcome of a goal is recorded against the previous bullet's id in
+    // the section's answers map, so it is looked up rather than read off the
+    // bullet, where it is only ever set on the new side.
     const outcome = opts.outcomes ? opts.outcomes[b.id] : b.outcome;
     if (opts.showOutcome && outcome) {
       const label = OUTCOME_LABEL[outcome] ?? outcome;
-      const lh = doc.fontSize(8).heightOfString(label, { width: w - pad * 2 - 12 });
-      if (!opts.measure) {
-        doc.fontSize(8).fillColor(SOFT).text(label, x + pad + 12, cursor, {
-          width: w - pad * 2 - 12,
-        });
-      }
-      cursor += lh + 3;
-      doc.fontSize(9);
+      lines.push({
+        text: label,
+        size: 8,
+        colour: SOFT,
+        inset: 12,
+        height: doc.fontSize(8).heightOfString(label, { width: inner - 12 }) + 3,
+      });
     }
   }
-  return cursor - y + pad;
+  doc.fontSize(9);
+  return lines;
 }
 
-/** A section: heading, then the previous meeting beside this one. */
+/** Draw as many of a column's remaining lines as fit. Returns where it got to. */
+function drawColumnSlice(
+  doc: PDFKit.PDFDocument,
+  lines: CellLine[],
+  from: number,
+  x: number,
+  top: number,
+  w: number,
+  available: number,
+): { next: number; used: number } {
+  const pad = 6;
+  let cursor = top + pad;
+  let i = from;
+  const limit = top + available;
+
+  while (i < lines.length) {
+    const line = lines[i];
+    // Always place at least one line, or a line taller than a whole page
+    // would stall the loop forever.
+    if (cursor + line.height > limit && i > from) break;
+    doc.fontSize(line.size).fillColor(line.colour).text(
+      line.text,
+      x + pad + line.inset,
+      cursor,
+      { width: w - pad * 2 - line.inset },
+    );
+    cursor += line.height;
+    i += 1;
+  }
+
+  doc.fontSize(9).fillColor(INK);
+  return { next: i, used: cursor - top + pad };
+}
+
+/**
+ * A section: heading, then the previous meeting beside this one.
+ *
+ * Breaks across pages when it has to, repeating the two column labels, so a
+ * section with more points than fit on a page reads as a continued table
+ * rather than a scatter of orphans.
+ */
 function twoColumnSection(
   doc: PDFKit.PDFDocument,
   heading: string,
@@ -161,43 +222,59 @@ function twoColumnSection(
   const w = contentWidth(doc);
   const colW = w / 2;
   const x = doc.page.margins.left;
-
-  // What this meeting recorded about each previous goal. It is keyed by the
-  // previous bullet's id and comes from the section's answers map, so it is
-  // read in the previous column where the goal is stated. The same object
-  // feeds the measure pass and the draw pass, or the row heights disagree.
   const outcomes: Record<string, string> = showOutcome ? answers : {};
+
+  const leftLines = measureColumn(doc, left, colW, { showOutcome, outcomes });
+  const rightLines = measureColumn(doc, right, colW);
 
   const headH = doc.fontSize(10).heightOfString(heading, { width: w }) + 6;
   const labelH = 14;
-  const leftH = bulletBlock(doc, left, x, 0, colW, { measure: true, showOutcome, outcomes });
-  const rightH = bulletBlock(doc, right, x, 0, colW, { measure: true });
-  const bodyH = Math.max(leftH, rightH, 24);
 
-  ensure(doc, headH + labelH + bodyH + 14);
-  const top = doc.y;
+  // Enough room for the heading, the labels and a first line of body, or the
+  // section starts on the next page rather than stranding its heading.
+  ensure(doc, headH + labelH + 30);
 
   doc.fontSize(10).fillColor(INK).font('Helvetica-Bold')
-    .text(heading, x, top, { width: w, underline: true });
+    .text(heading, x, doc.y, { width: w, underline: true });
   doc.font('Helvetica');
 
-  const tableTop = top + headH;
+  let li = 0;
+  let ri = 0;
+  let firstSlice = true;
 
-  doc.fontSize(8).fillColor(SOFT);
-  doc.text(leftLabel, x + 6, tableTop + 4, { width: colW - 12 });
-  doc.text(rightLabel, x + colW + 6, tableTop + 4, { width: colW - 12 });
+  while (firstSlice || li < leftLines.length || ri < rightLines.length) {
+    const tableTop = firstSlice ? doc.y : doc.page.margins.top;
 
-  const bodyTop = tableTop + labelH;
-  bulletBlock(doc, left, x, bodyTop, colW, { showOutcome, outcomes });
-  bulletBlock(doc, right, x + colW, bodyTop, colW);
+    doc.fontSize(8).fillColor(SOFT);
+    doc.text(firstSlice ? leftLabel : `${leftLabel} (continued)`, x + 6, tableTop + 4, {
+      width: colW - 12,
+    });
+    doc.text(firstSlice ? rightLabel : `${rightLabel} (continued)`, x + colW + 6, tableTop + 4, {
+      width: colW - 12,
+    });
 
-  const tableBottom = bodyTop + bodyH;
-  doc.lineWidth(0.5).strokeColor(RULE);
-  doc.rect(x, tableTop, w, tableBottom - tableTop).stroke();
-  doc.moveTo(x + colW, tableTop).lineTo(x + colW, tableBottom).stroke();
-  doc.moveTo(x, bodyTop).lineTo(x + w, bodyTop).stroke();
+    const bodyTop = tableTop + labelH;
+    const available = doc.page.height - doc.page.margins.bottom - bodyTop - 12;
 
-  doc.y = tableBottom + 12;
+    const l = drawColumnSlice(doc, leftLines, li, x, bodyTop, colW, available);
+    const r = drawColumnSlice(doc, rightLines, ri, x + colW, bodyTop, colW, available);
+    li = l.next;
+    ri = r.next;
+
+    const bodyH = Math.max(l.used, r.used, 24);
+    const tableBottom = bodyTop + bodyH;
+
+    doc.lineWidth(0.5).strokeColor(RULE);
+    doc.rect(x, tableTop, w, tableBottom - tableTop).stroke();
+    doc.moveTo(x + colW, tableTop).lineTo(x + colW, tableBottom).stroke();
+    doc.moveTo(x, bodyTop).lineTo(x + w, bodyTop).stroke();
+
+    doc.y = tableBottom + 12;
+    firstSlice = false;
+
+    if (li < leftLines.length || ri < rightLines.length) doc.addPage();
+  }
+
   doc.fillColor(INK);
 }
 
@@ -213,35 +290,56 @@ function scoreTable(
   const colW = w / cols.length;
   const rowH = 16;
 
-  ensure(doc, 20 + rowH * (rows.length + 1) + 16);
+  // Room for the title, the header row and a couple of rows. More than that
+  // is handled by breaking the table, not by assuming it all fits: a long
+  // table used to advance y past the bottom margin, after which PDFKit put
+  // every remaining cell on a page of its own.
+  ensure(doc, 20 + rowH * 3 + 16);
 
   doc.fontSize(10).font('Helvetica-Bold').fillColor(INK)
     .text(def.title, x, doc.y, { width: w });
   doc.font('Helvetica');
-  const top = doc.y + 4;
 
-  doc.fontSize(8).fillColor(SOFT);
-  cols.forEach((c, i) => doc.text(c.label, x + i * colW + 4, top + 4, { width: colW - 8 }));
+  let top = doc.y + 4;
+  let y = 0;
 
-  let y = top + rowH;
-  doc.fontSize(9).fillColor(INK);
+  const header = () => {
+    doc.fontSize(8).fillColor(SOFT);
+    cols.forEach((c, i) => doc.text(c.label, x + i * colW + 4, top + 4, { width: colW - 8 }));
+    doc.fontSize(9).fillColor(INK);
+    y = top + rowH;
+  };
+
+  const close = () => {
+    doc.lineWidth(0.5).strokeColor(RULE);
+    doc.rect(x, top, w, y - top).stroke();
+    doc.moveTo(x, top + rowH).lineTo(x + w, top + rowH).stroke();
+    for (let i = 1; i < cols.length; i++) {
+      doc.moveTo(x + i * colW, top).lineTo(x + i * colW, y).stroke();
+    }
+  };
+
+  header();
+
   if (rows.length === 0) {
     doc.fillColor(SOFT).text('No sittings recorded.', x + 4, y + 4, { width: w - 8 });
+    doc.fillColor(INK);
     y += rowH;
   }
+
   for (const r of rows) {
+    if (y + rowH > doc.page.height - doc.page.margins.bottom) {
+      close();
+      doc.addPage();
+      top = doc.page.margins.top;
+      header();
+    }
     const cells = [fmtShort(new Date(r.sittingAt)), ...def.columns.map((c) => r.values?.[c.id] ?? '')];
     cells.forEach((v, i) => doc.text(v, x + i * colW + 4, y + 4, { width: colW - 8 }));
     y += rowH;
   }
 
-  doc.lineWidth(0.5).strokeColor(RULE);
-  doc.rect(x, top, w, y - top).stroke();
-  doc.moveTo(x, top + rowH).lineTo(x + w, top + rowH).stroke();
-  for (let i = 1; i < cols.length; i++) {
-    doc.moveTo(x + i * colW, top).lineTo(x + i * colW, y).stroke();
-  }
-
+  close();
   doc.y = y + 14;
   doc.fillColor(INK);
 }
@@ -261,20 +359,43 @@ function checklistTable(
   const wDone = w - wSession - wYear;
   const rowH = 16;
 
-  ensure(doc, 20 + rowH * (def.items.length + 1) + 16);
+  // As with the score table: room for a header and a couple of rows, then
+  // break properly rather than letting the cursor run past the margin.
+  ensure(doc, 20 + rowH * 3 + 16);
 
   doc.fontSize(10).font('Helvetica-Bold').fillColor(INK)
     .text(def.title, x, doc.y, { width: w });
   doc.font('Helvetica');
-  const top = doc.y + 4;
 
-  doc.fontSize(8).fillColor(SOFT);
-  doc.text('Session', x + 4, top + 4, { width: wSession - 8 });
-  if (hasYear) doc.text('To be completed in', x + wSession + 4, top + 4, { width: wYear - 8 });
-  doc.text('Completed', x + wSession + wYear + 4, top + 4, { width: wDone - 8 });
+  let top = doc.y + 4;
+  let y = 0;
 
-  let y = top + rowH;
+  const header = () => {
+    doc.fontSize(8).fillColor(SOFT);
+    doc.text('Session', x + 4, top + 4, { width: wSession - 8 });
+    if (hasYear) doc.text('To be completed in', x + wSession + 4, top + 4, { width: wYear - 8 });
+    doc.text('Completed', x + wSession + wYear + 4, top + 4, { width: wDone - 8 });
+    doc.fontSize(9).fillColor(INK);
+    y = top + rowH;
+  };
+
+  const close = () => {
+    doc.lineWidth(0.5).strokeColor(RULE);
+    doc.rect(x, top, w, y - top).stroke();
+    doc.moveTo(x, top + rowH).lineTo(x + w, top + rowH).stroke();
+    doc.moveTo(x + wSession, top).lineTo(x + wSession, y).stroke();
+    if (hasYear) doc.moveTo(x + wSession + wYear, top).lineTo(x + wSession + wYear, y).stroke();
+  };
+
+  header();
+
   for (const item of def.items) {
+    if (y + rowH > doc.page.height - doc.page.margins.bottom) {
+      close();
+      doc.addPage();
+      top = doc.page.margins.top;
+      header();
+    }
     const done = state[item.id]?.completed ?? false;
     // The paper letter highlights a row still outstanding past its year.
     const due = item.targetYear ? Math.max(...(item.targetYear.match(/\d+/g) ?? ['0']).map(Number)) : null;
@@ -299,12 +420,7 @@ function checklistTable(
     y += rowH;
   }
 
-  doc.lineWidth(0.5).strokeColor(RULE);
-  doc.rect(x, top, w, y - top).stroke();
-  doc.moveTo(x, top + rowH).lineTo(x + w, top + rowH).stroke();
-  doc.moveTo(x + wSession, top).lineTo(x + wSession, y).stroke();
-  if (hasYear) doc.moveTo(x + wSession + wYear, top).lineTo(x + wSession + wYear, y).stroke();
-
+  close();
   doc.y = y + 14;
   doc.fillColor(INK);
 }
@@ -385,10 +501,20 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
     doc.fontSize(10).font('Helvetica-Bold').fillColor(INK)
       .text('Certifications', x, doc.y, { width: w });
     doc.font('Helvetica').fontSize(9);
-    for (const c of input.certifications) {
-      doc.text(`•  ${c.label}`, x + 6, doc.y + 2, { width: w - 12 });
-    }
-    doc.moveDown(1);
+    doc.moveDown(0.2);
+    // Rendered through the checklist table so each one carries its tick.
+    // They used to print as four bare words, identical on every letter for
+    // every resident, because nothing recorded whether they were done.
+    checklistTable(
+      doc,
+      {
+        id: 'certifications',
+        title: '',
+        items: input.certifications.map((c) => ({ id: `cert:${c.id}`, label: c.label })),
+      },
+      input.checklist,
+      input.pgyAtMeeting,
+    );
   }
 
   // ── Signatures ──────────────────────────────────────────────────────

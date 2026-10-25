@@ -32,6 +32,7 @@ interface MeetingHead {
 interface Config {
   checklists: ChecklistDef[];
   scoreTables: ScoreTableDef[];
+  certifications?: { id: string; label: string }[];
   introText: string | null;
 }
 
@@ -409,6 +410,29 @@ export default function MeetingPage() {
         readOnly={readOnly}
         onToggle={toggleItem}
       />
+
+      {(config.certifications?.length ?? 0) > 0 && (
+        <>
+          <h2 style={sectionHeading}>Certifications</h2>
+          {/* Stored alongside the curriculum items, under a cert: prefix, so
+              they tick, persist and snapshot through the machinery that
+              already exists rather than needing a table of their own. */}
+          <ChecklistPanel
+            checklists={[{
+              id: 'certifications',
+              title: 'Certifications',
+              items: (config.certifications ?? []).map((c) => ({
+                id: `cert:${c.id}`,
+                label: c.label,
+              })),
+            }]}
+            state={checklist}
+            pgy={meeting.pgyAtMeeting}
+            readOnly={readOnly}
+            onToggle={toggleItem}
+          />
+        </>
+      )}
 
       {!readOnly && (
         <div

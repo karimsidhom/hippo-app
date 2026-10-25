@@ -261,3 +261,55 @@ describe('what should never reach a signed letter', () => {
     expect(text).not.toContain('May 2, 2026');
   });
 });
+
+describe('long records still paginate like a document', () => {
+  // Each of these three layouts advances a y cursor by hand and draws at
+  // absolute positions. Once the cursor passes the bottom margin, PDFKit
+  // starts a page per doc.text() call, so the overflow arrives as a run of
+  // near-empty pages with the section border drawn off the bottom of one.
+  const PRINTABLE_PAGES = (n: number) => Math.ceil(n / 14) + 4;
+
+  it('keeps a section of many points to a sane page count', async () => {
+    const current: PdSections = emptySections();
+    current.progress = {
+      bullets: Array.from({ length: 40 }, (_, i) =>
+        b(`p${i}`, `Point ${i + 1}: a sentence of the length a director actually types when recording progress.`),
+      ),
+    };
+    const pdf = await renderMeetingPdf(
+      buildInput({ sections: current, previousSections: null }),
+    );
+    expect(pageCount(pdf)).toBeLessThanOrEqual(PRINTABLE_PAGES(40));
+  });
+
+  it('keeps a long checklist to a sane page count', async () => {
+    const items = Array.from({ length: 60 }, (_, i) => ({
+      id: `i${i}`,
+      label: `Curriculum module ${i + 1}`,
+      targetYear: 'PGY1',
+    }));
+    const pdf = await renderMeetingPdf(
+      buildInput({ checklists: [{ id: 'big', title: 'Core Curriculum', items }] }),
+    );
+    expect(pageCount(pdf)).toBeLessThanOrEqual(PRINTABLE_PAGES(60));
+  });
+
+  it('keeps a long score table to a sane page count', async () => {
+    const table = {
+      id: 'big',
+      title: 'Mini-QUEST',
+      columns: [
+        { id: 'c1', label: 'Score' },
+        { id: 'c2', label: 'Percentile' },
+        { id: 'c3', label: 'Cohort' },
+      ],
+    };
+    const scores = Array.from({ length: 60 }, (_, i) => ({
+      tableId: 'big',
+      sittingAt: `2026-01-${String((i % 28) + 1).padStart(2, '0')}`,
+      values: { c1: '72', c2: '55', c3: '31' },
+    }));
+    const pdf = await renderMeetingPdf(buildInput({ scoreTables: [table], scores }));
+    expect(pageCount(pdf)).toBeLessThanOrEqual(PRINTABLE_PAGES(60));
+  });
+});
