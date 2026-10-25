@@ -6,15 +6,18 @@ import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
 import { SPECIALTIES, USER_ROLE_TYPES, PGY_YEARS } from "@/lib/constants";
 import { POLICY_KEYS, POLICY_VERSIONS, POLICY_META, type PolicyKey } from "@/lib/legal";
+import { ProgramPicker, type PickedProgram } from "@/components/programs/ProgramPicker";
 import { Shield, Activity, Users, Trophy, ChevronRight, ChevronLeft, Check, ExternalLink } from "lucide-react";
 
-const TOTAL_STEPS = 10;
+const TOTAL_STEPS = 11;
 
 export default function OnboardingPage() {
   const router = useRouter();
   const { updateProfile } = useUser();
   const [step, setStep] = useState(1);
   const [saving, setSaving] = useState(false);
+  // Optional program chosen in step 9. Null means they skipped it.
+  const [program, setProgram] = useState<PickedProgram | null>(null);
 
   const [form, setForm] = useState({
     roleType: "RESIDENT",
@@ -64,6 +67,18 @@ export default function OnboardingPage() {
     });
   };
 
+  // Fired on both finish paths. Non-blocking by design: onboarding has
+  // already saved the profile by this point, and an unsent request can
+  // be retried from the dashboard card or from Programs.
+  const requestProgramJoin = async () => {
+    if (!program) return;
+    await fetch(`/api/programs/${program.id}/join-requests`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ claimedPgy: form.pgyYear }),
+    }).catch(() => {});
+  };
+
   const handleFinish = async () => {
     setSaving(true);
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
@@ -75,6 +90,7 @@ export default function OnboardingPage() {
       trainingYearLabel: form.trainingCountry === "SMSNA" ? "SMSNA Fellow" : `PGY-${form.pgyYear}`,
       trainingCountry: form.trainingCountry || undefined,
     });
+    await requestProgramJoin();
     setSaving(false);
     // Last onboarding beat: the install step. It knows how to self-skip
     // when the user is already running as a PWA (re-onboarding inside
@@ -399,7 +415,7 @@ export default function OnboardingPage() {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-[#94a3b8] mb-2">
-                  Institution / Hospital{institutionRequired && <span className="text-[#0EA5E9] ml-1">*</span>}
+                  Institution / Hospital{institutionRequired && <span className="text-[var(--primary-hi)] ml-1">*</span>}
                 </label>
                 <input
                   type="text"
@@ -432,8 +448,22 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 9: Privacy Prefs */}
+        {/* Step 9: Program */}
         {step === 9 && (
+          <div className="space-y-6 animate-slide-up">
+            <div className="text-center">
+              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Program</h2>
+              <p className="text-[#94a3b8] mt-1">
+                Join your training program so your program director can see
+                your progress. Optional, and you can join later.
+              </p>
+            </div>
+            <ProgramPicker value={program} onChange={setProgram} />
+          </div>
+        )}
+
+        {/* Step 10: Privacy Prefs */}
+        {step === 10 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Privacy Settings</h2>
@@ -463,8 +493,8 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 10: First Case Prompt */}
-        {step === 10 && (
+        {/* Step 11: First Case Prompt */}
+        {step === 11 && (
           <div className="text-center space-y-6 animate-bounce-in">
             <div className="text-6xl">🎉</div>
             <div>
@@ -489,6 +519,7 @@ export default function OnboardingPage() {
                   const { phiaAgreed: _pa, ...skipData } = form;
                   await recordLegalAcceptances();
                   await updateProfile({ ...(skipData as Parameters<typeof updateProfile>[0]), onboardingCompleted: true });
+                  await requestProgramJoin();
                   setSaving(false);
                   // Same finale as the full-fill path — offer install before
                   // they land in the app. The install page self-skips if it

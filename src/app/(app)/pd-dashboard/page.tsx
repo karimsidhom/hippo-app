@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/hooks/useUser";
+import { JoinRequestQueue } from "@/components/programs/JoinRequestQueue";
 import {
   GraduationCap,
   Download,
@@ -28,6 +29,7 @@ import {
 type ViewMode = "table" | "cards";
 type SortKey =
   | "lastCase"      // default — silent first, then most recent
+  | "lastMeeting"   // longest since their last 1:1 first
   | "name"
   | "year"
   | "casesMonth"
@@ -53,6 +55,8 @@ interface ResidentData {
   epaSigned: number;
   epaPending: number;
   lastCaseDate: string | null;
+  lastMeetingDate: string | null;
+  lastMeetingStatus: string | null;
 }
 
 const MONO = "'Geist Mono', monospace";
@@ -798,6 +802,12 @@ export default function PDDashboardPage() {
         </div>
       )}
 
+      {/* ── People waiting to join ─────────────────────────────────────
+          Deliberately outside the residents.length guard below: a
+          director whose roster is still empty is exactly the one with
+          requests waiting. Renders nothing when the queue is empty. */}
+      <JoinRequestQueue onChanged={fetchResidents} />
+
       {/* ── Cohort: table OR cards ────────────────────────────────────── */}
       {residents.length > 0 && (
         <>
@@ -878,6 +888,7 @@ function ResidentTable({
     { key: "year", label: "Year" },
     { key: "casesMonth", label: "Cases / mo", align: "right" },
     { key: "lastCase", label: "Last case", align: "right" },
+    { key: "lastMeeting", label: "Last 1:1", align: "right" },
     { key: "epaProgress", label: "EPAs", align: "right" },
     { key: "epaPending", label: "Pending", align: "right" },
   ];
@@ -970,6 +981,12 @@ function ResidentRow({
   onClick: () => void;
 }) {
   const lastDays = resident.lastCaseDate ? daysSince(resident.lastCaseDate) : null;
+  // The 1:1 cycle is semi-annual, so months is the unit that reads, and
+  // anything past seven months is late rather than merely due.
+  const meetingMonths = resident.lastMeetingDate
+    ? Math.floor(daysSince(resident.lastMeetingDate) / 30)
+    : null;
+  const meetingOverdue = meetingMonths === null || meetingMonths >= 7;
   const silent = lastDays === null || lastDays >= SILENT_DAYS;
   const epaPct =
     resident.epaTotal > 0 ? Math.round((resident.epaSigned / resident.epaTotal) * 100) : 0;
@@ -1104,6 +1121,30 @@ function ResidentRow({
             : `${lastDays}d ago`}
       </td>
 
+      {/* Last 1:1 — months, because the cycle is semi-annual */}
+      <td
+        style={{
+          padding: "10px 14px",
+          borderTop: "1px solid var(--border)",
+          textAlign: "right",
+          whiteSpace: "nowrap",
+          fontSize: 12,
+          fontFamily: MONO,
+          color: meetingOverdue ? "var(--warning)" : "var(--text-2)",
+        }}
+        title={
+          resident.lastMeetingDate
+            ? `Last 1:1 on ${new Date(resident.lastMeetingDate).toLocaleDateString("en-CA", { year: "numeric", month: "long", day: "numeric", timeZone: "UTC" })}`
+            : "No 1:1 on record"
+        }
+      >
+        {meetingMonths === null
+          ? "never"
+          : meetingMonths === 0
+            ? "this month"
+            : `${meetingMonths}mo`}
+      </td>
+
       {/* EPA progress — bar + count */}
       <td
         style={{
@@ -1223,6 +1264,14 @@ function sortResidents(
     }
     case "epaPending":
       return (a.epaPending - b.epaPending) * flip;
+    case "lastMeeting": {
+      // Never-met first, then longest-ago, because that is the question the
+      // column exists to answer: who is overdue.
+      const aT = a.lastMeetingDate ? new Date(a.lastMeetingDate).getTime() : 0;
+      const bT = b.lastMeetingDate ? new Date(b.lastMeetingDate).getTime() : 0;
+      return (aT - bT) * flip;
+    }
+
     case "lastCase":
     default: {
       // Silent-first then most-recent-first when desc.

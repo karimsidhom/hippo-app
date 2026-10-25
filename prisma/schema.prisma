@@ -120,6 +120,17 @@ enum ProgramMemberRole {
   DEPT_HEAD     // Department head — read across multiple programmes
                 // they have membership in. Above PD; rolled-up view
                 // only.
+  RESIDENT      // A trainee on the roster. Sees their own record only.
+                // Distinct from legacy MEMBER, which this file documents
+                // as an alias for FACULTY, and which would therefore file
+                // a resident under a supervising-attending role.
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  WITHDRAWN
 }
 
 enum ProgramEventType {
@@ -185,6 +196,13 @@ model User {
   sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
   acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
   createdProgramEvents  ProgramEvent[]
+  programJoinRequests    ProgramJoinRequest[] @relation("ProgramJoinRequests")
+  programJoinInvitesSent ProgramJoinRequest[] @relation("ProgramJoinInvitesSent")
+  programJoinDecisions   ProgramJoinRequest[] @relation("ProgramJoinDecisions")
+  pdMeetingsAsResident   PdMeeting[]             @relation("PdMeetingsAsResident")
+  pdMeetingsAsDirector   PdMeeting[]             @relation("PdMeetingsAsDirector")
+  residentScores         ResidentScoreEntry[]    @relation("ResidentScores")
+  residentChecklist      ResidentChecklistItem[] @relation("ResidentChecklist")
   notifications         Notification[]
   pushSubscriptions     PushSubscription[]
   notificationPreferences UserNotificationPreferences?
@@ -927,7 +945,9 @@ model AuditLog {
 // ─── Programs ─────────────────────────────────────────────────────────────────
 // A Program is a private group created by a PD that contains residents,
 // fellows, attendings, and other staff. Members share a calendar.
-// Only PDs can create programs. Members join by invitation only.
+// Only PDs can create programs. Members join three ways: the resident
+// requests a discoverable program, the director invites an existing
+// user, or an emailed ProgramInvite token is redeemed.
 
 model Program {
   id          String   @id @default(cuid())
@@ -935,6 +955,14 @@ model Program {
   institution String?
   specialty   String?
   description String?
+
+  // Appears in the onboarding program search. False runs the program
+  // invite-only.
+  discoverable          Boolean  @default(true)
+  // Drives the next-meeting-due date on the PD dashboard. Semi-annual
+  // by default, matching the University of Manitoba Urology cycle.
+  meetingIntervalMonths Int      @default(6)
+
   createdById String
   createdBy   User     @relation("CreatedPrograms", fields: [createdById], references: [id], onDelete: Cascade)
   createdAt   DateTime @default(now())
@@ -946,6 +974,11 @@ model Program {
   rotations    Rotation[]
   ccReviews    CCReview[]
   formTemplates FormTemplate[]
+  joinRequests ProgramJoinRequest[]
+  pdMeetings     PdMeeting[]
+  scoreEntries   ResidentScoreEntry[]
+  checklistItems ResidentChecklistItem[]
+  meetingConfig  ProgramMeetingConfig?
 
   @@index([createdById])
   @@map("programs")
@@ -1150,6 +1183,166 @@ model ProgramInvite {
   @@index([programId])
   @@index([email])
   @@map("program_invites")
+}
+
+// A pending handshake between a user and a program. One table covers
+// both directions: invitedById null means the resident asked to join,
+// invitedById set means the director invited them. The transition rules
+// live in src/lib/program-join/state.ts, not here and not in the route
+// handlers.
+model ProgramJoinRequest {
+  id           String            @id @default(cuid())
+  programId    String
+  program      Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation("ProgramJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  status       JoinRequestStatus @default(PENDING)
+
+  // What the resident told us at sign-up, shown to the director so they
+  // can recognise the person before approving. Never authoritative.
+  claimedPgy   Int?
+  message      String?
+
+  // Set when the director invited this user rather than the user asking
+  // to join. Flips the handshake: the resident accepts instead of the
+  // director approving.
+  invitedById  String?
+  invitedBy    User?             @relation("ProgramJoinInvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  decidedById   String?
+  decidedBy     User?            @relation("ProgramJoinDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt     DateTime?
+  declineReason String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([programId, userId])
+  @@index([programId, status])
+  @@index([userId, status])
+  @@map("program_join_requests")
+}
+
+// ─── PD 1:1 meeting record ────────────────────────────────────────────────────
+// Modelled on the University of Manitoba Urology letter. Eight fixed sections
+// rendered as previous-meeting beside this-meeting; the previous column is read
+// through previousMeetingId and never copied into this row.
+
+enum PdMeetingStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model PdMeeting {
+  id         String  @id @default(cuid())
+  programId  String
+  program    Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId String
+  resident   User    @relation("PdMeetingsAsResident", fields: [residentId], references: [id], onDelete: Cascade)
+  // The PD who held the meeting. Kept even if they later leave the program.
+  directorId String
+  director   User    @relation("PdMeetingsAsDirector", fields: [directorId], references: [id], onDelete: Cascade)
+
+  meetingDate  DateTime
+  // Free text, e.g. "PGY-3 mid-year". Printed under the date.
+  cycleLabel   String?
+  // The resident's training year at the time, printed in the RE: line.
+  // Snapshotted, not read live.
+  pgyAtMeeting Int?
+
+  status      PdMeetingStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  // The previous PUBLISHED meeting for this resident in this program.
+  // Resolved once at creation and then frozen, so correcting an old record
+  // never re-points a later meeting's left column.
+  previousMeetingId String?    @unique
+  previousMeeting   PdMeeting? @relation("PdMeetingChain", fields: [previousMeetingId], references: [id], onDelete: SetNull)
+  nextMeeting       PdMeeting? @relation("PdMeetingChain")
+
+  // The eight sections, this meeting's column only.
+  // Shape: { [sectionId]: { bullets: PdBullet[] } }, see src/lib/pd-meeting/types.ts
+  sections Json
+
+  // Everything needed to reprint this record identically later: config,
+  // score rows, checklist state and the Hippo-derived metrics as they stood
+  // at publish time. Written on publish, null while DRAFT.
+  snapshot Json?
+
+  acknowledgedAt DateTime?
+  // Denormalised so the PDF prints the name as it was at acknowledgment.
+  acknowledgedName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId, meetingDate])
+  @@index([residentId, status])
+  @@map("pd_meetings")
+}
+
+// Longitudinal data hangs off the resident, not the meeting, so it is entered
+// once and every later meeting shows the whole history.
+model ResidentScoreEntry {
+  id         String   @id @default(cuid())
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId String
+  resident   User     @relation("ResidentScores", fields: [residentId], references: [id], onDelete: Cascade)
+  // Matches a ProgramMeetingConfig scoreTable id, e.g. "mini_quest" or "aua".
+  tableId    String
+  sittingAt  DateTime
+  // Column id to value. Strings so "Away" and "Post call" round-trip
+  // alongside "60.8", exactly as the paper letter records them.
+  values     Json
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([programId, residentId, tableId, sittingAt])
+  @@map("resident_score_entries")
+}
+
+model ResidentChecklistItem {
+  id          String    @id @default(cuid())
+  programId   String
+  program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId  String
+  resident    User      @relation("ResidentChecklist", fields: [residentId], references: [id], onDelete: Cascade)
+  // Matches a ProgramMeetingConfig checklist item id.
+  itemId      String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  note        String?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([residentId, programId, itemId])
+  @@index([programId, residentId])
+  @@map("resident_checklist_items")
+}
+
+model ProgramMeetingConfig {
+  id        String  @id @default(cuid())
+  programId String  @unique
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  // Letterhead: uploaded logo plus the address block printed beside it.
+  logoUrl    String?
+  letterhead Json?
+  // Label and visibility overrides for the eight fixed sections. The IDs
+  // themselves live in code, because the PDF layout depends on knowing them.
+  sectionConfig Json?
+  // [{ id, title, items: [{ id, label, targetYear? }] }]
+  checklists     Json
+  // [{ id, title, columns: [{ id, label }] }]
+  scoreTables    Json
+  // [{ id, label }]
+  certifications Json
+  // The boilerplate paragraph under the RE: line.
+  introText String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("program_meeting_configs")
 }
 
 model ProgramEvent {
