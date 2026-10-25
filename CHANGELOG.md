@@ -1,5 +1,11 @@
 # Changelog
 
+## 2026-10-19: Checks on every pull request, first case-log tests
+
+- **CI.** `.github/workflows/ci.yml` runs on every pull request: `npm ci`, Prisma client, `npm run typecheck`, `npm test`, `npm run build`. Placeholder env values only; no real key is given to CI. Free private-repo Actions minutes.
+- **First tests** (`tests/case-log.test.ts`, vitest, 12 tests) run the real route handlers with an in-memory fake database: creating a case (saved to the signed-in user, schema defaults, 400 on bad input, 401 signed out, feed event only when public), editing (whitelist, date conversion, owner cannot be changed, 404 on someone else's case) and the Excel export (sheets, every case, year filter, other users' cases excluded, attending, site and MRN never reach the file).
+- New scripts: `npm run typecheck`, `npm test`.
+
 ## 2026-10-16: Hippo Link, Phase 2 (Handover to Cases)
 
 Cases you flag in Handover land here ready to log. Spec: hippo-handover/docs/superpowers/specs/2026-10-16-hippo-link-design.md
