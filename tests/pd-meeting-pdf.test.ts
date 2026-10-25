@@ -60,6 +60,9 @@ function bullet(id: string, text: string, extra: Record<string, unknown> = {}) {
   return { id, text, ...extra };
 }
 
+/** Short alias used by the later blocks. */
+const b = bullet;
+
 function buildInput(over: Partial<MeetingPdfInput> = {}): MeetingPdfInput {
   const previous: PdSections = emptySections();
   previous[GOALS_SECTION_ID] = {
@@ -154,5 +157,70 @@ describe('the published letter', () => {
     const pdf = await renderMeetingPdf(buildInput({ previousSections: null, previousMeetingDate: null }));
     expect(pageCount(pdf)).toBeGreaterThan(0);
     expect(pageCount(pdf)).toBeLessThanOrEqual(5);
+  });
+});
+
+describe('answers are not goals', () => {
+  it('prints the outcome without restating the answered goal as a new goal', async () => {
+    const previous: PdSections = emptySections();
+    previous[GOALS_SECTION_ID] = {
+      bullets: [
+        b('g1', 'Structure dedicated study time.'),
+        b('g2', 'Submit the stone protocol to REB.'),
+      ],
+    };
+    const current: PdSections = emptySections();
+    current[GOALS_SECTION_ID] = {
+      // Both old goals answered; only ONE goal set for the coming interval.
+      bullets: [b('n1', 'Begin fellowship applications.')],
+      answers: { g1: 'partly', g2: 'met' },
+    };
+
+    const pdf = await renderMeetingPdf(
+      buildInput({ sections: current, previousSections: previous }),
+    );
+    const text = visibleText(pdf);
+
+    expect(text).toContain('Partly met');
+    expect(text).toContain('Met');
+    expect(text).toContain('Begin fellowship applications.');
+
+    // The answered goals are stated once, in the previous column. Answering
+    // them must not restate them as goals for the next six months.
+    const occurrences = (needle: string) =>
+      text.split(needle).length - 1;
+    expect(occurrences('Structure dedicated study time.')).toBe(1);
+    expect(occurrences('Submit the stone protocol to REB.')).toBe(1);
+  });
+
+  it('still reads records written before the answers map existed', async () => {
+    const previous: PdSections = emptySections();
+    previous[GOALS_SECTION_ID] = { bullets: [b('g1', 'An older goal.')] };
+    const current: PdSections = emptySections();
+    // The old shape: the outcome rode on a bullet citing the previous goal.
+    current[GOALS_SECTION_ID] = {
+      bullets: [b('n1', 'An older goal.', { carriedFrom: 'g1', outcome: 'met' })],
+    };
+
+    const pdf = await renderMeetingPdf(
+      buildInput({ sections: current, previousSections: previous }),
+    );
+    expect(visibleText(pdf)).toContain('Met');
+  });
+
+  it('prefers the answers map when a record carries both', async () => {
+    const previous: PdSections = emptySections();
+    previous[GOALS_SECTION_ID] = { bullets: [b('g1', 'A goal.')] };
+    const current: PdSections = emptySections();
+    current[GOALS_SECTION_ID] = {
+      bullets: [b('n1', 'A goal.', { carriedFrom: 'g1', outcome: 'met' })],
+      answers: { g1: 'not_met' },
+    };
+
+    const text = visibleText(
+      await renderMeetingPdf(buildInput({ sections: current, previousSections: previous })),
+    );
+    expect(text).toContain('Not met');
+    expect(text).not.toContain('Partly met');
   });
 });

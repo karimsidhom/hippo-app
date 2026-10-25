@@ -7,9 +7,11 @@
 // meeting is never storing someone else's text.
 // ---------------------------------------------------------------------------
 import {
+  answersOf,
   GOALS_SECTION_ID,
   PD_SECTIONS,
   type PdBullet,
+  type PdGoalOutcome,
   type PdSections,
 } from './types';
 
@@ -20,6 +22,11 @@ export interface SectionView {
   previous: PdBullet[];
   /** Editable, this meeting's column. */
   current: PdBullet[];
+  /**
+   * Goals only: what this meeting records about each previous goal, keyed by
+   * that goal's bullet id. Empty for every other section.
+   */
+  answers: Record<string, PdGoalOutcome>;
 }
 
 function bulletsOf(sections: PdSections | null, id: string): PdBullet[] {
@@ -42,6 +49,7 @@ export function buildMeetingView(
     label: labels[s.id] ?? s.label,
     previous: bulletsOf(previous, s.id),
     current: bulletsOf(current, s.id),
+    answers: s.id === GOALS_SECTION_ID ? answersOf(current, s.id) : {},
   }));
 }
 
@@ -51,9 +59,9 @@ function newBulletId(): string {
 }
 
 /**
- * Copy a previous-meeting bullet into this meeting. The outcome is
- * deliberately dropped: it described what happened to the OLD goal, and
- * re-stating the goal starts that question again.
+ * Copy a previous-meeting bullet into this meeting. No outcome travels with
+ * it: an outcome says what happened to the OLD goal and lives in the section's
+ * answers map, while this is a goal for the coming interval.
  */
 export function carryBullet(b: PdBullet): PdBullet {
   return { id: newBulletId(), text: b.text, carriedFrom: b.id };
@@ -68,9 +76,9 @@ export interface PublishProblem {
  * What must be true before a meeting can be published.
  *
  *   1. Something was actually recorded.
- *   2. Every goal the PREVIOUS meeting set has an outcome on some bullet in
- *      this meeting's goals section. That is the only thing this app asks
- *      for that the paper letter does not.
+ *   2. Every goal the PREVIOUS meeting set has an answer in this meeting's
+ *      goals section. That is the only thing this app asks for that the
+ *      paper letter does not.
  */
 export function validateForPublish(
   current: PdSections,
@@ -91,12 +99,10 @@ export function validateForPublish(
 
   const previousGoals = bulletsOf(previous, GOALS_SECTION_ID);
   if (previousGoals.length > 0) {
-    const resolved = new Set(
-      bulletsOf(current, GOALS_SECTION_ID)
-        .filter((b) => b.outcome && b.carriedFrom)
-        .map((b) => b.carriedFrom as string),
-    );
-    const unresolved = previousGoals.filter((g) => !resolved.has(g.id));
+    // answersOf also reads records written before the answers map existed,
+    // where the outcome sat on a bullet citing the goal.
+    const answers = answersOf(current, GOALS_SECTION_ID);
+    const unresolved = previousGoals.filter((g) => !answers[g.id]);
     if (unresolved.length > 0) {
       problems.push({
         sectionId: GOALS_SECTION_ID,

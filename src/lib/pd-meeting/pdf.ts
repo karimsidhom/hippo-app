@@ -10,7 +10,13 @@
 // record printed in 2029 shows 2029's numbers and not today's.
 // ---------------------------------------------------------------------------
 import PDFDocument from 'pdfkit';
-import { PD_SECTIONS, type PdBullet, type PdSections } from './types';
+import {
+  answersOf,
+  GOALS_SECTION_ID,
+  PD_SECTIONS,
+  type PdBullet,
+  type PdSections,
+} from './types';
 import type {
   CertificationDef,
   ChecklistDef,
@@ -136,20 +142,18 @@ function twoColumnSection(
   left: PdBullet[],
   right: PdBullet[],
   showOutcome: boolean,
+  /** Goals only: previous-bullet id -> what this meeting recorded about it. */
+  answers: Record<string, string> = {},
 ) {
   const w = contentWidth(doc);
   const colW = w / 2;
   const x = doc.page.margins.left;
 
-  // Goal outcomes live on the right-hand (this meeting) bullets and name the
-  // previous goal they answer. Build that lookup once and use it for both the
-  // measure pass and the draw pass, or the row heights disagree.
-  const outcomes: Record<string, string> = {};
-  if (showOutcome) {
-    for (const b of right) {
-      if (b.outcome && b.carriedFrom) outcomes[b.carriedFrom] = b.outcome;
-    }
-  }
+  // What this meeting recorded about each previous goal. It is keyed by the
+  // previous bullet's id and comes from the section's answers map, so it is
+  // read in the previous column where the goal is stated. The same object
+  // feeds the measure pass and the draw pass, or the row heights disagree.
+  const outcomes: Record<string, string> = showOutcome ? answers : {};
 
   const headH = doc.fontSize(10).heightOfString(heading, { width: w }) + 6;
   const labelH = 14;
@@ -350,7 +354,8 @@ export function renderMeetingPdf(input: MeetingPdfInput): Promise<Buffer> {
       doc, s.label, leftLabel, rightLabel,
       bulletsOf(input.previousSections, s.id),
       bulletsOf(input.sections, s.id),
-      s.id === 'goals',
+      s.id === GOALS_SECTION_ID,
+      answersOf(input.sections, s.id),
     );
   }
 

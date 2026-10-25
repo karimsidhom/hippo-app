@@ -22,9 +22,11 @@ function newId(): string {
  * the thing this component has to get right.
  *
  * In the goals section each previous bullet also asks what happened to it.
- * Recording an outcome writes onto whichever current bullet cites that goal,
- * creating one if the director has not carried it across yet, so the
- * outcome and the restated goal never drift apart.
+ * That answer is about the interval just gone and is stored in the section's
+ * answers map, NOT as a bullet: writing it as a bullet used to restate every
+ * answered goal as a goal for the coming six months, and deleting the
+ * restatement silently un-answered it. Only "Carried" adds anything to this
+ * meeting's column, because only "Carried" means the goal continues.
  */
 export function SectionEditor({
   view,
@@ -37,14 +39,22 @@ export function SectionEditor({
   view: SectionView;
   isGoals: boolean;
   previousDate: string | null;
-  onChange: (bullets: PdBullet[]) => void;
+  onChange: (next: {
+    current: PdBullet[];
+    answers: Record<string, PdGoalOutcome>;
+  }) => void;
   readOnly?: boolean;
   problem?: string;
 }) {
   const uid = useId();
   const { previous, current } = view;
 
-  const set = (next: PdBullet[]) => !readOnly && onChange(next);
+  const emit = (
+    bullets: PdBullet[],
+    answers: Record<string, PdGoalOutcome>,
+  ) => !readOnly && onChange({ current: bullets, answers });
+
+  const set = (next: PdBullet[]) => emit(next, view.answers);
 
   const update = (id: string, text: string) =>
     set(current.map((b) => (b.id === id ? { ...b, text } : b)));
@@ -57,25 +67,31 @@ export function SectionEditor({
 
   /** Record what happened to a goal the previous meeting set. */
   const setOutcome = (prevBullet: PdBullet, outcome: PdGoalOutcome) => {
-    const existing = current.find((b) => b.carriedFrom === prevBullet.id);
-    if (existing) {
-      set(
-        current.map((b) =>
-          b.carriedFrom === prevBullet.id
-            ? { ...b, outcome: b.outcome === outcome ? undefined : outcome }
-            : b,
-        ),
-      );
-      return;
+    if (readOnly) return;
+
+    const answers = { ...view.answers };
+    const clearing = answers[prevBullet.id] === outcome;
+    if (clearing) delete answers[prevBullet.id];
+    else answers[prevBullet.id] = outcome;
+
+    // "Carried" is the one answer that also says something about the coming
+    // interval, so it states the goal in this meeting's column if nothing
+    // does yet. Met / Partly / Not met describe the interval just gone and
+    // leave the new column alone.
+    let bullets = current;
+    if (
+      !clearing &&
+      outcome === 'carried' &&
+      !current.some((b) => b.carriedFrom === prevBullet.id)
+    ) {
+      bullets = [...current, carryBullet(prevBullet)];
     }
-    // Nothing cites this goal yet. Create the bullet that carries the
-    // outcome, seeded with the goal's own words so the director can edit
-    // rather than retype.
-    set([...current, { id: newId(), text: prevBullet.text, carriedFrom: prevBullet.id, outcome }]);
+
+    emit(bullets, answers);
   };
 
   const outcomeOf = (prevId: string): PdGoalOutcome | undefined =>
-    current.find((b) => b.carriedFrom === prevId)?.outcome;
+    view.answers[prevId];
 
   return (
     <section

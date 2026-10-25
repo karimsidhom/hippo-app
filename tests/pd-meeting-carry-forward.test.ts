@@ -4,7 +4,7 @@ import {
   carryBullet,
   validateForPublish,
 } from "@/lib/pd-meeting/carry-forward";
-import { emptySections, type PdSections } from "@/lib/pd-meeting/types";
+import { answersOf, emptySections, type PdSections } from "@/lib/pd-meeting/types";
 
 function withBullets(sectionId: string, texts: string[]): PdSections {
   const s = emptySections();
@@ -103,5 +103,68 @@ describe("validateForPublish", () => {
   it("ignores outcomes outside the goals section", () => {
     const prev = withBullets("progress", ["Hard worker"]);
     expect(validateForPublish(withBullets("progress", ["Progressing"]), prev)).toEqual([]);
+  });
+});
+
+describe('answers, kept apart from goals', () => {
+  const prev = (): PdSections => ({
+    goals: { bullets: [{ id: 'g1', text: 'One' }, { id: 'g2', text: 'Two' }] },
+  });
+
+  it('reads the answers map when a record has one', () => {
+    const current: PdSections = {
+      goals: { bullets: [], answers: { g1: 'met', g2: 'carried' } },
+    };
+    expect(answersOf(current, 'goals')).toEqual({ g1: 'met', g2: 'carried' });
+  });
+
+  it('derives answers from the old bullet shape when there is no map', () => {
+    const current: PdSections = {
+      goals: {
+        bullets: [
+          { id: 'n1', text: 'One', carriedFrom: 'g1', outcome: 'met' },
+          { id: 'n2', text: 'Two', carriedFrom: 'g2', outcome: 'not_met' },
+        ],
+      },
+    };
+    expect(answersOf(current, 'goals')).toEqual({ g1: 'met', g2: 'not_met' });
+  });
+
+  it('publishes once every previous goal is answered, with no bullets at all', () => {
+    const current: PdSections = {
+      progress: { bullets: [{ id: 'p', text: 'Doing well.' }] },
+      goals: { bullets: [], answers: { g1: 'met', g2: 'not_met' } },
+    };
+    expect(validateForPublish(current, prev())).toEqual([]);
+  });
+
+  it('still blocks publish when one goal has no answer', () => {
+    const current: PdSections = {
+      progress: { bullets: [{ id: 'p', text: 'Doing well.' }] },
+      goals: { bullets: [], answers: { g1: 'met' } },
+    };
+    const problems = validateForPublish(current, prev());
+    expect(problems).toHaveLength(1);
+    expect(problems[0].sectionId).toBe('goals');
+    expect(problems[0].message).toMatch(/one goal/i);
+  });
+
+  it('carrying a goal does not carry its answer across', () => {
+    const carried = carryBullet({ id: 'g1', text: 'One', outcome: 'met', carriedFrom: 'older' });
+    expect(carried.outcome).toBeUndefined();
+    expect(carried.carriedFrom).toBe('g1');
+    expect(carried.text).toBe('One');
+  });
+
+  it('puts answers on the goals row of the view and nowhere else', () => {
+    const current: PdSections = {
+      goals: { bullets: [], answers: { g1: 'met' } },
+      progress: { bullets: [] },
+    };
+    const view = buildMeetingView(current, prev());
+    const goals = view.find((v) => v.id === 'goals');
+    const progress = view.find((v) => v.id === 'progress');
+    expect(goals?.answers).toEqual({ g1: 'met' });
+    expect(progress?.answers).toEqual({});
   });
 });

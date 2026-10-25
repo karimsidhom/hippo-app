@@ -7,7 +7,12 @@ import { SectionEditor } from '@/components/pd-meeting/SectionEditor';
 import { ScoreTables, type ScoreRow } from '@/components/pd-meeting/ScoreTables';
 import { ChecklistPanel, type ChecklistState } from '@/components/pd-meeting/ChecklistPanel';
 import type { SectionView } from '@/lib/pd-meeting/carry-forward';
-import { GOALS_SECTION_ID, type PdBullet, type PdSections } from '@/lib/pd-meeting/types';
+import {
+  GOALS_SECTION_ID,
+  type PdBullet,
+  type PdGoalOutcome,
+  type PdSections,
+} from '@/lib/pd-meeting/types';
 import type { ChecklistDef, ScoreTableDef } from '@/lib/pd-meeting/types';
 
 interface MeetingHead {
@@ -73,7 +78,12 @@ export default function MeetingPage() {
   /** Turn the eight rows back into the stored shape. */
   const toSections = (rows: SectionView[]): PdSections => {
     const out: PdSections = {};
-    for (const r of rows) out[r.id] = { bullets: r.current };
+    for (const r of rows) {
+      out[r.id] =
+        r.id === GOALS_SECTION_ID
+          ? { bullets: r.current, answers: r.answers }
+          : { bullets: r.current };
+    }
     return out;
   };
 
@@ -99,8 +109,13 @@ export default function MeetingPage() {
 
   /** Autosave on a 2 second debounce. Meetings are filled live, in front of
    *  the resident, so losing what was just typed would be bad. */
-  const onSectionChange = (sectionId: string, bullets: PdBullet[]) => {
-    const next = view.map((s) => (s.id === sectionId ? { ...s, current: bullets } : s));
+  const onSectionChange = (
+    sectionId: string,
+    patch: { current: PdBullet[]; answers: Record<string, PdGoalOutcome> },
+  ) => {
+    const next = view.map((s) =>
+      s.id === sectionId ? { ...s, current: patch.current, answers: patch.answers } : s,
+    );
     setView(next);
     setProblems({});
     if (timer.current) clearTimeout(timer.current);
@@ -271,7 +286,7 @@ export default function MeetingPage() {
             previousDate={meeting.previousMeetingDate}
             readOnly={readOnly}
             problem={problems[s.id]}
-            onChange={(b) => onSectionChange(s.id, b)}
+            onChange={(next) => onSectionChange(s.id, next)}
           />
         ))}
       </div>
