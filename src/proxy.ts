@@ -16,7 +16,8 @@ import { safeNext } from '@/lib/safe-next';
 // /offline is the service-worker fallback — if it requires auth the SW
 // can't serve it to a logged-out user who lost connectivity.
 const PUBLIC_ROUTES = new Set([
-  '/', '/login', '/signup', '/onboarding', '/install', '/offline',
+  '/', '/login', '/signup', '/forgot-password', '/reset-password',
+  '/onboarding', '/install', '/offline',
 ]);
 const PUBLIC_API_PREFIXES = [
   '/api/auth/',
@@ -157,6 +158,18 @@ export async function proxy(request: NextRequest) {
       return finish(response);
     }
     return finish(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+  }
+
+  // ── Design-preview escape hatch (dev only) ────────────────────────────────
+  // With NEXT_PUBLIC_DESIGN_PREVIEW=1 on a local dev server, the signed-in
+  // pages render against fixture data (src/lib/design-preview.ts) so UI work
+  // can be reviewed without a session. Double-gated on NODE_ENV so this can
+  // never relax auth on a deployed build.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_DESIGN_PREVIEW === '1'
+  ) {
+    return response;
   }
 
   // ── Redirect unauthenticated users away from app pages ────────────────────

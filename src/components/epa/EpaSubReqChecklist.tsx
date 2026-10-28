@@ -183,7 +183,7 @@ export function EpaSubReqChecklist({
           style={{
             fontSize: 11,
             fontWeight: 600,
-            color: "#64748b",
+            color: "var(--text-2)",
             textTransform: "uppercase",
             letterSpacing: "0.05em",
           }}
@@ -213,7 +213,7 @@ export function EpaSubReqChecklist({
         style={{
           marginTop: 8,
           fontSize: 11,
-          color: "#64748b",
+          color: "var(--text-2)",
           display: "flex",
           alignItems: "center",
           gap: 4,

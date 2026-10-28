@@ -547,7 +547,7 @@ export default function ProfilePage() {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={handleSave} disabled={saving} style={{
-              padding: "8px 16px", background: "var(--primary)", color: "#fff",
+              padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
               border: "none", borderRadius: "var(--rs)", fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: "'Geist', sans-serif",
               transition: "opacity .15s", opacity: saving ? 0.6 : 1,

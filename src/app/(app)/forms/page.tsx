@@ -131,7 +131,7 @@ export default function FormsHubPage() {
             display: "inline-flex",
             alignItems: "center",
             gap: 5,
-            background: "var(--primary)",
+            background: "var(--primary-solid)",
             color: "#fff",
             border: "1px solid var(--primary)",
             borderRadius: 8,

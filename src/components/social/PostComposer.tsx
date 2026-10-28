@@ -483,7 +483,7 @@ export function PostComposer({ open, onClose, source, onPublished }: Props) {
                       onClick={acceptPhiScrub}
                       style={{
                         marginTop: 8, padding: "6px 10px",
-                        background: "var(--primary)", color: "#fff",
+                        background: "var(--primary-solid)", color: "#fff",
                         border: "none", borderRadius: 6,
                         fontSize: 11, fontWeight: 600, cursor: "pointer",
                       }}

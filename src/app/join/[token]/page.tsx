@@ -266,7 +266,7 @@ export default function JoinProgramPage() {
                   style={{
                     flex: 1,
                     padding: "12px 20px",
-                    background: "var(--primary)",
+                    background: "var(--primary-solid)",
                     border: "none",
                     borderRadius: 8,
                     color: "#fff",
@@ -363,7 +363,7 @@ export default function JoinProgramPage() {
                 style={{
                   width: "100%",
                   padding: "12px 20px",
-                  background: accepting ? "var(--muted)" : "var(--primary)",
+                  background: accepting ? "var(--text-3)" : "var(--primary)",
                   border: "none",
                   borderRadius: 8,
                   color: "#fff",

@@ -152,7 +152,7 @@ export default function MyMeetingsPage() {
                     onClick={() => acknowledge(m.id)}
                     style={{
                       padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      border: '1px solid var(--primary)', background: 'var(--primary)',
+                      border: '1px solid var(--primary-solid)', background: 'var(--primary-solid)',
                       color: '#fff', cursor: busy === m.id ? 'wait' : 'pointer',
                       fontFamily: 'inherit', opacity: busy === m.id ? 0.6 : 1,
                     }}

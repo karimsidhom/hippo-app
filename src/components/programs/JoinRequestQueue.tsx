@@ -190,7 +190,7 @@ export function JoinRequestQueue({ onChanged }: { onChanged?: () => void }) {
                     fontWeight: 600,
                     borderRadius: 8,
                     border: '1px solid var(--primary)',
-                    background: 'var(--primary)',
+                    background: 'var(--primary-solid)',
                     color: '#fff',
                     cursor: busy === r.id ? 'default' : 'pointer',
                     opacity: busy === r.id ? 0.5 : 1,

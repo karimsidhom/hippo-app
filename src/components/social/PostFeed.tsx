@@ -359,7 +359,7 @@ export function PostFeed({ onCreatePost }: Props) {
             width: 48,
             height: 48,
             borderRadius: 14,
-            background: "var(--primary)",
+            background: "var(--primary-solid)",
             border: "none",
             color: "#fff",
             cursor: "pointer",
@@ -499,7 +499,7 @@ function EmptyFeedState({
           style={{
             display: "inline-flex", alignItems: "center", gap: 6,
             padding: "9px 16px",
-            background: "var(--primary)", color: "#fff",
+            background: "var(--primary-solid)", color: "#fff",
             border: "none", borderRadius: 6,
             fontSize: 12, fontWeight: 600,
             cursor: "pointer", fontFamily: "inherit",

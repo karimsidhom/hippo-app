@@ -151,7 +151,7 @@ export function ProgramInviteBanner() {
               disabled={accepting === invite.id}
               style={{
                 padding: "8px 14px",
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 border: "none",
                 borderRadius: 7,
                 color: "#fff",

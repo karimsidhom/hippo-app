@@ -564,7 +564,7 @@ export default function LogCasePage() {
   };
 
   return (
-    <div className="max-w-2xl mx-auto animate-fade-in">
+    <div className="case-log-flow max-w-2xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-[var(--text)]">Log a Case</h1>
@@ -635,11 +635,11 @@ export default function LogCasePage() {
                 padding: "14px 16px",
                 background: voiceFilled
                   ? "rgba(16,185,129,0.06)"
-                  : "linear-gradient(135deg, rgba(168,85,247,0.06), rgba(59,130,246,0.06))",
+                  : "var(--primary-dim)",
                 border: `1px solid ${
                   voiceFilled
                     ? "rgba(16,185,129,0.25)"
-                    : "rgba(168,85,247,0.2)"
+                    : "var(--border-glass)"
                 }`,
                 borderRadius: 10,
                 marginBottom: 12,
@@ -653,7 +653,7 @@ export default function LogCasePage() {
                   marginBottom: 10,
                   fontSize: 12,
                   fontWeight: 600,
-                  color: voiceFilled ? "var(--success)" : "#c4b5fd",
+                  color: voiceFilled ? "var(--success)" : "var(--primary-hi)",
                 }}
               >
                 {voiceFilled ? (
@@ -696,11 +696,11 @@ export default function LogCasePage() {
                     gap: 5,
                     padding: "6px 14px",
                     background: voiceParsing
-                      ? "rgba(168,85,247,0.16)"
-                      : "linear-gradient(135deg, rgba(168,85,247,0.16), rgba(59,130,246,0.16))",
-                    border: "1px solid rgba(168,85,247,0.35)",
+                      ? "var(--primary-glow)"
+                      : "var(--primary-dim)",
+                    border: "1px solid var(--border-glass)",
                     borderRadius: 6,
-                    color: voiceParsing ? "var(--muted)" : "#c4b5fd",
+                    color: voiceParsing ? "var(--text-3)" : "var(--primary-hi)",
                     fontSize: 11,
                     fontWeight: 600,
                     cursor:
@@ -742,7 +742,7 @@ export default function LogCasePage() {
                   padding: "6px 12px", borderRadius: 20, fontSize: 13, fontWeight: 500,
                   border: "1px solid #2563eb", background: "#1a1a2e", color: "var(--text)",
                 }}>
-                  🧬 SMSNA Fellowship
+                  SMSNA Fellowship
                 </div>
               ) : (
                 <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
@@ -766,7 +766,7 @@ export default function LogCasePage() {
                         color: form.specialtySlug === spec.slug ? "var(--text)" : "var(--text-2)",
                       }}
                     >
-                      {spec.icon} {spec.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
+                      {spec.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
                     </button>
                   ))}
                 </div>
@@ -906,7 +906,6 @@ export default function LogCasePage() {
                         : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-mid)]"
                     }`}
                   >
-                    <div className="text-base mb-0.5">{a.icon}</div>
                     {a.label}
                   </button>
                 ))}

@@ -9,6 +9,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Profile, CaseLog, Milestone } from '@/lib/types';
 import { safeNext } from '@/lib/safe-next';
+import {
+  DESIGN_PREVIEW,
+  previewUser,
+  previewProfile,
+  previewCases,
+  previewMilestones,
+} from '@/lib/design-preview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -222,6 +229,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Auth state listener ────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Design-preview mode (dev only, opt-in via NEXT_PUBLIC_DESIGN_PREVIEW=1):
+    // load fixture state and never touch Supabase, so the signed-in surfaces
+    // can be reviewed locally. See src/lib/design-preview.ts.
+    if (DESIGN_PREVIEW) {
+      setUser(previewUser);
+      setProfile(previewProfile);
+      setCases(previewCases);
+      setMilestones(previewMilestones);
+      setLoading(false);
+      return;
+    }
+
     // Hydrate from existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {

@@ -840,7 +840,7 @@ export default function SocialPage() {
               <button
                 onClick={() => setActiveTab("Invite")}
                 style={{
-                  padding: "10px 20px", background: "var(--primary)", color: "#fff",
+                  padding: "10px 20px", background: "var(--primary-solid)", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 13, fontWeight: 600,
                   cursor: "pointer", fontFamily: "'Geist', sans-serif",
                   display: "inline-flex", alignItems: "center", gap: 6,
@@ -1001,7 +1001,7 @@ export default function SocialPage() {
                 <button
                   onClick={() => setActiveTab("Discover")}
                   style={{
-                    padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                    padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                     border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
                     cursor: "pointer", fontFamily: "'Geist', sans-serif",
                   }}
@@ -1046,7 +1046,7 @@ export default function SocialPage() {
               <button
                 onClick={() => setActiveTab("Invite")}
                 style={{
-                  padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                  padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                   border: "none", borderRadius: 8, fontSize: 12, fontWeight: 600,
                   cursor: "pointer", fontFamily: "'Geist', sans-serif",
                   display: "inline-flex", alignItems: "center", gap: 4,

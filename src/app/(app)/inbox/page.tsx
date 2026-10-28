@@ -776,7 +776,7 @@ function ObservationCard({
                         style={{
                           marginLeft: "auto",
                           padding: "2px 8px", borderRadius: 4,
-                          background: "var(--primary)", border: "none",
+                          background: "var(--primary-solid)", border: "none",
                           color: "#fff", fontSize: 10, fontWeight: 600,
                           cursor: "pointer", fontFamily: "inherit",
                         }}

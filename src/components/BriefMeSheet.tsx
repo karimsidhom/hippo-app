@@ -165,7 +165,7 @@ export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
                 gap: 6,
               }}
             >
-              <Sparkles size={14} style={{ color: "#c4b5fd" }} />
+              <Sparkles size={14} style={{ color: "var(--primary-hi)" }} />
               Pre-Op Brief
             </div>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>
@@ -183,7 +183,7 @@ export function BriefMeSheet({ open, onClose, prefill }: BriefMeSheetProps) {
               borderRadius: 6,
               background: "var(--glass-mid)",
               border: "1px solid var(--border-glass)",
-              color: "var(--muted)",
+              color: "var(--text-3)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -361,11 +361,11 @@ function InputView({
             gap: 6,
             padding: "8px 16px",
             background: loading
-              ? "rgba(168,85,247,0.16)"
-              : "linear-gradient(135deg, rgba(168,85,247,0.18), rgba(59,130,246,0.18))",
-            border: "1px solid rgba(168,85,247,0.4)",
+              ? "var(--primary-glow)"
+              : "var(--primary-dim)",
+            border: "1px solid var(--border-glass)",
             borderRadius: 8,
-            color: loading ? "var(--muted)" : "#c4b5fd",
+            color: loading ? "var(--text-3)" : "var(--primary-hi)",
             fontSize: 12,
             fontWeight: 600,
             cursor: loading || !value.trim() ? "not-allowed" : "pointer",
@@ -446,7 +446,7 @@ function BriefView({ brief, warnings, onReset }: BriefViewProps) {
           >
             {context.when && <span>{context.when}</span>}
             {context.when && context.attending && (
-              <span style={{ color: "var(--muted)" }}>·</span>
+              <span style={{ color: "var(--text-3)" }}>·</span>
             )}
             {context.attending && <span>{context.attending}</span>}
           </div>
@@ -690,7 +690,7 @@ function BriefView({ brief, warnings, onReset }: BriefViewProps) {
           onClick={onReset}
           style={{
             fontSize: 11,
-            color: "var(--muted)",
+            color: "var(--text-3)",
             background: "none",
             border: "none",
             cursor: "pointer",

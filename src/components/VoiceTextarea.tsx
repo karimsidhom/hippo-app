@@ -67,10 +67,20 @@ export function VoiceTextarea({
   // so that interim re-renders don't duplicate recognized words.
   const baseValueRef = useRef<string>("");
 
+  // The text that was in the textarea BEFORE the mic opened, captured once
+  // and never touched again. `baseValueRef` cannot serve this purpose: every
+  // final Web-Speech chunk is appended to it during recognition, so by the
+  // time the server transcript lands it already contains the whole dictation.
+  // Reading it there spliced the Web-Speech text and the Whisper text
+  // together and the user got their sentence twice.
+  const preMicValueRef = useRef<string>("");
+
   // Parallel MediaRecorder — captures raw audio while Web Speech gives us a
-  // live preview. On stop, the raw audio is sent to Gemini for a much more
-  // accurate transcription of medical terminology, which replaces the
-  // Web-Speech result. Web Speech is still used for the live interim text.
+  // live preview. On stop, the raw audio is sent to /api/dictation/transcribe
+  // — Groq whisper-large-v3-turbo when GROQ_API_KEY is set, Gemini 2.5 Flash
+  // otherwise — for a far more accurate pass over medical terminology, which
+  // replaces the Web-Speech result. Web Speech still carries the live text,
+  // so losing the network costs accuracy but never the dictation.
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const mediaStreamRef = useRef<MediaStream | null>(null);
@@ -138,7 +148,7 @@ export function VoiceTextarea({
     audioChunksRef.current = [];
     if (chunks.length === 0) return;
     const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
-    // Too small to bother — Gemini audio needs some signal.
+    // Too small to bother — the transcriber needs some signal.
     if (blob.size < 2000) return;
 
     try {
@@ -152,9 +162,9 @@ export function VoiceTextarea({
       if (!res.ok) return;
       const { text } = (await res.json()) as { text?: string };
       if (!text) return;
-      // Replace the Web-Speech preview with the Gemini result. Preserve the
-      // text that was already in the textarea before the mic opened.
-      const preMic = baseValueRef.current.replace(/\s+$/, "");
+      // Replace the Web-Speech preview with the server transcript, keeping
+      // only what was in the textarea before the mic opened.
+      const preMic = preMicValueRef.current.replace(/\s+$/, "");
       const joined = preMic ? `${preMic}${preMic.endsWith(".") || preMic.endsWith("?") ? " " : ". "}${text}` : text;
       onChange(joined);
     } catch {
@@ -173,6 +183,7 @@ export function VoiceTextarea({
 
     setError(null);
     baseValueRef.current = value.trimEnd();
+    preMicValueRef.current = baseValueRef.current;
     // Kick off audio capture in parallel — Gemini will polish it on stop.
     void startMediaRecorder();
 

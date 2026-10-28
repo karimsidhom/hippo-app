@@ -268,7 +268,7 @@ export default function AnalyticsPage() {
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "9px 16px",
-              background: "var(--primary)", color: "#fff",
+              background: "var(--primary-solid)", color: "#fff",
               border: "none", borderRadius: 6,
               fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",

@@ -211,7 +211,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
               onClick={handleAdd}
               disabled={saving || !selectedCaseId || !title.trim()}
               style={{
-                padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "'Geist', sans-serif",
                 opacity: saving || !selectedCaseId || !title.trim() ? 0.5 : 1,

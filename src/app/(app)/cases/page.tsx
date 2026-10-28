@@ -2,10 +2,9 @@
 
 import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
-import { Search, Filter, ChevronDown, ChevronUp, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, MessagesSquare, Share2, ClipboardList, Plus, Printer } from "lucide-react";
+import { Search, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, MessagesSquare, Plus, Printer } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
 import { PaywallModal } from "@/components/PaywallModal";
-import { PostComposer } from "@/components/social/PostComposer";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { parseStoredReflection } from "@/lib/debrief/types";
@@ -22,9 +21,10 @@ import { useDictationPreferences } from "@/lib/dictation/use-preferences";
 // polish step's safety net (see src/lib/dictation/revise.ts).
 import { applyUserCorrection } from "@/lib/dictation/style/learn";
 import { BillingOverlayPanel } from "@/components/dictation/BillingOverlayPanel";
+import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { filterLedgerCases, getLedgerRoleOptions, getLedgerYearOptions, summarizeLedgerCases } from "@/lib/case-ledger";
 
-const APPROACHES = ["All", "Open", "Laparoscopic", "Robotic", "Endoscopic", "Percutaneous"];
-const ROLES = ["All", "Observer", "Assistant", "First Assistant", "Primary Surgeon", "Console Surgeon"];
+const APPROACHES = ["All", "Open", "Laparoscopic", "Robotic", "Endoscopic", "Percutaneous", "Hybrid", "Other"];
 
 function approachDot(approach: string): string {
   const m: Record<string, string> = {
@@ -34,6 +34,14 @@ function approachDot(approach: string): string {
     Endoscopic: "#64748B", Hybrid: "#10B981", Percutaneous: "#F97316",
   };
   return m[approach] ?? "#334155";
+}
+
+/** 54 → "54m"; 186 → "3h 06m". Tabular figures keep the column aligned. */
+function formatDuration(mins: number): string {
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return m === 0 ? `${h}h` : `${h}h ${String(m).padStart(2, "0")}m`;
 }
 
 const AUTONOMY_LABELS: Record<string, string> = {
@@ -60,219 +68,179 @@ function pulseCaseUrl(c: CaseLog): string {
   return `https://pulse.hippomedicine.com/compose?${q.toString()}`;
 }
 
-function Sheet({ c, onClose, onDelete, onShareAsPearl }: { c: CaseLog; onClose: () => void; onDelete: (id: string) => void; onShareAsPearl: (id: string) => void }) {
+function Sheet({
+  c, onClose, onDelete, onDebrief, onDictate,
+}: {
+  c: CaseLog;
+  onClose: () => void;
+  onDelete: (id: string) => void;
+  onDebrief: (c: CaseLog) => void;
+  onDictate: (c: CaseLog) => void;
+}) {
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const dialogRef = useDialogFocus<HTMLDivElement>();
 
-  const rows: [string, string | null | undefined][] = [
-    ["Specialty",    c.specialtyId ?? c.specialtyName],
+  // Escape closes. A sheet you can't dismiss from the keyboard is a sheet
+  // that fails the first accessibility pass.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onClose]);
+
+  const rail = approachDot(c.surgicalApproach);
+  const date = new Date(c.caseDate);
+
+  // The figures that belong above the fold: how long, how hard, how much of
+  // it was yours. Robotic cases add console and docking time.
+  const figures: [string, string][] = [
+    ...(c.operativeDurationMinutes
+      ? [["OR time", formatDuration(c.operativeDurationMinutes)] as [string, string]]
+      : []),
+    ...(c.consoleTimeMinutes
+      ? [["Console", formatDuration(c.consoleTimeMinutes)] as [string, string]]
+      : []),
+    ...(c.dockingTimeMinutes
+      ? [["Docking", formatDuration(c.dockingTimeMinutes)] as [string, string]]
+      : []),
+  ];
+
+  // Everything else, as a definition list. Empty values are dropped rather
+  // than rendered as blank rows.
+  const facts: [string, string | null | undefined][] = [
     ["Role",         c.role],
     ["Autonomy",     AUTONOMY_LABELS[c.autonomyLevel] ?? c.autonomyLevel],
     ["Approach",     APPROACH_LABELS[c.surgicalApproach] ?? c.surgicalApproach],
-    ["OR Duration",  c.operativeDurationMinutes ? `${c.operativeDurationMinutes} min` : null],
-    ...(c.consoleTimeMinutes ? [["Console Time", `${c.consoleTimeMinutes} min`] as [string, string]] : []),
-    ...(c.dockingTimeMinutes ? [["Docking Time", `${c.dockingTimeMinutes} min`] as [string, string]] : []),
-    ["Difficulty",   `${c.difficultyScore} / 5`],
+    ["Specialty",    c.specialtyName ?? c.specialtyId],
+    ["Diagnosis",    c.diagnosisCategory],
     ["Outcome",      OUTCOME_LABELS[c.outcomeCategory] ?? c.outcomeCategory],
-    ["Complication", c.complicationCategory === "NONE" ? "None" : c.complicationCategory],
+    ["Complication", c.complicationCategory === "NONE" ? null : c.complicationCategory],
     ["Attending",    c.attendingLabel],
     ["Site",         c.institutionSite],
-    ["Diagnosis",    c.diagnosisCategory],
-    ["Notes",        c.notes],
-    ["Reflection",   c.reflection],
+  ];
+
+  const prose: [string, string | null][] = [
+    ["Notes",      c.notes],
+    ["Reflection", parseStoredReflection(c.reflection).freeform],
   ];
 
   return (
-    <div
-      style={{
-        position: "fixed", inset: 0,
-        background: "rgba(0,0,0,.85)",
-        backdropFilter: "blur(8px)",
-        WebkitBackdropFilter: "blur(8px)",
-        zIndex: 200,
-        display: "flex", alignItems: "center", justifyContent: "center",
-        // Respect the iPhone notch + home indicator so the modal's top
-        // button row and bottom action row aren't covered by the system UI.
-        padding: "calc(20px + env(safe-area-inset-top)) 16px calc(20px + env(safe-area-inset-bottom))",
-      }}
-      onClick={onClose}
-    >
+    <div className="case-sheet-scrim" onClick={onClose}>
       <div
-        className="glass-elevated"
-        style={{
-          background: "var(--surface)",
-          width: "100%",
-          maxWidth: 520,
-          maxHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          overflow: "hidden",
-          animation: "slideUp .25s cubic-bezier(.16,1,.3,1)",
-        }}
+        className="case-sheet"
+        ref={dialogRef}
+        tabIndex={-1}
+        role="dialog"
+        aria-modal="true"
+        aria-label={c.procedureName}
         onClick={e => e.stopPropagation()}
       >
-        {/* Header */}
-        <div style={{
-          padding: "16px 20px 14px",
-          borderBottom: "1px solid var(--border)",
-          flexShrink: 0,
-        }}>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-            <div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <div style={{
-                  width: 8, height: 8, borderRadius: "50%",
-                  background: approachDot(c.surgicalApproach),
-                  boxShadow: `0 0 8px ${approachDot(c.surgicalApproach)}44`,
-                  flexShrink: 0,
-                }} />
-                <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", lineHeight: 1.2 }}>
-                  {c.procedureName}
-                </div>
-              </div>
-              <div style={{ fontSize: 12, color: "var(--text-3)", paddingLeft: 16 }}>
-                {new Date(c.caseDate).toLocaleDateString("en-US", { weekday: "short", month: "long", day: "numeric", year: "numeric" })}
-              </div>
+        {/* Hairline of approach colour across the top — the same signal the
+            row rail carries, so the sheet reads as that row expanded. */}
+        <div className="case-sheet__rail" style={{ background: rail }} />
+
+        <header className="case-sheet__head">
+          <div style={{ minWidth: 0 }}>
+            <h2 className="case-sheet__title">{c.procedureName}</h2>
+            <div className="case-sheet__sub">
+              {date.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+              {c.institutionSite ? ` · ${c.institutionSite}` : ""}
             </div>
-            <button
-              onClick={onClose}
-              style={{
-                background: "none",
-                border: "none",
-                padding: 4,
-                cursor: "pointer",
-                color: "var(--muted)",
-                flexShrink: 0,
-              }}
-            >
-              <X size={16} />
-            </button>
           </div>
-        </div>
-
-        {/* Body */}
-        <div style={{ overflowY: "auto", flex: 1 }}>
-          {rows.filter(([, v]) => v != null && v !== "").map(([k, v]) => (
-            <div key={k} style={{
-              display: "flex", gap: 12,
-              padding: "9px 20px",
-              borderBottom: "1px solid var(--border)",
-            }}>
-              <div style={{
-                color: "var(--text-3)",
-                fontSize: 10,
-                minWidth: 100,
-                flexShrink: 0,
-                textTransform: "uppercase",
-                letterSpacing: ".4px",
-                paddingTop: 2,
-                fontWeight: 500,
-              }}>{k}</div>
-              <div style={{ color: "var(--text)", fontSize: 13, lineHeight: 1.5 }}>{v}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Footer */}
-        <div style={{ padding: "12px 20px", borderTop: "1px solid var(--border)", flexShrink: 0, display: "flex", gap: 8 }}>
-          <button
-            onClick={() => onShareAsPearl(c.id)}
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              flex: 1, justifyContent: "center",
-              padding: "9px",
-              background: "rgba(14,165,233,0.08)",
-              border: "1px solid rgba(14,165,233,0.3)",
-              borderRadius: 6,
-              color: "var(--primary)",
-              fontSize: 12, fontWeight: 600, cursor: "pointer",
-              fontFamily: "inherit",
-            }}
-          >
-            <Share2 size={12} /> Share as pearl
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <X size={16} strokeWidth={1.8} />
           </button>
-          <a
-            href={pulseCaseUrl(c)}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              display: "flex", alignItems: "center", gap: 6,
-              flex: 1, justifyContent: "center",
-              padding: "9px",
-              background: "rgba(255,107,87,0.08)",
-              border: "1px solid rgba(255,107,87,0.3)",
-              borderRadius: 6,
-              color: "#ff6b57",
-              fontSize: 12, fontWeight: 600,
-              textDecoration: "none",
-            }}
-          >
-            <MessagesSquare size={12} /> Discuss on Pulse
-          </a>
-          {!confirmDelete ? (
-            <button
-              onClick={() => setConfirmDelete(true)}
-              style={{
-                display: "flex",
-                alignItems: "center",
-                gap: 6,
-                flex: 1,
-                justifyContent: "center",
-                padding: "9px",
-                background: "transparent",
-                border: "1px solid var(--border)",
-                borderRadius: 6,
-                color: "var(--muted)",
-                fontSize: 12,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all .15s",
-              }}
-              onMouseEnter={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(239,68,68,.25)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--danger)";
-              }}
-              onMouseLeave={e => {
-                (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border)";
-                (e.currentTarget as HTMLButtonElement).style.color = "var(--muted)";
-              }}
-            >
-              <Trash2 size={12} /> Delete
-            </button>
-          ) : (
-            <div style={{ display: "flex", gap: 8 }}>
-              <button
-                onClick={() => setConfirmDelete(false)}
-                style={{
-                  flex: 1, padding: "9px",
-                  background: "var(--glass)",
-                  border: "1px solid var(--border-mid)",
-                  borderRadius: 6,
-                  color: "var(--text-2)",
-                  fontSize: 12, cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                Cancel
-              </button>
-              <button
-                onClick={() => { onDelete(c.id); onClose(); }}
-                style={{
-                  flex: 1, padding: "9px",
-                  background: "var(--danger)",
-                  border: "none",
-                  borderRadius: 6,
-                  color: "#fff",
-                  fontSize: 12, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
-                }}
-              >
-                Confirm Delete
-              </button>
+        </header>
+
+        <div className="case-sheet__body">
+          {(figures.length > 0 || c.difficultyScore) && (
+            <div className="case-sheet__figures">
+              {figures.map(([k, v]) => (
+                <div className="case-sheet__figure" key={k}>
+                  <div className="case-sheet__figure-value">{v}</div>
+                  <div className="case-sheet__figure-label">{k}</div>
+                </div>
+              ))}
+              <div className="case-sheet__figure">
+                <div className="case-sheet__figure-value">
+                  <span className="pip-meter" aria-label={`Difficulty ${c.difficultyScore} of 5`}>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <i key={n} data-on={n <= c.difficultyScore} />
+                    ))}
+                  </span>
+                </div>
+                <div className="case-sheet__figure-label">Difficulty</div>
+              </div>
+            </div>
+          )}
+
+          <dl className="case-sheet__facts">
+            {facts.filter(([, v]) => v != null && v !== "").map(([k, v]) => (
+              <div className="case-sheet__fact" key={k}>
+                <dt>{k}</dt>
+                <dd>{v}</dd>
+              </div>
+            ))}
+          </dl>
+
+          {prose.filter(([, v]) => v).map(([k, v]) => (
+            <section className="case-sheet__prose" key={k}>
+              <h3>{k}</h3>
+              <p>{v}</p>
+            </section>
+          ))}
+
+          {c.tags.length > 0 && (
+            <div className="case-sheet__tags">
+              {c.tags.map(t => <span key={t} className="tag">{t}</span>)}
             </div>
           )}
         </div>
+
+        <footer className="case-sheet__foot">
+          {/* These three are the ONLY route to debrief and dictation on a
+              phone — the row actions are pointer-only by design. */}
+          <button className="case-sheet__action" onClick={() => onDebrief(c)}>
+            <MessageSquare size={14} strokeWidth={1.7} />
+            <span>Debrief</span>
+          </button>
+          <button className="case-sheet__action" onClick={() => onDictate(c)}>
+            <FileText size={14} strokeWidth={1.7} />
+            <span>Dictation</span>
+          </button>
+          <a className="case-sheet__action" href={pulseCaseUrl(c)} target="_blank" rel="noopener noreferrer">
+            <MessagesSquare size={14} strokeWidth={1.7} />
+            <span>Discuss on Pulse</span>
+          </a>
+
+          <div className="case-sheet__foot-spacer" />
+
+          {!confirmDelete ? (
+            <button
+              className="case-sheet__action case-sheet__action--danger"
+              onClick={() => setConfirmDelete(true)}
+              aria-label="Delete case"
+            >
+              <Trash2 size={14} strokeWidth={1.7} />
+            </button>
+          ) : (
+            <div className="case-sheet__confirm">
+              <button className="case-sheet__action" onClick={() => setConfirmDelete(false)}>Cancel</button>
+              <button
+                className="case-sheet__action case-sheet__action--destroy"
+                onClick={() => { onDelete(c.id); onClose(); }}
+              >
+                Delete case
+              </button>
+            </div>
+          )}
+          {confirmDelete && <p className="case-sheet__notice" role="status">Delete this case from your logbook? This cannot be undone.</p>}
+        </footer>
       </div>
     </div>
   );
 }
+
 
 function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
   const [copied, setCopied] = useState(false);
@@ -518,7 +486,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
                     background: "var(--glass-mid)",
                     border: "1px solid var(--border-glass)",
                     borderRadius: 6,
-                    color: "var(--muted)",
+                    color: "var(--text-3)",
                     fontSize: 11, fontWeight: 600,
                     cursor: dirty ? "pointer" : "not-allowed",
                     fontFamily: "inherit",
@@ -540,7 +508,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
                   background: "var(--glass-mid)",
                   border: "1px solid var(--border-glass)",
                   borderRadius: 6,
-                  color: "var(--muted)",
+                  color: "var(--text-3)",
                   fontSize: 11, fontWeight: 600, cursor: "pointer", fontFamily: "inherit",
                 }}
               >
@@ -555,11 +523,11 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
                   display: "flex", alignItems: "center", gap: 5,
                   padding: "6px 12px",
                   background: polishing
-                    ? "rgba(168,85,247,0.16)"
-                    : "linear-gradient(135deg, rgba(168,85,247,0.14), rgba(59,130,246,0.14))",
-                  border: "1px solid rgba(168,85,247,0.35)",
+                    ? "var(--primary-glow)"
+                    : "var(--primary-dim)",
+                  border: "1px solid var(--border-glass)",
                   borderRadius: 6,
-                  color: polishing ? "var(--muted)" : "#c4b5fd",
+                  color: polishing ? "var(--text-3)" : "var(--primary-hi)",
                   fontSize: 11, fontWeight: 600,
                   cursor: polishing || !value.trim() ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
@@ -589,7 +557,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
             </button>
             <button
               onClick={onClose}
-              style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--muted)" }}
+              style={{ background: "none", border: "none", padding: 4, cursor: "pointer", color: "var(--text-3)" }}
             >
               <X size={16} />
             </button>
@@ -600,14 +568,14 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
         {polishedByClaude && prePolish !== null && (
           <div style={{
             padding: "8px 20px",
-            background: "linear-gradient(90deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
-            borderBottom: "1px solid rgba(168,85,247,0.25)",
+            background: "var(--primary-dim)",
+            borderBottom: "1px solid var(--border-glass)",
             display: "flex",
             alignItems: "center",
             gap: 8,
             flexShrink: 0,
           }}>
-            <Sparkles size={12} style={{ color: "#c4b5fd", flexShrink: 0 }} />
+            <Sparkles size={12} style={{ color: "var(--primary-hi)", flexShrink: 0 }} />
             <div style={{ fontSize: 11, color: "#e9d5ff", flex: 1, lineHeight: 1.5 }}>
               <strong style={{ color: "#f5f3ff" }}>AI-polished draft.</strong>{" "}
               Review every line before signing — verify all facts, numbers, and findings match the case.
@@ -726,7 +694,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
               alignItems: "center",
               gap: 4,
               fontSize: 11,
-              color: "var(--muted)",
+              color: "var(--text-3)",
               textDecoration: "none",
               whiteSpace: "nowrap",
               flexShrink: 0,
@@ -753,61 +721,82 @@ export default function CasesPage() {
   const [dictation, setDictation]   = useState<CaseLog | null>(null);
   const [debrief, setDebrief]       = useState<CaseLog | null>(null);
   const [exporting, setExporting]   = useState(false);
-  const [shareCaseId, setShareCaseId] = useState<string | null>(null);
+  const [exportError, setExportError] = useState<string | null>(null);
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [pdfPaywall, setPdfPaywall] = useState(false);
   const { isPro } = useSubscription();
 
-  const years = useMemo(() => {
-    const ys = [...new Set(cases.map(c => new Date(c.caseDate).getFullYear()))].sort((a, b) => b - a);
-    return ["All", ...ys.map(String)];
-  }, [cases]);
-
-  const filtered = useMemo(() => cases.filter(c => {
-    if (search && !c.procedureName.toLowerCase().includes(search.toLowerCase())) return false;
-    if (approach !== "All" && c.surgicalApproach !== approach) return false;
-    if (role !== "All" && c.role !== role) return false;
-    if (year !== "All" && String(new Date(c.caseDate).getFullYear()) !== year) return false;
-    return true;
-  }).sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime()), [cases, search, approach, role, year]);
+  const years = useMemo(() => getLedgerYearOptions(cases), [cases]);
+  const roles = useMemo(() => getLedgerRoleOptions(cases), [cases]);
+  const filtered = useMemo(() => filterLedgerCases(cases, { search, approach, role, year }), [cases, search, approach, role, year]);
 
   const hasFilters = approach !== "All" || role !== "All";
+  const isRefined = hasFilters || year !== "All" || !!search.trim();
+  const clearFilters = () => { setSearch(""); setApproach("All"); setRole("All"); setYear("All"); };
+
+  // ── Masthead aggregates ────────────────────────────────────────────────
+  // Three figures only. A logbook answers "how much, how long, how much of
+  // it was mine" — anything past that belongs on Stats.
+  const summary = useMemo(() => summarizeLedgerCases(filtered), [filtered]);
+
+  // ── Month grouping ─────────────────────────────────────────────────────
+  // `filtered` is already sorted newest-first, so Map insertion order gives
+  // the groups in the right order for free.
+  const groups = useMemo(() => {
+    const byMonth = new Map<string, CaseLog[]>();
+    for (const c of filtered) {
+      const d   = new Date(c.caseDate);
+      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const bucket = byMonth.get(key);
+      if (bucket) bucket.push(c);
+      else byMonth.set(key, [c]);
+    }
+    return [...byMonth.entries()].map(([key, items]) => {
+      const d = new Date(items[0].caseDate);
+      return {
+        key,
+        month:   d.toLocaleDateString("en-CA", { month: "long" }),
+        year:    d.getFullYear(),
+        items,
+        minutes: items.reduce((t, c) => t + (c.operativeDurationMinutes ?? 0), 0),
+      };
+    });
+  }, [filtered]);
+
+  const thisYear = new Date().getFullYear();
 
   if (cases.length === 0) {
     return (
-      <div>
-        <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
-          <div>
-            <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", letterSpacing: "-.5px" }}>Cases</div>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>0 logged</div>
-          </div>
+      <div className="case-ledger">
+        <div className="ledger-head">
+          <div><p className="ledger-eyebrow">Your operative record</p><h1 className="ledger-title">Cases</h1></div>
         </div>
-        <div style={{
-          display: "flex", flexDirection: "column", alignItems: "center",
-          padding: "48px 20px 20px", textAlign: "center",
-          maxWidth: 360, margin: "0 auto",
-        }}>
-          <ClipboardList size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
-          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
-            No cases logged yet
+        <div className="ledger-empty">
+          <div className="ledger-empty__title">Your logbook starts empty.</div>
+          <div className="ledger-empty__text">
+            Log a case the day you do it — a minute in the lounge beats an hour
+            reconstructing a month from memory.
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
-            Log your first case to see your dashboard come alive.
-          </div>
+          <ul className="ledger-empty__list">
+            <li>Quick-add captures procedure, role, and approach in about ten seconds.</li>
+            <li>OR times build your learning curve for each procedure.</li>
+            <li>Autonomy level is what turns a list into evidence of progression.</li>
+          </ul>
           <button
             onClick={() => setQuickAddOpen(true)}
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
-              padding: "9px 16px",
-              background: "var(--primary)", color: "#fff",
-              border: "none", borderRadius: 6,
-              fontSize: 12, fontWeight: 600,
+              marginTop: 6,
+              padding: "10px 16px",
+              background: "var(--primary-solid)", color: "#fff",
+              border: "none", borderRadius: "var(--r)",
+              fontSize: 13, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
-              letterSpacing: ".01em",
+              letterSpacing: "-.005em",
             }}
           >
-            <Plus size={13} strokeWidth={2.5} />
-            Log a Case
+            <Plus size={14} strokeWidth={2.5} />
+            Log your first case
           </button>
         </div>
         <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
@@ -816,43 +805,35 @@ export default function CasesPage() {
   }
 
   return (
-    <div>
-      {/* Header row: count + export */}
-      <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", marginBottom: 20 }}>
+    <div className="case-ledger">
+      {/* ── Masthead ───────────────────────────────────────────────────── */}
+      <div className="ledger-head">
         <div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", letterSpacing: "-.5px" }}>Cases</div>
-          <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2 }}>{filtered.length} logged</div>
+          <p className="ledger-eyebrow">Your operative record</p>
+          <h1 className="ledger-title">Cases</h1>
+          <p className="ledger-description">Every case. A clearer picture of your progress.</p>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="ledger-tools">
           <button
+            className="icon-btn"
+            title="Open the printable logbook in a new tab"
+            aria-label="Open printable logbook"
             onClick={() => {
-              if (!isPro) {
-                setPdfPaywall(true);
-                return;
-              }
+              if (!isPro) { setPdfPaywall(true); return; }
               window.open("/cases/logbook-print", "_blank", "noopener,noreferrer");
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              background: "none",
-              border: "none",
-              padding: 0,
-              fontSize: 12,
-              color: "var(--text-3)",
-              cursor: "pointer",
-              fontFamily: "inherit",
-              transition: "color .15s",
-            }}
-            title="Open logbook in a new tab to save as PDF"
           >
-            <Printer size={13} /> Logbook PDF
+            <Printer size={15} strokeWidth={1.6} />
           </button>
           <button
+            className="icon-btn"
             disabled={exporting}
+            title="Export every case to .xlsx"
+            aria-label="Export to xlsx"
+            style={exporting ? { opacity: 0.5, cursor: "wait" } : undefined}
             onClick={async () => {
               setExporting(true);
+              setExportError(null);
               try {
                 const res = await fetch('/api/export', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({}) });
                 if (!res.ok) throw new Error('Export failed');
@@ -863,28 +844,34 @@ export default function CasesPage() {
                 a.download = `Hippo-Export-${new Date().toISOString().slice(0, 10)}.xlsx`;
                 document.body.appendChild(a); a.click(); document.body.removeChild(a);
                 URL.revokeObjectURL(url);
-              } catch { alert('Export failed. Please try again.'); }
+              } catch { setExportError('Export failed. Your cases are unchanged. Please try again.'); }
               finally { setExporting(false); }
             }}
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 5,
-              background: "none",
-              border: "none",
-              padding: 0,
-              fontSize: 12,
-              color: exporting ? "var(--muted)" : "var(--text-3)",
-              cursor: exporting ? "wait" : "pointer",
-              fontFamily: "inherit",
-              opacity: exporting ? 0.5 : 1,
-              transition: "opacity .15s",
-            }}
           >
-            <Download size={13} /> {exporting ? "Exporting\u2026" : "Export .xlsx"}
+            <Download size={15} strokeWidth={1.6} />
           </button>
+          <button className="ledger-primary ledger-primary--desktop" onClick={() => setQuickAddOpen(true)}><Plus size={15} /> Log a case</button>
         </div>
       </div>
+
+      {exportError && <p className="ledger-error" role="alert">{exportError}</p>}
+
+      {/* ── Aggregate strip ────────────────────────────────────────────── */}
+      <div className="ledger-summary">
+        <div className="ledger-stat">
+          <div className="ledger-stat__value">{summary.count.toLocaleString()}</div>
+          <div className="ledger-stat__label">{isRefined ? "Matching cases" : "Cases logged"}</div>
+        </div>
+        <div className="ledger-stat">
+          <div className="ledger-stat__value">{summary.hours.toLocaleString(undefined, { maximumFractionDigits: 1 })}<small>h</small></div>
+          <div className="ledger-stat__label">In the OR</div>
+        </div>
+        <div className="ledger-stat">
+          <div className="ledger-stat__value">{summary.independentRate}<small>%</small></div>
+          <div className="ledger-stat__label" title="Cases logged as independent or teaching">Independent / teaching</div>
+        </div>
+      </div>
+
       <PaywallModal
         open={pdfPaywall}
         onClose={() => setPdfPaywall(false)}
@@ -893,257 +880,180 @@ export default function CasesPage() {
         body="One branded, PHIA-safe document — ready for fellowship applications, job interviews, or end-of-year reviews."
       />
 
-      {/* Search — glass input */}
-      <div style={{ position: "relative", marginBottom: 12 }}>
-        <Search size={14} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--muted)" }} />
-        <input
-          className="st-input"
-          style={{ paddingLeft: 34, fontSize: 13 }}
-          placeholder="Search procedures…"
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Year tabs + filter toggle */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-        <div className="year-tabs" style={{ marginBottom: 0 }}>
-          {years.map(y => (
-            <button key={y} className={`year-tab${year === y ? " active" : ""}`} onClick={() => setYear(y)}>{y}</button>
-          ))}
+      {/* ── Sticky toolbar: search · years · filters ───────────────────── */}
+      <div className="ledger-toolbar">
+        <div className="ledger-search">
+          <Search size={14} strokeWidth={1.8} />
+          <input
+            placeholder="Search procedures"
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            aria-label="Search procedures"
+          />
+          {search && (
+            <button
+              className="ledger-search__clear"
+              onClick={() => setSearch("")}
+              aria-label="Clear search"
+            >
+              <X size={13} />
+            </button>
+          )}
         </div>
+
+        {years.length > 1 && (
+          <div className="seg" role="group" aria-label="Filter by year">
+            {years.map(y => (
+              <button
+                key={y}
+                aria-pressed={year === y}
+                data-selected={year === y}
+                className="seg__item"
+                onClick={() => setYear(y)}
+              >
+                {y === "All" ? "All" : y === String(thisYear) ? "This year" : y}
+              </button>
+            ))}
+          </div>
+        )}
+
         <button
+          className="filter-toggle"
+          data-on={filterOpen || hasFilters}
+          aria-label="Filter cases"
+          aria-controls="case-filters"
+          aria-expanded={filterOpen}
           onClick={() => setFilterOpen(!filterOpen)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 4,
-            background: "none",
-            border: "none",
-            padding: "4px 0",
-            color: filterOpen ? "var(--primary)" : "var(--muted)",
-            fontSize: 11,
-            cursor: "pointer",
-            fontFamily: "inherit",
-            flexShrink: 0,
-            transition: "color .15s",
-          }}
         >
-          <Filter size={12} />
-          {hasFilters && <span style={{
-            width: 4, height: 4,
-            background: "var(--primary)",
-            borderRadius: "50%",
-            boxShadow: "0 0 6px rgba(14,165,233,0.3)",
-          }} />}
-          {filterOpen ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+          <Sliders size={13} strokeWidth={1.8} />
+          <span className="filter-toggle__label">Filters</span>
+          {hasFilters && <span className="filter-toggle__dot" />}
         </button>
       </div>
 
-      {/* Filters panel — glass chips */}
-      {filterOpen && (
-        <div style={{
-          marginBottom: 16,
-          padding: "14px 0",
-          borderTop: "1px solid var(--border)",
-          borderBottom: "1px solid var(--border)",
-        }}>
-          <div className="form-label">Approach</div>
-          <div className="chip-group" style={{ marginBottom: 12 }}>
-            {APPROACHES.map(a => (
-              <button key={a} className={`chip${approach === a ? " selected" : ""}`} onClick={() => setApproach(a)}>{a}</button>
-            ))}
-          </div>
-          <div className="form-label">Role</div>
-          <div className="chip-group">
-            {ROLES.map(r => (
-              <button key={r} className={`chip${role === r ? " selected" : ""}`} onClick={() => setRole(r)}>{r}</button>
-            ))}
+      {/* ── Filter drawer ──────────────────────────────────────────────── */}
+      {filterOpen && <div id="case-filters" className="filter-drawer" data-open="true">
+        <div className="filter-drawer__inner">
+          <div className="filter-drawer__body">
+            <div className="form-label">Approach</div>
+            <div className="chip-group" style={{ marginBottom: 14 }}>
+              {APPROACHES.map(a => (
+                <button key={a} aria-pressed={approach === a} className={`chip${approach === a ? " selected" : ""}`} onClick={() => setApproach(a)}>{a}</button>
+              ))}
+            </div>
+            <div className="form-label">Role</div>
+            <div className="chip-group">
+              {roles.map(r => (
+                <button key={r} aria-pressed={role === r} className={`chip${role === r ? " selected" : ""}`} onClick={() => setRole(r)}>{r}</button>
+              ))}
+            </div>
           </div>
         </div>
-      )}
+      </div>}
 
-      {/* Case list */}
-      {filtered.length === 0 ? (
-        <div className="empty-state">
-          <div className="empty-title">No cases found</div>
-          <div className="empty-text">Try adjusting your search or filters</div>
-        </div>
-      ) : (<>
-      {/* Column headings — desktop table view only (hidden on phones). */}
-      <div className="case-thead" aria-hidden>
-        <span />
-        <span>Procedure</span>
-        <span>Role</span>
-        <span>Approach</span>
-        <span>Time</span>
-        <span>Date</span>
-        <span style={{ gridColumn: "span 3", textAlign: "center" }}>Actions</span>
+      <div className="ledger-results">
+        <span role="status" aria-live="polite">{isRefined ? `${filtered.length} of ${cases.length} cases` : "All cases"} · Newest first</span>
+        {isRefined && <button className="ledger-reset" onClick={clearFilters}><X size={12} /> Clear filters</button>}
       </div>
-      {filtered.map(c => (
-        <div
-          key={c.id}
-          className="case-card"
-          onClick={() => setExpanded(c)}
-        >
-          {/* Approach dot with glow */}
-          <div style={{ paddingTop: 6, flexShrink: 0 }}>
-            <div style={{
-              width: 7, height: 7, borderRadius: "50%",
-              background: approachDot(c.surgicalApproach),
-              boxShadow: `0 0 6px ${approachDot(c.surgicalApproach)}33`,
-            }} />
+
+      {/* ── The ledger ─────────────────────────────────────────────────── */}
+      {filtered.length === 0 ? (
+        <div className="ledger-empty">
+          <div className="ledger-empty__title">Nothing matches that.</div>
+          <div className="ledger-empty__text">
+            {search
+              ? <>No procedure in your log contains &ldquo;{search}&rdquo;.</>
+              : "No case matches the current filters."}
           </div>
-          {/* Content */}
-          <div className="case-body" style={{ flex: 1, minWidth: 0 }}>
-            <div className="case-top" style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-              <div className="case-proc">{c.procedureName}</div>
-              {/* Desktop table cells (hidden on phones, where .case-meta shows) */}
-              <div className="case-col">{c.role}</div>
-              <div className="case-col">{APPROACH_LABELS[c.surgicalApproach] ?? c.surgicalApproach}</div>
-              <div className="case-col case-col-num">{c.operativeDurationMinutes ? `${c.operativeDurationMinutes}m` : "\u2014"}</div>
-              <div className="case-actions" style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                <div className="case-date">
-                  {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+          <button
+            onClick={clearFilters}
+            style={{
+              marginTop: 4, padding: "8px 14px",
+              background: "var(--surface2)", color: "var(--text)",
+              border: "1px solid var(--border-mid)", borderRadius: "var(--r)",
+              fontSize: 12.5, fontWeight: 500, cursor: "pointer", fontFamily: "inherit",
+            }}
+          >
+            Clear filters
+          </button>
+        </div>
+      ) : groups.map(g => (
+        <section className="case-group" key={g.key}>
+          <header className="case-group__head">
+            <div className="case-group__month">
+              {g.month}{g.year !== thisYear && <i>{g.year}</i>}
+            </div>
+            <div className="case-group__agg">
+              {g.items.length} {g.items.length === 1 ? "case" : "cases"}
+              {g.minutes > 0 && ` · ${formatDuration(g.minutes)}`}
+            </div>
+          </header>
+
+          {g.items.map(c => {
+            const rail      = approachDot(c.surgicalApproach);
+            const hasDebrief = parseStoredReflection(c.reflection).structured !== null;
+            const d         = new Date(c.caseDate);
+            return (
+              <div className="case-row" key={c.id}>
+                <span className="case-row__rail" style={{ color: rail }} />
+
+                <div className="case-row__body">
+                  <button
+                    className="case-row__open"
+                    onClick={() => setExpanded(c)}
+                    aria-label={`Open ${c.procedureName}`}
+                  >
+                    <span className="case-row__title">{c.procedureName}</span>
+                    <span className="case-row__meta">
+                      <b>{c.role}</b>
+                      <s>·</s>
+                      <span>{APPROACH_LABELS[c.surgicalApproach] ?? c.surgicalApproach}</span>
+                    </span>
+                  </button>
                 </div>
-                {/* Debrief button — filled purple when this case already
-                    has a structured debrief logged, otherwise muted outline. */}
-                {(() => {
-                  const hasDebrief =
-                    parseStoredReflection(c.reflection).structured !== null;
-                  return (
+
+                <div className="case-row__tail">
+                  {c.operativeDurationMinutes ? <span className="case-row__duration">{formatDuration(c.operativeDurationMinutes)}</span> : null}
+                  <span className="case-row__date">
+                    {d.toLocaleDateString("en-CA", { weekday: "short" })} {d.getDate()}
+                  </span>
+                  <span className="case-row__actions">
                     <button
+                      className="icon-btn"
+                      data-on={hasDebrief}
                       onClick={(e) => { e.stopPropagation(); setDebrief(c); }}
                       title={hasDebrief ? "Edit debrief" : "Add debrief"}
                       aria-label={hasDebrief ? "Edit debrief" : "Add debrief"}
-                      style={{
-                        background: hasDebrief
-                          ? "rgba(168,85,247,0.14)"
-                          : "var(--glass)",
-                        border: `1px solid ${hasDebrief ? "rgba(168,85,247,0.4)" : "var(--border-mid)"}`,
-                        borderRadius: 5,
-                        width: 34,
-                        height: 34,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                        cursor: "pointer",
-                        color: hasDebrief ? "#c4b5fd" : "var(--text-3)",
-                        transition: "all .15s",
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        if (!hasDebrief) {
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-glass)";
-                          (e.currentTarget as HTMLButtonElement).style.color = "#c4b5fd";
-                        }
-                      }}
-                      onMouseLeave={e => {
-                        if (!hasDebrief) {
-                          (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                          (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                        }
-                      }}
                     >
-                      <MessageSquare size={14} />
+                      <MessageSquare size={14} strokeWidth={1.7} />
                     </button>
-                  );
-                })()}
-                {/* Dictation button */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setDictation(c); }}
-                  title="Generate dictation"
-                  aria-label="Generate dictation"
-                  style={{
-                    background: "var(--glass)",
-                    border: "1px solid var(--border-mid)",
-                    borderRadius: 5,
-                    width: 34,
-                    height: 34,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    color: "var(--text-3)",
-                    transition: "all .15s",
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-glass)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--primary-hi)";
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                  }}
-                >
-                  <FileText size={14} />
-                </button>
-                {/* Share-as-pearl button — opens the PostComposer seeded from
-                    this case. Inline on the row so residents don't have to
-                    open the detail sheet first. */}
-                <button
-                  onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
-                  title="Share as pearl"
-                  aria-label="Share as pearl"
-                  style={{
-                    background: "var(--glass)",
-                    border: "1px solid var(--border-mid)",
-                    borderRadius: 5,
-                    width: 34,
-                    height: 34,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    cursor: "pointer",
-                    color: "var(--text-3)",
-                    transition: "all .15s",
-                    flexShrink: 0,
-                  }}
-                  onMouseEnter={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
-                  }}
-                  onMouseLeave={e => {
-                    (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                    (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                  }}
-                >
-                  <Share2 size={14} />
-                </button>
+                    <button
+                      className="icon-btn"
+                      onClick={(e) => { e.stopPropagation(); setDictation(c); }}
+                      title="Generate dictation"
+                      aria-label="Generate dictation"
+                    >
+                      <FileText size={14} strokeWidth={1.7} />
+                    </button>
+                  </span>
+                </div>
               </div>
-            </div>
-            <div className="case-meta">
-              <span>{c.role}</span>
-              <span style={{ color: "var(--muted)" }}>&middot;</span>
-              <span>{APPROACH_LABELS[c.surgicalApproach] ?? c.surgicalApproach}</span>
-              {c.operativeDurationMinutes && (
-                <>
-                  <span style={{ color: "var(--muted)" }}>&middot;</span>
-                  <span>{c.operativeDurationMinutes}m</span>
-                </>
-              )}
-            </div>
-          </div>
-        </div>
+            );
+          })}
+        </section>
       ))}
-      </>)}
 
       {expanded && (
         <Sheet
           c={expanded}
           onClose={() => setExpanded(null)}
           onDelete={(id) => { deleteCase(id); setExpanded(null); }}
-          onShareAsPearl={(id) => { setShareCaseId(id); setExpanded(null); }}
+          onDebrief={(cs) => { setExpanded(null); setDebrief(cs); }}
+          onDictate={(cs) => { setExpanded(null); setDictation(cs); }}
         />
       )}
 
-      <PostComposer
-        open={shareCaseId !== null}
-        onClose={() => setShareCaseId(null)}
-        source={shareCaseId ? { kind: "case", caseId: shareCaseId } : undefined}
-        onPublished={() => setShareCaseId(null)}
-      />
+      <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
 
 
       {dictation && (

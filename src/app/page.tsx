@@ -61,7 +61,7 @@ export default function RootPage() {
         <p
           style={{
             fontSize: 13,
-            color: "#475569",
+            color: "var(--text-3)",
             marginTop: 8,
             animation: "oe-fadeInUp 0.3s cubic-bezier(.16,1,.3,1) 0.2s both",
           }}

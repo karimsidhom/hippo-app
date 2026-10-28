@@ -463,7 +463,7 @@ export function EventComposerSheet({
             style={{
               flex: 1,
               padding: "10px 14px",
-              background: saving ? "var(--muted)" : "var(--primary)",
+              background: saving ? "var(--text-3)" : "var(--primary)",
               border: "none",
               borderRadius: 8,
               color: "#fff",

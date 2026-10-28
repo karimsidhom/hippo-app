@@ -590,7 +590,7 @@ export default function DictationSettingsPage() {
               onChange={(e) => setNewPreferredPhrase(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addPreferredPhrase()}
               placeholder="Add a phrase you prefer…"
-              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
+              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--text-3)]"
             />
             <button
               onClick={addPreferredPhrase}
@@ -638,7 +638,7 @@ export default function DictationSettingsPage() {
               onChange={(e) => setNewAvoidPhrase(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addAvoidPhrase()}
               placeholder="Add a phrase to strip out…"
-              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
+              className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--text-3)]"
             />
             <button
               onClick={addAvoidPhrase}
@@ -689,7 +689,7 @@ export default function DictationSettingsPage() {
               value={newSubFrom}
               onChange={(e) => setNewSubFrom(e.target.value)}
               placeholder="Replace…"
-              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
+              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--text-3)]"
             />
             <span className="text-[var(--text-3)] text-xs">→</span>
             <input
@@ -698,7 +698,7 @@ export default function DictationSettingsPage() {
               onChange={(e) => setNewSubTo(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && addSubstitution()}
               placeholder="With…"
-              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--muted)]"
+              className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] text-sm rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[var(--primary)] placeholder:text-[var(--text-3)]"
             />
             <button
               onClick={addSubstitution}

@@ -258,7 +258,7 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSu
                 padding: "7px 16px",
                 borderRadius: 6,
                 border: "none",
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 color: "#fff",
                 fontSize: 12,
                 fontWeight: 600,
@@ -1136,7 +1136,7 @@ function EpaEmptyCases() {
         style={{
           display: "inline-flex", alignItems: "center", gap: 6,
           padding: "9px 16px",
-          background: "var(--primary)", color: "#fff",
+          background: "var(--primary-solid)", color: "#fff",
           border: "none", borderRadius: 6,
           fontSize: 12, fontWeight: 600,
           cursor: "pointer", fontFamily: "inherit",

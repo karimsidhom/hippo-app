@@ -356,7 +356,7 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
                 onClick={handleSubmitComment}
                 disabled={submittingComment || !commentText.trim()}
                 style={{
-                  padding: "8px 12px", background: "var(--primary)", color: "#fff",
+                  padding: "8px 12px", background: "var(--primary-solid)", color: "#fff",
                   border: "none", borderRadius: 6, cursor: "pointer",
                   fontFamily: "'Geist', sans-serif",
                   opacity: submittingComment || !commentText.trim() ? 0.5 : 1,

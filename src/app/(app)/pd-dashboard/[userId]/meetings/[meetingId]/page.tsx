@@ -466,7 +466,7 @@ export default function MeetingPage() {
             disabled={publishing}
             style={{
               padding: '10px 22px', borderRadius: 9, border: '1px solid var(--primary)',
-              background: 'var(--primary)', color: '#fff', fontSize: 14, fontWeight: 600,
+              background: 'var(--primary-solid)', color: '#fff', fontSize: 14, fontWeight: 600,
               cursor: publishing ? 'wait' : 'pointer', fontFamily: 'inherit',
               opacity: publishing ? 0.6 : 1,
             }}

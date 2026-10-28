@@ -28,11 +28,18 @@
   --border-glass: rgba(14,165,233,0.08);
   --border-glow:  rgba(14,165,233,0.16);
 
-  /* Text — 4-tier hierarchy */
-  --text:         #E2E8F0;
-  --text-2:       #64748B;
-  --text-3:       #475569;
-  --muted:        #334155;
+  /* Text — 4-tier hierarchy.
+     Contrast ratios against the #060d13 canvas (WCAG 2.1 AA needs 4.5:1 for
+     body text, 3:1 for UI components). The previous scale measured
+     text-2 4.11 / text-3 2.58 / muted 1.89 — two of the four tiers were
+     effectively unreadable, which is why labels, placeholders, meta rows and
+     hints looked washed out. Re-pitched so every tier that carries TEXT
+     clears 4.5, and --muted is demoted to decoration only (borders, dots,
+     disabled glyphs) where 3:1 applies. */
+  --text:         #E2E8F0;   /* 15.85:1 */
+  --text-2:       #94A3B8;   /*  7.62:1 */
+  --text-3:       #7C8FA6;   /*  5.90:1 */
+  --muted:        #5B6B7F;   /*  3.59:1 — non-text only */
 
   /* Single accent — Surgical Teal */
   --primary:      #0EA5E9;
@@ -40,6 +47,14 @@
   --primary-lo:   #0284C7;
   --primary-dim:  rgba(14,165,233,0.05);
   --primary-glow: rgba(14,165,233,0.10);
+
+  /* Filled-button fill. --primary (#0EA5E9) is tuned to sit ON the dark
+     canvas as a stroke/accent; white text on it measures only 2.77:1, so
+     every solid CTA in the app was failing AA. These two are the same teal
+     stepped deep enough to carry white text (5.93:1 / 4.94:1 on hover)
+     while still clearing 3:1 against the canvas as a UI surface. */
+  --primary-solid:    #0369A1;
+  --primary-solid-hi: #0477AE;
 
   /* Surface levels (used by EPA form and modals) */
   --bg-1:         #0e1520;
@@ -90,11 +105,15 @@
   --border-glass: rgba(14,165,233,0.12);
   --border-glow:  rgba(14,165,233,0.20);
 
-  /* Text */
-  --text:         #0f172a;
-  --text-2:       #64748b;
-  --text-3:       #94a3b8;
-  --muted:        #cbd5e1;
+  /* Text — same rule on white. Was text-3 2.45 / muted 1.42. */
+  --text:         #0f172a;   /* 17.06:1 */
+  --text-2:       #51606f;   /*  6.69:1 */
+  --text-3:       #5f6d80;   /*  4.81:1 on --surface2, 5.04 on --bg.
+                                  #64748b cleared 4.5 against the page but
+                                  only managed 4.34 on the surface2 tint that
+                                  progress cards use, so it is pitched one
+                                  step darker to clear AA on every surface. */
+  --muted:        #7d8da3;   /*  3.27:1 — non-text only */
 
   /* Accent — same teal, slightly deeper for contrast on white */
   --primary:      #0284C7;
@@ -102,6 +121,9 @@
   --primary-lo:   #0369A1;
   --primary-dim:  rgba(14,165,233,0.06);
   --primary-glow: rgba(14,165,233,0.12);
+
+  --primary-solid:    #0369A1;
+  --primary-solid-hi: #0477AE;
 
   /* Surface levels */
   --bg-1:         #ffffff;
@@ -137,6 +159,9 @@
   --primary-dim:  rgba(220,38,38,0.05);
   --primary-glow: rgba(220,38,38,0.10);
 
+  --primary-solid:    #B91C1C;   /* white 6.06:1 */
+  --primary-solid-hi: #C62525;
+
   --glass:        rgba(220,38,38,0.02);
   --glass-mid:    rgba(220,38,38,0.04);
   --glass-hi:     rgba(220,38,38,0.06);
@@ -158,6 +183,9 @@
   --primary-lo:   #991B1B;
   --primary-dim:  rgba(220,38,38,0.06);
   --primary-glow: rgba(220,38,38,0.12);
+
+  --primary-solid:    #B91C1C;
+  --primary-solid-hi: #C62525;
 
   --glass:        rgba(220,38,38,0.03);
   --glass-mid:    rgba(220,38,38,0.05);
@@ -343,10 +371,20 @@ body {
 /* Anything that doesn't intentionally need to be wider than the viewport
    should clip cleanly. Individual children can override via overflow-x:auto
    when they need horizontal scrolling (long tables etc.). */
-#app-root, #portal-root {
+#app-root, #portal-root, .app-shell {
   width: 100%;
   max-width: 100vw;
+  /* `hidden` makes these scroll containers (overflow-y resolves to auto),
+     which silently kills every position:sticky inside them — that is why
+     the app header never actually stuck. `clip` prevents the same
+     horizontal overflow WITHOUT establishing a scrollport, so sticky
+     headers, toolbars, and month rules work as written. The `hidden`
+     declaration stays first as the fallback for browsers predating clip
+     (Safari < 16); they lose sticky but keep the overflow guard. */
   overflow-x: hidden;
+}
+@supports (overflow-x: clip) {
+  #app-root, #portal-root, .app-shell { overflow-x: clip; }
 }
 
 /* Full-viewport helpers that respect the iOS URL bar. Use these instead
@@ -368,6 +406,24 @@ body {
 * { scrollbar-width: thin; scrollbar-color: rgba(14,165,233,0.12) transparent; }
 
 ::selection { background: rgba(14,165,233,0.25); color: var(--text); }
+
+/* Hardcoded dim hexes from the Tailwind-era components. These were only
+   remapped under [data-theme="light"]; in dark mode they kept rendering at
+   2.6:1 (#475569) and 1.9:1 (#334155). Remap them in both themes so the
+   token scale is the single source of truth for text contrast. */
+.text-\[\#475569\],
+.text-\[\#334155\] { color: var(--text-3); }
+.text-\[\#64748b\],
+.text-\[\#64748B\],
+.text-\[\#94a3b8\] { color: var(--text-2); }
+
+/* Placeholders are text and must clear 4.5:1 everywhere — including the
+   many inputs in this app that are styled inline rather than via .st-input. */
+input::placeholder,
+textarea::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ANIMATIONS
@@ -612,7 +668,7 @@ body {
   box-shadow: 0 0 0 3px rgba(14,165,233,0.06);
   background: var(--surface2);
 }
-.st-input::placeholder { color: var(--muted); }
+.st-input::placeholder { color: var(--text-3); }
 
 select.st-input {
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%232D3748' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
@@ -636,8 +692,9 @@ select.st-input {
 }
 .st-btn:active { transform: scale(0.98); opacity: .9; }
 .st-btn-primary {
-  background: linear-gradient(135deg, var(--primary), var(--primary-lo));
+  background: var(--primary-solid);
   color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
   box-shadow: 0 2px 12px -2px rgba(14,165,233,0.25);
 }
 .st-btn-primary:hover {
@@ -851,6 +908,37 @@ select.st-input {
   background: var(--border-mid);
   border-radius: 2px;
   margin: 0 auto 18px;
+}
+
+/* Desktop: a sheet anchored to the bottom edge with a drag handle is a
+   phone idiom — on a mouse-driven viewport it reads as a phone app in a
+   browser window. From 1024px up the same panel becomes a centred dialog:
+   all four corners rounded, no grab handle, elevation instead of a
+   screen-edge anchor. `align-self` overrides the `align-items: flex-end`
+   set inline on the overlay, so no markup change is needed for panels
+   that already use .sheet. Mobile is untouched.
+   .sheet-overlay / .sheet-panel / .sheet-grab are the opt-in hooks for
+   sheets built with inline styles instead of .sheet (e.g. QuickAddModal). */
+@media (min-width: 640px) {
+  .sheet {
+    align-self: center;
+    border-radius: var(--rl);
+    max-height: 84vh;
+    box-shadow:
+      inset 0 1px 0 rgba(255,255,255,0.05),
+      0 24px 60px rgba(0,0,0,0.45);
+  }
+  .sheet-handle { display: none; }
+
+  .sheet-overlay { align-items: center !important; }
+  .sheet-panel {
+    align-self: center;
+    border-radius: var(--rl) !important;
+    border-bottom: 1px solid var(--border-mid) !important;
+    max-height: 84vh !important;
+    box-shadow: 0 24px 60px rgba(0,0,0,0.45);
+  }
+  .sheet-grab { display: none !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -1270,65 +1358,1241 @@ button:not(:disabled):not([aria-disabled="true"]):active {
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   DESKTOP SHELL (≥ 1024px)
-   Phones keep the bottom-nav PWA layout untouched. On a computer the app
-   gets a fixed left sidebar, no bottom bar, a wider canvas and slightly
-   stronger text/border contrast (the phone values read too faint on a
-   monitor at arm's length).
+   CASE LEDGER — v3
+   ───────────────────────────────────────────────────────────────────────────
+   Reference set (what was taken, per the Hippo design bar):
+     · Flighty / Apple Fitness — month-grouped timeline where the section
+       header carries that period's aggregate, so the list reads as a record
+       rather than a feed.
+     · Linear — ONE tap target per row. Row actions are revealed on hover on
+       pointer devices and never crowd a phone; density over decoration;
+       hairline group rules instead of a border on every row.
+     · Things 3 — press feedback is a soft background wash plus a 0.5px top
+       highlight. No scale-bounce, no shadow "pop".
+     · Strava — a leading rail encodes modality (here: surgical approach) and
+       the date sits right-aligned in tabular figures.
+     · Apple HIG — 44px minimum hit area, safe areas, tabular numerals.
+
+   Everything below is token-only, so light mode and the clinic red module
+   inherit it for free.
    ═══════════════════════════════════════════════════════════════════════════ */
-.desk-sidebar { display: none; }
 
-@media (min-width: 1024px) {
-  :root:not([data-theme="light"]) {
-    --text-2:     #8494a8;
-    --text-3:     #66768c;
-    --muted:      #4a5a70;
-    --border:     rgba(255,255,255,0.07);
-    --border-mid: rgba(255,255,255,0.10);
-  }
+:root {
+  --ease: cubic-bezier(.16, 1, .3, 1);
+  --app-header-h: calc(48px + env(safe-area-inset-top));
+}
 
-  .desk-sidebar {
-    display: flex;
-    flex-direction: column;
-    position: fixed;
-    top: 0; left: 0; bottom: 0;
-    width: var(--desk-sidebar-w);
-    padding: 22px 14px 16px;
-    background: var(--bg-elevated);
-    border-right: 1px solid var(--border);
-    z-index: 60;
-    overflow-y: auto;
-  }
-  .app-shell { padding-left: var(--desk-sidebar-w); }
-  .app-header, .app-nav, .app-nav-backdrop { display: none !important; }
-  .app-shell .app-main {
-    max-width: 1240px !important;
-    padding: 36px 48px 64px !important;
-  }
+/* ─── Page masthead ─────────────────────────────────────────────────────── */
 
-  .desk-nav-link {
-    display: flex; align-items: center; gap: 11px;
-    height: 38px; padding: 0 12px;
-    border-radius: 8px;
-    font-size: 14px; font-weight: 500;
-    color: var(--text-2);
-    text-decoration: none;
-    transition: background .15s, color .15s;
-  }
-  .desk-nav-link:hover { background: var(--surface2); color: var(--text); }
-  .desk-nav-link[aria-current="page"] {
-    background: var(--primary-dim);
-    color: var(--text);
-    box-shadow: inset 2px 0 0 var(--primary);
-  }
-  .desk-nav-link[aria-current="page"] svg { color: var(--primary); }
-  .desk-section-label {
-    font-size: 10px; font-weight: 600; letter-spacing: .1em;
-    text-transform: uppercase; color: var(--text-3);
-    padding: 18px 12px 6px;
+.ledger-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 18px;
+}
+.ledger-title {
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  color: var(--text);
+  margin: 0;
+}
+@media (min-width: 768px) { .ledger-title { font-size: 30px; } }
+
+/* The aggregate strip. Figures are large and tabular; labels are the
+   9pt uppercase micro-label. Hairline dividers sit BETWEEN figures only. */
+.ledger-summary {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  margin: 0 0 20px;
+  padding: 14px 0 2px;
+  border-top: 1px solid var(--border);
+}
+.ledger-stat {
+  flex: 0 1 auto;
+  min-width: 0;
+  padding-right: 22px;
+}
+.ledger-stat + .ledger-stat {
+  padding-left: 22px;
+  border-left: 1px solid var(--border);
+}
+@media (max-width: 400px) {
+  .ledger-stat { padding-right: 14px; }
+  .ledger-stat + .ledger-stat { padding-left: 14px; }
+}
+.ledger-stat__value {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.ledger-stat__value small {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-3);
+  margin-left: 2px;
+  letter-spacing: 0;
+}
+.ledger-stat__label {
+  margin-top: 5px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ─── Icon button primitive ─────────────────────────────────────────────── */
+/* 44px hit area, 30px visual chrome — the gap is padding, not a bigger box. */
+
+.icon-btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: var(--rs);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  font-family: inherit;
+  transition: color .18s var(--ease), background-color .18s var(--ease),
+              border-color .18s var(--ease);
+}
+.icon-btn::after {
+  /* Invisible 44×44 target per HIG, centred on the visual chrome. */
+  content: '';
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 44px; height: 44px;
+  transform: translate(-50%, -50%);
+}
+.icon-btn:hover {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border-mid);
+}
+.icon-btn:active { background: var(--glass-mid); }
+.icon-btn:focus-visible {
+  outline: none;
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.icon-btn[data-on="true"] {
+  color: var(--primary-hi);
+  background: var(--primary-dim);
+  border-color: var(--border-glass);
+}
+
+/* ─── Toolbar: search + segmented control ───────────────────────────────── */
+
+.ledger-toolbar {
+  position: sticky;
+  top: var(--app-header-h);
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  margin-bottom: 2px;
+  background: var(--bg);
+}
+/* Under ~430px the search box gets squeezed to "Search proce…", so the
+   controls drop to a second row and the field takes the full width. */
+@media (max-width: 460px) {
+  :root { --ledger-toolbar-h: 104px; }
+  .ledger-toolbar { flex-wrap: wrap; row-gap: 8px; }
+  .ledger-search { flex: 1 0 100%; order: 1; }
+  .seg { order: 2; flex: 1 1 auto; }
+  .seg__item { flex: 1 1 auto; }
+  .filter-toggle { order: 3; }
+}
+/* Bleed the sticky background to the column edges so rows scrolling
+   underneath are covered cleanly, and feather the bottom edge. */
+.ledger-toolbar::before {
+  content: '';
+  position: absolute;
+  inset: 0 -20px;
+  background: var(--bg);
+  z-index: -1;
+}
+.ledger-toolbar::after {
+  content: '';
+  position: absolute;
+  left: -20px; right: -20px; bottom: -14px;
+  height: 14px;
+  background: linear-gradient(to bottom, var(--bg), transparent);
+  pointer-events: none;
+}
+.ledger-search {
+  position: relative;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.ledger-search > svg {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--text-3);
+  pointer-events: none;
+  transition: color .18s var(--ease);
+}
+.ledger-search input {
+  width: 100%;
+  height: 38px;
+  padding: 0 32px 0 33px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  color: var(--text);
+  font-size: 13.5px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease),
+              background-color .18s var(--ease);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.02);
+}
+.ledger-search input::placeholder { color: var(--text-3); }
+.ledger-search input:focus {
+  background: var(--surface2);
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.ledger-search:focus-within > svg { color: var(--primary); }
+.ledger-search__clear {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0;
+  border-radius: 999px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color .15s var(--ease), background-color .15s var(--ease);
+}
+.ledger-search__clear:hover { color: var(--text); background: var(--surface2); }
+
+/* Segmented control — one recessed track, the active item lifts out of it. */
+.seg {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+  padding: 3px;
+  border-radius: var(--r);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.18);
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+[data-theme="light"] .seg { box-shadow: inset 0 1px 2px rgba(15,23,42,0.05); }
+.seg::-webkit-scrollbar { display: none; }
+.seg__item {
+  appearance: none;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  padding: 0 11px;
+  height: 30px;
+  min-width: 40px;
+  border-radius: var(--rs);
+  cursor: pointer;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  transition: color .18s var(--ease), background-color .18s var(--ease),
+              border-color .18s var(--ease);
+}
+.seg__item:hover { color: var(--text-2); }
+.seg__item[aria-selected="true"] {
+  color: var(--text);
+  background: var(--surface2);
+  border-color: var(--border-mid);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.05);
+  font-weight: 600;
+}
+[data-theme="light"] .seg__item[aria-selected="true"] {
+  background: var(--bg-elevated);
+  box-shadow: 0 1px 2px rgba(15,23,42,0.06);
+}
+.seg__item:focus-visible {
+  outline: none;
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+
+/* Filter disclosure sits outside the segmented track. */
+.filter-toggle {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-mid);
+  background: var(--surface);
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color .18s var(--ease), background-color .18s var(--ease),
+              border-color .18s var(--ease);
+}
+.filter-toggle:hover { color: var(--text); border-color: var(--border-mid); background: var(--surface2); }
+.filter-toggle[data-on="true"] {
+  color: var(--primary-hi);
+  background: var(--primary-dim);
+  border-color: var(--border-glass);
+}
+.filter-toggle__dot {
+  width: 5px; height: 5px;
+  border-radius: 999px;
+  background: var(--primary);
+}
+
+/* Filter drawer — grid-rows trick animates height without a measured px. */
+.filter-drawer {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows .32s var(--ease);
+}
+.filter-drawer[data-open="true"] { grid-template-rows: 1fr; }
+.filter-drawer__inner { overflow: hidden; min-height: 0; }
+.filter-drawer__body {
+  padding: 14px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .filter-drawer { transition: none; }
+}
+
+/* ─── Month group ───────────────────────────────────────────────────────── */
+
+.case-group + .case-group { margin-top: 10px; }
+
+.case-group__head {
+  position: sticky;
+  top: calc(var(--app-header-h) + var(--ledger-toolbar-h, 58px));
+  z-index: 4;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 9px 0 8px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.case-group__head::before {
+  content: '';
+  position: absolute;
+  inset: 0 -20px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  z-index: -1;
+}
+.case-group__month {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-2);
+}
+.case-group__month i {
+  font-style: normal;
+  color: var(--text-3);
+  font-weight: 500;
+  margin-left: 6px;
+  letter-spacing: 0.06em;
+}
+.case-group__agg {
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ─── The row ───────────────────────────────────────────────────────────── */
+
+.case-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  align-items: center;
+  column-gap: 13px;
+  width: 100%;
+  padding: 13px 10px 13px 0;
+  margin: 0 -10px;
+  padding-left: 10px;
+  border: none;
+  border-radius: var(--r);
+  background: transparent;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color .2s var(--ease);
+}
+.case-row + .case-row::before {
+  /* Hairline between rows, inset past the rail so the rule reads as a
+     list separator rather than a box. */
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 26px;
+  right: 10px;
+  height: 1px;
+  background: var(--border);
+}
+.case-row:hover { background: var(--glass); }
+.case-row:hover + .case-row::before,
+.case-row:hover::before { background: transparent; }
+.case-row:active { background: var(--glass-mid); }
+.case-row:focus-within { background: var(--glass); }
+
+/* Stretched-hit-area pattern: the row itself is a plain container so the
+   action buttons stay valid, focusable children. The open button covers
+   the whole row via a transparent ::after, and the tail lifts above it. */
+.case-row__body { display: block; min-width: 0; }
+.case-row__open {
+  display: block;
+  width: 100%;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+}
+.case-row__open::after { content: ''; position: absolute; inset: 0; }
+.case-row__open:focus-visible { outline: none; }
+.case-row:has(.case-row__open:focus-visible) {
+  background: var(--glass);
+  box-shadow: inset 0 0 0 1px var(--border-glow);
+}
+.case-row__title { display: block; }
+.case-row__tail { position: relative; z-index: 1; }
+
+/* The approach rail. Colour is set inline from the approach map. */
+.case-row__rail {
+  width: 3px;
+  height: 26px;
+  border-radius: 999px;
+  background: currentColor;
+  opacity: 0.85;
+  align-self: center;
+  transition: height .25s var(--ease), opacity .2s var(--ease);
+}
+.case-row:hover .case-row__rail { height: 32px; opacity: 1; }
+
+.case-row__title {
+  font-size: 14.5px;
+  font-weight: 550;
+  line-height: 1.25;
+  letter-spacing: -0.012em;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+@media (max-width: 767px) {
+  .case-row__title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    -webkit-box-orient: vertical;
   }
 }
-:root { --desk-sidebar-w: 240px; }
+.case-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 3px;
+  font-size: 12px;
+  line-height: 1.3;
+  color: var(--text-3);
+  overflow: hidden;
+  white-space: nowrap;
+}
+.case-row__meta b {
+  font-weight: 500;
+  color: var(--text-2);
+}
+.case-row__meta s {
+  /* Separator dot. <s> is purely a short tag here, decoration removed. */
+  text-decoration: none;
+  color: var(--muted);
+}
+.case-row__dur {
+  font-variant-numeric: tabular-nums;
+  color: var(--text-3);
+}
+
+/* Right column: the date, and the actions that replace it on hover. */
+.case-row__tail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  min-width: 56px;
+  height: 32px;
+}
+.case-row__date {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+  transition: opacity .18s var(--ease), transform .25s var(--ease);
+}
+.case-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+/* Pointer devices: the date gives way to the action cluster on hover.
+   Touch devices never render the cluster at all — the actions live in
+   the detail sheet, which is what keeps the phone row readable. */
+@media (hover: hover) and (pointer: fine) {
+  .case-row__actions {
+    position: absolute;
+    right: 0;
+    opacity: 0;
+    transform: translateX(6px);
+    pointer-events: none;
+    transition: opacity .2s var(--ease), transform .28s var(--ease);
+  }
+  .case-row:hover .case-row__date,
+  .case-row:focus-within .case-row__date {
+    opacity: 0;
+    transform: translateX(-6px);
+  }
+  .case-row:hover .case-row__actions,
+  .case-row:focus-within .case-row__actions {
+    opacity: 1;
+    transform: translateX(0);
+    pointer-events: auto;
+  }
+}
+@media (hover: none), (pointer: coarse) {
+  .case-row__actions { display: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .case-row, .case-row__rail, .case-row__date, .case-row__actions {
+    transition: none;
+  }
+}
+
+/* ─── Skeleton row (loading) ────────────────────────────────────────────── */
+
+.case-row--skeleton {
+  display: grid;
+  grid-template-columns: 3px minmax(0, 1fr) auto;
+  column-gap: 13px;
+  align-items: center;
+  padding: 13px 0;
+  cursor: default;
+}
+.case-row--skeleton .sk {
+  height: 10px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--surface) 25%, var(--surface2) 50%, var(--surface) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+}
+
+/* ─── Teaching empty state ──────────────────────────────────────────────── */
+
+.ledger-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 32px 0 8px;
+  max-width: 420px;
+}
+.ledger-empty__title {
+  font-size: 16px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.ledger-empty__text {
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+.ledger-empty__list {
+  margin: 4px 0 2px;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.ledger-empty__list li {
+  display: flex;
+  gap: 9px;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.ledger-empty__list li::before {
+  content: '';
+  flex-shrink: 0;
+  width: 3px;
+  height: 14px;
+  margin-top: 3px;
+  border-radius: 999px;
+  background: var(--primary);
+  opacity: 0.5;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   CASE SHEET — the detail view
+   ───────────────────────────────────────────────────────────────────────────
+   Taken from: Apple's sheet presentation (bottom sheet on a phone, centred
+   card on a pointer device, same component), Things 3 (a document, not a
+   form — prose stays prose), Linear (actions on a footer rail, destructive
+   one isolated on the right behind a confirm).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.case-sheet-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  background: var(--modal-scrim);
+  backdrop-filter: blur(10px) saturate(1.1);
+  -webkit-backdrop-filter: blur(10px) saturate(1.1);
+  animation: sheetScrim .24s var(--ease) both;
+  /* Phone: dock to the bottom edge. Pointer device: centre it. */
+  align-items: flex-end;
+  justify-content: center;
+  padding: calc(24px + env(safe-area-inset-top)) 0 0;
+}
+@media (min-width: 640px) {
+  .case-sheet-scrim {
+    align-items: center;
+    padding: 28px 20px;
+  }
+}
+@keyframes sheetScrim { from { opacity: 0; } to { opacity: 1; } }
+
+.case-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 560px;
+  max-height: 100%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-mid);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 48px -12px rgba(0,0,0,0.6);
+  animation: sheetRise .34s var(--ease) both;
+}
+@media (min-width: 640px) {
+  .case-sheet {
+    border-bottom: 1px solid var(--border-mid);
+    border-radius: 12px;
+    max-height: 88vh;
+    box-shadow: 0 24px 64px -16px rgba(0,0,0,0.6);
+    animation: sheetPop .28s var(--ease) both;
+  }
+}
+[data-theme="light"] .case-sheet { box-shadow: 0 18px 56px -18px rgba(15,23,42,0.28); }
+@keyframes sheetRise { from { opacity: 0; transform: translateY(26px); } to { opacity: 1; transform: none; } }
+@keyframes sheetPop  { from { opacity: 0; transform: translateY(10px) scale(.985); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) {
+  .case-sheet, .case-sheet-scrim { animation: none; }
+}
+
+.case-sheet__rail { height: 2px; flex-shrink: 0; opacity: .9; }
+
+.case-sheet__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: 18px 18px 15px;
+  border-bottom: 1px solid var(--border);
+}
+.case-sheet__title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 650;
+  line-height: 1.22;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+.case-sheet__sub {
+  margin-top: 5px;
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text-3);
+}
+
+.case-sheet__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ─── Figures strip ─────────────────────────────────────────────────────── */
+
+.case-sheet__figures {
+  display: flex;
+  align-items: stretch;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.case-sheet__figure { flex: 1 1 0; min-width: 0; padding-right: 14px; }
+.case-sheet__figure + .case-sheet__figure { padding-left: 14px; border-left: 1px solid var(--border); }
+@media (max-width: 430px) {
+  .case-sheet__figures { padding: 14px 16px; }
+  .case-sheet__figure { padding-right: 10px; }
+  .case-sheet__figure + .case-sheet__figure { padding-left: 10px; }
+  .case-sheet__figure-value { font-size: 15px; }
+  .case-sheet__figure-label { font-size: 8.5px; letter-spacing: 0.06em; }
+}
+.case-sheet__figure-value {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1.3;
+  min-height: 22px;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+}
+.case-sheet__figure-label {
+  margin-top: 4px;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+
+/* Five-pip difficulty meter — reads at a glance, never a 1–5 integer. */
+.pip-meter { display: inline-flex; gap: 3px; align-items: center; }
+.pip-meter i {
+  width: 6px; height: 12px;
+  border-radius: 999px;
+  background: var(--muted);
+  opacity: .5;
+  transition: background-color .2s var(--ease), opacity .2s var(--ease);
+}
+.pip-meter i[data-on="true"] { background: var(--primary); opacity: 1; }
+
+/* ─── Facts ─────────────────────────────────────────────────────────────── */
+
+.case-sheet__facts { margin: 0; padding: 4px 18px 10px; }
+.case-sheet__fact {
+  display: grid;
+  grid-template-columns: 104px minmax(0, 1fr);
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--border);
+}
+.case-sheet__fact:last-child { border-bottom: none; }
+.case-sheet__fact dt {
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+  padding-top: 3px;
+}
+.case-sheet__fact dd {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+/* ─── Prose blocks ──────────────────────────────────────────────────────── */
+
+.case-sheet__prose {
+  padding: 14px 18px 16px;
+  border-top: 1px solid var(--border);
+}
+.case-sheet__prose h3 {
+  margin: 0 0 7px;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.case-sheet__prose p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.62;
+  color: var(--text-2);
+  white-space: pre-wrap;
+}
+
+.case-sheet__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 4px 18px 18px;
+}
+.tag {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  color: var(--text-2);
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 3px 9px;
+}
+
+/* ─── Footer rail ───────────────────────────────────────────────────────── */
+
+.case-sheet__foot {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 11px 14px calc(11px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+  background: var(--surface);
+}
+.case-sheet__foot-spacer { flex: 1 1 auto; }
+.case-sheet__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 11px;
+  border-radius: var(--r);
+  border: 1px solid var(--border-mid);
+  background: var(--bg-elevated);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: color .18s var(--ease), background-color .18s var(--ease),
+              border-color .18s var(--ease), transform .18s var(--ease);
+}
+.case-sheet__action:hover {
+  color: var(--text);
+  border-color: var(--border-glow);
+  background: var(--surface2);
+}
+.case-sheet__action:active { transform: scale(.98); }
+.case-sheet__action:focus-visible {
+  outline: none;
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.case-sheet__action--danger { color: var(--text-3); padding: 0 10px; }
+.case-sheet__action--danger:hover {
+  color: var(--danger);
+  border-color: rgba(239,68,68,.3);
+  background: rgba(239,68,68,.06);
+}
+.case-sheet__action--destroy {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: #fff;
+  font-weight: 600;
+}
+.case-sheet__action--destroy:hover { background: var(--danger); border-color: var(--danger); color: #fff; filter: brightness(1.08); }
+.case-sheet__confirm { display: flex; gap: 6px; }
+
+/* On a narrow phone the three labelled actions would wrap — drop the labels
+   and keep the icons, which stay unambiguous next to the destructive one. */
+@media (max-width: 430px) {
+  .case-sheet__action span { display: none; }
+  .case-sheet__action { padding: 0 13px; }
+  .case-sheet__confirm .case-sheet__action { padding: 0 11px; font-size: 12px; }
+}
+
+/* ─── Earned milestone chip ─────────────────────────────────────────────── */
+/* Typographic, not emoji. The tier reads from a 5px accent dot; the label
+   comes from badgeLabel() so a key with no entry still renders as English. */
+
+.earned-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px;
+  border-radius: 999px;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.03);
+}
+[data-theme="light"] .earned-chip { box-shadow: none; }
+.earned-chip__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+.earned-chip__label {
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  color: var(--text-2);
+  white-space: nowrap;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROCEDURE PICKER
+   ───────────────────────────────────────────────────────────────────────────
+   One overlay, filtered in place. Thumb-first: 52px rows, 36px chips, the
+   search optional and never autofocused. Bottom sheet on a phone, centred
+   dialog from 640px up.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.pp-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 11px 13px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  color: var(--text-3);
+  font-family: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color .18s var(--ease), background-color .18s var(--ease);
+}
+.pp-trigger[data-filled="true"] { color: var(--text); }
+.pp-trigger:hover { border-color: var(--border-glow); background: var(--surface2); }
+.pp-trigger:focus-visible {
+  outline: none;
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.pp-trigger__text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.pp-trigger__icon { color: var(--text-3); flex-shrink: 0; }
+.pp-trigger__clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px; height: 24px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color .15s var(--ease), background-color .15s var(--ease);
+}
+.pp-trigger__clear:hover { color: var(--text); background: var(--surface2); }
+
+/* ─── Overlay ───────────────────────────────────────────────────────────── */
+
+.pp-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 300;                 /* above the Log a Case sheet (100) */
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: calc(28px + env(safe-area-inset-top)) 0 0;
+  background: var(--modal-scrim);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  animation: sheetScrim .2s var(--ease) both;
+}
+@media (min-width: 640px) {
+  .pp-scrim { align-items: center; padding: 32px 20px; }
+}
+
+.pp-sheet {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  max-width: 540px;
+  max-height: 100%;
+  overflow: hidden;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-mid);
+  border-bottom: none;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -8px 48px -12px rgba(0,0,0,0.6);
+  animation: sheetRise .3s var(--ease) both;
+}
+@media (min-width: 640px) {
+  .pp-sheet {
+    height: min(620px, 86vh);
+    border-bottom: 1px solid var(--border-mid);
+    border-radius: 12px;
+    box-shadow: 0 24px 64px -16px rgba(0,0,0,0.6);
+    animation: sheetPop .24s var(--ease) both;
+  }
+}
+@media (max-width: 639px) {
+  /* Tall enough that the list, not the chrome, is what you see. */
+  .pp-sheet { height: calc(100% - 8px); }
+}
+[data-theme="light"] .pp-sheet { box-shadow: 0 18px 56px -18px rgba(15,23,42,0.28); }
+@media (prefers-reduced-motion: reduce) {
+  .pp-scrim, .pp-sheet { animation: none; }
+}
+
+.pp-sheet__grab {
+  width: 36px; height: 4px;
+  flex-shrink: 0;
+  margin: 10px auto 2px;
+  border-radius: 999px;
+  background: var(--border-mid);
+}
+@media (min-width: 640px) { .pp-sheet__grab { display: none; } }
+
+.pp-sheet__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-shrink: 0;
+  padding: 12px 14px 10px 18px;
+}
+.pp-sheet__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+
+/* ─── Search ────────────────────────────────────────────────────────────── */
+
+.pp-search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  margin: 0 18px 10px;
+}
+.pp-search > svg {
+  position: absolute;
+  left: 11px;
+  color: var(--text-3);
+  pointer-events: none;
+  transition: color .18s var(--ease);
+}
+.pp-search input {
+  width: 100%;
+  height: 42px;
+  padding: 0 34px 0 33px;
+  background: var(--surface);
+  border: 1px solid var(--border-mid);
+  border-radius: var(--r);
+  color: var(--text);
+  font-size: 15px;            /* ≥16 avoids iOS zoom; 15 + no zoom on a sheet */
+  font-family: inherit;
+  outline: none;
+  transition: border-color .18s var(--ease), box-shadow .18s var(--ease);
+}
+.pp-search input:focus {
+  border-color: var(--border-glow);
+  box-shadow: 0 0 0 3px var(--primary-glow);
+}
+.pp-search:focus-within > svg { color: var(--primary); }
+.pp-search__clear {
+  position: absolute;
+  right: 7px;
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  border: none; background: none; padding: 0;
+  border-radius: 999px;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.pp-search__clear:hover { color: var(--text); background: var(--surface2); }
+
+/* ─── Category chips ────────────────────────────────────────────────────── */
+
+.pp-chips {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+  padding: 0 18px 12px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-snap-type: x proximity;
+}
+.pp-chips::-webkit-scrollbar { display: none; }
+.pp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 13px;
+  scroll-snap-align: start;
+  border-radius: 999px;
+  border: 1px solid var(--border-mid);
+  background: var(--surface);
+  color: var(--text-2);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .18s var(--ease), background-color .18s var(--ease),
+              border-color .18s var(--ease);
+}
+.pp-chip i {
+  font-style: normal;
+  font-size: 11px;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.pp-chip:hover { color: var(--text); border-color: var(--border-glow); }
+.pp-chip[aria-pressed="true"] {
+  background: var(--primary-dim);
+  border-color: var(--border-glow);
+  color: var(--primary-hi);
+  font-weight: 600;
+}
+.pp-chip[aria-pressed="true"] i { color: var(--primary); }
+
+/* ─── List ──────────────────────────────────────────────────────────────── */
+
+.pp-list {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 10px calc(14px + env(safe-area-inset-bottom));
+  border-top: 1px solid var(--border);
+}
+.pp-section__label {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  margin: 0;
+  padding: 11px 8px 7px;
+  background: var(--bg-elevated);
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-3);
+}
+.pp-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  min-height: 52px;              /* comfortably past the 44px HIG floor */
+  padding: 10px 8px;
+  border: none;
+  border-radius: var(--r);
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color .14s var(--ease);
+}
+.pp-row[data-active="true"] { background: var(--glass-mid); }
+.pp-row:active { background: var(--glass-hi); }
+.pp-row[data-selected="true"] { color: var(--primary-hi); }
+.pp-row__name {
+  font-size: 14.5px;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  min-width: 0;
+}
+.pp-row__meta {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.pp-row__cat {
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+.pp-row__check { color: var(--primary); }
+.pp-row--custom { gap: 9px; justify-content: flex-start; color: var(--primary-hi); }
+
+.pp-empty {
+  padding: 26px 8px;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text-3);
+}
+
+
+/* ─── Light-mode shell corrections ──────────────────────────────────────── */
+/* An automated contrast sweep of /cases found 17 AA failures in light mode
+   and none in dark. All of them were app chrome whose colour was decided by
+   a single-class rule, so a theme-scoped rule (specificity 0,2,0) is enough
+   to bring them onto the corrected token scale. */
+
+[data-theme="light"] .side-tab { color: var(--text-2); }
+[data-theme="light"] .side-tab:hover,
+[data-theme="light"] .side-tab[data-active="true"] { color: var(--text); }
+
+/* --primary-hi is tuned for a dark canvas; on white it reads at 2.05:1.
+   The deeper step in the same ramp clears AA without changing the hue. */
+[data-theme="light"] .chip.selected { color: var(--primary-lo); }
+[data-theme="light"] .pp-chip[aria-pressed="true"],
+[data-theme="light"] .icon-btn[data-on="true"],
+[data-theme="light"] .filter-toggle[data-on="true"],
+[data-theme="light"] .pp-row[data-selected="true"],
+[data-theme="light"] .pp-row--custom,
+[data-theme="light"] .case-sheet__action--danger:hover { color: var(--primary-lo); }
 
 /* Dashboard: one column on phones (wrappers vanish, `order` keeps the
    original sequence); main column + right rail on wide screens. */
@@ -1343,43 +2607,4 @@ button:not(:disabled):not([aria-disabled="true"]):active {
   }
   .dash-main, .dash-side { display: flex; flex-direction: column; min-width: 0; }
   .dash-mobile-only { display: none; }
-}
-
-/* Case list: compact cards on phones, a scannable table on a computer. */
-.case-thead, .case-col { display: none; }
-@media (min-width: 1024px) {
-  .case-thead, .case-card {
-    display: grid;
-    grid-template-columns: 10px minmax(0, 2.4fr) minmax(0, 1.3fr) minmax(0, 1fr) 56px 64px 34px 34px 34px;
-    column-gap: 14px;
-    align-items: center;
-  }
-  .case-thead {
-    padding: 0 10px 10px;
-    margin: 0 -10px;
-    border-bottom: 1px solid var(--border-mid);
-    font-size: 10px; font-weight: 600; letter-spacing: .08em;
-    text-transform: uppercase; color: var(--text-3);
-  }
-  .case-card,
-  .case-card:hover {
-    padding: 10px;
-    margin: 0 -10px;
-    border-radius: 0;
-  }
-  .case-card:hover { background: var(--surface2); border-color: var(--border); }
-  .case-card > div:first-child { padding-top: 0 !important; }
-  .case-body, .case-top, .case-actions { display: contents !important; }
-  .case-meta { display: none; }
-  .case-proc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .case-col {
-    display: block;
-    font-size: 13px; color: var(--text-2);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .case-col-num { font-family: 'Geist Mono', monospace; font-size: 12px; }
-  .case-date { font-size: 12px; font-family: 'Geist Mono', monospace; }
-}
-@media (min-width: 1024px) {
-  .feed-fab { bottom: 32px !important; right: 32px !important; }
 }

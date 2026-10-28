@@ -14,6 +14,9 @@ import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { StatusPill } from "@/components/clinic/StatusPill";
 import { NOTE_TYPE_LABELS } from "@/lib/clinic/templates";
 import type { ClinicNoteStatus } from "@/lib/clinic/types";
+import { TodaysPrinciple } from "@/components/TodaysPrinciple";
+import { BulkFinalizeSection } from "@/components/clinic/BulkFinalizeSection";
+import { fetchIcsEvents, eventsToday, type ICSEvent } from "@/lib/clinic/ics";
 
 export const dynamic = "force-dynamic";
 
@@ -23,8 +26,9 @@ export default async function ClinicDashboardPage() {
   await ensureDbUser(auth.user);
   const userId = auth.user.id;
 
-  const [profile, encounters, drafts, unsigned, dueFollowUps, recentSummary] = await Promise.all([
+  const [profile, dictationStyle, encounters, drafts, unsigned, dueFollowUps, recentSummary] = await Promise.all([
     db.profile.findUnique({ where: { userId }, include: { user: true } }),
+    db.userDictationStyle.findUnique({ where: { userId } }),
     db.clinicEncounter.findMany({
       where: {
         clinicianId: userId,
@@ -66,6 +70,19 @@ export default async function ClinicDashboardPage() {
   ]);
 
   const greetingName = (profile?.user?.name || auth.user.email.split("@")[0] || "").split(" ")[0];
+
+  // Pull today's calendar events from the user's saved ICS feed (if any).
+  // Best-effort — never blocks the dashboard if the feed is slow or down.
+  const calendarUrl = (() => {
+    const p = (dictationStyle?.profile as { _hippoClinic?: { clinic?: { calendarUrl?: string } } } | null) ?? null;
+    return p?._hippoClinic?.clinic?.calendarUrl ?? null;
+  })();
+  let calendarToday: ICSEvent[] = [];
+  if (calendarUrl) {
+    try {
+      calendarToday = eventsToday(await fetchIcsEvents(calendarUrl, { max: 100 }));
+    } catch { /* ignore — schedule card will be omitted */ }
+  }
   const hour = new Date().getHours();
   const greeting = hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
@@ -83,6 +100,36 @@ export default async function ClinicDashboardPage() {
             : `${encounters.length} encounter${encounters.length === 1 ? "" : "s"} on today's list.`}
         </p>
       </div>
+
+      {/* Today's principle — same Hippocrates / classical-medicine quote
+          rotation that hippomedicine.com runs. The quote rotates daily and
+          can be favourited; component is fully self-contained. */}
+      <TodaysPrinciple />
+
+      {/* Calendar feed — only renders if the clinician has connected one. */}
+      {calendarToday.length > 0 && (
+        <Section title="On your calendar today" rightLink={{ href: "/clinic/settings/schedule", label: "Manage" }}>
+          {calendarToday.map((e) => (
+            <Link
+              key={e.uid}
+              href={`/clinic/new?reason=${encodeURIComponent(e.summary)}`}
+              className="case-card"
+              style={{ textDecoration: "none" }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div className="case-proc">{e.summary}</div>
+                <div className="case-meta">
+                  <span style={{ color: "var(--text-3)" }}>
+                    {e.start.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+                    {e.location ? ` · ${e.location}` : ""}
+                  </span>
+                </div>
+              </div>
+              <div className="case-date">Tap to start</div>
+            </Link>
+          ))}
+        </Section>
+      )}
 
       {/* Quick actions */}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 8, marginBottom: 22 }}>
@@ -129,7 +176,16 @@ export default async function ClinicDashboardPage() {
         )}
       </Section>
 
-      {/* Unsigned */}
+      {/* Unsigned — bulk finalize bar appears when 2+ are pending */}
+      <BulkFinalizeSection
+        encounters={unsigned.map((e) => ({
+          id: e.id,
+          noteType: e.noteType,
+          visitReason: e.visitReason,
+          patient: e.patient ? { givenName: e.patient.givenName, familyName: e.patient.familyName } : null,
+        }))}
+      />
+
       <Section title="Unsigned — needs review">
         {unsigned.length === 0 ? (
           <Empty message="Nothing waiting on a signature." />

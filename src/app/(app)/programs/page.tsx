@@ -174,7 +174,7 @@ export default function ProgramsPage() {
                 alignItems: "center",
                 gap: 6,
                 padding: "8px 14px",
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 color: "#fff",
                 border: "none",
                 borderRadius: 8,
@@ -242,7 +242,7 @@ export default function ProgramsPage() {
             onClick={() => setCreating(true)}
             style={{
               padding: "10px 20px",
-              background: "var(--primary)",
+              background: "var(--primary-solid)",
               color: "#fff",
               border: "none",
               borderRadius: 8,
@@ -346,13 +346,13 @@ export default function ProgramsPage() {
                   <span>
                     {p.memberCount} member{p.memberCount === 1 ? "" : "s"}
                   </span>
-                  <span style={{ color: "var(--muted)" }}>·</span>
+                  <span style={{ color: "var(--text-3)" }}>·</span>
                   <span>
                     {p.eventCount} event{p.eventCount === 1 ? "" : "s"}
                   </span>
                   {p.institution && (
                     <>
-                      <span style={{ color: "var(--muted)" }}>·</span>
+                      <span style={{ color: "var(--text-3)" }}>·</span>
                       <span>{p.institution}</span>
                     </>
                   )}
@@ -509,7 +509,7 @@ function CreateProgramSheet({
           disabled={saving}
           style={{
             ...footerBtnPrimary,
-            background: saving ? "var(--muted)" : "var(--primary)",
+            background: saving ? "var(--text-3)" : "var(--primary)",
             cursor: saving ? "wait" : "pointer",
           }}
         >
@@ -892,7 +892,7 @@ function ProgramDetailSheet({
                   disabled={sending}
                   style={{
                     padding: "10px 14px",
-                    background: sending ? "var(--muted)" : "var(--primary)",
+                    background: sending ? "var(--text-3)" : "var(--primary)",
                     color: "#fff",
                     border: "none",
                     borderRadius: 8,
@@ -1078,12 +1078,12 @@ function ProgramDetailSheet({
                       </span>
                       {m.trainingYearLabel && (
                         <>
-                          <span style={{ color: "var(--muted)" }}>·</span>
+                          <span style={{ color: "var(--text-3)" }}>·</span>
                           <span>{m.trainingYearLabel}</span>
                         </>
                       )}
                       {/* Granular program role label */}
-                      <span style={{ color: "var(--muted)" }}>·</span>
+                      <span style={{ color: "var(--text-3)" }}>·</span>
                       <span style={{ color: isPdLike(m.role) ? "var(--primary)" : "var(--text-3)" }}>
                         {ROLE_LABELS[m.role]}
                       </span>
@@ -1404,7 +1404,7 @@ const footerBtnSecondary: React.CSSProperties = {
 const footerBtnPrimary: React.CSSProperties = {
   flex: 1,
   padding: "10px 14px",
-  background: "var(--primary)",
+  background: "var(--primary-solid)",
   border: "none",
   borderRadius: 8,
   color: "#fff",

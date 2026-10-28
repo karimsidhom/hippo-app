@@ -263,11 +263,11 @@ export function ScheduleSection({ onBrief }: ScheduleSectionProps) {
                   }}
                 >
                   <span>{dayLabel}</span>
-                  <span style={{ color: "var(--muted)" }}>·</span>
+                  <span style={{ color: "var(--text-3)" }}>·</span>
                   <span>{timeLabel}</span>
                   {item.attendingLabel && (
                     <>
-                      <span style={{ color: "var(--muted)" }}>·</span>
+                      <span style={{ color: "var(--text-3)" }}>·</span>
                       <span>{item.attendingLabel}</span>
                     </>
                   )}
@@ -310,10 +310,10 @@ export function ScheduleSection({ onBrief }: ScheduleSectionProps) {
                       gap: 4,
                       padding: "4px 10px",
                       background:
-                        "linear-gradient(135deg, rgba(168,85,247,0.12), rgba(59,130,246,0.12))",
-                      border: "1px solid rgba(168,85,247,0.3)",
+                        "var(--primary-dim)",
+                      border: "1px solid var(--border-glass)",
                       borderRadius: 6,
-                      color: "#c4b5fd",
+                      color: "var(--primary-hi)",
                       fontSize: 10,
                       fontWeight: 600,
                       cursor: "pointer",
@@ -504,7 +504,7 @@ function AddForm({
                 : "linear-gradient(135deg, rgba(16,185,129,0.16), rgba(59,130,246,0.16))",
               border: `1px solid ${busy ? "rgba(16,185,129,0.25)" : "rgba(16,185,129,0.4)"}`,
               borderRadius: 6,
-              color: busy ? "var(--muted)" : "var(--success)",
+              color: busy ? "var(--text-3)" : "var(--success)",
               fontSize: 11,
               fontWeight: 600,
               cursor: busy || !dictation.trim() ? "not-allowed" : "pointer",

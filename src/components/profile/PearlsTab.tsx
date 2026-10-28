@@ -68,7 +68,7 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "9px 16px",
-                background: "var(--primary)", color: "#fff",
+                background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6,
                 fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "inherit",
@@ -180,7 +180,7 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
               onClick={handleCreate}
               disabled={saving || !procedureName.trim() || !title.trim() || !content.trim()}
               style={{
-                padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "'Geist', sans-serif",
                 opacity: saving || !procedureName.trim() || !title.trim() || !content.trim() ? 0.5 : 1,

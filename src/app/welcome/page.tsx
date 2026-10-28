@@ -27,7 +27,7 @@ import {
 } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 
-const TEAL = "#0EA5E9";
+const TEAL = "var(--primary-hi)";
 
 interface Feature {
   icon: LucideIcon;
@@ -262,7 +262,7 @@ export default function WelcomePage() {
               onClick={() => router.push("/cases?new=1")}
               style={{
                 padding: "12px 22px",
-                background: `linear-gradient(135deg, ${TEAL}, #0284C7)`,
+                background: `linear-gradient(135deg, ${TEAL}, var(--primary-lo))`,
                 color: "#fff",
                 border: "none",
                 borderRadius: 12,

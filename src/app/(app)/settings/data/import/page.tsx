@@ -347,7 +347,7 @@ export default function ImportLogPage() {
                       {reason && (
                         <span
                           title={reason}
-                          className="inline-flex text-[var(--muted)]"
+                          className="inline-flex text-[var(--text-3)]"
                         >
                           <HelpCircle className="w-3 h-3" />
                         </span>

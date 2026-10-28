@@ -337,7 +337,7 @@ export default function FormBuilderPage() {
                   style={{
                     padding: "7px 12px",
                     fontSize: 11,
-                    background: "var(--primary)",
+                    background: "var(--primary-solid)",
                     color: "#fff",
                     border: "none",
                     borderRadius: 8,

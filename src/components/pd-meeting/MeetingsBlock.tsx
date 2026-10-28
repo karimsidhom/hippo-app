@@ -178,7 +178,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
               padding: '7px 14px',
               borderRadius: 8,
               border: '1px solid var(--primary)',
-              background: 'var(--primary)',
+              background: 'var(--primary-solid)',
               color: '#fff',
               fontSize: 13,
               fontWeight: 600,

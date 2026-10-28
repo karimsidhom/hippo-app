@@ -30,7 +30,7 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
   if (!data || data.length === 0) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 96 }}>
-        <p style={{ color: "var(--muted)", fontSize: 13 }}>No data available</p>
+        <p style={{ color: "var(--text-3)", fontSize: 13 }}>No data available</p>
       </div>
     );
   }
@@ -141,18 +141,18 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
             }}
           >
             <span style={{ fontWeight: 600, color: "var(--text)" }}>{tooltip.count} case{tooltip.count !== 1 ? "s" : ""}</span>
-            <span style={{ color: "var(--muted)", marginLeft: 4 }}>on {tooltip.date}</span>
+            <span style={{ color: "var(--text-3)", marginLeft: 4 }}>on {tooltip.date}</span>
           </div>
         )}
       </div>
 
       {/* Legend */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8 }}>
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>Less</span>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>Less</span>
         {[0, 1, 2, 3, 4].map(count => (
           <div key={count} style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: getCellColor(count) }} />
         ))}
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>More</span>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>More</span>
       </div>
     </div>
   );
