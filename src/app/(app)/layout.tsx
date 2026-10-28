@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, Inbox, GraduationCap, NotebookPen, ArrowUpRight, type LucideIcon } from "lucide-react";
@@ -10,6 +10,8 @@ import { HippoMark } from "@/components/HippoMark";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
+import { HippoDock } from "@/components/HippoDock";
+import { createClient } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useInteraction } from "@/hooks/useInteraction";
 import { PULSE_URL } from "@/lib/pulse";
@@ -24,6 +26,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const { user, profile, loading, onboardingDone, logout } = useAuth();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
+  // The suite switcher reads its own session and hub profile. Cases was named
+  // in HippoDock's own docstring as one of the three repos that carry it, but
+  // never actually received the copy — so Study (and every other app) was
+  // unreachable from here. Stable client so the dock doesn't refetch per render.
+  const suiteSupabase = useRef(createClient()).current;
   const fx = useInteraction();
 
   useEffect(() => {
@@ -406,6 +413,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               [data-module="clinic"] so the clinician never lands in EPA
               vocabulary by mistake. Clinic-specific notifications live
               at /clinic/settings/notifications and on the dashboard. */}
+          {/* The dashboard mounts its own dock with the Hippo Link inbox count. */}
+          {!inClinic && pathname !== "/dashboard" && <HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" />}
           {!inClinic && <NotificationBell />}
           {inClinic ? (
             <Link
