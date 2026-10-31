@@ -24,6 +24,7 @@
 // ---------------------------------------------------------------------------
 
 import { chatJson, ClinicLlmError } from "@/lib/clinic/llm";
+import { isAiAllowed } from "@/lib/ai-gate";
 import {
   autoMapColumns,
   coerceApproach,
@@ -580,5 +581,7 @@ function trimNonEmpty(v: unknown): string | null {
 // ─── Helpers ────────────────────────────────────────────────────────────
 
 function hasLlmKey(): boolean {
-  return !!(process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY);
+  // The vendor gate (lib/ai-gate) can close the LLM path regardless of which
+  // keys are configured; the deterministic mapper then carries the import.
+  return isAiAllowed() && !!(process.env.GROQ_API_KEY || process.env.OPENAI_API_KEY);
 }
