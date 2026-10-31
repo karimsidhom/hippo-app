@@ -6,6 +6,8 @@ import { getSpecialtyEpaData } from '@/lib/epa/data';
 import type { EpaDefinition, SpecialtyEpaData } from '@/lib/epa/data';
 import { suggestEpasForCase } from '@/lib/epa/suggest';
 import { checkAiQuota, recordAiCall } from '@/lib/ai-quota';
+import { isAiAllowed } from '@/lib/ai-gate';
+import { scrubNotes } from '@/lib/phia';
 // Shared with mobile — see src/lib/shared/README.md. Changing the
 // request contract here automatically flows through to the mobile
 // pre-flight validator.
@@ -289,9 +291,15 @@ export async function POST(req: NextRequest) {
     const quota = await checkAiQuota(user.id);
     let aiResults: EpaSuggestion[] = [];
     let aiNote: string | undefined;
-    let geminiReason = quota.allowed ? 'skipped' : 'user-quota-exhausted';
+    let geminiReason = !isAiAllowed()
+      ? 'ai-disabled'
+      : quota.allowed
+        ? 'skipped'
+        : 'user-quota-exhausted';
 
-    if (apiKey && quota.allowed) {
+    // The vendor gate (lib/ai-gate) decides whether any text may leave the
+    // server at all; the keyword floor still answers when it is closed.
+    if (apiKey && quota.allowed && isAiAllowed()) {
       // Build a focused prompt using the keyword floor as the candidate
       // set — this both constrains Gemini to real EPAs and keeps the
       // prompt short enough to avoid context-overflow empties.
@@ -323,7 +331,7 @@ export async function POST(req: NextRequest) {
         `- Difficulty: ${caseLike.difficultyScore ?? 'N/A'}\n` +
         `- Diagnosis: ${caseLike.diagnosisCategory ?? 'N/A'}\n` +
         `- Outcome: ${caseLike.outcomeCategory ?? 'N/A'}\n` +
-        `- Notes: ${caseLike.notes ?? 'N/A'}\n\n` +
+        `- Notes: ${caseLike.notes ? scrubNotes(caseLike.notes) : 'N/A'}\n\n` +
         `CANDIDATE EPAs (${epaData.system}):\n${JSON.stringify(candidatePool, null, 2)}\n\n` +
         `Pick the top 3-5 EPAs that best match. Prefer EPAs where observations < target. ` +
         `Only use IDs from the candidate list. Respond ONLY with valid JSON:\n` +

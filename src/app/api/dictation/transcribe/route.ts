@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
+import { requireAiAllowed, AiDisabledError } from '@/lib/ai-gate';
 
 // ---------------------------------------------------------------------------
 // Audio transcription endpoint
@@ -44,6 +45,17 @@ const GEMINI_URL =
 export async function POST(req: NextRequest) {
   const { error } = await requireAuth();
   if (error) return error;
+
+  // Audio leaves the server for a vendor; the same gate as the dictation
+  // LLM decides whether that is allowed at all.
+  try {
+    requireAiAllowed();
+  } catch (err) {
+    if (err instanceof AiDisabledError) {
+      return NextResponse.json({ error: err.message, code: err.code }, { status: 503 });
+    }
+    throw err;
+  }
 
   const buf = Buffer.from(await req.arrayBuffer());
   if (buf.byteLength === 0) {
