@@ -2608,3 +2608,7 @@ button:not(:disabled):not([aria-disabled="true"]):active {
   .dash-main, .dash-side { display: flex; flex-direction: column; min-width: 0; }
   .dash-mobile-only { display: none; }
 }
+
+/* PD cohort KPIs: four tiles, never three plus an orphan. */
+.pd-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }
+@media (min-width: 900px) { .pd-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); } }

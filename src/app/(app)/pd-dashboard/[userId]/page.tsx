@@ -333,16 +333,9 @@ export default function ResidentDetailPage({
       <MeetingsBlock residentId={userId} />
 
       {/* KPI row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12,
-          marginBottom: 22,
-        }}
-      >
+      <div className="pd-kpis">
         <MiniKpi icon={<Activity size={15} />} label="Total cases" value={stats.totalCases} color="var(--primary)" />
-        <MiniKpi icon={<Clock size={15} />} label="Cases this month" value={stats.casesThisMonth} color="var(--primary)" />
+        <MiniKpi icon={<Clock size={15} />} label="Cases · 30 days" value={stats.casesThisMonth} color="var(--primary)" />
         <MiniKpi icon={<CheckCircle2 size={15} />} label="EPAs signed" value={stats.epaSigned} color="var(--success)" />
         <MiniKpi
           icon={<AlertCircle size={15} />}
@@ -718,13 +711,6 @@ function heatColor(pct: number): string {
   if (pct >= 26) return "#f59e0b"; // amber
   if (pct > 0) return "rgba(239, 68, 68, 0.75)"; // red
   return "var(--surface2)"; // empty
-}
-
-// ── Pearls card ──────────────────────────────────────────────────────────────
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── Shared bits ──────────────────────────────────────────────────────────────

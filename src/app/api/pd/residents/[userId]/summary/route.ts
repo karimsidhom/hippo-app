@@ -56,7 +56,9 @@ export async function GET(
 
   // ── Date windows ─────────────────────────────────────────────────────────
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Rolling 30 days, matching the cohort table; a calendar month reads 0
+  // for everyone in its first days.
+  const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
   const thirtyDaysAgo = new Date(now);
   thirtyDaysAgo.setDate(now.getDate() - 30);
@@ -94,7 +96,7 @@ export async function GET(
   ] = await Promise.all([
     db.caseLog.count({ where: { userId: targetUserId } }),
     db.caseLog.count({
-      where: { userId: targetUserId, caseDate: { gte: startOfMonth } },
+      where: { userId: targetUserId, caseDate: { gte: last30Days } },
     }),
     db.epaObservation.count({
       where: { userId: targetUserId, status: 'SIGNED' },
