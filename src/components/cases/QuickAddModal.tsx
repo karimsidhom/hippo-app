@@ -10,7 +10,6 @@ import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
 import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
 import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
 import { EpaDeliveryConfirmation, type EpaDeliveryInfo } from "@/components/epa/EpaDeliveryConfirmation";
-import { PostComposer } from "@/components/social/PostComposer";
 import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
 import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES } from "@/lib/constants";
 import { validateNotes } from "@/lib/phia";
@@ -85,7 +84,6 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [savedProcedureName, setSavedProcedureName] = useState("");
   const [savedAttending, setSavedAttending] = useState("");
   const [savedCaseDate, setSavedCaseDate] = useState<Date>(new Date());
-  const [shareAsPearl, setShareAsPearl] = useState(false);
   // Inline error shown inside the EPA/OPRS form on a failed create/submit —
   // previously console-only, so a resident could get a 400 and never know.
   const [epaSubmitError, setEpaSubmitError] = useState<string | null>(null);
@@ -97,7 +95,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [showOprs, setShowOprs] = useState(false);
 
   const dialogRef = useDialogFocus<HTMLDivElement>(
-    open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl && !celebration && !showOprs && !epaDelivery,
+    open && !showEpaSuggestions && !selectedEpaSuggestion && !celebration && !showOprs && !epaDelivery,
   );
 
   // Portal root for rendering EPA modals above everything
@@ -392,13 +390,12 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     setSavedProcedureName("");
     setSavedAttending("");
     setSavedCaseDate(new Date());
-    setShareAsPearl(false);
     setShowOprs(false);
     setEpaSubmitError(null);
     setEpaDelivery(null);
   };
 
-  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !shareAsPearl && !showOprs && !epaDelivery) return null;
+  if (!open && !showEpaSuggestions && !selectedEpaSuggestion && !showOprs && !epaDelivery) return null;
 
   // ── Post-submit delivery confirmation ──
   // Rendered on its own so the resident sees who was actually notified even
@@ -414,18 +411,6 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
     );
   }
 
-  // ── PostComposer (Share as pearl from the Next-steps banner) ──
-  if (shareAsPearl && portalRoot) {
-    return createPortal(
-      <PostComposer
-        open={true}
-        source={savedCaseId ? { kind: "case", caseId: savedCaseId } : { kind: "blank" }}
-        onClose={() => { setShareAsPearl(false); onClose(); resetForm(); }}
-        onPublished={() => { setShareAsPearl(false); onClose(); resetForm(); }}
-      />,
-      portalRoot,
-    );
-  }
 
   // ── EPA Suggestion Sheet (rendered via portal, above everything) ──
   if (showEpaSuggestions && portalRoot) {
@@ -435,7 +420,6 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
         note={epaNote}
         onSelect={handleEpaSelect}
         onSkip={handleEpaSkip}
-        onShareAsPearl={savedCaseId ? () => { setShowEpaSuggestions(false); setShareAsPearl(true); } : undefined}
         loading={epaSuggestionsLoading}
       />,
       portalRoot,

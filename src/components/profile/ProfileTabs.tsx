@@ -1,21 +1,19 @@
 "use client";
 
-export type ProfileTab = "portfolio" | "pearls" | "posts" | "about";
+export type ProfileTab = "portfolio" | "about";
 
 interface Props {
   active: ProfileTab;
   onChange: (tab: ProfileTab) => void;
-  pearlCount?: number;
   portfolioCount?: number;
 }
 
 const TABS: { key: ProfileTab; label: string }[] = [
   { key: "portfolio", label: "Portfolio" },
-  { key: "posts", label: "Posts" },
   { key: "about", label: "About" },
 ];
 
-export function ProfileTabs({ active, onChange, pearlCount, portfolioCount }: Props) {
+export function ProfileTabs({ active, onChange, portfolioCount }: Props) {
   return (
     <div style={{
       display: "flex",
@@ -25,7 +23,7 @@ export function ProfileTabs({ active, onChange, pearlCount, portfolioCount }: Pr
     }}>
       {TABS.map((tab) => {
         const isActive = active === tab.key;
-        const count = tab.key === "posts" ? pearlCount : tab.key === "portfolio" ? portfolioCount : undefined;
+        const count = tab.key === "portfolio" ? portfolioCount : undefined;
 
         return (
           <button

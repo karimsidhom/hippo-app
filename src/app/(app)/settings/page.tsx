@@ -19,8 +19,7 @@ const TABS = [
   { key: "profile", label: "Profile", icon: User },
   { key: "appearance", label: "Appearance", icon: Sun },
   { key: "privacy", label: "Privacy & PHIA", icon: Shield },
-  { key: "social", label: "Social", icon: Users },
-  { key: "leaderboard", label: "Leaderboard", icon: BarChart2 },
+  { key: "email", label: "Email", icon: Bell },
   { key: "export", label: "Export", icon: Download },
   { key: "subscription", label: "Subscription", icon: CreditCard },
   { key: "feedback", label: "Feedback", icon: MessageSquare },
@@ -587,17 +586,11 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ── Social ───────────────────────────────────────────────── */}
-          {activeTab === "social" && (
+          {/* ── Email ──────────────────────────────────────────────────── */}
+          {activeTab === "email" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[var(--text)]">Social & Notifications</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Email</h2>
               <div className="space-y-2">
-                <ToggleRow
-                  label="Allow friend requests"
-                  description="Other surgeons can send you friend requests"
-                  profileKey="allowFriendRequests"
-                  value={profile?.allowFriendRequests ?? true}
-                />
                 <ToggleRow
                   label="Weekly digest email"
                   description="A short weekly summary of your cases, EPAs pending sign-off, and milestones"
@@ -605,24 +598,9 @@ export default function SettingsPage() {
                   value={profile?.allowWeeklyDigest ?? true}
                 />
               </div>
-            </div>
-          )}
-
-          {/* ── Leaderboard ──────────────────────────────────────────── */}
-          {activeTab === "leaderboard" && (
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[var(--text)]">Leaderboard Participation</h2>
-              <div className="p-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-2)]">
-                Leaderboard rankings use anonymized display names (e.g., &quot;Resident PGY-4&quot; or &quot;Dr. A.C.&quot;). No patient data is ever shared. Rankings are based solely on case volume, autonomy levels, and improvement metrics.
-              </div>
-              <div className="space-y-2">
-                <ToggleRow
-                  label="Participate in leaderboard"
-                  description="Allow your (anonymized) stats to appear on the leaderboard"
-                  profileKey="allowLeaderboardParticipation"
-                  value={profile?.allowLeaderboardParticipation ?? true}
-                />
-              </div>
+              <p className="text-xs text-[var(--text-3)]">
+                Followers, friend requests and leaderboards live on Hippo Pulse.
+              </p>
             </div>
           )}
 

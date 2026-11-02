@@ -3,7 +3,7 @@
 import { doctorName } from '@/lib/names';
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
 import { HippoDock } from "@/components/HippoDock";
@@ -21,7 +21,6 @@ import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
 import { DebriefSheet } from "@/components/DebriefSheet";
-import { PostComposer } from "@/components/social/PostComposer";
 import { ProgramCalendar } from "@/components/ProgramCalendar";
 import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
 import { OnTrackCard } from "@/components/dashboard/OnTrackCard";
@@ -200,8 +199,6 @@ export default function DashboardPage() {
     caseDate: string;
   } | null>(null);
 
-  // PostComposer seeded from a recent case
-  const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
   // Wide screens get a taller learning-curve chart (main column is ~800px).
   const [wide, setWide] = useState(false);
@@ -906,34 +903,6 @@ export default function DashboardPage() {
                     marginRight: 8, flex: 1, minWidth: 0,
                   }}>{c.procedureName}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
-                      title="Share as pearl"
-                      aria-label="Share as pearl"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid var(--border-mid)",
-                        borderRadius: 5,
-                        // 30×30 — small enough not to crowd the card footer,
-                        // big enough to hit on mobile without mis-tapping the
-                        // share onto the wrong case.
-                        width: 30, height: 30,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", color: "var(--text-3)",
-                        transition: "all .15s",
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                      }}
-                    >
-                      <Share2 size={13} />
-                    </button>
                     <span style={{
                       fontSize: 11, color: "var(--text-3)",
                       fontFamily: "'Geist Mono', monospace",
@@ -1314,12 +1283,6 @@ export default function DashboardPage() {
         onClose={() => setDebriefCase(null)}
       />
 
-      <PostComposer
-        open={shareCaseId !== null}
-        onClose={() => setShareCaseId(null)}
-        source={shareCaseId ? { kind: "case", caseId: shareCaseId } : undefined}
-        onPublished={() => setShareCaseId(null)}
-      />
     </div>
   );
 }

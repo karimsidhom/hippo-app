@@ -43,10 +43,10 @@ function inputStyle(focused: boolean): React.CSSProperties {
 
 const FEATURES = [
   "Case logging & analytics",
-  "Learning curve tracking",
+  "EPA progress & assessments",
+  "Private case notes & reflections",
+  "Program director 1:1 records",
   "Milestones & achievements",
-  "Specialty benchmarks",
-  "Social & leaderboards",
   "PHIA-safe exports",
 ];
 

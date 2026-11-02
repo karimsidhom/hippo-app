@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import Link from "next/link";
 import { Search, Download, X, Trash2, FileText, Copy, Check, Edit3, Save, RotateCcw, Sliders, Sparkles, AlertTriangle, MessageSquare, MessagesSquare, Plus, Printer } from "lucide-react";
 import { DebriefSheet } from "@/components/DebriefSheet";
 import { PaywallModal } from "@/components/PaywallModal";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { useSubscription } from "@/context/SubscriptionContext";
+import { useAuth } from "@/context/AuthContext";
 import { parseStoredReflection } from "@/lib/debrief/types";
 import { useCases } from "@/hooks/useCases";
 import { CaseLog } from "@/lib/types";
@@ -725,6 +726,16 @@ export default function CasesPage() {
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const [pdfPaywall, setPdfPaywall] = useState(false);
   const { isPro } = useSubscription();
+  // Case notes link back here as /cases?case=<id>; open that case's sheet,
+  // but only for the signed-in owner's own record.
+  const { user } = useAuth();
+  const openedLinkedCase = useRef<string | null>(null);
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("case");
+    if (!id || openedLinkedCase.current === id) return;
+    const ownCase = cases.find(entry => entry.id === id && entry.userId === user?.id);
+    if (ownCase) { openedLinkedCase.current = id; setExpanded(ownCase); }
+  }, [cases, user?.id]);
 
   const years = useMemo(() => getLedgerYearOptions(cases), [cases]);
   const roles = useMemo(() => getLedgerRoleOptions(cases), [cases]);

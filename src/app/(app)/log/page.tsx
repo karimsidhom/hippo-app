@@ -371,7 +371,7 @@ export default function LogCasePage() {
       notes: form.notes ?? null,
       tags: form.tags ?? [],
       reflection: form.reflection ?? null,
-      isPublic: form.isPublic ?? false,
+      isPublic: false,
       benchmarkOptIn: form.benchmarkOptIn ?? true,
       caseDate: form.caseDate || new Date(),
     };
@@ -1216,24 +1216,6 @@ export default function LogCasePage() {
                   <p className="text-sm font-medium text-[var(--text)]">Contribute to anonymized benchmarks</p>
                   <p className="text-xs text-[var(--text-3)] mt-0.5">
                     Your anonymized operative data helps generate national benchmarks for all trainees.
-                  </p>
-                </div>
-              </label>
-            </div>
-
-            {/* Public toggle */}
-            <div className="p-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg">
-              <label className="flex items-start gap-3 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isPublic || false}
-                  onChange={(e) => updateForm({ isPublic: e.target.checked })}
-                  className="w-4 h-4 mt-0.5 rounded border-[var(--border)] bg-[var(--surface2)] accent-[var(--primary)]"
-                />
-                <div>
-                  <p className="text-sm font-medium text-[var(--text)]">Share to social feed</p>
-                  <p className="text-xs text-[var(--text-3)] mt-0.5">
-                    Visible to your friends on Hippo (no patient details shared)
                   </p>
                 </div>
               </label>

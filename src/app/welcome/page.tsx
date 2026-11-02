@@ -16,7 +16,7 @@ import {
   Receipt,
   TrendingUp,
   Trophy,
-  Users,
+  NotebookPen,
   Bell,
   Sparkles,
   Shield,
@@ -89,19 +89,19 @@ const FEATURES: Feature[] = [
     cta: { href: "/milestones", label: "See milestones" },
   },
   {
-    icon: Users,
-    title: "Social & leaderboards",
+    icon: NotebookPen,
+    title: "Private case notes",
     description:
-      "Opt-in friends + program leaderboards. Share milestones to a private feed, compare anonymized " +
-      "case volume with peers in your specialty, send case-of-the-day pearls. Off by default.",
-    cta: { href: "/feed", label: "Open feed" },
+      "Every note and debrief you save on a case, gathered in one searchable notebook and linked back " +
+      "to the case. Only you can see it. Colleagues, posts and case discussions live on Hippo Pulse.",
+    cta: { href: "/notes", label: "Open your notes" },
   },
   {
     icon: Bell,
     title: "Push notifications",
     description:
-      "When your attending signs off an EPA, when a friend hits a milestone, when a teaching pearl drops in " +
-      "your specialty. Per-channel toggles in settings. Works on iOS Safari 16.4+ and all desktop browsers.",
+      "When your attending signs off an EPA or an assessment needs your attention. Per-channel toggles " +
+      "in settings. Works on iOS Safari 16.4+ and all desktop browsers.",
     cta: { href: "/settings/notifications", label: "Notification settings" },
   },
   {
@@ -134,8 +134,8 @@ const FEATURES: Feature[] = [
     title: "Privacy first",
     description:
       "PHIA-aware by design. No patient identifiers ever stored — Hippo intentionally does not have a " +
-      "name, MRN, or DOB field. Every case is private by default. Sharing to friends or community feeds " +
-      "is explicit, opt-in, and reversible.",
+      "name, MRN, or DOB field. Every case is private. Discussing a case on Hippo Pulse is a separate " +
+      "step that sends only the procedure and diagnosis, and Pulse checks the post again before it goes up.",
     cta: { href: "/settings", label: "Privacy controls" },
   },
 ];
