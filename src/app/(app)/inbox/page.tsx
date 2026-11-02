@@ -65,6 +65,11 @@ function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
 }
 
+/** An observation date is a calendar day stored at UTC midnight; read it in UTC. */
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" });
+}
+
 interface AttendingSummary {
   pendingReview: number;
   residentsToObserve: number;
@@ -506,7 +511,7 @@ function SignOffInbox() {
                       </span>
                     </div>
                     <span style={{ color: "var(--text-3)", fontSize: 11, flexShrink: 0 }}>
-                      {formatDate(obs.signedAt || obs.observationDate)}
+                      {obs.signedAt ? formatDate(obs.signedAt) : formatDay(obs.observationDate)}
                     </span>
                   </div>
                 ))}
@@ -663,7 +668,7 @@ function ObservationCard({
             {obs.caseLog ? ` · ${obs.caseLog.procedureName}` : ""}
             {" · "}
             <Clock size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
-            {formatDate(obs.observationDate)}
+            {formatDay(obs.observationDate)}
           </div>
         </div>
         {obs.entrustmentScore && (
@@ -685,7 +690,7 @@ function ObservationCard({
               {obs.caseLog && (
                 <Row label="Case">
                   {obs.caseLog.procedureName} · {obs.caseLog.surgicalApproach}
-                  {" · "}{formatDate(obs.caseLog.caseDate)}
+                  {" · "}{formatDay(obs.caseLog.caseDate)}
                 </Row>
               )}
               {obs.setting && <Row label="Setting">{obs.setting}</Row>}

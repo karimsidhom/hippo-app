@@ -29,6 +29,10 @@ interface Observation {
   professionalismConcern?: boolean;
   concernDetails?: string;
   status: string;
+  user?: {
+    name: string | null;
+    profile?: { trainingYearLabel: string | null } | null;
+  } | null;
   caseLog?: {
     id: string;
     procedureName: string;
@@ -292,6 +296,13 @@ export default function ReviewPage() {
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{observation.epaTitle}</span>
               </div>
 
+              {observation.user?.name && (
+                <div style={{ fontSize: 13, color: "#e2e8f0", marginBottom: 10 }}>
+                  Resident: <strong>{observation.user.name}</strong>
+                  {observation.user.profile?.trainingYearLabel ? ` · ${observation.user.profile.trainingYearLabel}` : ""}
+                </div>
+              )}
+
               {observation.caseLog && (
                 <div style={{
                   background: "#0e1520",
@@ -307,6 +318,7 @@ export default function ReviewPage() {
                     <strong style={{ color: "#e2e8f0" }}>Date:</strong>{" "}
                     {new Date(observation.caseLog.caseDate).toLocaleDateString("en-CA", {
                       year: "numeric", month: "long", day: "numeric",
+                      timeZone: "UTC",
                     })}
                   </div>
                   {observation.caseLog.surgicalApproach && (
@@ -323,7 +335,7 @@ export default function ReviewPage() {
                 {observation.assessorRole && ` (${observation.assessorRole})`}
               </div>
               <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 2 }}>
-                Date: {new Date(observation.observationDate).toLocaleDateString("en-CA")}
+                Date: {new Date(observation.observationDate).toLocaleDateString("en-CA", { timeZone: "UTC" })}
                 {observation.setting && ` | Setting: ${observation.setting}`}
                 {observation.complexity && ` | Complexity: ${observation.complexity}`}
               </div>

@@ -22,6 +22,14 @@ export async function GET(_req: NextRequest, context: RouteContext) {
       include: {
         epaObservation: {
           include: {
+            // The attending needs to know whose EPA this is; the email that
+            // carried the link already names the resident.
+            user: {
+              select: {
+                name: true,
+                profile: { select: { trainingYearLabel: true } },
+              },
+            },
             caseLog: {
               select: {
                 id: true,

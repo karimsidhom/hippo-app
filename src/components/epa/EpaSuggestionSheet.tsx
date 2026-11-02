@@ -1,6 +1,7 @@
 "use client";
 
 import type { EpaSuggestion } from "@/lib/types";
+import { readableReasons } from "@/lib/epa/reasons";
 
 interface EpaSuggestionSheetProps {
   suggestions: EpaSuggestion[];
@@ -325,7 +326,7 @@ export function EpaSuggestionSheet({
                       marginTop: 8,
                     }}
                   >
-                    {suggestion.matchReasons.map((reason, i) => (
+                    {readableReasons(suggestion.matchReasons).map((reason, i) => (
                       <span
                         key={i}
                         style={{

@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageSquare, Mail, Save } from "lucide-react";
 import { useState, useEffect } from "react";
 import type { EpaObservationInput, EpaAchievementLevel, CriterionRating } from "@/lib/types";
 import type { SmsnaCategoryKey } from "@/lib/smsna/taxonomy";
@@ -58,6 +59,11 @@ function formatDateForInput(date: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** A logged case date is a calendar day stored at UTC midnight; read it in UTC. */
+function formatCaseDateForInput(date: Date): string {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 export function OprsObservationForm({
   categoryKey, categoryName, procedureName,
   prefillData, onSubmit, onCancel, onSaveDraft,
@@ -66,7 +72,7 @@ export function OprsObservationForm({
 
   // ── Form state ──
   const [observationDate, setObservationDate] = useState(
-    prefillData?.caseDate ? formatDateForInput(prefillData.caseDate) : formatDateForInput(new Date())
+    prefillData?.caseDate ? formatCaseDateForInput(prefillData.caseDate) : formatDateForInput(new Date())
   );
   const [assessorRole, setAssessorRole] = useState("Staff Physician");
   const [assessorName, setAssessorName] = useState(prefillData?.attendingLabel ?? "");
@@ -348,7 +354,7 @@ export function OprsObservationForm({
             <ChoiceCard
               active={signOffMode === "in_app"}
               activeColor="#10b981"
-              icon={"💬"}
+              icon={<MessageSquare size={18} strokeWidth={1.75} />}
               label="Send in Hippo"
               sub="Pick an attending"
               onClick={() => { setSignOffMode("in_app"); setPickedAssessor(null); setAssessorEmail(""); }}
@@ -356,7 +362,7 @@ export function OprsObservationForm({
             <ChoiceCard
               active={signOffMode === "email"}
               activeColor="#2563eb"
-              icon={"✉️"}
+              icon={<Mail size={18} strokeWidth={1.75} />}
               label="Email invite"
               sub="365-day link"
               onClick={() => { setSignOffMode("email"); setPickedAssessor(null); setPickerQuery(""); }}
@@ -364,7 +370,7 @@ export function OprsObservationForm({
             <ChoiceCard
               active={signOffMode === "none"}
               activeColor="#64748b"
-              icon={"💾"}
+              icon={<Save size={18} strokeWidth={1.75} />}
               label="Save only"
               sub="No sign-off yet"
               onClick={() => { setSignOffMode("none"); setPickedAssessor(null); setAssessorEmail(""); setPickerQuery(""); }}
@@ -524,7 +530,7 @@ export function OprsObservationForm({
               </svg>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#cbd5e1" }}>{prefillData.procedureName}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(prefillData.caseDate).toLocaleDateString()}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(prefillData.caseDate).toLocaleDateString(undefined, { timeZone: "UTC" })}</div>
               </div>
             </div>
           </div>
@@ -833,7 +839,7 @@ function ChoiceCard({
 }: {
   active: boolean;
   activeColor: string;
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   sub: string;
   onClick: () => void;
@@ -852,7 +858,7 @@ function ChoiceCard({
         transition: "all .15s",
       }}
     >
-      <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+      <span style={{ display: "inline-flex", lineHeight: 1 }}>{icon}</span>
       <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{label}</span>
       <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500 }}>{sub}</span>
     </button>

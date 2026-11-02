@@ -1,5 +1,6 @@
 "use client";
 
+import { MessageSquare, Mail, Save } from "lucide-react";
 import { useState, useMemo, useEffect } from "react";
 import type { EpaObservationInput, EpaAchievementLevel, CriterionRating } from "@/lib/types";
 import { getSpecialtyEpaData } from "@/lib/epa/data";
@@ -82,6 +83,11 @@ function formatDateForInput(date: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/** A logged case date is a calendar day stored at UTC midnight; read it in UTC. */
+function formatCaseDateForInput(date: Date): string {
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 export function EpaObservationForm({
   epaId, epaTitle, specialtySlug, trainingSystem,
   prefillData, onSubmit, onCancel, onSaveDraft,
@@ -101,7 +107,7 @@ export function EpaObservationForm({
 
   // ── Form state ──
   const [observationDate, setObservationDate] = useState(
-    prefillData?.caseDate ? formatDateForInput(prefillData.caseDate) : formatDateForInput(new Date())
+    prefillData?.caseDate ? formatCaseDateForInput(prefillData.caseDate) : formatDateForInput(new Date())
   );
   const [assessorRole, setAssessorRole] = useState("Staff Physician");
   const [assessorName, setAssessorName] = useState(prefillData?.attendingLabel ?? "");
@@ -367,7 +373,7 @@ export function EpaObservationForm({
               Send for sign-off
             </div>
             <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
-              Optional \u2014 you can also request later
+              Optional. You can also ask later.
             </span>
           </div>
 
@@ -376,7 +382,7 @@ export function EpaObservationForm({
             <ChoiceCard
               active={signOffMode === "in_app"}
               activeColor="#10b981"
-              icon={"\uD83D\uDCAC"}
+              icon={<MessageSquare size={18} strokeWidth={1.75} />}
               label="Send in Hippo"
               sub="Pick an attending"
               onClick={() => { setSignOffMode("in_app"); setPickedAssessor(null); setAssessorEmail(""); }}
@@ -384,7 +390,7 @@ export function EpaObservationForm({
             <ChoiceCard
               active={signOffMode === "email"}
               activeColor="#2563eb"
-              icon={"\u2709\uFE0F"}
+              icon={<Mail size={18} strokeWidth={1.75} />}
               label="Email invite"
               sub="365-day link"
               onClick={() => { setSignOffMode("email"); setPickedAssessor(null); setPickerQuery(""); }}
@@ -392,7 +398,7 @@ export function EpaObservationForm({
             <ChoiceCard
               active={signOffMode === "none"}
               activeColor="#64748b"
-              icon={"\uD83D\uDCBE"}
+              icon={<Save size={18} strokeWidth={1.75} />}
               label="Save only"
               sub="No sign-off yet"
               onClick={() => { setSignOffMode("none"); setPickedAssessor(null); setAssessorEmail(""); setPickerQuery(""); }}
@@ -447,7 +453,7 @@ export function EpaObservationForm({
                     type="text"
                     value={pickerQuery}
                     onChange={(e) => setPickerQuery(e.target.value)}
-                    placeholder="Search by name or email\u2026"
+                    placeholder="Search by name or email…"
                     style={inputStyle}
                     autoFocus
                   />
@@ -533,8 +539,8 @@ export function EpaObservationForm({
                   {lookupLoading
                     ? <>Checking{"\u2026"}</>
                     : assessorLookup?.isHippoUser
-                      ? <><span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"}</span>{" "}This email matches a Hippo user \u2014 we\u2019ll route as in-app + email backup.</>
-                      : <>We\u2019ll email a secure sign-off link valid for 12 months. No login needed.</>
+                      ? <><span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"}</span>{" "}This email matches a Hippo user, so it goes in-app with an email backup.</>
+                      : <>We&apos;ll email a secure sign-off link valid for 12 months. No login needed.</>
                   }
                 </div>
               )}
@@ -563,7 +569,7 @@ export function EpaObservationForm({
               </svg>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: "#cbd5e1" }}>{prefillData.procedureName}</div>
-                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(prefillData.caseDate).toLocaleDateString()}</div>
+                <div style={{ fontSize: 11, color: "#94a3b8" }}>{new Date(prefillData.caseDate).toLocaleDateString(undefined, { timeZone: "UTC" })}</div>
               </div>
             </div>
           </div>
@@ -903,7 +909,7 @@ function ChoiceCard({
 }: {
   active: boolean;
   activeColor: string;
-  icon: string;
+  icon: React.ReactNode;
   label: string;
   sub: string;
   onClick: () => void;
@@ -924,7 +930,7 @@ function ChoiceCard({
         transition: "all .15s",
       }}
     >
-      <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
+      <span style={{ display: "inline-flex", lineHeight: 1 }}>{icon}</span>
       <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{label}</span>
       <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500 }}>{sub}</span>
     </button>
