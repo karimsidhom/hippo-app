@@ -34,4 +34,9 @@ describe("private case notebook", () => {
     expect(filterCaseNotes(notes).map(note => note.id)).toEqual(["case-one", "earlier", "unknown"]);
     expect(notes[2].year).toBe("2026");
   });
+  it("names the specialty from the stored slug when the row has no name", () => {
+    const [note] = collectCaseNotes([row({ specialtyName: undefined, specialtyId: "urology" })], "me");
+    expect(note.specialty).toBe("Urology");
+    expect(collectCaseNotes([row({ specialtyName: undefined, specialtyId: null })], "me")[0].specialty).toBe("Unspecified specialty");
+  });
 });

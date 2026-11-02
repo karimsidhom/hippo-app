@@ -144,7 +144,7 @@ function Sheet({
           <div style={{ minWidth: 0 }}>
             <h2 className="case-sheet__title">{c.procedureName}</h2>
             <div className="case-sheet__sub">
-              {date.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}
+              {date.toLocaleDateString("en-CA", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: "UTC" })}
               {c.institutionSite ? ` · ${c.institutionSite}` : ""}
             </div>
           </div>
@@ -431,7 +431,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
               Operative Dictation
             </div>
             <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
-              <span>{c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
+              <span>{c.procedureName} &mdash; {new Date(c.caseDate).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" })}</span>
               {/*
                 Quality-status pill removed per user request — the new
                 template registry guarantees every templated procedure
@@ -757,7 +757,7 @@ export default function CasesPage() {
     const byMonth = new Map<string, CaseLog[]>();
     for (const c of filtered) {
       const d   = new Date(c.caseDate);
-      const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, "0")}`;
+      const key = `${d.getUTCFullYear()}-${String(d.getUTCMonth()).padStart(2, "0")}`;
       const bucket = byMonth.get(key);
       if (bucket) bucket.push(c);
       else byMonth.set(key, [c]);
@@ -766,8 +766,8 @@ export default function CasesPage() {
       const d = new Date(items[0].caseDate);
       return {
         key,
-        month:   d.toLocaleDateString("en-CA", { month: "long" }),
-        year:    d.getFullYear(),
+        month:   d.toLocaleDateString("en-CA", { month: "long", timeZone: "UTC" }),
+        year:    d.getUTCFullYear(),
         items,
         minutes: items.reduce((t, c) => t + (c.operativeDurationMinutes ?? 0), 0),
       };
@@ -1026,7 +1026,7 @@ export default function CasesPage() {
                 <div className="case-row__tail">
                   {c.operativeDurationMinutes ? <span className="case-row__duration">{formatDuration(c.operativeDurationMinutes)}</span> : null}
                   <span className="case-row__date">
-                    {d.toLocaleDateString("en-CA", { weekday: "short" })} {d.getDate()}
+                    {d.toLocaleDateString("en-CA", { weekday: "short", timeZone: "UTC" })} {d.getUTCDate()}
                   </span>
                   <span className="case-row__actions">
                     <button

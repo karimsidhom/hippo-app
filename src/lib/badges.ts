@@ -58,6 +58,14 @@ export function badgeLabel(key: string, procedureName?: string | null): string {
     return proc[2] ? `${proc[2]} × ${name}` : name;
   }
 
+  // Per-procedure keys written without the proc_ prefix:
+  // `ureteroscopy_with_laser_lithotripsy_1` → "First ureteroscopy with laser lithotripsy".
+  const counted = /^([a-z][a-z0-9_]*?)_(\d+)$/.exec(key);
+  if (counted) {
+    const name = procedureName ?? humanise(counted[1]);
+    return counted[2] === '1' ? `First ${name.charAt(0).toLowerCase()}${name.slice(1)}` : `${counted[2]} × ${name}`;
+  }
+
   return humanise(key);
 }
 

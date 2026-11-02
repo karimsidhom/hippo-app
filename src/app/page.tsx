@@ -66,7 +66,7 @@ export default function RootPage() {
             animation: "oe-fadeInUp 0.3s cubic-bezier(.16,1,.3,1) 0.2s both",
           }}
         >
-          Loading your dashboard\u2026
+          Loading your dashboard…
         </p>
       </div>
 

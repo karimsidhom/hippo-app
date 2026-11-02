@@ -169,18 +169,13 @@ export function DebriefSheet({
     }
   };
 
-  const dateLabel =
-    typeof caseLog.caseDate === "string"
-      ? new Date(caseLog.caseDate).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        })
-      : caseLog.caseDate.toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-          year: "numeric",
-        });
+  // A case date is a calendar day stored at UTC midnight; read it in UTC.
+  const dateLabel = new Date(caseLog.caseDate).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  });
 
   return (
     <div

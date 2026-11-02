@@ -1,7 +1,9 @@
 import { parseStoredReflection } from "@/lib/debrief/types";
+import { SPECIALTIES } from "@/lib/constants";
+import { SMSNA_SPECIALTY_NAME, SMSNA_SPECIALTY_SLUG } from "@/lib/smsna/gate";
 
 export interface NoteCase {
-  id: string; userId: string; procedureName: string; specialtyName?: string;
+  id: string; userId: string; procedureName: string; specialtyName?: string; specialtyId?: string | null;
   notes: string | null; reflection: string | null; tags: string[];
   caseDate: Date | string; updatedAt: Date | string;
 }
@@ -10,6 +12,10 @@ export interface CaseNote {
   caseDate: string; updatedAt: number; year: string;
   sections: { title: string; text: string }[]; tags: string[];
 }
+/** Cases store the specialty slug; only an optimistic row carries a name. */
+const specialtyLabel = (entry: NoteCase) => entry.specialtyName?.trim()
+  || (entry.specialtyId === SMSNA_SPECIALTY_SLUG ? SMSNA_SPECIALTY_NAME : SPECIALTIES.find(s => s.slug === entry.specialtyId)?.name)
+  || "Unspecified specialty";
 const iso = (value: Date | string) => {
   const date = new Date(value);
   return Number.isFinite(date.getTime()) ? date.toISOString() : "";
@@ -47,7 +53,7 @@ export function collectCaseNotes(cases: readonly NoteCase[], ownerId: string | u
     const kept = sections.filter(section => section.text);
     if (!kept.length) return [];
     const caseDate = iso(entry.caseDate);
-    return [{ id: entry.id, procedure: entry.procedureName, specialty: entry.specialtyName?.trim() || "Unspecified specialty",
+    return [{ id: entry.id, procedure: entry.procedureName, specialty: specialtyLabel(entry),
       caseDate, updatedAt: new Date(entry.updatedAt).getTime() || 0, year: caseDate.slice(0, 4), sections: kept,
       tags: (entry.tags ?? []).filter(tag => typeof tag === "string" && tag.trim()).map(tag => tag.trim()) }];
   });

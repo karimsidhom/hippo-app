@@ -16,7 +16,7 @@ import { MILESTONE_THRESHOLDS } from "@/lib/constants";
 import { getLearningCurveData, getWeeklyHeatmapData } from "@/lib/stats";
 import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
-import { BADGE_KEYS } from "@/lib/constants";
+import { badgeLabel, badgeTone, TONE_VAR } from "@/lib/badges";
 import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
@@ -664,10 +664,9 @@ export default function DashboardPage() {
                   }}
                 >
                   {recentMilestones.map((m) => {
-                    const badge = BADGE_KEYS[m.badgeKey] ?? {
-                      label: m.badgeKey,
-                      color: "#0EA5E9",
-                      emoji: "🏆",
+                    const badge = {
+                      label: badgeLabel(m.badgeKey),
+                      color: TONE_VAR[badgeTone(m.badgeKey)],
                     };
                     return (
                       <div
@@ -689,15 +688,14 @@ export default function DashboardPage() {
                             width: 22,
                             height: 22,
                             borderRadius: "50%",
-                            background: `${badge.color}22`,
-                            border: `1px solid ${badge.color}55`,
+                            background: `color-mix(in srgb, ${badge.color} 14%, transparent)`,
+                            border: `1px solid color-mix(in srgb, ${badge.color} 35%, transparent)`,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 11,
                           }}
                         >
-                          {badge.emoji ?? "🏆"}
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.color }} />
                         </span>
                         <span
                           style={{
@@ -907,7 +905,7 @@ export default function DashboardPage() {
                       fontSize: 11, color: "var(--text-3)",
                       fontFamily: "'Geist Mono', monospace",
                     }}>
-                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" })}
                     </span>
                   </div>
                 </div>

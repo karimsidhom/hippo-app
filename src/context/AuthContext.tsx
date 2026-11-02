@@ -538,9 +538,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(r => r.ok ? r.json() : null)
       .then(serverMs => {
         if (serverMs) {
-          setMilestones(prev =>
-            prev.map(ms => ms.id === tempId ? deserializeMilestone(serverMs) : ms),
-          );
+          // The server returns the existing row when this milestone was
+          // already awarded (a refetch or a second award can land first), so
+          // swap the temp entry out and drop any copy of the real id rather
+          // than mapping in place, which rendered the same key twice.
+          const saved = deserializeMilestone(serverMs);
+          setMilestones(prev => [
+            ...prev.filter(ms => ms.id !== tempId && ms.id !== saved.id),
+            saved,
+          ]);
         }
       })
       .catch(e => console.error('[AuthContext] addMilestone error:', e));

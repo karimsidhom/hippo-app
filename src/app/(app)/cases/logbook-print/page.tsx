@@ -53,6 +53,12 @@ function formatDate(iso: string | Date): string {
   return `${String(d.getMonth() + 1).padStart(2, "0")}/${String(d.getDate()).padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+/** Case and observation dates are calendar days stored at UTC midnight. */
+function formatDay(iso: string | Date): string {
+  const d = new Date(iso);
+  return `${String(d.getUTCMonth() + 1).padStart(2, "0")}/${String(d.getUTCDate()).padStart(2, "0")}/${d.getUTCFullYear()}`;
+}
+
 function statusLabel(s: string): string {
   switch (s) {
     case "SIGNED":         return "Verified";
@@ -301,7 +307,7 @@ export default function LogbookPrintPage() {
             label="Date range"
             value={
               stats.firstDate && stats.lastDate
-                ? `${formatDate(stats.firstDate)} – ${formatDate(stats.lastDate)}`
+                ? `${formatDay(stats.firstDate)} – ${formatDay(stats.lastDate)}`
                 : "—"
             }
           />
@@ -383,7 +389,7 @@ export default function LogbookPrintPage() {
                 <td style={{ color: "#999", fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
                   {safeCases.length - i}
                 </td>
-                <td>{c.caseDate ? formatDate(c.caseDate as unknown as string) : "—"}</td>
+                <td>{c.caseDate ? formatDay(c.caseDate as unknown as string) : "—"}</td>
                 <td style={{ fontWeight: 500 }}>{c.procedureName}</td>
                 <td>{APPROACH_LABELS[String(c.surgicalApproach ?? "").toUpperCase()] ?? c.surgicalApproach}</td>
                 <td>{ROLE_LABELS[String(c.role ?? "").toUpperCase()] ?? c.role}</td>
@@ -442,7 +448,7 @@ export default function LogbookPrintPage() {
                       <td style={{ textAlign: "center", fontWeight: 700, color: isSigned ? "#0f5132" : "#94a3b8", fontSize: 11 }}>
                         {isSigned ? "✓" : "—"}
                       </td>
-                      <td>{formatDate(o.observationDate)}</td>
+                      <td>{formatDay(o.observationDate)}</td>
                       <td style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 10 }}>
                         {o.epaId}
                       </td>

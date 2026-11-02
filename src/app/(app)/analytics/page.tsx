@@ -842,6 +842,7 @@ export default function AnalyticsPage() {
                                     ).toLocaleDateString("en-US", {
                                       month: "short",
                                       day: "numeric",
+                                      timeZone: "UTC",
                                     })
                                   : "—"}
                               </td>

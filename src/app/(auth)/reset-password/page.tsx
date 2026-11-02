@@ -227,7 +227,7 @@ export default function ResetPasswordPage() {
               margin: 0,
             }}
           >
-            Verifying reset link\u2026
+            Verifying reset link…
           </p>
         )}
 
@@ -271,7 +271,7 @@ export default function ResetPasswordPage() {
                 margin: 0,
               }}
             >
-              Redirecting to your dashboard\u2026
+              Redirecting to your dashboard…
             </p>
           </div>
         )}
