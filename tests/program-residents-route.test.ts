@@ -1,19 +1,34 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-const m = vi.hoisted(() => ({ auth: vi.fn(), scope: vi.fn(), profiles: vi.fn(), history: vi.fn(), caseCount: vi.fn(), lastCase: vi.fn(), epaCount: vi.fn() }));
+const m = vi.hoisted(() => ({ auth: vi.fn(), scope: vi.fn(), viewer: vi.fn(), profiles: vi.fn(), meetings: vi.fn(), history: vi.fn(), caseCount: vi.fn(), lastCase: vi.fn(), epaCount: vi.fn() }));
 vi.mock('@/lib/api-auth', () => ({ requireAuth: m.auth }));
 vi.mock('@/lib/program-auth', () => ({ getProgramProgressScope: m.scope }));
 vi.mock('@/lib/epa/program-progress', () => ({ loadProgramHistoricalProgress: m.history }));
-vi.mock('@/lib/db', () => ({ db: { profile: { findMany: m.profiles }, caseLog: { count: m.caseCount, findFirst: m.lastCase }, epaObservation: { count: m.epaCount } } }));
+vi.mock('@/lib/db', () => ({ db: { profile: { findUnique: m.viewer, findMany: m.profiles }, pdMeeting: { findMany: m.meetings }, caseLog: { count: m.caseCount, findFirst: m.lastCase }, epaObservation: { count: m.epaCount } } }));
 import { GET } from '@/app/api/pd/residents/route';
 const req = (query = 'programId=program-a') => new Request(`https://example.test/api/pd/residents?${query}`);
 beforeEach(() => {
   vi.resetAllMocks();
   m.auth.mockResolvedValue({ user: { id: 'viewer' }, error: null });
+  m.viewer.mockResolvedValue({ userId: 'viewer', roleType: 'PROGRAM_DIRECTOR' });
+  m.meetings.mockResolvedValue([]);
   m.scope.mockResolvedValue({ program: { id: 'program-a', name: 'Urology programme', institution: 'Shared institution', specialty: 'urology' }, role: 'PD', residentUserIds: ['resident-a'] });
   m.profiles.mockResolvedValue([{ userId: 'resident-a', specialty: 'Urology', roleType: 'RESIDENT', pgyYear: 4, trainingYearLabel: 'PGY4', user: { name: 'Resident', email: 'resident@example.test', image: null } }]);
   m.history.mockResolvedValue(new Map()); m.caseCount.mockResolvedValue(0); m.epaCount.mockResolvedValue(0); m.lastCase.mockResolvedValue(null);
 });
 describe('programme-scoped resident roster', () => {
+  it('keeps the staff profile gate before any programme lookup', async () => {
+    m.viewer.mockResolvedValue({ userId: 'viewer', roleType: 'RESIDENT' });
+    expect((await GET(req())).status).toBe(403);
+    expect(m.scope).not.toHaveBeenCalled(); expect(m.profiles).not.toHaveBeenCalled();
+  });
+  it('carries the most recent 1:1 per resident', async () => {
+    m.meetings.mockResolvedValue([
+      { residentId: 'resident-a', meetingDate: new Date('2026-10-01T00:00:00Z'), status: 'PUBLISHED' },
+      { residentId: 'resident-a', meetingDate: new Date('2026-04-01T00:00:00Z'), status: 'PUBLISHED' },
+    ]);
+    const data = await (await GET(req())).json();
+    expect(data.residents[0]).toMatchObject({ lastMeetingDate: '2026-10-01T00:00:00.000Z', lastMeetingStatus: 'PUBLISHED' });
+  });
   it('requires an explicit programme instead of using institution-wide defaults', async () => {
     expect((await GET(req(''))).status).toBe(400);
     expect(m.scope).not.toHaveBeenCalled(); expect(m.profiles).not.toHaveBeenCalled();
