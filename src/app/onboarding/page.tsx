@@ -130,7 +130,7 @@ export default function OnboardingPage() {
             </div>
             <div>
               <h1 className="text-4xl font-bold text-[#f1f5f9]">Hippo</h1>
-              <p className="text-[#2563eb] font-semibold mt-1 text-lg">Strava for Surgeons</p>
+              <p className="text-[#2563eb] font-semibold mt-1 text-lg">Track mastery. Share growth.</p>
               <p className="text-[#94a3b8] mt-3 leading-relaxed">
                 The premier case logging platform for surgical trainees. Track your operative journey, measure your growth, and achieve your milestones.
               </p>
@@ -144,12 +144,12 @@ export default function OnboardingPage() {
           </div>
         )}
 
-        {/* Step 2: Strava Explainer */}
+        {/* Step 2: What the app does */}
         {step === 2 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
               <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Operative Journey</h2>
-              <p className="text-[#94a3b8] mt-2">Like Strava tracks your runs, Hippo tracks your surgical growth</p>
+              <p className="text-[#94a3b8] mt-2">Every case you log builds the picture of how you operate</p>
             </div>
             <div className="space-y-3">
               {[

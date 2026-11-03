@@ -1,4 +1,4 @@
-# Hippo — Strava for Surgeons
+# Hippo — Surgical Case Log
 
 > The operating system for surgical growth. Log cases, track performance, benchmark against peers, and build a fellowship-worthy portfolio.
 
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Hippo is a PHIA-safe surgical case logging and performance analytics platform for residents, fellows, and attending surgeons. It combines the motivational design of Strava with the precision of a surgical logbook.
+Hippo is a PHIA-safe surgical case logging and performance analytics platform for residents, fellows, and attending surgeons. It is built to the precision of a surgical logbook, with the pace of something you actually open after a list.
 
 **Core features:**
 - Fast case logging (Quick-add in ~10 seconds, full entry with all fields)

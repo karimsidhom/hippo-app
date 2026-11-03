@@ -1,5 +1,6 @@
 'use client';
 
+import { ProgressNav } from "@/components/academic/ProgressNav";
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 
@@ -62,6 +63,7 @@ export default function MyMeetingsPage() {
 
   return (
     <div style={{ maxWidth: 820, margin: '0 auto', padding: '20px 16px 60px' }}>
+      <ProgressNav active="meetings" />
       <Link href="/profile" style={{ fontSize: 13, color: 'var(--text-3)', textDecoration: 'none' }}>
         ← Profile
       </Link>
@@ -152,7 +154,7 @@ export default function MyMeetingsPage() {
                     onClick={() => acknowledge(m.id)}
                     style={{
                       padding: '8px 16px', borderRadius: 8, fontSize: 13, fontWeight: 600,
-                      border: '1px solid var(--primary)', background: 'var(--primary)',
+                      border: '1px solid var(--primary-solid)', background: 'var(--primary-solid)',
                       color: '#fff', cursor: busy === m.id ? 'wait' : 'pointer',
                       fontFamily: 'inherit', opacity: busy === m.id ? 0.6 : 1,
                     }}

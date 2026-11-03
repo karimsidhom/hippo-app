@@ -73,7 +73,7 @@ export function NotificationBell() {
               height: 14,
               padding: "0 4px",
               borderRadius: 8,
-              background: "var(--primary)",
+              background: "var(--primary-solid)",
               color: "#fff",
               fontSize: 9,
               fontWeight: 700,
@@ -211,7 +211,7 @@ function NotificationSheet({
                 border: "none",
                 padding: 4,
                 cursor: "pointer",
-                color: "var(--muted)",
+                color: "var(--text-3)",
               }}
             >
               <X size={14} />

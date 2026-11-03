@@ -7,15 +7,12 @@ import type { PublicProfile } from "@/lib/types";
 interface Props {
   profile: PublicProfile;
   onEdit?: () => void;
-  onFollowToggle?: () => void;
-  onShowFollowers?: () => void;
-  onShowFollowing?: () => void;
   onPhotoUpload?: (file: File) => Promise<void>;
   onPhotoRemove?: () => Promise<void>;
 }
 
 export function ProfileHeader({
-  profile, onEdit, onFollowToggle, onShowFollowers, onShowFollowing, onPhotoUpload, onPhotoRemove,
+  profile, onEdit, onPhotoUpload, onPhotoRemove,
 }: Props) {
   const initials = profile.name
     ? profile.name.replace("Dr. ", "").trim().split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase()
@@ -207,7 +204,7 @@ export function ProfileHeader({
         </div>
 
         {/* Action button */}
-        {profile.isOwnProfile ? (
+        {profile.isOwnProfile && (
           <button
             onClick={onEdit}
             style={{
@@ -226,25 +223,6 @@ export function ProfileHeader({
           >
             Edit profile
           </button>
-        ) : (
-          <button
-            onClick={onFollowToggle}
-            style={{
-              padding: "6px 16px",
-              background: profile.isFollowing ? "none" : "var(--primary)",
-              border: profile.isFollowing ? "1px solid var(--border-mid)" : "1px solid var(--primary)",
-              color: profile.isFollowing ? "var(--text-2)" : "#fff",
-              borderRadius: 8,
-              fontSize: 12,
-              fontWeight: 600,
-              cursor: "pointer",
-              fontFamily: "'Geist', sans-serif",
-              transition: "all .15s",
-              flexShrink: 0,
-            }}
-          >
-            {profile.isFollowing ? "Following" : "Follow"}
-          </button>
         )}
       </div>
 
@@ -258,35 +236,6 @@ export function ProfileHeader({
         </div>
       )}
 
-      {/* Follower / Following counts */}
-      <div style={{ display: "flex", gap: 16 }}>
-        <button
-          onClick={onShowFollowers}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            padding: 0, fontFamily: "'Geist', sans-serif",
-            display: "flex", alignItems: "center", gap: 4,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
-            {profile.followerCount}
-          </span>
-          <span style={{ fontSize: 12, color: "var(--text-3)" }}>followers</span>
-        </button>
-        <button
-          onClick={onShowFollowing}
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            padding: 0, fontFamily: "'Geist', sans-serif",
-            display: "flex", alignItems: "center", gap: 4,
-          }}
-        >
-          <span style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
-            {profile.followingCount}
-          </span>
-          <span style={{ fontSize: 12, color: "var(--text-3)" }}>following</span>
-        </button>
-      </div>
     </div>
   );
 }

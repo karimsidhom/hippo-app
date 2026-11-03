@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import {
   CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle,
-  ClipboardCheck, Users, MessageSquare, Lock, Sparkles, Loader2, ListChecks, Zap,
+  ClipboardCheck, Users, Lock, Sparkles, Loader2, ListChecks, Zap,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -63,6 +63,11 @@ interface Observation {
 
 function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+/** An observation date is a calendar day stored at UTC midnight; read it in UTC. */
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" });
 }
 
 interface AttendingSummary {
@@ -237,10 +242,10 @@ function SignOffInbox() {
         resident&apos;s self-assessment, adjust the entrustment score if needed, and sign.
       </p>
 
-      {/* ── Hero summary strip — 3 KPI tiles ─────────────────────────────── */}
+      {/* ── EPA summary ─────────────────────────────────────────────────── */}
       {summary && (
         <div style={{
-          display: "grid", gridTemplateColumns: "repeat(3, 1fr)",
+          display: "grid", gridTemplateColumns: "repeat(2, 1fr)",
           gap: 10, marginBottom: 24,
         }}>
           <SummaryTile
@@ -257,14 +262,7 @@ function SignOffInbox() {
             label="Residents to observe"
             value={summary.residentsToObserve}
             accentColor="var(--text-3)"
-            href={isPD ? "/pd-dashboard" : "/social"}
-          />
-          <SummaryTile
-            icon={<MessageSquare size={18} strokeWidth={1.5} />}
-            label="Pearls mentioning you"
-            value={summary.pearlsMentioning}
-            accentColor="var(--text-3)"
-            href="/social?filter=tagged"
+            href={isPD ? "/pd-dashboard" : undefined}
           />
         </div>
       )}
@@ -282,16 +280,16 @@ function SignOffInbox() {
             You&apos;re all caught up
           </div>
           <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
-            Check the cohort for who to observe next.
+            {isPD ? "Check the cohort for who to observe next." : "New EPA review requests will appear here."}
           </div>
           <Link
-            href={isPD ? "/pd-dashboard" : "/social"}
+            href={isPD ? "/pd-dashboard" : "/cases"}
             style={{
               fontSize: 12, fontWeight: 600, color: "var(--primary)",
               textDecoration: "none",
             }}
           >
-            {isPD ? "Open PD dashboard →" : "Go to community →"}
+            {isPD ? "Open PD dashboard →" : "Back to cases →"}
           </Link>
         </div>
       ) : (
@@ -513,7 +511,7 @@ function SignOffInbox() {
                       </span>
                     </div>
                     <span style={{ color: "var(--text-3)", fontSize: 11, flexShrink: 0 }}>
-                      {formatDate(obs.signedAt || obs.observationDate)}
+                      {obs.signedAt ? formatDate(obs.signedAt) : formatDay(obs.observationDate)}
                     </span>
                   </div>
                 ))}
@@ -670,7 +668,7 @@ function ObservationCard({
             {obs.caseLog ? ` · ${obs.caseLog.procedureName}` : ""}
             {" · "}
             <Clock size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
-            {formatDate(obs.observationDate)}
+            {formatDay(obs.observationDate)}
           </div>
         </div>
         {obs.entrustmentScore && (
@@ -692,7 +690,7 @@ function ObservationCard({
               {obs.caseLog && (
                 <Row label="Case">
                   {obs.caseLog.procedureName} · {obs.caseLog.surgicalApproach}
-                  {" · "}{formatDate(obs.caseLog.caseDate)}
+                  {" · "}{formatDay(obs.caseLog.caseDate)}
                 </Row>
               )}
               {obs.setting && <Row label="Setting">{obs.setting}</Row>}
@@ -776,7 +774,7 @@ function ObservationCard({
                         style={{
                           marginLeft: "auto",
                           padding: "2px 8px", borderRadius: 4,
-                          background: "var(--primary)", border: "none",
+                          background: "var(--primary-solid)", border: "none",
                           color: "#fff", fontSize: 10, fontWeight: 600,
                           cursor: "pointer", fontFamily: "inherit",
                         }}

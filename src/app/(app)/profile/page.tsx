@@ -12,8 +12,7 @@ import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { StatsStrip } from "@/components/profile/StatsStrip";
 import { ProfileTabs, type ProfileTab } from "@/components/profile/ProfileTabs";
 import { PortfolioTab } from "@/components/profile/PortfolioTab";
-import { PostsTab } from "@/components/profile/PostsTab";
-import type { PublicProfile, Pearl, PortfolioCase, PostType } from "@/lib/types";
+import type { PublicProfile, PortfolioCase } from "@/lib/types";
 
 const PGY_OPTIONS = [1, 2, 3, 4, 5, 6, 7, 8];
 
@@ -103,13 +102,7 @@ export default function ProfilePage() {
   const [portfolioItems, setPortfolioItems] = useState<PortfolioCase[]>([]);
   const [portfolioLoading, setPortfolioLoading] = useState(true);
 
-  // Pearls state
-  const [pearls, setPearls] = useState<Pearl[]>([]);
-  const [pearlsLoading, setPearlsLoading] = useState(true);
 
-  // Follow counts
-  const [followerCount, setFollowerCount] = useState(0);
-  const [followingCount, setFollowingCount] = useState(0);
 
   // Profile image
   const [profileImage, setProfileImage] = useState<string | null>(null);
@@ -149,8 +142,6 @@ export default function ProfilePage() {
       const res = await fetch(`/api/profile/${user.id}`);
       if (res.ok) {
         const data = await res.json();
-        setFollowerCount(data.followerCount || 0);
-        setFollowingCount(data.followingCount || 0);
         setProfileImage(data.image || null);
       }
     } catch { /* ignore */ }
@@ -167,25 +158,10 @@ export default function ProfilePage() {
     setPortfolioLoading(false);
   }, [user?.id]);
 
-  // Fetch pearls
-  const fetchPearls = useCallback(async () => {
-    if (!user?.id) return;
-    setPearlsLoading(true);
-    try {
-      const res = await fetch(`/api/pearls?authorId=${user.id}`);
-      if (res.ok) {
-        const data = await res.json();
-        setPearls(data.items || []);
-      }
-    } catch { /* ignore */ }
-    setPearlsLoading(false);
-  }, [user?.id]);
-
   useEffect(() => {
     fetchProfileData();
     fetchPortfolio();
-    fetchPearls();
-  }, [fetchProfileData, fetchPortfolio, fetchPearls]);
+  }, [fetchProfileData, fetchPortfolio]);
 
   // Sync edit form when profile loads
   useEffect(() => {
@@ -257,58 +233,6 @@ export default function ProfilePage() {
     try {
       await fetch(`/api/portfolio/${id}`, { method: "DELETE" });
       setPortfolioItems((prev) => prev.filter((p) => p.id !== id));
-    } catch { /* ignore */ }
-  };
-
-  // Post handlers
-  const handleCreatePearl = async (data: {
-    procedureName: string;
-    category: string;
-    title: string;
-    content: string;
-    tags: string[];
-    postType: PostType;
-    imageUrl?: string;
-    linkUrl?: string;
-    linkedCaseId?: string;
-  }) => {
-    try {
-      const res = await fetch("/api/pearls", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
-      });
-      if (res.ok) fetchPearls();
-    } catch { /* ignore */ }
-  };
-
-  const handleLikePearl = async (id: string) => {
-    const pearl = pearls.find((p) => p.id === id);
-    if (!pearl) return;
-    const method = pearl.liked ? "DELETE" : "POST";
-    try {
-      const res = await fetch(`/api/pearls/${id}/like`, { method });
-      if (res.ok) {
-        const { likeCount } = await res.json();
-        setPearls((prev) => prev.map((p) =>
-          p.id === id ? { ...p, liked: !p.liked, likeCount } : p
-        ));
-      }
-    } catch { /* ignore */ }
-  };
-
-  const handleSavePearl = async (id: string) => {
-    const pearl = pearls.find((p) => p.id === id);
-    if (!pearl) return;
-    const method = pearl.saved ? "DELETE" : "POST";
-    try {
-      const res = await fetch(`/api/pearls/${id}/save`, { method });
-      if (res.ok) {
-        const { saveCount } = await res.json();
-        setPearls((prev) => prev.map((p) =>
-          p.id === id ? { ...p, saved: !p.saved, saveCount } : p
-        ));
-      }
     } catch { /* ignore */ }
   };
 
@@ -394,8 +318,8 @@ export default function ProfilePage() {
       independentRate: Math.round(stats?.independentRate || 0),
       topProcedures: [],
     },
-    followerCount,
-    followingCount,
+    followerCount: 0,
+    followingCount: 0,
     isFollowing: false,
     isOwnProfile: true,
   };
@@ -547,7 +471,7 @@ export default function ProfilePage() {
 
           <div style={{ display: "flex", gap: 8 }}>
             <button onClick={handleSave} disabled={saving} style={{
-              padding: "8px 16px", background: "var(--primary)", color: "#fff",
+              padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
               border: "none", borderRadius: "var(--rs)", fontSize: 12, fontWeight: 600,
               cursor: "pointer", fontFamily: "'Geist', sans-serif",
               transition: "opacity .15s", opacity: saving ? 0.6 : 1,
@@ -575,7 +499,6 @@ export default function ProfilePage() {
         active={activeTab}
         onChange={setActiveTab}
         portfolioCount={portfolioItems.length}
-        pearlCount={pearls.length}
       />
 
       {/* Tab Content */}
@@ -589,21 +512,6 @@ export default function ProfilePage() {
             cases={cases}
             onAdd={handleAddPortfolio}
             onRemove={handleRemovePortfolio}
-          />
-        )
-      )}
-
-      {activeTab === "posts" && (
-        pearlsLoading ? (
-          <div style={{ textAlign: "center", padding: 40, color: "var(--text-3)", fontSize: 12 }}>Loading...</div>
-        ) : (
-          <PostsTab
-            pearls={pearls}
-            isOwn
-            onLike={handleLikePearl}
-            onSave={handleSavePearl}
-            onCreate={handleCreatePearl}
-            cases={cases}
           />
         )
       )}

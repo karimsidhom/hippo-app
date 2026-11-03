@@ -1,14 +1,12 @@
 "use client";
 
-import { Share2, Sparkles } from "lucide-react";
 import type { EpaSuggestion } from "@/lib/types";
+import { readableReasons } from "@/lib/epa/reasons";
 
 interface EpaSuggestionSheetProps {
   suggestions: EpaSuggestion[];
   onSelect: (suggestion: EpaSuggestion) => void;
   onSkip: () => void;
-  /** Optional — if provided, shows a "Share as pearl" CTA in the Next-steps banner. */
-  onShareAsPearl?: () => void;
   loading?: boolean;
   /** Optional server note — rendered when suggestions are empty (e.g. "AI unavailable, showing keyword matches"). */
   note?: string | null;
@@ -104,7 +102,6 @@ export function EpaSuggestionSheet({
   suggestions,
   onSelect,
   onSkip,
-  onShareAsPearl,
   loading,
   note,
 }: EpaSuggestionSheetProps) {
@@ -182,46 +179,9 @@ export function EpaSuggestionSheet({
               margin: "4px 0 0",
             }}
           >
-            {loading ? "Gemini is analyzing your case for EPA matches…" : "Link this case to an EPA, or share a lesson with the community."}
+            {loading ? "Finding matching EPAs…" : "Link this case to an EPA, or return to your log."}
           </p>
 
-          {onShareAsPearl && (
-            <button
-              onClick={onShareAsPearl}
-              style={{
-                marginTop: 12,
-                width: "100%",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: 8,
-                padding: "10px 14px",
-                background: "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.06))",
-                border: "1px solid rgba(245,158,11,0.35)",
-                borderRadius: 10,
-                color: "#F59E0B",
-                fontSize: 13,
-                fontWeight: 600,
-                cursor: "pointer",
-                fontFamily: "inherit",
-                transition: "all .15s",
-              }}
-              onMouseEnter={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "linear-gradient(135deg, rgba(245,158,11,0.18), rgba(245,158,11,0.10))";
-              }}
-              onMouseLeave={(e) => {
-                (e.currentTarget as HTMLButtonElement).style.background =
-                  "linear-gradient(135deg, rgba(245,158,11,0.12), rgba(245,158,11,0.06))";
-              }}
-            >
-              <Share2 size={14} />
-              <span style={{ flex: "0 1 auto", whiteSpace: "nowrap" }}>Share a pearl</span>
-              <span style={{ display: "inline-flex", alignItems: "center", gap: 3, fontSize: 10, color: "rgba(245,158,11,0.7)", fontWeight: 500, marginLeft: 4, whiteSpace: "nowrap" }}>
-                <Sparkles size={10} /> AI-drafted
-              </span>
-            </button>
-          )}
         </div>
 
         {/* Section label above EPA list */}
@@ -366,7 +326,7 @@ export function EpaSuggestionSheet({
                       marginTop: 8,
                     }}
                   >
-                    {suggestion.matchReasons.map((reason, i) => (
+                    {readableReasons(suggestion.matchReasons).map((reason, i) => (
                       <span
                         key={i}
                         style={{

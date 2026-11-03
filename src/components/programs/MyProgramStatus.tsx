@@ -198,7 +198,7 @@ export function MyProgramStatus() {
                   disabled={busy === r.id}
                   style={{
                     padding: "8px 14px",
-                    background: "var(--primary)",
+                    background: "var(--primary-solid)",
                     border: "none",
                     borderRadius: 7,
                     color: "#fff",
@@ -302,7 +302,7 @@ export function MyProgramStatus() {
               onClick={() => router.push("/programs")}
               style={{
                 padding: "8px 14px",
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 border: "none",
                 borderRadius: 7,
                 color: "#fff",

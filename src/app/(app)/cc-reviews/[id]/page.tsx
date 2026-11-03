@@ -619,7 +619,7 @@ export default function CCReviewDetailPage() {
                 padding: "9px 14px",
                 fontSize: 12,
                 fontWeight: 600,
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 color: "#fff",
                 border: "1px solid var(--primary)",
                 borderRadius: 10,

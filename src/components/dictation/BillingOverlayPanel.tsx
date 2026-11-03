@@ -185,7 +185,7 @@ export function BillingOverlayPanel({
             border: "none",
             padding: 2,
             cursor: "pointer",
-            color: "var(--muted)",
+            color: "var(--text-3)",
             opacity: 0.5,
           }}
           title="Dismiss billing panel"
@@ -193,9 +193,9 @@ export function BillingOverlayPanel({
           <X size={12} />
         </button>
         {expanded ? (
-          <ChevronUp size={14} style={{ color: "var(--muted)" }} />
+          <ChevronUp size={14} style={{ color: "var(--text-3)" }} />
         ) : (
-          <ChevronDown size={14} style={{ color: "var(--muted)" }} />
+          <ChevronDown size={14} style={{ color: "var(--text-3)" }} />
         )}
       </div>
 
@@ -245,7 +245,7 @@ export function BillingOverlayPanel({
                 style={{
                   fontSize: 10,
                   fontWeight: 600,
-                  color: "var(--muted)",
+                  color: "var(--text-3)",
                   textTransform: "uppercase",
                   letterSpacing: "0.05em",
                   marginBottom: 6,
@@ -398,7 +398,7 @@ export function BillingOverlayPanel({
                 cursor: "pointer",
                 fontSize: 10,
                 fontWeight: 600,
-                color: "var(--muted)",
+                color: "var(--text-3)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em",
                 display: "flex",

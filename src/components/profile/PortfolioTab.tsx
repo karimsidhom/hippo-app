@@ -99,7 +99,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
                 </span>
               )}
               <span style={{ fontSize: 11, color: "var(--text-3)" }}>
-                {new Date(item.caseLog.caseDate).toLocaleDateString("en-CA", { month: "short", year: "numeric" })}
+                {new Date(item.caseLog.caseDate).toLocaleDateString("en-CA", { month: "short", year: "numeric", timeZone: "UTC" })}
               </span>
             </div>
           )}
@@ -173,7 +173,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
             <option value="">Select a case...</option>
             {availableCases.map((c) => (
               <option key={c.id} value={c.id}>
-                {c.procedureName} — {new Date(c.caseDate).toLocaleDateString("en-CA")}
+                {c.procedureName} — {new Date(c.caseDate).toLocaleDateString("en-CA", { timeZone: "UTC" })}
               </option>
             ))}
           </select>
@@ -211,7 +211,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
               onClick={handleAdd}
               disabled={saving || !selectedCaseId || !title.trim()}
               style={{
-                padding: "8px 16px", background: "var(--primary)", color: "#fff",
+                padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
                 cursor: "pointer", fontFamily: "'Geist', sans-serif",
                 opacity: saving || !selectedCaseId || !title.trim() ? 0.5 : 1,

@@ -9,6 +9,13 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase';
 import { Profile, CaseLog, Milestone } from '@/lib/types';
 import { safeNext } from '@/lib/safe-next';
+import {
+  DESIGN_PREVIEW,
+  previewUser,
+  previewProfile,
+  previewCases,
+  previewMilestones,
+} from '@/lib/design-preview';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -87,6 +94,21 @@ function deserializeMilestone(raw: Record<string, unknown>): Milestone {
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
+
+/**
+ * supabase-js does not throw when the auth server can't be reached: it
+ * returns an AuthRetryableFetchError whose message is the browser's
+ * "Failed to fetch". Shown raw, that reads like a crash. Translate the
+ * network case; every other auth message passes through unchanged.
+ */
+const NETWORK_AUTH_MESSAGE =
+  "We couldn't reach Hippo's sign-in service. Check your connection and try again.";
+function authErrorMessage(error: { name?: string; message: string; status?: number }): string {
+  const network =
+    error.name === 'AuthRetryableFetchError' ||
+    /failed to fetch|network ?error|load failed|fetch failed/i.test(error.message);
+  return network ? NETWORK_AUTH_MESSAGE : error.message;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router     = useRouter();
@@ -222,6 +244,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Auth state listener ────────────────────────────────────────────────────
 
   useEffect(() => {
+    // Design-preview mode (dev only, opt-in via NEXT_PUBLIC_DESIGN_PREVIEW=1):
+    // load fixture state and never touch Supabase, so the signed-in surfaces
+    // can be reviewed locally. See src/lib/design-preview.ts.
+    if (DESIGN_PREVIEW) {
+      setUser(previewUser);
+      setProfile(previewProfile);
+      setCases(previewCases);
+      setMilestones(previewMilestones);
+      setLoading(false);
+      return;
+    }
+
     // Hydrate from existing session on mount
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session?.user) {
@@ -277,12 +311,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Sign in from the browser to obtain a local session cookie
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: authErrorMessage(error) };
 
       router.push('/onboarding');
       return { ok: true, error: '' };
     } catch {
-      return { ok: false, error: 'Network error. Please try again.' };
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
     }
   }, [supabase, router]);
 
@@ -291,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<AuthResult> => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: authErrorMessage(error) };
 
       // Ensure DB user row exists (idempotent)
       await fetch('/api/auth/sync', { method: 'POST' }).catch(() => {});
@@ -307,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { ok: true, error: '' };
     } catch {
-      return { ok: false, error: 'Network error. Please try again.' };
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
     }
   }, [supabase, router]);
 
@@ -334,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (/not found|invalid email/i.test(error.message)) {
             return { ok: true, error: '' };
           }
-          return { ok: false, error: error.message };
+          return { ok: false, error: authErrorMessage(error) };
         }
         return { ok: true, error: '' };
       } catch (err) {
@@ -519,9 +553,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       .then(r => r.ok ? r.json() : null)
       .then(serverMs => {
         if (serverMs) {
-          setMilestones(prev =>
-            prev.map(ms => ms.id === tempId ? deserializeMilestone(serverMs) : ms),
-          );
+          // The server returns the existing row when this milestone was
+          // already awarded (a refetch or a second award can land first), so
+          // swap the temp entry out and drop any copy of the real id rather
+          // than mapping in place, which rendered the same key twice.
+          const saved = deserializeMilestone(serverMs);
+          setMilestones(prev => [
+            ...prev.filter(ms => ms.id !== tempId && ms.id !== saved.id),
+            saved,
+          ]);
         }
       })
       .catch(e => console.error('[AuthContext] addMilestone error:', e));

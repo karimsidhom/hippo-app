@@ -1,0 +1,93 @@
+/* Auth content and legal links share document flow, including short screens. */
+.auth-shell {
+  --auth-link: var(--primary-hi);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  min-height: 100dvh;
+  width: 100%;
+  min-width: 0;
+  padding: max(24px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: var(--bg);
+  color: var(--text);
+  font-family: 'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  isolation: isolate;
+}
+
+[data-theme="light"] .auth-shell {
+  --auth-link: var(--primary-lo);
+}
+
+.auth-shell__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex: 1 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  padding-block: clamp(24px, 5vh, 56px);
+}
+
+.auth-page {
+  min-width: 0;
+}
+
+.auth-page > p:last-child {
+  margin-bottom: 0;
+}
+
+.auth-shell__footer {
+  position: relative;
+  z-index: 1;
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: 560px;
+  margin: 8px auto 0;
+  overflow-wrap: anywhere;
+}
+
+/* CopyrightFooter is shared with marketing and uses inline colors. Keep
+   these auth-only overrides here so it follows the selected auth theme. */
+.auth-shell__footer footer {
+  padding: 16px 0 8px !important;
+  color: var(--text-3) !important;
+}
+
+.auth-shell__footer a {
+  color: var(--text-3) !important;
+  padding-block: 4px;
+}
+
+.auth-shell a:hover {
+  text-decoration: underline !important;
+  text-underline-offset: 3px;
+}
+
+.auth-shell :is(a, button, input):focus-visible {
+  outline: 2px solid var(--auth-link);
+  outline-offset: 4px;
+}
+
+.auth-shell input {
+  scroll-margin-block: 24px;
+}
+
+.auth-shell input::placeholder {
+  color: var(--text-3);
+  opacity: 1;
+}
+
+@media (max-width: 360px) {
+  .auth-shell {
+    padding-inline: max(12px, env(safe-area-inset-left)) max(12px, env(safe-area-inset-right));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .auth-page {
+    animation: none !important;
+  }
+}

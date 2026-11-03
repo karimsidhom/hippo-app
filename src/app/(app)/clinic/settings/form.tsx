@@ -1,10 +1,23 @@
 "use client";
 
-// Settings form for Hippo Clinic. Persists to /api/profile so it shares
-// the existing profile mutation pipeline used by the rest of Hippo.
+// Settings form for Hippo Clinic. Now combines:
+//   - Profile (name / specialty / role) — links to the existing /profile
+//     editor so the same identity carries across modules.
+//   - Appearance (light / dark / system) — uses the shared ThemeContext.
+//   - Notifications (link out to the existing /settings/notifications).
+//   - Billing (clinic-specific, persisted via /api/profile).
+//   - References add-on (localStorage-only, deployment-local).
+//
+// This brings parity with the broader hippomedicine.com settings while
+// keeping the clinic-specific surfaces top-of-page.
 
 import { useState } from "react";
-import { Loader2 } from "lucide-react";
+import Link from "next/link";
+import { Loader2, Moon, Sun, Monitor, BookOpen, User as UserIcon, Bell, Shield, FileText, BarChart3, CalendarDays } from "lucide-react";
+import { useTheme, type ThemeMode } from "@/context/ThemeContext";
+import { useReferenceSettings, type ReferenceRegion } from "@/hooks/useReferenceSettings";
+import { useAuth } from "@/context/AuthContext";
+import { MacrosCard } from "@/components/clinic/MacrosCard";
 
 const PROVINCES: Array<{ code: string; name: string }> = [
   { code: "MB", name: "Manitoba" },
@@ -35,8 +48,19 @@ export function ClinicSettingsForm({ initial }: { initial: Initial }) {
   const [savedAt, setSavedAt] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  const { mode: themeMode, setMode: setThemeMode } = useTheme();
+  const refs = useReferenceSettings();
+  const { user, profile } = useAuth();
+
   // Residents default-off per spec; staff can toggle.
   const isResident = initial.roleType === "RESIDENT";
+
+  function toggleRegion(r: ReferenceRegion) {
+    const next = refs.regions.includes(r)
+      ? refs.regions.filter((x) => x !== r)
+      : [...refs.regions, r];
+    refs.setRegions(next);
+  }
 
   async function save() {
     setSaving(true);
@@ -66,6 +90,130 @@ export function ClinicSettingsForm({ initial }: { initial: Initial }) {
 
   return (
     <div>
+      {/* ── Profile ────────────────────────────────────────────────────── */}
+      <div className="section-title" style={{ marginTop: 4 }}>Profile</div>
+      <div className="st-card" style={{ marginBottom: 14, padding: 14 }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 8 }}>
+          <div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 2 }}>
+              <UserIcon size={14} color="var(--text-3)" />
+              <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                {user?.name || user?.email || "Clinician"}
+              </span>
+            </div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+              {profile?.specialty ?? "Specialty not set"} · {prettyRole(profile?.roleType)}
+              {profile?.institution ? ` · ${profile.institution}` : ""}
+            </div>
+          </div>
+          <Link href="/clinic/profile" className="st-btn st-btn-secondary st-btn-sm press" style={{ width: "auto", display: "inline-flex" }}>
+            Edit
+          </Link>
+        </div>
+      </div>
+
+      {/* ── Appearance ─────────────────────────────────────────────────── */}
+      <div className="section-title">Appearance</div>
+      <div className="st-card" style={{ marginBottom: 14, padding: 14 }}>
+        <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 10, lineHeight: 1.5 }}>
+          Light or dark canvas. Hippo Clinic always uses the red accent regardless of theme.
+        </div>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
+          <ThemeChip current={themeMode} value="light"  label="Light"  icon={<Sun size={12} />}      onSelect={setThemeMode} />
+          <ThemeChip current={themeMode} value="dark"   label="Dark"   icon={<Moon size={12} />}     onSelect={setThemeMode} />
+          <ThemeChip current={themeMode} value="system" label="System" icon={<Monitor size={12} />} onSelect={setThemeMode} />
+        </div>
+      </div>
+
+      {/* ── References add-on ──────────────────────────────────────────── */}
+      <div className="section-title">References add-on (optional)</div>
+      <div className="st-card" style={{ marginBottom: 14, padding: 14 }}>
+        <label style={{ display: "flex", justifyContent: "space-between", gap: 8, cursor: "pointer" }}>
+          <span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", display: "inline-flex", alignItems: "center", gap: 6 }}>
+              <BookOpen size={13} /> Suggest PubMed + guideline references
+            </span>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 4, lineHeight: 1.5 }}>
+              When on, an encounter can scan its note for evidence-backable
+              claims and suggest a one-line citation in light red below the
+              editor. Suggestions never auto-load — you accept them per claim.
+            </div>
+          </span>
+          <input
+            type="checkbox"
+            checked={refs.enabled}
+            onChange={(e) => refs.setEnabled(e.target.checked)}
+            style={{ width: 18, height: 18, accentColor: "var(--primary)" }}
+          />
+        </label>
+
+        {refs.enabled && (
+          <div style={{ marginTop: 12, paddingTop: 12, borderTop: "1px solid var(--border)" }}>
+            <div className="form-label" style={{ marginBottom: 6 }}>Region preference</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 8, lineHeight: 1.5 }}>
+              Which society guidelines should be matched. PubMed papers are unfiltered by region.
+            </div>
+            <div className="chip-group">
+              <RegionChip current={refs.regions} value="US"  label="🇺🇸 American" onToggle={toggleRegion} />
+              <RegionChip current={refs.regions} value="CA"  label="🇨🇦 Canadian" onToggle={toggleRegion} />
+              <RegionChip current={refs.regions} value="EU"  label="🇪🇺 European" onToggle={toggleRegion} />
+              <RegionChip current={refs.regions} value="INT" label="🌐 International" onToggle={toggleRegion} />
+            </div>
+            <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 8 }}>
+              Toggle saved on this device only.
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* ── Workflow tools ─────────────────────────────────────────────── */}
+      <div className="section-title">Workflow</div>
+      <div className="st-card" style={{ marginBottom: 14, padding: 0 }}>
+        <Link href="/clinic/settings/templates" className="case-card" style={{ padding: "12px 14px", textDecoration: "none" }}>
+          <FileText size={14} color="var(--text-3)" style={{ marginRight: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>Templates</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>Built-in + your custom note structures.</div>
+          </div>
+        </Link>
+        <Link href="/clinic/insights" className="case-card" style={{ padding: "12px 14px", textDecoration: "none", borderTop: "1px solid var(--border)" }}>
+          <BarChart3 size={14} color="var(--text-3)" style={{ marginRight: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>Insights</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>Time-to-finalize, AI acceptance, edit hot-spots.</div>
+          </div>
+        </Link>
+        <Link href="/clinic/settings/schedule" className="case-card" style={{ padding: "12px 14px", textDecoration: "none", borderTop: "1px solid var(--border)" }}>
+          <CalendarDays size={14} color="var(--text-3)" style={{ marginRight: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>Schedule import</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>Connect a calendar feed so today's clinic auto-populates.</div>
+          </div>
+        </Link>
+      </div>
+
+      {/* ── Macros / dot-phrases ───────────────────────────────────────── */}
+      <MacrosCard />
+
+      {/* ── Notifications + audit links ────────────────────────────────── */}
+      <div className="section-title">Notifications & audit</div>
+      <div className="st-card" style={{ marginBottom: 14, padding: 0 }}>
+        <Link href="/clinic/settings/notifications" className="case-card" style={{ padding: "12px 14px", textDecoration: "none" }}>
+          <Bell size={14} color="var(--text-3)" style={{ marginRight: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>Notification preferences</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>Push, email, in-app, sound, haptics for Hippo Clinic.</div>
+          </div>
+        </Link>
+        <Link href="/clinic/settings/audit-log" className="case-card" style={{ padding: "12px 14px", textDecoration: "none", borderTop: "1px solid var(--border)" }}>
+          <Shield size={14} color="var(--text-3)" style={{ marginRight: 8 }} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>Audit log</div>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>Every clinic action — timestamped + IP-stamped.</div>
+          </div>
+        </Link>
+      </div>
+
       <div className="section-title" style={{ marginTop: 4 }}>Billing module</div>
       <div className="st-card" style={{ marginBottom: 14 }}>
         <label style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, cursor: "pointer" }}>
@@ -130,4 +278,55 @@ export function ClinicSettingsForm({ initial }: { initial: Initial }) {
       <style>{`.spin { animation: spin 1s linear infinite; }`}</style>
     </div>
   );
+}
+
+function ThemeChip({
+  current, value, label, icon, onSelect,
+}: {
+  current: ThemeMode;
+  value: ThemeMode;
+  label: string;
+  icon: React.ReactNode;
+  onSelect: (m: ThemeMode) => void;
+}) {
+  const selected = current === value;
+  return (
+    <button
+      type="button"
+      onClick={() => onSelect(value)}
+      className={`chip press ${selected ? "selected" : ""}`}
+      style={{
+        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+        padding: "10px 12px",
+      }}
+    >
+      {icon}
+      {label}
+    </button>
+  );
+}
+
+function RegionChip({
+  current, value, label, onToggle,
+}: {
+  current: ReferenceRegion[];
+  value: ReferenceRegion;
+  label: string;
+  onToggle: (v: ReferenceRegion) => void;
+}) {
+  const selected = current.includes(value);
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(value)}
+      className={`chip press ${selected ? "selected" : ""}`}
+    >
+      {label}
+    </button>
+  );
+}
+
+function prettyRole(r: string | null | undefined): string {
+  if (!r) return "Role not set";
+  return r.charAt(0) + r.slice(1).toLowerCase().replace(/_/g, " ");
 }

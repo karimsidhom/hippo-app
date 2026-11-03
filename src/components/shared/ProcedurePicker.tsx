@@ -1,10 +1,44 @@
 'use client';
 
-import React, { useState, useMemo, useRef, useEffect } from 'react';
-import { Search, ChevronLeft, ChevronRight, X, Check, Pencil } from 'lucide-react';
-import type { Procedure } from '@/lib/procedureLibrary';
+/* ═══════════════════════════════════════════════════════════════════════════
+   PROCEDURE PICKER — one sheet, filters in place
+   ───────────────────────────────────────────────────────────────────────────
+   What was wrong: tapping the field opened a full-screen grid of emoji
+   category tiles, and tapping a tile opened ANOTHER screen listing that
+   category. Two takeovers and a back button to log one case. That is
+   drill-down list navigation, which Android's own navigation guidance calls
+   out as inefficient and cumbersome precisely because the tap count to reach
+   content keeps climbing.
 
-// ─── Types ────────────────────────────────────────────────────────────────────
+   What it is now: ONE overlay. eBay's design system and Material both say a
+   large selection group with no real hierarchy should open directly into a
+   single modal rather than a nested flow. So the sheet opens straight onto
+   the procedures, and every control narrows that same list in place:
+
+     · Most logged  — the procedures this user actually repeats, pinned top.
+                      One tap from open to done, which is the common case.
+     · Category chips — horizontally scrollable, "All" first. Tapping one
+                      FILTERS the list below. It does not navigate, so there
+                      is nothing to come back from. (eBay: filter chips give
+                      quick access to the values that refine a list.)
+     · Search       — optional, never required. Narrows the same list.
+
+   Browsing is a first-class path: you can open the sheet and pick with your
+   thumb without ever typing. Rows are 52px so they are comfortable one-handed
+   (Apple HIG floor is 44). Arrow keys and Enter also work on a desktop, but
+   they are a bonus on top of tapping, not the way through.
+
+   Public API unchanged — QuickAddModal and the full log page need no edits.
+
+   Sources consulted: eBay Playbook (bottom sheet, filter chip), Material 3
+   bottom sheets, Android descendant/lateral navigation guidance, SAP Fiori
+   chips (cap chips before they overwhelm — hence "All" + scroll, not a grid).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { Search, X, Check, Plus } from 'lucide-react';
+import type { Procedure } from '@/lib/procedureLibrary';
+import { useDialogFocus } from '@/hooks/useDialogFocus';
 
 interface ProcedurePickerProps {
   /** Procedures already filtered to the current specialty */
@@ -13,72 +47,8 @@ interface ProcedurePickerProps {
   onChange: (name: string, procedure: Procedure) => void;
 }
 
-type PickerView = 'subcategory' | 'procedure' | 'custom';
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-const CATEGORY_COLORS = [
-  'var(--primary)', '#3ecf8e', '#a78bfa', '#f97316', '#e05c5c',
-  '#06b6d4', '#ec4899', '#84cc16', '#d946ef', '#14b8a6',
-  '#f59e0b', '#0ea5e9', '#a16207', '#059669', '#dc2626',
-];
-
-function categoryColor(cat: string): string {
-  let hash = 0;
-  for (let i = 0; i < cat.length; i++) hash = (hash * 31 + cat.charCodeAt(i)) & 0xffff;
-  return CATEGORY_COLORS[hash % CATEGORY_COLORS.length]!;
-}
-
-const CATEGORY_ICONS: Record<string, string> = {
-  // Urology
-  'Endourology': '🔭', 'Bladder': '🫧', 'Prostate': '🔵', 'Kidney': '🟠',
-  'Oncology': '🎗️', 'Andrology': '⚡', 'Scrotum': '🔘', 'Incontinence': '💧',
-  'Urethra': '〰️', 'Ureter': '🔗', 'Pediatric': '🧒',
-  // General Surgery
-  'Biliary': '🟡', 'Hernia': '🩹', 'Foregut': '🔺', 'Bariatric': '⚖️',
-  'Colorectal': '🟤', 'Breast': '🌸', 'Endocrine': '⚗️', 'HPB': '🫀',
-  'Trauma': '🚨', 'Vascular Access': '💉',
-  // Neurosurgery
-  'Cranial': '🧠', 'Vascular': '🩸', 'Cranial Nerve': '⚡', 'CSF': '💧',
-  'Spine': '🦴', 'Functional': '🧬', 'Epilepsy': '⚡', 'Sellar': '🔬',
-  // Ortho
-  'Arthroplasty': '🦿', 'Sports': '⚽', 'Hand': '🖐️',
-  // Cardiac
-  'Coronary': '🫀', 'Valve': '❤️', 'Aorta': '🔴', 'Congenital': '🧒',
-  // Vascular
-  'Cerebrovascular': '🧠', 'Aortic': '🔴', 'Peripheral': '🦵', 'Dialysis': '💊', 'Venous': '💙',
-  // Plastic
-  'Reconstructive': '🔧', 'Aesthetic': '✨', 'Burns': '🔥', 'Microsurgery': '🔬',
-  // ENT
-  'Ear': '👂', 'Nose & Sinus': '👃', 'Throat': '🗣️', 'Salivary': '💦',
-  'Head & Neck': '🦷', 'Larynx': '🎙️',
-  // OB-GYN
-  'Uterus': '🌸', 'Ovary & Fallopian': '🌺', 'Pelvic Floor': '🔵', 'Obstetrics': '👶',
-  'Vulva & Vagina': '🌷',
-  // Ophthalmology
-  'Cataract': '👁️', 'Retina': '🔬', 'Glaucoma': '👓', 'Cornea': '🔵', 'Oculoplastics': '🪞',
-  // Pediatric Surgery
-  'Neonatal': '🍼', 'GI Pediatric': '🔵', 'Thoracic Pediatric': '🫁', 'Urology Pediatric': '💧',
-  'Tumor': '🎗️',
-  // Thoracic
-  'Lung': '🫁', 'Esophagus': '🔺', 'Mediastinum': '🔵', 'Pleura': '💧',
-  // Colorectal
-  'Colon': '🟤', 'Rectal': '🔴', 'Anorectal': '🔘', 'IBD': '🩺',
-  // Transplant
-  'Liver Tx': '🟤', 'Kidney Tx': '🟠', 'Pancreas Tx': '🟡', 'Heart Tx': '❤️', 'Procurement': '🔄',
-  // Surg Onc
-  'Soft Tissue': '🟣', 'Skin': '🔴', 'Abdominal Wall': '🔵',
-  // OMFS
-  'Jaw': '🦷', 'Salivary Gland': '💦', 'Facial Trauma': '🚨', 'Facial Reconstruction': '🔧',
-  // SMSNA Fellowship
-  'Penile Surgery and Prosthetics': '🔧', 'Male Infertility': '🔬',
-  'Male Urethra and Reconstructive Surgery': '🩹', 'Female Reconstructive Surgery': '🌸',
-  'Gender Affirmation Surgery': '🏳️‍⚧️', 'General Urology and Office Procedures': '🩺',
-};
-
-function getIcon(category: string): string {
-  return CATEGORY_ICONS[category] ?? '🔹';
-}
+const RECENTS_KEY = 'hippo.procedure.recents';
+const MAX_RECENTS = 6;
 
 function makeCustomProc(name: string, specialty = 'other'): Procedure {
   return {
@@ -94,893 +64,330 @@ function makeCustomProc(name: string, specialty = 'other'): Procedure {
   };
 }
 
-// ─── Main Component ───────────────────────────────────────────────────────────
+function norm(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+/** Higher is better; 0 means no match. Name beats alias beats category. */
+function score(p: Procedure, q: string): number {
+  const name = norm(p.name);
+  if (name === q) return 1000;
+  if (name.startsWith(q)) return 800 - name.length;
+  if (name.includes(` ${q}`)) return 600 - name.length;
+  if (name.includes(q)) return 400 - name.length;
+  for (const a of p.aliases) {
+    const al = norm(a);
+    if (al.startsWith(q)) return 350;
+    if (al.includes(q)) return 250;
+  }
+  if (norm(p.category).includes(q)) return 150;
+  if (norm(p.subcategory).includes(q)) return 120;
+  return 0;
+}
+
+function readRecents(): string[] {
+  try {
+    const raw = localStorage.getItem(RECENTS_KEY);
+    const arr = raw ? JSON.parse(raw) : [];
+    return Array.isArray(arr) ? arr.filter(x => typeof x === 'string').slice(0, MAX_RECENTS) : [];
+  } catch {
+    return [];
+  }
+}
+
+function pushRecent(name: string) {
+  if (!name) return;
+  try {
+    const next = [name, ...readRecents().filter(n => n !== name)].slice(0, MAX_RECENTS);
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+  } catch {
+    /* private mode / blocked storage — recents are a convenience, not state */
+  }
+}
 
 export function ProcedurePicker({ procedures, value, onChange }: ProcedurePickerProps) {
-  const [open, setOpen] = useState(false);
-  const [view, setView] = useState<PickerView>('subcategory');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [search, setSearch] = useState('');
-  const [customText, setCustomText] = useState('');
+  const [open, setOpen]         = useState(false);
+  const [query, setQuery]       = useState('');
+  const [category, setCategory] = useState<string>('All');
+  const [active, setActive]     = useState(-1);
+  const [recents, setRecents]   = useState<string[]>([]);
 
-  const searchRef = useRef<HTMLInputElement>(null);
-  const customRef = useRef<HTMLInputElement>(null);
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const listRef  = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
 
-  // ── Derived data ────────────────────────────────────────────────────────────
+  const q = norm(query);
+  const live = useMemo(() => procedures.filter(p => p.active !== false), [procedures]);
 
-  // Categories sorted: most procedures first, then alphabetical
-  const categories = useMemo(() => {
-    const map = new Map<string, Procedure[]>();
-    for (const proc of procedures) {
-      if (!map.has(proc.category)) map.set(proc.category, []);
-      map.get(proc.category)!.push(proc);
-    }
-    return Array.from(map.entries())
-      .map(([name, procs]) => ({
-        name,
-        procs,
-        color: categoryColor(name),
-        icon: getIcon(name),
-        commonCount: procs.filter(p => p.isCommon).length,
-      }))
-      .sort((a, b) => b.procs.length - a.procs.length);
-  }, [procedures]);
-
-  // Procedures within selected category, sorted
-  const categoryProcedures = useMemo(() => {
-    if (!selectedCategory) return [];
-    return procedures
-      .filter(p => p.category === selectedCategory)
-      .sort((a, b) => {
-        if (a.isCommon && !b.isCommon) return -1;
-        if (!a.isCommon && b.isCommon) return 1;
-        return a.complexityTier - b.complexityTier || a.name.localeCompare(b.name);
-      });
-  }, [procedures, selectedCategory]);
-
-  // Global search (across all specialty procedures)
-  const searchResults = useMemo(() => {
-    if (!search.trim()) return [];
-    const q = search.toLowerCase();
-    return procedures
-      .filter(p =>
-        p.name.toLowerCase().includes(q) ||
-        p.aliases.some(a => a.toLowerCase().includes(q)) ||
-        p.category.toLowerCase().includes(q) ||
-        p.subcategory.toLowerCase().includes(q)
-      )
-      .sort((a, b) => {
-        const aExact = a.name.toLowerCase().startsWith(q);
-        const bExact = b.name.toLowerCase().startsWith(q);
-        if (aExact && !bExact) return -1;
-        if (!aExact && bExact) return 1;
-        if (a.isCommon && !b.isCommon) return -1;
-        if (!a.isCommon && b.isCommon) return 1;
-        return a.name.localeCompare(b.name);
-      })
-      .slice(0, 30);
-  }, [search, procedures]);
-
-  // Category-local search
-  const localSearchResults = useMemo(() => {
-    if (!search.trim() || view !== 'procedure') return categoryProcedures;
-    const q = search.toLowerCase();
-    return categoryProcedures.filter(p =>
-      p.name.toLowerCase().includes(q) ||
-      p.aliases.some(a => a.toLowerCase().includes(q))
-    );
-  }, [search, categoryProcedures, view]);
-
-  // ── Lifecycle ───────────────────────────────────────────────────────────────
-
+  // Recents are read on open so a log in another tab is picked up.
   useEffect(() => {
-    if (open) {
-      setTimeout(() => searchRef.current?.focus(), 80);
-      // Lock body scroll while the picker is open. Without this, iOS PWA
-      // bleeds touch-scroll into the page behind the sheet — the list
-      // jitters or refuses to scroll because the body keeps absorbing
-      // the touchmove. globals.css ships .scroll-lock for exactly this.
-      document.body.classList.add('scroll-lock');
-      return () => {
-        document.body.classList.remove('scroll-lock');
-      };
-    } else {
-      setView('subcategory');
-      setSelectedCategory(null);
-      setSearch('');
-      setCustomText('');
+    if (open) setRecents(readRecents());
+  }, [open]);
+
+  const categories = useMemo(() => {
+    const set = new Map<string, number>();
+    for (const p of live) set.set(p.category, (set.get(p.category) ?? 0) + 1);
+    return [...set.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([name, count]) => ({ name, count }));
+  }, [live]);
+
+  /**
+   * One list, three narrowing inputs. Sections exist only to label the
+   * scroll — they are never a screen you have to go into or come back from.
+   */
+  const sections = useMemo(() => {
+    let pool = live;
+    if (category !== 'All') pool = pool.filter(p => p.category === category);
+
+    if (q) {
+      const ranked = pool
+        .map(p => ({ p, s: score(p, q) }))
+        .filter(x => x.s > 0)
+        .sort((a, b) => b.s - a.s || a.p.name.localeCompare(b.p.name))
+        .slice(0, 80)
+        .map(x => x.p);
+      return [{ label: `${ranked.length} match${ranked.length === 1 ? '' : 'es'}`, items: ranked }];
     }
+
+    const out: { label: string; items: Procedure[] }[] = [];
+
+    // Most logged first — for a resident who repeats the same ten procedures,
+    // this turns logging into a single tap.
+    if (category === 'All') {
+      const byName = new Map(live.map(p => [p.name, p]));
+      const recent = recents.map(n => byName.get(n)).filter((p): p is Procedure => !!p);
+      if (recent.length) out.push({ label: 'Most logged', items: recent });
+
+      const recentNames = new Set(recent.map(p => p.name));
+      const common = live.filter(p => p.isCommon && !recentNames.has(p.name));
+      if (common.length) out.push({ label: 'Common', items: common });
+
+      const seen = new Set([...recentNames, ...common.map(p => p.name)]);
+      const byCategory = new Map<string, Procedure[]>();
+      for (const p of live) {
+        if (seen.has(p.name)) continue;
+        const b = byCategory.get(p.category);
+        if (b) b.push(p); else byCategory.set(p.category, [p]);
+      }
+      for (const [cat, items] of [...byCategory.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+        out.push({ label: cat, items: items.sort((a, b) => a.name.localeCompare(b.name)) });
+      }
+      return out;
+    }
+
+    return [{ label: category, items: [...pool].sort((a, b) => a.name.localeCompare(b.name)) }];
+  }, [live, category, q, recents]);
+
+  // Flat view for keyboard traversal (desktop convenience only).
+  const flat = useMemo(() => sections.flatMap(s => s.items), [sections]);
+  const showCustom = q.length > 0 && !live.some(p => norm(p.name) === q);
+
+  useEffect(() => { setActive(-1); }, [q, category]);
+
+  const commit = useCallback((p: Procedure) => {
+    pushRecent(p.name);
+    onChange(p.name, p);
+    setOpen(false);
+    setQuery('');
+    setCategory('All');
+  }, [onChange]);
+
+  const commitCustom = useCallback(() => {
+    const name = query.trim();
+    if (!name) return;
+    const proc = makeCustomProc(name, procedures[0]?.specialty);
+    pushRecent(name);
+    onChange(name, proc);
+    setOpen(false);
+    setQuery('');
+    setCategory('All');
+  }, [query, onChange, procedures]);
+
+  // Escape closes the picker only — never the Log a Case sheet behind it.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { e.stopPropagation(); setOpen(false); }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
   }, [open]);
 
   useEffect(() => {
-    if (view === 'custom') {
-      setTimeout(() => customRef.current?.focus(), 80);
-    }
-    // Scroll to top on view change
-    scrollRef.current?.scrollTo({ top: 0 });
-  }, [view]);
+    if (active < 0) return;
+    listRef.current?.querySelector<HTMLElement>('[data-active="true"]')
+      ?.scrollIntoView({ block: 'nearest' });
+  }, [active]);
 
-  // ── Handlers ─────────────────────────────────────────────────────────────────
-
-  const openCategory = (cat: string) => {
-    setSelectedCategory(cat);
-    setView('procedure');
-    setSearch('');
-  };
-
-  const selectProc = (proc: Procedure) => {
-    onChange(proc.name, proc);
-    setOpen(false);
-  };
-
-  const confirmCustom = () => {
-    const name = customText.trim();
-    if (!name) return;
-    onChange(name, makeCustomProc(name, procedures[0]?.specialty));
-    setOpen(false);
-  };
-
-  const goBack = () => {
-    if (view === 'procedure') {
-      setView('subcategory');
-      setSelectedCategory(null);
-      setSearch('');
-    } else if (view === 'custom') {
-      if (selectedCategory) {
-        setView('procedure');
-      } else {
-        setView('subcategory');
-        setSelectedCategory(null);
-      }
-      setSearch('');
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    // Native buttons must keep their own Enter/Space behaviour. Only the
+    // search input and the initially focused dialog use list traversal.
+    if (e.target !== inputRef.current && e.target !== dialogRef.current) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault(); setActive(i => Math.min(i + 1, flat.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault(); setActive(i => Math.max(i - 1, 0));
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (active >= 0 && flat[active]) commit(flat[active]);
+      else if (showCustom) commitCustom();
+      else if (flat[0]) commit(flat[0]);
     }
   };
 
-  const openCustomFromSearch = () => {
-    setCustomText(search.trim());
-    setView('custom');
-  };
-
-  // ── Header title ──────────────────────────────────────────────────────────
-
-  const headerTitle =
-    view === 'subcategory' ? 'Select Category' :
-    view === 'procedure' ? (selectedCategory ?? 'Procedures') :
-    'Custom Procedure';
-
-  const headerColor =
-    view === 'procedure' && selectedCategory
-      ? categoryColor(selectedCategory)
-      : 'var(--text)';
-
-  // ── Styles (inline for portability) ───────────────────────────────────────
-
-  const S = {
-    overlay: {
-      position: 'fixed' as const,
-      inset: 0,
-      zIndex: 500,
-      // Theme-aware modal scrim: dark in dark mode, lighter in light
-      // mode so the sheet still has focus without crushing the page.
-      background: 'var(--modal-scrim, rgba(0,0,0,0.62))',
-      display: 'flex',
-      alignItems: 'flex-end' as const,
-      justifyContent: 'center',
-    },
-    sheet: {
-      width: '100%',
-      maxWidth: 540,
-      background: 'var(--surface)',
-      borderRadius: '20px 20px 0 0',
-      // 90dvh (dynamic viewport) shrinks with the iOS URL bar / on-screen
-      // keyboard so the sheet always fits the *visible* viewport. 90vh
-      // (static) extends below the home indicator and the bottom rows
-      // become un-tappable. paddingBottom adds room for the iOS home-
-      // indicator gesture zone so the last list row clears it.
-      maxHeight: '90dvh',
-      paddingBottom: 'env(safe-area-inset-bottom)',
-      display: 'flex',
-      flexDirection: 'column' as const,
-      overflow: 'hidden',
-      boxShadow: '0 -8px 60px rgba(0,0,0,0.7)',
-    },
-    handle: {
-      width: 36, height: 4,
-      background: 'var(--border-mid)',
-      borderRadius: 2,
-      margin: '14px auto 0',
-      flexShrink: 0,
-    } as React.CSSProperties,
-    header: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: 8,
-      padding: '14px 16px 0',
-      flexShrink: 0,
-    } as React.CSSProperties,
-    backBtn: {
-      background: 'var(--surface2)',
-      border: '1px solid #1e2130',
-      borderRadius: 8,
-      width: 32, height: 32,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      cursor: 'pointer',
-      flexShrink: 0,
-      color: 'var(--text-2)',
-    } as React.CSSProperties,
-    closeBtn: {
-      background: 'none',
-      border: 'none',
-      cursor: 'pointer',
-      color: 'var(--text-3)',
-      display: 'flex',
-      padding: 6,
-      borderRadius: 8,
-    } as React.CSSProperties,
-    searchWrap: {
-      padding: '12px 16px',
-      flexShrink: 0,
-    } as React.CSSProperties,
-    searchInner: {
-      position: 'relative' as const,
-    },
-    searchInput: {
-      width: '100%',
-      padding: '10px 36px 10px 36px',
-      background: 'var(--surface2)',
-      border: '1px solid #252838',
-      borderRadius: 10,
-      color: 'var(--text)',
-      fontSize: 14,
-      outline: 'none',
-      fontFamily: 'inherit',
-      boxSizing: 'border-box' as const,
-    },
-    scroll: {
-      overflowY: 'auto' as const,
-      flex: 1,
-      // iOS momentum scroll inside a position:fixed sheet — without this
-      // the inner list scrolls in jerky discrete steps or stalls entirely
-      // when the user lifts their finger.
-      WebkitOverflowScrolling: 'touch' as const,
-      // Stop scroll-chain leakage to the body when the list hits its
-      // bounds — otherwise the page behind the modal jumps and the
-      // sheet feels rubbery.
-      overscrollBehavior: 'contain' as const,
-      // Explicitly allow vertical pan; some ancestor styles can otherwise
-      // suppress it on touch devices.
-      touchAction: 'pan-y' as const,
-    },
-  };
-
-  const tierLabel = (tier: 1 | 2 | 3) =>
-    tier === 1 ? 'Basic' : tier === 2 ? 'Intermediate' : 'Advanced';
-  const tierColor = (tier: 1 | 2 | 3) =>
-    tier === 1 ? '#3ecf8e' : tier === 2 ? '#f59e0b' : '#e05c5c';
-
-  // ─────────────────────────────────────────────────────────────────────────────
+  const dialogRef = useDialogFocus<HTMLDivElement>(open);
+  let runningIndex = -1;
 
   return (
-    <div style={{ position: 'relative' }}>
-
-      {/* ── Trigger ──────────────────────────────────────────────────────────── */}
+    <>
+      {/* ── Trigger ────────────────────────────────────────────────────── */}
+      <div className="pp-field">
       <button
         type="button"
+        className="pp-trigger"
+        data-filled={!!value}
+        aria-haspopup="dialog"
+        aria-expanded={open}
         onClick={() => setOpen(true)}
-        style={{
-          width: '100%',
-          padding: '11px 14px',
-          background: 'var(--surface2)',
-          border: `1px solid ${value ? 'rgba(14,165,233,0.25)' : 'var(--border)'}`,
-          borderRadius: 10,
-          color: value ? 'var(--text)' : 'var(--text-3)',
-          fontSize: 14,
-          textAlign: 'left',
-          cursor: 'pointer',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 8,
-          fontFamily: 'inherit',
-          transition: 'border-color 0.15s',
-        }}
-        onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--primary)')}
-        onMouseLeave={e => (e.currentTarget.style.borderColor = value ? 'rgba(14,165,233,0.25)' : 'var(--border)')}
       >
-        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>
-          {value || 'Select procedure…'}
-        </span>
-        <ChevronRight size={14} style={{ color: 'var(--text-3)', flexShrink: 0 }} />
+        <span className="pp-trigger__text">{value || 'Choose a procedure'}</span>
+        {!value && <Search size={14} strokeWidth={1.8} className="pp-trigger__icon" />}
       </button>
+        {value && (
+          <button
+            type="button"
+            aria-label="Clear procedure"
+            className="pp-trigger__clear"
+            onClick={e => { e.stopPropagation(); onChange('', makeCustomProc('')); }}
+          >
+            <X size={13} strokeWidth={2} />
+          </button>
+        )}
+      </div>
 
-      {/* ── Bottom Sheet Modal ───────────────────────────────────────────────── */}
+      {/* ── The one overlay ────────────────────────────────────────────── */}
       {open && (
-        <div style={S.overlay} onClick={() => setOpen(false)}>
-          <div style={S.sheet} onClick={e => e.stopPropagation()}>
+        <div className="pp-scrim" onClick={() => setOpen(false)}>
+          <div
+            className="pp-sheet"
+            ref={dialogRef}
+            tabIndex={-1}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Choose a procedure"
+            onClick={e => e.stopPropagation()}
+            onKeyDown={onKeyDown}
+          >
+            <div className="pp-sheet__grab" aria-hidden />
 
-            {/* Handle */}
-            <div style={S.handle} />
+            <header className="pp-sheet__head">
+              <h2 className="pp-sheet__title">Procedure</h2>
+              <button
+                type="button"
+                className="icon-btn"
+                onClick={() => setOpen(false)}
+                aria-label="Close"
+              >
+                <X size={16} strokeWidth={1.8} />
+              </button>
+            </header>
 
-            {/* Header */}
-            <div style={S.header}>
-              {view !== 'subcategory' && (
-                <button style={S.backBtn} onClick={goBack}>
-                  <ChevronLeft size={16} />
+            {/* Search is optional. Not autofocused — opening the sheet on a
+                phone should show the list, not throw up a keyboard. */}
+            <div className="pp-search">
+              <Search size={14} strokeWidth={1.8} />
+              <input
+                ref={inputRef}
+                value={query}
+                onChange={e => setQuery(e.target.value)}
+                placeholder="Search, or just scroll"
+                aria-label="Search procedures"
+                autoComplete="off"
+              />
+              {query && (
+                <button
+                  type="button"
+                  className="pp-search__clear"
+                  onClick={() => { setQuery(''); inputRef.current?.focus(); }}
+                  aria-label="Clear search"
+                >
+                  <X size={13} />
                 </button>
               )}
-              <span style={{
-                flex: 1,
-                fontSize: 16,
-                fontWeight: 700,
-                color: headerColor,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}>
-                {view === 'procedure' && selectedCategory && (
-                  <span style={{ fontSize: 14, marginRight: 8 }}>{getIcon(selectedCategory)}</span>
-                )}
-                {headerTitle}
-              </span>
-              <button style={S.closeBtn} onClick={() => setOpen(false)}>
-                <X size={18} />
+            </div>
+
+            {/* Chips filter the list below. They never navigate. */}
+            <div className="pp-chips" role="group" aria-label="Filter by category">
+              <button
+                type="button"
+                aria-pressed={category === 'All'}
+                className="pp-chip"
+                onClick={() => setCategory('All')}
+              >
+                All
               </button>
+              {categories.map(c => (
+                <button
+                  key={c.name}
+                  type="button"
+                  aria-pressed={category === c.name}
+                  className="pp-chip"
+                  onClick={() => setCategory(category === c.name ? 'All' : c.name)}
+                >
+                  {c.name}
+                  <i>{c.count}</i>
+                </button>
+              ))}
             </div>
 
-            {/* Search (not shown in custom view) */}
-            {view !== 'custom' && (
-              <div style={S.searchWrap}>
-                <div style={S.searchInner}>
-                  <Search size={15} style={{
-                    position: 'absolute', left: 12, top: '50%',
-                    transform: 'translateY(-50%)', color: 'var(--text-3)',
-                  }} />
-                  <input
-                    ref={searchRef}
-                    type="text"
-                    placeholder={
-                      view === 'subcategory'
-                        ? 'Search all procedures…'
-                        : `Search in ${selectedCategory}…`
-                    }
-                    value={search}
-                    onChange={e => setSearch(e.target.value)}
-                    style={S.searchInput}
-                  />
-                  {search && (
-                    <button
-                      onClick={() => setSearch('')}
-                      style={{
-                        position: 'absolute', right: 10, top: '50%',
-                        transform: 'translateY(-50%)',
-                        background: 'none', border: 'none',
-                        cursor: 'pointer', color: 'var(--text-3)',
-                      }}
-                    >
-                      <X size={14} />
-                    </button>
-                  )}
+            <div className="pp-list" ref={listRef}>
+              {flat.length === 0 && !showCustom && (
+                <div className="pp-empty">
+                  Nothing matches that. Clear the search or pick another category.
                 </div>
-              </div>
-            )}
-
-            {/* ── Scrollable body ──────────────────────────────────────────────── */}
-            <div ref={scrollRef} style={S.scroll}>
-
-              {/* ── VIEW: SUBCATEGORY (no search) ────────────────────────────── */}
-              {view === 'subcategory' && !search.trim() && (
-                <SubcategoryGrid
-                  categories={categories}
-                  selectedValue={value}
-                  onSelect={openCategory}
-                  onCustom={() => { setSelectedCategory(null); setView('custom'); }}
-                />
               )}
 
-              {/* ── VIEW: SUBCATEGORY (search results) ───────────────────────── */}
-              {view === 'subcategory' && search.trim() && (
-                <SearchResults
-                  results={searchResults}
-                  query={search}
-                  selectedValue={value}
-                  onSelect={selectProc}
-                  onCustom={openCustomFromSearch}
-                  tierLabel={tierLabel}
-                  tierColor={tierColor}
-                  showCategory
-                />
-              )}
+              {sections.map(sec => (
+                <section className="pp-section" key={sec.label}>
+                  <h3 className="pp-section__label">{sec.label}</h3>
+                  {sec.items.map(p => {
+                    runningIndex += 1;
+                    const idx = runningIndex;
+                    const selected = p.name === value;
+                    return (
+                      <button
+                        key={`${sec.label}-${p.id}`}
+                        type="button"
+                        className="pp-row"
+                        data-active={idx === active}
+                        data-selected={selected}
+                        onMouseEnter={() => setActive(idx)}
+                        onClick={() => commit(p)}
+                      >
+                        <span className="pp-row__name">{p.name}</span>
+                        <span className="pp-row__meta">
+                          {sec.label !== p.category && <span className="pp-row__cat">{p.category}</span>}
+                          {selected && <Check size={14} strokeWidth={2.2} className="pp-row__check" />}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </section>
+              ))}
 
-              {/* ── VIEW: PROCEDURE LIST ─────────────────────────────────────── */}
-              {view === 'procedure' && (
-                <ProcedureList
-                  procedures={localSearchResults}
-                  query={search}
-                  selectedValue={value}
-                  categoryName={selectedCategory ?? ''}
-                  categoryColor={selectedCategory ? categoryColor(selectedCategory) : 'var(--primary)'}
-                  onSelect={selectProc}
-                  onCustom={() => setView('custom')}
-                  tierLabel={tierLabel}
-                  tierColor={tierColor}
-                />
+              {showCustom && (
+                <section className="pp-section">
+                  <h3 className="pp-section__label">Not in the library</h3>
+                  <button type="button" className="pp-row pp-row--custom" onClick={commitCustom}>
+                    <Plus size={14} strokeWidth={2.2} />
+                    <span className="pp-row__name">Log &ldquo;{query.trim()}&rdquo; as written</span>
+                  </button>
+                </section>
               )}
-
-              {/* ── VIEW: CUSTOM ENTRY ───────────────────────────────────────── */}
-              {view === 'custom' && (
-                <CustomEntry
-                  ref={customRef}
-                  value={customText}
-                  onChange={setCustomText}
-                  onConfirm={confirmCustom}
-                  category={selectedCategory}
-                />
-              )}
-
             </div>
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-// ─── Sub-components ───────────────────────────────────────────────────────────
-
-interface CategoryInfo {
-  name: string;
-  procs: Procedure[];
-  color: string;
-  icon: string;
-  commonCount: number;
-}
-
-function SubcategoryGrid({
-  categories,
-  selectedValue,
-  onSelect,
-  onCustom,
-}: {
-  categories: CategoryInfo[];
-  selectedValue: string;
-  onSelect: (cat: string) => void;
-  onCustom: () => void;
-}) {
-  return (
-    <div style={{ padding: '4px 16px 24px' }}>
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-        {categories.map(({ name, procs, color, icon }) => {
-          const hasSelected = procs.some(p => p.name === selectedValue);
-          return (
-            <button
-              key={name}
-              onClick={() => onSelect(name)}
-              style={{
-                padding: '14px 14px 12px',
-                background: hasSelected ? `${color}12` : 'var(--surface2)',
-                border: `1px solid ${hasSelected ? color : 'var(--border)'}`,
-                borderRadius: 12,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                textAlign: 'left',
-                transition: 'border-color 0.15s, background 0.15s',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-              onMouseEnter={e => {
-                e.currentTarget.style.borderColor = color;
-                e.currentTarget.style.background = `${color}10`;
-              }}
-              onMouseLeave={e => {
-                e.currentTarget.style.borderColor = hasSelected ? color : 'var(--border)';
-                e.currentTarget.style.background = hasSelected ? `${color}12` : 'var(--surface2)';
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <span style={{ fontSize: 18, lineHeight: 1 }}>{icon}</span>
-                {hasSelected && (
-                  <span style={{
-                    width: 16, height: 16, borderRadius: '50%',
-                    background: color, display: 'flex',
-                    alignItems: 'center', justifyContent: 'center',
-                    flexShrink: 0,
-                  }}>
-                    <Check size={10} color="#fff" />
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: hasSelected ? color : 'var(--text)', lineHeight: 1.3 }}>
-                {name}
-              </div>
-              <div style={{ fontSize: 11, color: 'var(--text-3)' }}>
-                {procs.length} procedure{procs.length !== 1 ? 's' : ''}
-              </div>
-            </button>
-          );
-        })}
-
-        {/* Other / Custom card */}
-        <button
-          onClick={onCustom}
-          style={{
-            padding: '14px 14px 12px',
-            background: 'transparent',
-            border: '1px dashed #252838',
-            borderRadius: 12,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-            transition: 'border-color 0.15s',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 6,
-          }}
-          onMouseEnter={e => (e.currentTarget.style.borderColor = 'var(--text-3)')}
-          onMouseLeave={e => (e.currentTarget.style.borderColor = 'var(--border-mid)')}
-        >
-          <span style={{ fontSize: 18, lineHeight: 1 }}>✏️</span>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-2)' }}>Other</div>
-          <div style={{ fontSize: 11, color: 'var(--text-3)' }}>Custom entry</div>
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function SearchResults({
-  results,
-  query,
-  selectedValue,
-  onSelect,
-  onCustom,
-  tierLabel,
-  tierColor,
-  showCategory,
-}: {
-  results: Procedure[];
-  query: string;
-  selectedValue: string;
-  onSelect: (p: Procedure) => void;
-  onCustom: () => void;
-  tierLabel: (t: 1 | 2 | 3) => string;
-  tierColor: (t: 1 | 2 | 3) => string;
-  showCategory?: boolean;
-}) {
-  if (results.length === 0) {
-    return (
-      <div>
-        <div style={{ textAlign: 'center', padding: '28px 16px 12px', color: 'var(--text-3)', fontSize: 14 }}>
-          No procedures found for "<strong style={{ color: 'var(--text-2)' }}>{query}</strong>"
-        </div>
-        <div style={{ padding: '0 16px 24px' }}>
-          <button
-            onClick={onCustom}
-            style={{
-              width: '100%',
-              padding: '13px 16px',
-              background: 'rgba(14,165,233,0.08)',
-              border: '1px dashed #2563eb',
-              borderRadius: 10,
-              color: 'var(--primary)',
-              fontSize: 14,
-              fontWeight: 500,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              textAlign: 'left',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-            }}
-          >
-            <Pencil size={14} />
-            Add &ldquo;{query}&rdquo; as custom procedure
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      {results.map(proc => (
-        <ProcedureRow
-          key={proc.id}
-          proc={proc}
-          selected={selectedValue === proc.name}
-          onSelect={onSelect}
-          tierLabel={tierLabel}
-          tierColor={tierColor}
-          showCategory={showCategory}
-        />
-      ))}
-      <div style={{ padding: '10px 16px 20px', borderTop: '1px solid var(--border)' }}>
-        <button
-          onClick={onCustom}
-          style={{
-            width: '100%',
-            padding: '11px 14px',
-            background: 'transparent',
-            border: '1px dashed #252838',
-            borderRadius: 10,
-            color: 'var(--text-3)',
-            fontSize: 13,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-          }}
-        >
-          <Pencil size={13} />
-          Not listed? Add &ldquo;{query}&rdquo; as custom
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function ProcedureList({
-  procedures,
-  query,
-  selectedValue,
-  categoryName,
-  categoryColor: catColor,
-  onSelect,
-  onCustom,
-  tierLabel,
-  tierColor,
-}: {
-  procedures: Procedure[];
-  query: string;
-  selectedValue: string;
-  categoryName: string;
-  categoryColor: string;
-  onSelect: (p: Procedure) => void;
-  onCustom: () => void;
-  tierLabel: (t: 1 | 2 | 3) => string;
-  tierColor: (t: 1 | 2 | 3) => string;
-}) {
-  const noResults = query.trim() && procedures.length === 0;
-
-  return (
-    <div>
-      {noResults ? (
-        <div style={{ textAlign: 'center', padding: '28px 16px', color: 'var(--text-3)', fontSize: 14 }}>
-          No results for &ldquo;<strong style={{ color: 'var(--text-2)' }}>{query}</strong>&rdquo; in {categoryName}
-        </div>
-      ) : (
-        procedures.map(proc => (
-          <ProcedureRow
-            key={proc.id}
-            proc={proc}
-            selected={selectedValue === proc.name}
-            onSelect={onSelect}
-            tierLabel={tierLabel}
-            tierColor={tierColor}
-            accentColor={catColor}
-          />
-        ))
-      )}
-
-      {/* Always-visible Other option */}
-      <div style={{ padding: '10px 16px 24px', borderTop: '1px solid var(--border)', marginTop: 4 }}>
-        <button
-          onClick={onCustom}
-          style={{
-            width: '100%',
-            padding: '13px 16px',
-            background: 'transparent',
-            border: '1px dashed #252838',
-            borderRadius: 10,
-            color: 'var(--text-3)',
-            fontSize: 14,
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            textAlign: 'left',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-          }}
-          onMouseEnter={e => {
-            e.currentTarget.style.borderColor = 'var(--text-3)';
-            e.currentTarget.style.color = 'var(--text-2)';
-          }}
-          onMouseLeave={e => {
-            e.currentTarget.style.borderColor = 'var(--border-mid)';
-            e.currentTarget.style.color = 'var(--text-3)';
-          }}
-        >
-          <Pencil size={14} />
-          Other — enter custom procedure name
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const CustomEntry = React.forwardRef<
-  HTMLInputElement,
-  {
-    value: string;
-    onChange: (v: string) => void;
-    onConfirm: () => void;
-    category: string | null;
-  }
->(function CustomEntry({ value, onChange, onConfirm, category }, ref) {
-  return (
-    <div style={{ padding: '8px 16px 32px' }}>
-      {category && (
-        <div style={{
-          fontSize: 12, color: 'var(--text-3)',
-          marginBottom: 12,
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          <span style={{
-            width: 8, height: 8, borderRadius: '50%',
-            background: categoryColor(category), flexShrink: 0,
-          }} />
-          In {category} → Other
-        </div>
-      )}
-
-      <p style={{ fontSize: 13, color: 'var(--text-3)', marginBottom: 14, lineHeight: 1.5 }}>
-        Enter the procedure name as you&apos;d like it recorded. Be specific — this will
-        appear in your case log and exports.
-      </p>
-
-      <input
-        ref={ref}
-        type="text"
-        placeholder="e.g. Modified posterior urethroplasty"
-        value={value}
-        onChange={e => onChange(e.target.value)}
-        onKeyDown={e => { if (e.key === 'Enter') onConfirm(); }}
-        style={{
-          width: '100%',
-          padding: '13px 14px',
-          background: 'var(--surface2)',
-          border: '1px solid #252838',
-          borderRadius: 10,
-          color: 'var(--text)',
-          fontSize: 14,
-          outline: 'none',
-          fontFamily: 'inherit',
-          boxSizing: 'border-box',
-          marginBottom: 12,
-          transition: 'border-color 0.15s',
-        }}
-        onFocus={e => (e.target.style.borderColor = 'var(--primary)')}
-        onBlur={e => (e.target.style.borderColor = 'var(--border-mid)')}
-      />
-
-      <button
-        onClick={onConfirm}
-        disabled={!value.trim()}
-        style={{
-          width: '100%',
-          padding: '14px',
-          background: value.trim() ? 'var(--primary)' : 'var(--surface2)',
-          color: value.trim() ? '#fff' : 'var(--text-3)',
-          border: 'none',
-          borderRadius: 10,
-          fontSize: 14,
-          fontWeight: 600,
-          cursor: value.trim() ? 'pointer' : 'not-allowed',
-          fontFamily: 'inherit',
-          transition: 'background 0.15s, color 0.15s',
-        }}
-      >
-        {value.trim() ? `Use "${value.trim()}"` : 'Enter a procedure name'}
-      </button>
-    </div>
-  );
-});
-
-// ─── Procedure Row ────────────────────────────────────────────────────────────
-
-function ProcedureRow({
-  proc,
-  selected,
-  onSelect,
-  tierLabel,
-  tierColor,
-  indent,
-  showCategory,
-  accentColor,
-}: {
-  proc: Procedure;
-  selected: boolean;
-  onSelect: (p: Procedure) => void;
-  tierLabel: (t: 1 | 2 | 3) => string;
-  tierColor: (t: 1 | 2 | 3) => string;
-  indent?: boolean;
-  showCategory?: boolean;
-  accentColor?: string;
-}) {
-  const accent = accentColor ?? 'var(--primary)';
-
-  return (
-    <button
-      type="button"
-      onClick={() => onSelect(proc)}
-      style={{
-        width: '100%',
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        padding: indent ? '12px 16px 12px 36px' : '12px 16px',
-        background: selected ? `${accent}12` : 'transparent',
-        border: 'none',
-        borderBottom: '1px solid var(--border)',
-        cursor: 'pointer',
-        fontFamily: 'inherit',
-        textAlign: 'left',
-        transition: 'background 0.1s',
-      }}
-      onMouseEnter={e => {
-        if (!selected) e.currentTarget.style.background = 'var(--surface2)';
-      }}
-      onMouseLeave={e => {
-        e.currentTarget.style.background = selected ? `${accent}12` : 'transparent';
-      }}
-    >
-      {/* Selection indicator */}
-      <div style={{
-        width: 18, height: 18, borderRadius: 9, flexShrink: 0,
-        background: selected ? accent : 'transparent',
-        border: `2px solid ${selected ? accent : 'var(--border-mid)'}`,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        transition: 'border-color 0.15s',
-      }}>
-        {selected && <Check size={10} color="#fff" />}
-      </div>
-
-      {/* Name + meta */}
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{
-          fontSize: 14, fontWeight: 500,
-          color: selected ? 'var(--text)' : 'var(--text)',
-          overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-        }}>
-          {proc.name}
-          {proc.isCommon && (
-            <span style={{ marginLeft: 6, fontSize: 10, color: '#3ecf8e', fontWeight: 700 }}>★</span>
-          )}
-          {proc.isMilestone && (
-            <span style={{ marginLeft: 3, fontSize: 10 }}>🏆</span>
-          )}
-        </div>
-        {showCategory && (
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginTop: 2 }}>
-            {proc.category}
-            {proc.subcategory && proc.subcategory !== proc.category && (
-              <span> · {proc.subcategory}</span>
-            )}
-          </div>
-        )}
-        {proc.avgDurationMinutes && (
-          <div style={{ fontSize: 11, color: 'var(--muted)', marginTop: 1 }}>
-            ~{proc.avgDurationMinutes} min
-          </div>
-        )}
-      </div>
-
-      {/* Complexity badge */}
-      <span style={{
-        fontSize: 10, fontWeight: 700,
-        color: tierColor(proc.complexityTier),
-        background: `${tierColor(proc.complexityTier)}18`,
-        padding: '2px 7px',
-        borderRadius: 20,
-        flexShrink: 0,
-        textTransform: 'uppercase',
-        letterSpacing: '0.4px',
-      }}>
-        {tierLabel(proc.complexityTier)}
-      </span>
-    </button>
+    </>
   );
 }

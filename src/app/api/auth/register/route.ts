@@ -67,7 +67,7 @@ export async function POST(req: NextRequest) {
         id: authUserId,
         email,
         name,
-        profile: { create: { onboardingCompleted: false } },
+        profile: { create: { onboardingCompleted: false, theme: "light" } },
       },
     });
     // Hippo ID: the shared profile exists from the first sign-in.

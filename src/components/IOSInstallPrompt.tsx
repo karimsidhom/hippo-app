@@ -130,7 +130,9 @@ export function IOSInstallPrompt() {
           left: 12,
           right: 12,
           bottom: "calc(12px + env(safe-area-inset-bottom))",
-          zIndex: 1000,
+          // Below sheets/modals (z 200+) so it can never cover their
+          // action rails; still above page content.
+          zIndex: 150,
           background: "rgba(14, 22, 32, 0.96)",
           backdropFilter: "blur(20px)",
           WebkitBackdropFilter: "blur(20px)",
@@ -204,7 +206,7 @@ export function IOSInstallPrompt() {
             height: 28,
             background: "transparent",
             border: "none",
-            color: "#64748B",
+            color: "var(--text-2)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",

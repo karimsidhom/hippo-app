@@ -18,10 +18,10 @@ const isClinic = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic";
 export const metadata: Metadata = {
   title: isClinic
     ? { default: "Hippo Clinic — AI Clinic Scribe", template: "%s | Hippo Clinic" }
-    : { default: "Hippo — Strava for Surgeons", template: "%s | Hippo" },
+    : { default: "Hippo — Surgical Case Log", template: "%s | Hippo" },
   description: isClinic
     ? "Hippo Clinic is an outpatient AI scribe for clinicians — ambient or dictated capture, structured clinic notes, follow-up tracking, PHIA/HIPAA-aware."
-    : "Hippo is the premier surgical case logging platform for residents, fellows, and staff surgeons. Track your operative volume, learning curves, milestones, and benchmarks — with full PHIA/HIPAA privacy compliance.",
+    : "Hippo is the premier surgical case logging platform for residents, fellows, and staff surgeons. Track your operative volume, assessments, milestones, and benchmarks — with full PHIA/HIPAA privacy compliance.",
   keywords: isClinic
     ? ["clinic scribe","ai scribe","ambient scribe","clinic note","outpatient documentation","ehr","urology","family medicine","internal medicine"]
     : ["surgical case log","surgery tracker","resident case log","operative log","RCSPC","urology","surgical training","milestone tracking"],
@@ -120,7 +120,7 @@ export default function RootLayout({
   // routes alike. Other deployments leave the var unset and stay teal.
   const moduleScope = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic" ? "clinic" : undefined;
   return (
-    <html lang="en" className="dark" suppressHydrationWarning data-module={moduleScope}>
+    <html lang="en" className="light" data-theme="light" suppressHydrationWarning data-module={moduleScope}>
       <head>
         {/* Sync the user's stored theme onto <html> BEFORE React hydrates.
             Without this, ThemeProvider's useEffect would mutate <html> after

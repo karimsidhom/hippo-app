@@ -11,12 +11,14 @@ interface VolumeHeatmapProps {
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
+// Token-based so the grid reads on the light canvas as well as the dark
+// one: empty days sit on the surface, busier days step up the accent.
 function getCellColor(count: number): string {
-  if (count === 0) return "#16161f";
-  if (count === 1) return "#1e3a5f";
-  if (count === 2) return "#1d4ed8";
-  if (count === 3) return "#2563eb";
-  return "#3b82f6";
+  if (count === 0) return "var(--surface2)";
+  if (count === 1) return "color-mix(in srgb, var(--primary) 30%, var(--surface2))";
+  if (count === 2) return "color-mix(in srgb, var(--primary) 55%, var(--surface2))";
+  if (count === 3) return "color-mix(in srgb, var(--primary) 78%, var(--surface2))";
+  return "var(--primary)";
 }
 
 export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
@@ -30,7 +32,7 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
   if (!data || data.length === 0) {
     return (
       <div style={{ display: "flex", alignItems: "center", justifyContent: "center", height: 96 }}>
-        <p style={{ color: "var(--muted)", fontSize: 13 }}>No data available</p>
+        <p style={{ color: "var(--text-3)", fontSize: 13 }}>No data available</p>
       </div>
     );
   }
@@ -112,7 +114,7 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
                   width={cellSize}
                   height={cellSize}
                   rx={2}
-                  fill={color}
+                  style={{ fill: color }}
                   className="heatmap-cell transition-opacity duration-150"
                   onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();
@@ -141,18 +143,18 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
             }}
           >
             <span style={{ fontWeight: 600, color: "var(--text)" }}>{tooltip.count} case{tooltip.count !== 1 ? "s" : ""}</span>
-            <span style={{ color: "var(--muted)", marginLeft: 4 }}>on {tooltip.date}</span>
+            <span style={{ color: "var(--text-3)", marginLeft: 4 }}>on {tooltip.date}</span>
           </div>
         )}
       </div>
 
       {/* Legend */}
       <div style={{ display: "flex", alignItems: "center", gap: 4, marginTop: 8 }}>
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>Less</span>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>Less</span>
         {[0, 1, 2, 3, 4].map(count => (
           <div key={count} style={{ width: 12, height: 12, borderRadius: 2, backgroundColor: getCellColor(count) }} />
         ))}
-        <span style={{ fontSize: 11, color: "var(--muted)" }}>More</span>
+        <span style={{ fontSize: 11, color: "var(--text-3)" }}>More</span>
       </div>
     </div>
   );

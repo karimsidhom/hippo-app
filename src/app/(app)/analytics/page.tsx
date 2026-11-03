@@ -3,13 +3,11 @@
 import { useState, useMemo, useCallback, useEffect } from "react";
 import { useCases } from "@/hooks/useCases";
 import { useStats } from "@/hooks/useStats";
-import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
 import { BarChart } from "@/components/charts/BarChart";
 import { DonutChart } from "@/components/charts/DonutChart";
 import { LineChart } from "@/components/charts/LineChart";
 import {
-  getLearningCurveData,
   getWeeklyHeatmapData,
   getMonthlyVolume,
   getOperativeTimeTrend,
@@ -24,8 +22,10 @@ import { BarChart2, Plus, AlertTriangle, ChevronRight, LayoutDashboard, Users2, 
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { isSmsnaProfile } from "@/lib/smsna/gate";
 import { SmsnaAssessmentPanel } from "@/components/smsna/SmsnaAssessmentPanel";
+import "../../analytics-workspace.css";
+import { ProgressNav } from "@/components/academic/ProgressNav";
 
-// Staff (attendings, PDs) see a Cohort tab instead of Learning Curve / Volume.
+// Staff (attendings, PDs) see a Cohort tab instead of Volume.
 const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
 
 type CohortResident = {
@@ -57,13 +57,13 @@ export default function AnalyticsPage() {
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
   const isSmsna = isSmsnaProfile(profile);
 
-  // Staff see Cohort in place of Learning Curve + Volume; PDs also get a
+  // Staff see Cohort in place of Volume; PDs also get a
   // direct link to the full PD Dashboard.
   const CHART_TABS = isStaff
     ? (isPD
-        ? ["Overview", "EPAs", "Milestones", "Cohort", "OR Time Trend", "PD Dashboard"]
-        : ["Overview", "EPAs", "Milestones", "Cohort", "OR Time Trend"])
-    : ["Overview", "EPAs", "Milestones", "Learning Curve", "Volume", "OR Time Trend"];
+        ? ["Overview", "EPAs", "Milestones", "Cohort", "PD Dashboard"]
+        : ["Overview", "EPAs", "Milestones", "Cohort"])
+    : ["Overview", "EPAs", "Milestones", "Volume"];
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
   const topProcedures = Object.entries(stats?.byProcedure || {})
@@ -73,7 +73,6 @@ export default function AnalyticsPage() {
 
   const activeProcedure = selectedProcedure || topProcedures[0] || "";
 
-  const learningCurveData = getLearningCurveData(cases, activeProcedure);
   const heatmapData = getWeeklyHeatmapData(cases);
   const monthlyVolume = getMonthlyVolume(cases);
   const autonomyProgression = getAutonomyProgression(cases);
@@ -144,11 +143,12 @@ export default function AnalyticsPage() {
   }, [cohortData]);
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div className="analytics-workspace" style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+      <ProgressNav active="analytics" />
       {/* Header */}
-      <div style={{ marginBottom: 16 }}>
-        <span style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.4px" }}>Analytics</span>
-      </div>
+      <header className="analytics-heading">
+        <h1>Analytics</h1>
+      </header>
 
       {/* Staff: persistent "EPAs to complete" entry point. Stats is where
           attendings review their own teaching output — the inbox link
@@ -179,14 +179,14 @@ export default function AnalyticsPage() {
                 <Inbox size={16} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)" }}>
                   {pending === 0
                     ? "EPAs to complete"
                     : pending === 1
                       ? "1 EPA awaiting your signature"
                       : `${pending} EPAs awaiting your signature`}
                 </div>
-                <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+                <div style={{ fontSize: 14, color: "var(--text-3)", marginTop: 2 }}>
                   {pending === 0
                     ? "You're all caught up — check the sign-off inbox."
                     : "Open the sign-off inbox to review and sign."}
@@ -199,12 +199,7 @@ export default function AnalyticsPage() {
       )}
 
       {/* Tabs — understated, text-based */}
-      <div style={{
-        display: "flex", gap: 2, overflowX: "auto",
-        paddingBottom: 16, marginBottom: 20,
-        borderBottom: "1px solid var(--border)",
-        scrollbarWidth: "none",
-      }}>
+      <nav className="analytics-tabs" aria-label="Analytics views">
         {CHART_TABS.map(tab => {
           const active = activeTab === tab;
           if (tab === "PD Dashboard") {
@@ -212,12 +207,13 @@ export default function AnalyticsPage() {
               <Link
                 key={tab}
                 href="/pd-dashboard"
+                className="analytics-tab"
                 style={{
-                  flexShrink: 0, padding: "5px 12px",
+                  flexShrink: 0, padding: "10px 16px",
                   background: "none",
                   border: "1px solid transparent",
                   color: "var(--accent, #0EA5E9)",
-                  borderRadius: 4, fontSize: 11, fontWeight: 600,
+                  borderRadius: 8, fontSize: 14, fontWeight: 600,
                   cursor: "pointer", fontFamily: "'Geist', sans-serif",
                   transition: "all .15s cubic-bezier(.16,1,.3,1)",
                   whiteSpace: "nowrap", letterSpacing: ".01em",
@@ -231,13 +227,15 @@ export default function AnalyticsPage() {
           return (
             <button
               key={tab}
+              className="analytics-tab"
+              aria-pressed={active}
               onClick={() => setActiveTab(tab)}
               style={{
-                flexShrink: 0, padding: "5px 12px",
+                flexShrink: 0, padding: "10px 16px",
                 background: active ? "var(--surface2)" : "none",
                 border: active ? "1px solid var(--border-mid)" : "1px solid transparent",
                 color: active ? "var(--text)" : "var(--text-3)",
-                borderRadius: 4, fontSize: 11, fontWeight: active ? 600 : 500,
+                borderRadius: 8, fontSize: 14, fontWeight: active ? 600 : 500,
                 cursor: "pointer", fontFamily: "'Geist', sans-serif",
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
                 whiteSpace: "nowrap",
@@ -248,7 +246,7 @@ export default function AnalyticsPage() {
             </button>
           );
         })}
-      </div>
+      </nav>
 
       {hasNoCases && (
         <div style={{
@@ -260,7 +258,7 @@ export default function AnalyticsPage() {
           <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
             Nothing to chart yet
           </div>
-          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+          <div style={{ fontSize: 14, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
             Log a few cases and your trends, volume, and EPA progress will show up here.
           </div>
           <button
@@ -268,9 +266,9 @@ export default function AnalyticsPage() {
             style={{
               display: "inline-flex", alignItems: "center", gap: 6,
               padding: "9px 16px",
-              background: "var(--primary)", color: "#fff",
+              background: "var(--primary-solid)", color: "#fff",
               border: "none", borderRadius: 6,
-              fontSize: 12, fontWeight: 600,
+              fontSize: 14, fontWeight: 600,
               cursor: "pointer", fontFamily: "inherit",
               letterSpacing: ".01em",
             }}
@@ -284,55 +282,42 @@ export default function AnalyticsPage() {
 
       {/* ── Overview ── */}
       {!hasNoCases && activeTab === "Overview" && (
-        <div>
+        <div className="analytics-overview">
           {/* Heatmap */}
-          <section style={{ marginBottom: 28 }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
-            }}>Activity</div>
-            <VolumeHeatmap data={heatmapData} />
+          <section className="analytics-panel analytics-panel-wide analytics-chart">
+            <h2 className="analytics-section-title">Activity</h2>
+            <VolumeHeatmap data={heatmapData} large />
           </section>
 
           {/* Monthly + Specialty */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20, marginBottom: 28 }}>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
-              }}>Monthly Volume</div>
+          <div className="analytics-chart-pair">
+            <section className="analytics-panel analytics-chart">
+              <h2 className="analytics-section-title">Monthly Volume</h2>
               <BarChart
                 data={monthlyVolume.map(m => ({ label: m.month, value: m.count }))}
                 color="#0EA5E9"
-                height={160}
+                height={240}
               />
             </section>
-            <section>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
-              }}>By Specialty</div>
+            <section className="analytics-panel analytics-chart">
+              <h2 className="analytics-section-title">By Specialty</h2>
               <DonutChart
                 data={specialtyBreakdown.map(s => ({ label: s.specialty, value: s.count, color: s.color }))}
-                height={160}
+                height={220}
+                innerRadius={58}
+                outerRadius={90}
               />
             </section>
           </div>
 
           {/* Autonomy Trend */}
-          <section style={{
-            paddingTop: 24,
-            borderTop: "1px solid var(--border)",
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4,
-            }}>Autonomy Progression</div>
-            <div style={{ fontSize: 11, color: "var(--text-3)", marginBottom: 14 }}>Average score over time (1-5)</div>
+          <section className="analytics-panel analytics-panel-wide analytics-chart">
+            <h2 className="analytics-section-title">Autonomy Progression</h2>
+            <div style={{ fontSize: 14, color: "var(--text-3)", marginBottom: 14 }}>Average score over time (1-5)</div>
             <LineChart
               data={autonomyProgression.map(d => ({ label: d.month, value: d.avgAutonomyScore }))}
               color="#10B981"
-              height={140}
+              height={240}
               yMin={0}
               yMax={5}
             />
@@ -367,144 +352,26 @@ export default function AnalyticsPage() {
         )
       )}
 
-      {/* ── Learning Curve ── */}
-      {!hasNoCases && activeTab === "Learning Curve" && (
-        <div>
-          <section style={{ marginBottom: 28 }}>
-            <div style={{
-              display: "flex", alignItems: "flex-start", justifyContent: "space-between",
-              gap: 12, marginBottom: 16,
-            }}>
-              <div>
-                <div style={{
-                  fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                  textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4,
-                }}>Learning Curve</div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>OR time vs case number</div>
-              </div>
-              <select
-                className="st-input"
-                style={{ width: "auto", fontSize: 11, padding: "6px 10px" }}
-                value={activeProcedure}
-                onChange={e => setSelectedProcedure(e.target.value)}
-              >
-                {topProcedures.map(p => <option key={p} value={p}>{p.length > 35 ? p.slice(0, 35) + "\u2026" : p}</option>)}
-              </select>
-            </div>
-            {learningCurveData.length > 1 ? (
-              <LearningCurveChart data={learningCurveData} procedureName={activeProcedure} height={280} />
-            ) : (
-              <div style={{
-                display: "flex", alignItems: "center", justifyContent: "center",
-                minHeight: 140, color: "var(--text-3)", fontSize: 12,
-              }}>Need 2+ cases of this procedure</div>
-            )}
-          </section>
-
-          {/* Procedure table */}
-          {topProcedures.length > 0 && (
-            <section style={{ paddingTop: 24, borderTop: "1px solid var(--border)" }}>
-              <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-              }}>Procedure Summary</div>
-              <div style={{ overflowX: "auto" }}>
-                <table style={{ width: "100%", fontSize: 12, borderCollapse: "collapse" }}>
-                  <thead>
-                    <tr>
-                      <th style={{
-                        textAlign: "left", color: "var(--text-3)", fontWeight: 500,
-                        paddingBottom: 10, borderBottom: "1px solid var(--border)", fontSize: 11,
-                      }}>Procedure</th>
-                      <th style={{
-                        textAlign: "right", color: "var(--text-3)", fontWeight: 500,
-                        paddingBottom: 10, borderBottom: "1px solid var(--border)", fontSize: 11,
-                      }}>Cases</th>
-                      <th style={{
-                        textAlign: "right", color: "var(--text-3)", fontWeight: 500,
-                        paddingBottom: 10, borderBottom: "1px solid var(--border)", fontSize: 11,
-                      }}>Avg OR</th>
-                      <th style={{
-                        textAlign: "right", color: "var(--text-3)", fontWeight: 500,
-                        paddingBottom: 10, borderBottom: "1px solid var(--border)", fontSize: 11,
-                      }}>Indep %</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {topProcedures.map(proc => {
-                      const procCases = cases.filter(c => c.procedureName === proc);
-                      const avgDur = Math.round(
-                        procCases.filter(c => c.operativeDurationMinutes).reduce((s, c) => s + (c.operativeDurationMinutes || 0), 0) /
-                        Math.max(procCases.filter(c => c.operativeDurationMinutes).length, 1)
-                      );
-                      const indepRate = Math.round(
-                        (procCases.filter(c => c.autonomyLevel === "INDEPENDENT" || c.autonomyLevel === "TEACHING").length /
-                          Math.max(procCases.length, 1)) * 100
-                      );
-                      return (
-                        <tr key={proc}>
-                          <td style={{
-                            color: "var(--text)", paddingTop: 10, paddingBottom: 10,
-                            borderBottom: "1px solid var(--border)", fontSize: 12, fontWeight: 500,
-                          }}>{proc}</td>
-                          <td style={{
-                            color: "var(--text-2)", paddingTop: 10, paddingBottom: 10,
-                            borderBottom: "1px solid var(--border)", textAlign: "right",
-                            fontFamily: "'Geist Mono', monospace", fontSize: 12,
-                          }}>{procCases.length}</td>
-                          <td style={{
-                            color: "var(--text-2)", paddingTop: 10, paddingBottom: 10,
-                            borderBottom: "1px solid var(--border)", textAlign: "right",
-                            fontFamily: "'Geist Mono', monospace", fontSize: 12,
-                          }}>{avgDur || "\u2014"}</td>
-                          <td style={{
-                            paddingTop: 10, paddingBottom: 10,
-                            borderBottom: "1px solid var(--border)", textAlign: "right",
-                            fontFamily: "'Geist Mono', monospace", fontSize: 12,
-                            color: indepRate >= 50 ? "var(--success)" : "var(--text-3)",
-                          }}>{indepRate}%</td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </section>
-          )}
-        </div>
-      )}
-
       {/* ── Volume ── */}
       {!hasNoCases && activeTab === "Volume" && (
-        <div>
-          <section style={{ marginBottom: 28 }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
-            }}>Contribution Heatmap</div>
+        <div className="analytics-section-stack">
+          <section className="analytics-panel analytics-chart">
+            <h2 className="analytics-section-title">Contribution Heatmap</h2>
             <VolumeHeatmap data={heatmapData} large />
           </section>
 
-          <section style={{
-            paddingTop: 24, borderTop: "1px solid var(--border)", marginBottom: 28,
-          }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-            }}>Monthly Case Volume</div>
+          <section className="analytics-panel analytics-chart">
+            <h2 className="analytics-section-title">Monthly Case Volume</h2>
             <BarChart
               data={monthlyVolume.map(m => ({ label: `${m.month} '${String(m.year).slice(2)}`, value: m.count }))}
               color="#0EA5E9"
-              height={220}
+              height={280}
               showValues
             />
           </section>
 
-          <section style={{ paddingTop: 24, borderTop: "1px solid var(--border)" }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 14,
-            }}>Top Procedures by Volume</div>
+          <section className="analytics-panel analytics-chart">
+            <h2 className="analytics-section-title">Top Procedures by Volume</h2>
             <BarChart
               data={Object.entries(stats?.byProcedure || {})
                 .sort(([, a], [, b]) => b - a)
@@ -514,7 +381,7 @@ export default function AnalyticsPage() {
                   value: count as number,
                 }))}
               color="#0EA5E9"
-              height={260}
+              height={340}
               horizontal
             />
           </section>
@@ -530,7 +397,7 @@ export default function AnalyticsPage() {
                 padding: "48px 0",
                 textAlign: "center",
                 color: "var(--text-3)",
-                fontSize: 13,
+                fontSize: 14,
               }}
             >
               Loading cohort…
@@ -558,7 +425,7 @@ export default function AnalyticsPage() {
               >
                 No residents yet
               </div>
-              <div style={{ fontSize: 12, lineHeight: 1.5 }}>
+              <div style={{ fontSize: 14, lineHeight: 1.5 }}>
                 Once residents join your institution they'll show up here.
               </div>
             </div>
@@ -600,7 +467,7 @@ export default function AnalyticsPage() {
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div
                       style={{
-                        fontSize: 13,
+                        fontSize: 14,
                         fontWeight: 700,
                         color: "var(--text)",
                       }}
@@ -609,7 +476,7 @@ export default function AnalyticsPage() {
                     </div>
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 14,
                         color: "var(--text-3)",
                         marginTop: 2,
                       }}
@@ -627,19 +494,8 @@ export default function AnalyticsPage() {
               {/* KPI grid */}
               {cohortKpis && (
                 <section style={{ marginBottom: 22 }}>
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "var(--text-3)",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                      marginBottom: 12,
-                    }}
-                  >
-                    At a Glance
-                  </div>
-                  <div
+                  <h2 className="analytics-section-title">At a Glance</h2>
+                  <div className="analytics-cohort-kpis"
                     style={{
                       display: "grid",
                       gridTemplateColumns: "repeat(2, 1fr)",
@@ -681,7 +537,7 @@ export default function AnalyticsPage() {
                         background: "#F59E0B10",
                         border: "1px solid #F59E0B25",
                         borderRadius: 8,
-                        fontSize: 12,
+                        fontSize: 14,
                         color: "var(--text-2)",
                         textDecoration: "none",
                       }}
@@ -716,22 +572,12 @@ export default function AnalyticsPage() {
                     marginBottom: 12,
                   }}
                 >
-                  <div
-                    style={{
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "var(--text-3)",
-                      textTransform: "uppercase",
-                      letterSpacing: "1px",
-                    }}
-                  >
-                    Residents
-                  </div>
+                  <h2 className="analytics-section-title">Residents</h2>
                   {isPD && (
                     <Link
                       href="/pd-dashboard"
                       style={{
-                        fontSize: 11,
+                        fontSize: 14,
                         color: "var(--text-3)",
                         textDecoration: "none",
                       }}
@@ -744,7 +590,7 @@ export default function AnalyticsPage() {
                   <table
                     style={{
                       width: "100%",
-                      fontSize: 12,
+                      fontSize: 14,
                       borderCollapse: "collapse",
                     }}
                   >
@@ -842,6 +688,7 @@ export default function AnalyticsPage() {
                                     ).toLocaleDateString("en-US", {
                                       month: "short",
                                       day: "numeric",
+                                      timeZone: "UTC",
                                     })
                                   : "—"}
                               </td>
@@ -859,22 +706,20 @@ export default function AnalyticsPage() {
 
       {/* ── OR Time Trend ── */}
       {!hasNoCases && activeTab === "OR Time Trend" && (
-        <div>
-          <section>
-            <div style={{
+        <div className="analytics-section-stack">
+          <section className="analytics-panel analytics-chart">
+            <div className="analytics-chart-heading" style={{
               display: "flex", alignItems: "flex-start", justifyContent: "space-between",
               gap: 12, marginBottom: 16,
             }}>
               <div>
-                <div style={{
-                  fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                  textTransform: "uppercase", letterSpacing: "1px", marginBottom: 4,
-                }}>Operative Time Trend</div>
-                <div style={{ fontSize: 11, color: "var(--text-3)" }}>Average OR time per month</div>
+                <h2 className="analytics-section-title">Operative Time Trend</h2>
+                <div style={{ fontSize: 14, color: "var(--text-3)" }}>Average OR time per month</div>
               </div>
               <select
-                className="st-input"
-                style={{ width: "auto", fontSize: 11, padding: "6px 10px" }}
+                className="st-input analytics-procedure-select"
+                aria-label="Operative time trend procedure"
+                style={{ width: "auto", fontSize: 14, padding: "6px 10px" }}
                 value={activeProcedure}
                 onChange={e => setSelectedProcedure(e.target.value)}
               >
@@ -889,7 +734,7 @@ export default function AnalyticsPage() {
                 secondary: d.caseCount,
               }))}
               color="#F59E0B"
-              height={260}
+              height={320}
               formatY={v => `${Math.round(v)} min`}
             />
           </section>
@@ -933,7 +778,7 @@ function CohortKpi({
       </div>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 14,
           color: "var(--text-3)",
           marginTop: 6,
           textTransform: "uppercase",
@@ -953,12 +798,12 @@ const cohortTh: React.CSSProperties = {
   fontWeight: 500,
   paddingBottom: 8,
   borderBottom: "1px solid var(--border)",
-  fontSize: 11,
+  fontSize: 14,
 };
 
 const cohortTd: React.CSSProperties = {
   paddingTop: 10,
   paddingBottom: 10,
   borderBottom: "1px solid var(--border)",
-  fontSize: 12,
+  fontSize: 14,
 };

@@ -19,8 +19,7 @@ const TABS = [
   { key: "profile", label: "Profile", icon: User },
   { key: "appearance", label: "Appearance", icon: Sun },
   { key: "privacy", label: "Privacy & PHIA", icon: Shield },
-  { key: "social", label: "Social", icon: Users },
-  { key: "leaderboard", label: "Leaderboard", icon: BarChart2 },
+  { key: "email", label: "Email", icon: Bell },
   { key: "export", label: "Export", icon: Download },
   { key: "subscription", label: "Subscription", icon: CreditCard },
   { key: "feedback", label: "Feedback", icon: MessageSquare },
@@ -318,7 +317,7 @@ export default function SettingsPage() {
                     <Icon className="w-4 h-4" />
                     {label}
                   </span>
-                  <ChevronRight className="w-3.5 h-3.5 text-[var(--muted)]" />
+                  <ChevronRight className="w-3.5 h-3.5 text-[var(--text-3)]" />
                 </Link>
               ))}
             </div>
@@ -529,7 +528,7 @@ export default function SettingsPage() {
                       {isActive && (
                         <div style={{
                           width: 20, height: 20, borderRadius: "50%",
-                          background: "var(--primary)",
+                          background: "var(--primary-solid)",
                           display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
                         }}>
                           <CheckCircle size={12} color="#fff" />
@@ -587,17 +586,11 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* ── Social ───────────────────────────────────────────────── */}
-          {activeTab === "social" && (
+          {/* ── Email ──────────────────────────────────────────────────── */}
+          {activeTab === "email" && (
             <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[var(--text)]">Social & Notifications</h2>
+              <h2 className="text-base font-semibold text-[var(--text)]">Email</h2>
               <div className="space-y-2">
-                <ToggleRow
-                  label="Allow friend requests"
-                  description="Other surgeons can send you friend requests"
-                  profileKey="allowFriendRequests"
-                  value={profile?.allowFriendRequests ?? true}
-                />
                 <ToggleRow
                   label="Weekly digest email"
                   description="A short weekly summary of your cases, EPAs pending sign-off, and milestones"
@@ -605,24 +598,9 @@ export default function SettingsPage() {
                   value={profile?.allowWeeklyDigest ?? true}
                 />
               </div>
-            </div>
-          )}
-
-          {/* ── Leaderboard ──────────────────────────────────────────── */}
-          {activeTab === "leaderboard" && (
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[var(--text)]">Leaderboard Participation</h2>
-              <div className="p-4 bg-[var(--surface2)] border border-[var(--border)] rounded-lg text-xs text-[var(--text-2)]">
-                Leaderboard rankings use anonymized display names (e.g., &quot;Resident PGY-4&quot; or &quot;Dr. A.C.&quot;). No patient data is ever shared. Rankings are based solely on case volume, autonomy levels, and improvement metrics.
-              </div>
-              <div className="space-y-2">
-                <ToggleRow
-                  label="Participate in leaderboard"
-                  description="Allow your (anonymized) stats to appear on the leaderboard"
-                  profileKey="allowLeaderboardParticipation"
-                  value={profile?.allowLeaderboardParticipation ?? true}
-                />
-              </div>
+              <p className="text-xs text-[var(--text-3)]">
+                Followers, friend requests and leaderboards live on Hippo Pulse.
+              </p>
             </div>
           )}
 
@@ -668,7 +646,7 @@ export default function SettingsPage() {
                 {exporting ? 'Preparing\u2026' : 'Download Excel (.xlsx)'}
               </button>
 
-              <p className="text-xs text-[var(--muted)] text-center">
+              <p className="text-xs text-[var(--text-3)] text-center">
                 Exports all your cases in a PHIA-safe format. No patient identifiers are included.
               </p>
 
@@ -926,14 +904,14 @@ export default function SettingsPage() {
                           ? "What would make Hippo work better for you?"
                           : "Anything on your mind — good, bad, or otherwise."
                     }
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50 resize-y"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#0EA5E9]/50 resize-y"
                     style={{ minHeight: 140 }}
                   />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-[10px] text-[var(--muted)]">
+                    <span className="text-[10px] text-[var(--text-3)]">
                       {feedbackMessage.length} / 4000
                     </span>
-                    <span className="text-[10px] text-[var(--muted)]">
+                    <span className="text-[10px] text-[var(--text-3)]">
                       Replies come from karimsidhom@outlook.com
                     </span>
                   </div>
@@ -957,7 +935,7 @@ export default function SettingsPage() {
                 <button
                   onClick={submitFeedback}
                   disabled={!feedbackMessage.trim() || feedbackSending}
-                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--text-3)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed"
                 >
                   <Send size={14} />
                   {feedbackSending ? "Sending…" : "Send to developer"}
@@ -1081,7 +1059,7 @@ export default function SettingsPage() {
                       if (pwStatus) setPwStatus(null);
                     }}
                     placeholder="At least 8 characters"
-                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50 pr-10"
+                    className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#0EA5E9]/50 pr-10"
                   />
                   <button
                     type="button"
@@ -1107,7 +1085,7 @@ export default function SettingsPage() {
                     if (pwStatus) setPwStatus(null);
                   }}
                   placeholder="Re-enter the password"
-                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--muted)] focus:outline-none focus:border-[#0EA5E9]/50"
+                  className="w-full bg-[var(--bg)] border border-[var(--border)] rounded-lg px-3 py-2.5 text-sm text-[var(--text)] placeholder:text-[var(--text-3)] focus:outline-none focus:border-[#0EA5E9]/50"
                 />
               </div>
 
@@ -1135,7 +1113,7 @@ export default function SettingsPage() {
                 <button
                   onClick={submitPasswordChange}
                   disabled={pwSubmitting || !pwNew || !pwConfirm}
-                  className="flex-1 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#0EA5E9] hover:bg-[#0284c7] disabled:bg-[var(--border)] disabled:text-[var(--text-3)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Lock size={14} />
                   {pwSubmitting ? "Updating…" : "Update password"}
@@ -1235,7 +1213,7 @@ export default function SettingsPage() {
                 <button
                   onClick={submitAccountDelete}
                   disabled={delSubmitting || delConfirm.trim() !== expectedDelete}
-                  className="flex-1 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] disabled:bg-[var(--border)] disabled:text-[var(--muted)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 py-2.5 bg-[#ef4444] hover:bg-[#dc2626] disabled:bg-[var(--border)] disabled:text-[var(--text-3)] text-white rounded-lg text-sm font-semibold transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   <Trash2 size={14} />
                   {delSubmitting ? "Deleting…" : "Permanently delete"}

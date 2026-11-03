@@ -12,14 +12,14 @@ import { useAuth } from "@/context/AuthContext";
 import { ArrowLeft, Mail, Check } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 
-const TEAL = "#0EA5E9";
+const TEAL = "var(--auth-link)";
 const EASE = "cubic-bezier(.16,1,.3,1)";
 
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
   fontWeight: 500,
-  color: "rgba(255,255,255,0.25)",
+  color: "var(--text-2)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   marginBottom: 6,
@@ -28,18 +28,17 @@ const labelStyle: React.CSSProperties = {
 function inputStyle(focused: boolean): React.CSSProperties {
   return {
     width: "100%",
-    background: "rgba(12,18,25,0.8)",
-    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "rgba(255,255,255,0.06)"}`,
-    color: "#E2E8F0",
+    background: "var(--surface)",
+    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "var(--border-mid)"}`,
+    color: "var(--text)",
     borderRadius: 12,
     padding: "13px 16px",
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "inherit",
-    outline: "none",
     boxSizing: "border-box" as const,
     marginBottom: 16,
     transition: "border-color 0.2s, box-shadow 0.2s",
-    boxShadow: focused ? "0 0 0 3px rgba(14,165,233,0.06)" : "none",
+    boxShadow: focused ? "0 0 0 3px var(--primary-glow)" : "none",
   };
 }
 
@@ -70,6 +69,7 @@ export default function ForgotPasswordPage() {
 
   return (
     <div
+      className="auth-page"
       style={{
         width: "100%",
         maxWidth: 400,
@@ -91,7 +91,7 @@ export default function ForgotPasswordPage() {
             style={{
               fontSize: 28,
               fontWeight: 700,
-              color: "#E2E8F0",
+              color: "var(--text)",
               letterSpacing: "-0.6px",
             }}
           >
@@ -125,8 +125,8 @@ export default function ForgotPasswordPage() {
       {/* Glass form */}
       <div
         style={{
-          background: "rgba(14,165,233,0.015)",
-          border: "1px solid rgba(255,255,255,0.04)",
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
           borderRadius: 20,
           padding: "28px 24px",
           position: "relative",
@@ -171,7 +171,7 @@ export default function ForgotPasswordPage() {
               style={{
                 fontSize: 16,
                 fontWeight: 600,
-                color: "#E2E8F0",
+                color: "var(--text)",
                 margin: "0 0 8px",
               }}
             >
@@ -180,18 +180,18 @@ export default function ForgotPasswordPage() {
             <p
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-2)",
                 margin: 0,
                 lineHeight: 1.5,
               }}
             >
-              If an account exists for <strong style={{ color: "#E2E8F0" }}>{email.trim()}</strong>,
+              If an account exists for <strong style={{ color: "var(--text)" }}>{email.trim()}</strong>,
               we&apos;ve sent a password reset link. The link expires in 1 hour.
             </p>
             <p
               style={{
                 fontSize: 12,
-                color: "rgba(255,255,255,0.35)",
+                color: "var(--text-3)",
                 marginTop: 14,
                 lineHeight: 1.5,
               }}
@@ -224,7 +224,7 @@ export default function ForgotPasswordPage() {
             <p
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-2)",
                 marginTop: 0,
                 marginBottom: 20,
                 lineHeight: 1.5,
@@ -241,7 +241,7 @@ export default function ForgotPasswordPage() {
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 13,
-                  color: "#fca5a5",
+                  color: "var(--danger)",
                   marginBottom: 16,
                   animation: `oe-fadeInUp 0.3s ${EASE} both`,
                 }}
@@ -250,8 +250,9 @@ export default function ForgotPasswordPage() {
               </div>
             )}
 
-            <label style={labelStyle}>Email</label>
+            <label htmlFor="forgot-email" style={labelStyle}>Email</label>
             <input
+              id="forgot-email"
               type="email"
               autoComplete="email"
               autoFocus
@@ -269,7 +270,7 @@ export default function ForgotPasswordPage() {
               style={{
                 width: "100%",
                 padding: "14px",
-                background: `linear-gradient(135deg, ${TEAL}, #0284C7)`,
+                background: `linear-gradient(135deg, ${TEAL}, var(--primary-lo))`,
                 color: "#fff",
                 border: "none",
                 borderRadius: 12,
@@ -298,7 +299,7 @@ export default function ForgotPasswordPage() {
         style={{
           textAlign: "center",
           fontSize: 14,
-          color: "rgba(255,255,255,0.3)",
+          color: "var(--text-2)",
           marginTop: 24,
         }}
       >

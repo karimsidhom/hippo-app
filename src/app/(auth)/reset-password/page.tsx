@@ -13,15 +13,16 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Check, AlertTriangle, Lock } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 import { createClient } from "@/lib/supabase";
+import { verifyRecoverySession, updateRecoveredPassword } from "@/lib/password-recovery";
 
-const TEAL = "#0EA5E9";
+const TEAL = "var(--auth-link)";
 const EASE = "cubic-bezier(.16,1,.3,1)";
 
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
   fontWeight: 500,
-  color: "rgba(255,255,255,0.25)",
+  color: "var(--text-2)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   marginBottom: 6,
@@ -30,18 +31,17 @@ const labelStyle: React.CSSProperties = {
 function inputStyle(focused: boolean): React.CSSProperties {
   return {
     width: "100%",
-    background: "rgba(12,18,25,0.8)",
-    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "rgba(255,255,255,0.06)"}`,
-    color: "#E2E8F0",
+    background: "var(--surface)",
+    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "var(--border-mid)"}`,
+    color: "var(--text)",
     borderRadius: 12,
     padding: "13px 16px",
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "inherit",
-    outline: "none",
     boxSizing: "border-box" as const,
     marginBottom: 16,
     transition: "border-color 0.2s, box-shadow 0.2s",
-    boxShadow: focused ? "0 0 0 3px rgba(14,165,233,0.06)" : "none",
+    boxShadow: focused ? "0 0 0 3px var(--primary-glow)" : "none",
   };
 }
 
@@ -57,28 +57,22 @@ export default function ResetPasswordPage() {
   const [focused, setFocused] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  // The email link contains an `access_token` + `refresh_token` (or modern
-  // PKCE `code`) in the URL hash/query. Supabase's client will pick it up
-  // automatically on mount and put us in a recovery session. We just
-  // confirm a session exists and surface "link expired" otherwise.
+  // Supabase exchanges a PKCE recovery code automatically. Await its
+  // initialization and check redirect errors before trusting a stored session.
   const [linkValid, setLinkValid] = useState<boolean | null>(null);
 
   useEffect(() => {
     let cancelled = false;
 
     async function checkSession() {
-      // Wait one tick for Supabase to parse the URL fragment.
-      await new Promise((r) => setTimeout(r, 50));
-      const { data } = await supabase.auth.getSession();
-      if (!cancelled) setLinkValid(!!data.session);
+      const valid = await verifyRecoverySession(supabase.auth, () => window.location.href);
+      if (!cancelled) setLinkValid(valid);
     }
     checkSession();
 
-    // Listen for PASSWORD_RECOVERY event in case the parse runs late.
-    const { data: sub } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
-        if (!cancelled) setLinkValid(true);
-      }
+    // Signing out while the form is open must revoke the local form state.
+    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT" && !cancelled) setLinkValid(false);
     });
 
     return () => {
@@ -89,20 +83,13 @@ export default function ResetPasswordPage() {
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (loading || linkValid !== true) return;
     setError("");
-    if (password.length < 8) {
-      setError("Password must be at least 8 characters.");
-      return;
-    }
-    if (password !== confirm) {
-      setError("Passwords do not match.");
-      return;
-    }
     setLoading(true);
-    const { error: err } = await supabase.auth.updateUser({ password });
+    const result = await updateRecoveredPassword(supabase.auth, password, confirm);
     setLoading(false);
-    if (err) {
-      setError(err.message);
+    if (!result.ok) {
+      setError(result.error);
       return;
     }
     setDone(true);
@@ -111,6 +98,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div
+      className="auth-page"
       style={{
         width: "100%",
         maxWidth: 400,
@@ -132,7 +120,7 @@ export default function ResetPasswordPage() {
             style={{
               fontSize: 28,
               fontWeight: 700,
-              color: "#E2E8F0",
+              color: "var(--text)",
               letterSpacing: "-0.6px",
             }}
           >
@@ -164,8 +152,8 @@ export default function ResetPasswordPage() {
 
       <div
         style={{
-          background: "rgba(14,165,233,0.015)",
-          border: "1px solid rgba(255,255,255,0.04)",
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
           borderRadius: 20,
           padding: "28px 24px",
           position: "relative",
@@ -187,28 +175,28 @@ export default function ResetPasswordPage() {
                 justifyContent: "center",
               }}
             >
-              <AlertTriangle size={26} color="#fca5a5" />
+              <AlertTriangle size={26} color="var(--danger)" />
             </div>
             <h2
               style={{
                 fontSize: 16,
                 fontWeight: 600,
-                color: "#E2E8F0",
+                color: "var(--text)",
                 margin: "0 0 8px",
               }}
             >
-              Reset link expired
+              Reset link unavailable
             </h2>
             <p
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-2)",
                 margin: 0,
                 lineHeight: 1.5,
               }}
             >
-              This password reset link is invalid or has expired (links last 1 hour).
-              Request a new one to continue.
+              This link may have expired, already been used, or opened in a different browser.
+              Request a new link and open it in the same browser to continue.
             </p>
             <Link
               href="/forgot-password"
@@ -216,7 +204,7 @@ export default function ResetPasswordPage() {
                 display: "inline-block",
                 marginTop: 18,
                 padding: "10px 16px",
-                background: `linear-gradient(135deg, ${TEAL}, #0284C7)`,
+                background: `linear-gradient(135deg, ${TEAL}, var(--primary-lo))`,
                 color: "#fff",
                 borderRadius: 10,
                 fontSize: 13,
@@ -233,13 +221,13 @@ export default function ResetPasswordPage() {
           <p
             style={{
               fontSize: 13,
-              color: "rgba(255,255,255,0.4)",
+              color: "var(--text-2)",
               textAlign: "center",
               padding: "16px 4px",
               margin: 0,
             }}
           >
-            Verifying reset link\u2026
+            Verifying reset link…
           </p>
         )}
 
@@ -270,7 +258,7 @@ export default function ResetPasswordPage() {
               style={{
                 fontSize: 16,
                 fontWeight: 600,
-                color: "#E2E8F0",
+                color: "var(--text)",
                 margin: "0 0 8px",
               }}
             >
@@ -279,11 +267,11 @@ export default function ResetPasswordPage() {
             <p
               style={{
                 fontSize: 13,
-                color: "rgba(255,255,255,0.55)",
+                color: "var(--text-2)",
                 margin: 0,
               }}
             >
-              Redirecting to your dashboard\u2026
+              Redirecting to your dashboard…
             </p>
           </div>
         )}
@@ -298,7 +286,7 @@ export default function ResetPasswordPage() {
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 13,
-                  color: "#fca5a5",
+                  color: "var(--danger)",
                   marginBottom: 16,
                 }}
               >
@@ -306,9 +294,10 @@ export default function ResetPasswordPage() {
               </div>
             )}
 
-            <label style={labelStyle}>New password</label>
+            <label htmlFor="reset-password" style={labelStyle}>New password</label>
             <div style={{ position: "relative" }}>
               <input
+                id="reset-password"
                 type={showPw ? "text" : "password"}
                 autoComplete="new-password"
                 autoFocus
@@ -330,7 +319,7 @@ export default function ResetPasswordPage() {
                   border: "none",
                   cursor: "pointer",
                   padding: 0,
-                  color: "rgba(255,255,255,0.2)",
+                  color: "var(--text-3)",
                 }}
                 aria-label={showPw ? "Hide password" : "Show password"}
               >
@@ -338,8 +327,9 @@ export default function ResetPasswordPage() {
               </button>
             </div>
 
-            <label style={labelStyle}>Confirm password</label>
+            <label htmlFor="reset-confirm-password" style={labelStyle}>Confirm password</label>
             <input
+              id="reset-confirm-password"
               type={showPw ? "text" : "password"}
               autoComplete="new-password"
               placeholder="Re-enter your new password"
@@ -356,7 +346,7 @@ export default function ResetPasswordPage() {
               style={{
                 width: "100%",
                 padding: "14px",
-                background: `linear-gradient(135deg, ${TEAL}, #0284C7)`,
+                background: `linear-gradient(135deg, ${TEAL}, var(--primary-lo))`,
                 color: "#fff",
                 border: "none",
                 borderRadius: 12,
@@ -385,7 +375,7 @@ export default function ResetPasswordPage() {
         style={{
           textAlign: "center",
           fontSize: 14,
-          color: "rgba(255,255,255,0.3)",
+          color: "var(--text-2)",
           marginTop: 24,
         }}
       >

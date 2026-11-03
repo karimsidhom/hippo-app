@@ -265,8 +265,8 @@ export default function BenchmarksPage() {
           <div style={{ background: "var(--surface)", borderRadius: 16, padding: 24, maxWidth: 380, width: "100%" }} onClick={e => e.stopPropagation()}>
             <div style={{ fontSize: 32, textAlign: "center", marginBottom: 12 }}>⚡</div>
             <div style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", textAlign: "center" }}>Pro Feature</div>
-            <div style={{ fontSize: 14, color: "var(--muted)", textAlign: "center", marginTop: 8 }}>Detailed benchmark percentiles require a Pro subscription.</div>
-            <button onClick={() => setShowProGate(false)} style={{ marginTop: 20, width: "100%", padding: "10px 0", background: "var(--primary)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Got it</button>
+            <div style={{ fontSize: 14, color: "var(--text-3)", textAlign: "center", marginTop: 8 }}>Detailed benchmark percentiles require a Pro subscription.</div>
+            <button onClick={() => setShowProGate(false)} style={{ marginTop: 20, width: "100%", padding: "10px 0", background: "var(--primary-solid)", border: "none", borderRadius: 10, color: "#fff", fontSize: 15, fontWeight: 600, cursor: "pointer" }}>Got it</button>
           </div>
         </div>
       )}

@@ -172,7 +172,7 @@ const STATUS_CONFIG: Record<EpaStatus, StatusConfig> = {
     icon: FileEdit,
     bg: "rgba(255,255,255,0.03)",
     border: "rgba(255,255,255,0.08)",
-    color: "#64748b",
+    color: "var(--text-2)",
     solid: false,
   },
   SUBMITTED: {

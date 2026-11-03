@@ -126,7 +126,7 @@ export default function InstallPage() {
             padding: "3px 9px",
             borderRadius: 999,
             background: "rgba(14,165,233,0.12)",
-            color: "#0EA5E9",
+            color: "var(--primary-hi)",
             fontSize: 10,
             fontWeight: 600,
             letterSpacing: "0.08em",
@@ -197,7 +197,7 @@ export default function InstallPage() {
           padding: "10px 22px",
           background: "transparent",
           border: "none",
-          color: "#64748B",
+          color: "var(--text-2)",
           fontSize: 13,
           fontWeight: 500,
           cursor: "pointer",
@@ -279,7 +279,7 @@ function NativeInstallPanel({
           padding: "18px 22px",
           background:
             canInstall && !installing
-              ? "linear-gradient(135deg, #0EA5E9, #0284C7)"
+              ? "linear-gradient(135deg, var(--primary-hi), var(--primary-lo))"
               : "rgba(14,165,233,0.18)",
           color: "#fff",
           border: "none",
@@ -307,7 +307,7 @@ function NativeInstallPanel({
       <div
         style={{
           fontSize: 11,
-          color: "#64748B",
+          color: "var(--text-2)",
           textAlign: "center",
           lineHeight: 1.5,
         }}
@@ -336,7 +336,7 @@ function IOSGuidePanel() {
           fontWeight: 700,
           letterSpacing: "0.1em",
           textTransform: "uppercase",
-          color: "#0EA5E9",
+          color: "var(--primary-hi)",
           marginBottom: 12,
           textAlign: "center",
         }}
@@ -358,13 +358,13 @@ function IOSGuidePanel() {
           n={1}
           title="Tap the Share icon"
           subtitle="At the bottom of Safari."
-          icon={<Share size={20} color="#0EA5E9" strokeWidth={2.5} />}
+          icon={<Share size={20} color="var(--primary-hi)" strokeWidth={2.5} />}
         />
         <IOSStep
           n={2}
           title={'Tap "Add to Home Screen"'}
           subtitle="Scroll down if you don't see it."
-          icon={<Plus size={20} color="#0EA5E9" strokeWidth={2.5} />}
+          icon={<Plus size={20} color="var(--primary-hi)" strokeWidth={2.5} />}
         />
         <IOSStep
           n={3}
@@ -448,7 +448,7 @@ function IOSStep({
           height: 26,
           borderRadius: 13,
           background: "rgba(14,165,233,0.18)",
-          color: "#0EA5E9",
+          color: "var(--primary-hi)",
           fontSize: 13,
           fontWeight: 700,
           display: "flex",
@@ -476,7 +476,7 @@ function IOSStep({
         <div
           style={{
             fontSize: 11.5,
-            color: "#64748B",
+            color: "var(--text-2)",
             marginTop: 2,
           }}
         >

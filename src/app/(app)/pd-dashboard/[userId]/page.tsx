@@ -203,7 +203,7 @@ export default function ResidentDetailPage({
     );
   }
 
-  const { resident, stats, casesByWeek, autonomyRecent, autonomyPrior, epaObservations, recentPearls } =
+  const { resident, stats, casesByWeek, autonomyRecent, autonomyPrior, epaObservations } =
     summary;
 
   const lastDays = stats.lastCaseDate
@@ -333,16 +333,9 @@ export default function ResidentDetailPage({
       <MeetingsBlock residentId={userId} />
 
       {/* KPI row */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
-          gap: 12,
-          marginBottom: 22,
-        }}
-      >
+      <div className="pd-kpis">
         <MiniKpi icon={<Activity size={15} />} label="Total cases" value={stats.totalCases} color="var(--primary)" />
-        <MiniKpi icon={<Clock size={15} />} label="Cases this month" value={stats.casesThisMonth} color="var(--primary)" />
+        <MiniKpi icon={<Clock size={15} />} label="Cases · 30 days" value={stats.casesThisMonth} color="var(--primary)" />
         <MiniKpi icon={<CheckCircle2 size={15} />} label="EPAs signed" value={stats.epaSigned} color="var(--success)" />
         <MiniKpi
           icon={<AlertCircle size={15} />}
@@ -371,18 +364,6 @@ export default function ResidentDetailPage({
           />
         )}
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-            gap: 16,
-          }}
-        >
-          <RecentPearlsCard
-            pearls={recentPearls}
-            endorsementsReceived={stats.endorsementsReceived}
-          />
-        </div>
       </div>
     </div>
   );
@@ -730,84 +711,6 @@ function heatColor(pct: number): string {
   if (pct >= 26) return "#f59e0b"; // amber
   if (pct > 0) return "rgba(239, 68, 68, 0.75)"; // red
   return "var(--surface2)"; // empty
-}
-
-// ── Pearls card ──────────────────────────────────────────────────────────────
-
-function RecentPearlsCard({
-  pearls,
-  endorsementsReceived,
-}: {
-  pearls: SummaryResponse["recentPearls"];
-  endorsementsReceived: number;
-}) {
-  return (
-    <SectionCard icon={<Sparkles size={14} />} title="Recent pearls authored">
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--text-3)",
-          marginBottom: 10,
-          textTransform: "uppercase",
-          letterSpacing: "0.06em",
-        }}
-      >
-        <span style={{ fontFamily: MONO, color: "var(--text-2)", fontWeight: 700 }}>
-          {endorsementsReceived}
-        </span>{" "}
-        endorsements received · {pearls.length} recent post{pearls.length === 1 ? "" : "s"}
-      </div>
-      {pearls.length === 0 ? (
-        <div style={{ fontSize: 12, color: "var(--text-3)" }}>No pearls yet.</div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          {pearls.map((p) => (
-            <div
-              key={p.id}
-              style={{
-                padding: "10px 12px",
-                background: "var(--surface2)",
-                border: "1px solid var(--border)",
-                borderRadius: 8,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 13,
-                  color: "var(--text)",
-                  fontWeight: 600,
-                  marginBottom: 4,
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {p.title}
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-3)",
-                  display: "flex",
-                  gap: 10,
-                  fontFamily: MONO,
-                }}
-              >
-                <span>{p.endorseCount} endorse</span>
-                <span>{p.reactionCount} reactions</span>
-                <span style={{ marginLeft: "auto" }}>{formatShortDate(p.createdAt)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </SectionCard>
-  );
-}
-
-function formatShortDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 // ── Shared bits ──────────────────────────────────────────────────────────────

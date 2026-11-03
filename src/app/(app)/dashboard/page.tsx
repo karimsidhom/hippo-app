@@ -3,25 +3,21 @@
 import { doctorName } from '@/lib/names';
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Share2, Inbox, LayoutDashboard, AlertTriangle } from "lucide-react";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Inbox, LayoutDashboard, AlertTriangle, Trophy, BadgeCheck, Target, type LucideIcon } from "lucide-react";
 import { useSubscription } from "@/context/SubscriptionContext";
 import { useAuth } from "@/context/AuthContext";
-import { HippoDock } from "@/components/HippoDock";
 import { useLinkInbox } from "@/hooks/useLinkInbox";
-import { createClient } from "@/lib/supabase";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
 import { getStreak } from "@/lib/milestones";
 import { MILESTONE_THRESHOLDS } from "@/lib/constants";
-import { getLearningCurveData, getWeeklyHeatmapData } from "@/lib/stats";
-import { LearningCurveChart } from "@/components/charts/LearningCurveChart";
+import { getWeeklyHeatmapData } from "@/lib/stats";
 import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
-import { BADGE_KEYS } from "@/lib/constants";
+import { badgeLabel, badgeTone, TONE_VAR } from "@/lib/badges";
 import { TodaysPrinciple } from "@/components/TodaysPrinciple";
 import { BriefMeSheet } from "@/components/BriefMeSheet";
 import { ScheduleSection } from "@/components/ScheduleSection";
 import { DebriefSheet } from "@/components/DebriefSheet";
-import { PostComposer } from "@/components/social/PostComposer";
 import { ProgramCalendar } from "@/components/ProgramCalendar";
 import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
 import { OnTrackCard } from "@/components/dashboard/OnTrackCard";
@@ -91,7 +87,7 @@ interface NextMilestone {
   /** Target value. */
   target: number;
   /** Visual hint. */
-  emoji: string;
+  icon: LucideIcon;
   color: string;
 }
 
@@ -118,8 +114,8 @@ function getNextUpMilestones(
       progress: totalCases / totalNext,
       current: totalCases,
       target: totalNext,
-      emoji: totalNext >= 100 ? "👑" : totalNext >= 50 ? "💎" : totalNext >= 25 ? "🏆" : "⭐",
-      color: totalNext >= 100 ? "#f59e0b" : totalNext >= 50 ? "#6366f1" : "#0ea5e9",
+      icon: Trophy,
+      color: totalNext >= 100 ? "var(--warning)" : "var(--primary)",
     });
   }
 
@@ -137,8 +133,8 @@ function getNextUpMilestones(
       progress: independentCount / indNext,
       current: independentCount,
       target: indNext,
-      emoji: "🦅",
-      color: "#10b981",
+      icon: BadgeCheck,
+      color: "var(--success)",
     });
   }
 
@@ -151,8 +147,8 @@ function getNextUpMilestones(
       progress: streakDays / streakNext,
       current: streakDays,
       target: streakNext,
-      emoji: "🔥",
-      color: "#ef4444",
+      icon: Flame,
+      color: "var(--warning)",
     });
   }
 
@@ -166,8 +162,8 @@ function getNextUpMilestones(
       progress: topProcCount / procNext,
       current: topProcCount,
       target: procNext,
-      emoji: "🎯",
-      color: "#8b5cf6",
+      icon: Target,
+      color: "var(--primary)",
     });
   }
 
@@ -200,8 +196,6 @@ export default function DashboardPage() {
     caseDate: string;
   } | null>(null);
 
-  // PostComposer seeded from a recent case
-  const [shareCaseId, setShareCaseId] = useState<string | null>(null);
 
   // Wide screens get a taller learning-curve chart (main column is ~800px).
   const [wide, setWide] = useState(false);
@@ -294,7 +288,6 @@ export default function DashboardPage() {
   const topProcs = Object.entries(procedureCount).sort(([, a], [, b]) => b - a).slice(0, 5);
   const maxCount = topProcs[0]?.[1] ?? 1;
   const topProcName = topProcs[0]?.[0] ?? "";
-  const learningCurve = topProcName ? getLearningCurveData(cases ?? [], topProcName) : [];
 
   // "Justin Chan" greets as "Dr. Chan"; a stored "Dr. ..." is stripped first.
   const greetName = doctorName(user?.name, "Surgeon");
@@ -434,7 +427,6 @@ export default function DashboardPage() {
         </div>
 
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-        <HippoDock current="cases" supabase={createClient()} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />
         <Link
           href="/settings"
           aria-label="Settings"
@@ -667,10 +659,9 @@ export default function DashboardPage() {
                   }}
                 >
                   {recentMilestones.map((m) => {
-                    const badge = BADGE_KEYS[m.badgeKey] ?? {
-                      label: m.badgeKey,
-                      color: "#0EA5E9",
-                      emoji: "🏆",
+                    const badge = {
+                      label: badgeLabel(m.badgeKey),
+                      color: TONE_VAR[badgeTone(m.badgeKey)],
                     };
                     return (
                       <div
@@ -692,15 +683,14 @@ export default function DashboardPage() {
                             width: 22,
                             height: 22,
                             borderRadius: "50%",
-                            background: `${badge.color}22`,
-                            border: `1px solid ${badge.color}55`,
+                            background: `color-mix(in srgb, ${badge.color} 14%, transparent)`,
+                            border: `1px solid color-mix(in srgb, ${badge.color} 35%, transparent)`,
                             display: "inline-flex",
                             alignItems: "center",
                             justifyContent: "center",
-                            fontSize: 11,
                           }}
                         >
-                          {badge.emoji ?? "🏆"}
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.color }} />
                         </span>
                         <span
                           style={{
@@ -757,15 +747,7 @@ export default function DashboardPage() {
                               minWidth: 0,
                             }}
                           >
-                            <span
-                              aria-hidden
-                              style={{
-                                fontSize: 14,
-                                lineHeight: 1,
-                              }}
-                            >
-                              {nu.emoji}
-                            </span>
+                            <nu.icon size={14} strokeWidth={2} color={nu.color} aria-hidden />
                             <span
                               style={{
                                 fontSize: 12,
@@ -836,19 +818,6 @@ export default function DashboardPage() {
           <VolumeHeatmap data={heatmapData} />
         </section>
       </div>
-      <div className="dash-b" style={{ order: 14 }}>
-        {/* ── Resident: learning curve ─────────────────────────────────── */}
-        {isResident && learningCurve.length >= 3 && (
-          <section style={{ marginBottom: 28 }}>
-            <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px",
-              marginBottom: 14,
-            }}>Learning Curve — {topProcName}</div>
-            <LearningCurveChart data={learningCurve} height={wide ? 220 : 120} procedureName={topProcName} />
-          </section>
-        )}
-      </div>
       <div className="dash-b" style={{ order: 15 }}>
         {/* ── Recent cases (all roles) ─────────────────────────────────── */}
         <section>
@@ -906,39 +875,11 @@ export default function DashboardPage() {
                     marginRight: 8, flex: 1, minWidth: 0,
                   }}>{c.procedureName}</span>
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setShareCaseId(c.id); }}
-                      title="Share as pearl"
-                      aria-label="Share as pearl"
-                      style={{
-                        background: "transparent",
-                        border: "1px solid var(--border-mid)",
-                        borderRadius: 5,
-                        // 30×30 — small enough not to crowd the card footer,
-                        // big enough to hit on mobile without mis-tapping the
-                        // share onto the wrong case.
-                        width: 30, height: 30,
-                        display: "flex", alignItems: "center", justifyContent: "center",
-                        cursor: "pointer", color: "var(--text-3)",
-                        transition: "all .15s",
-                        flexShrink: 0,
-                      }}
-                      onMouseEnter={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "rgba(14,165,233,0.4)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--primary)";
-                      }}
-                      onMouseLeave={e => {
-                        (e.currentTarget as HTMLButtonElement).style.borderColor = "var(--border-mid)";
-                        (e.currentTarget as HTMLButtonElement).style.color = "var(--text-3)";
-                      }}
-                    >
-                      <Share2 size={13} />
-                    </button>
                     <span style={{
                       fontSize: 11, color: "var(--text-3)",
                       fontFamily: "'Geist Mono', monospace",
                     }}>
-                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" })}
                     </span>
                   </div>
                 </div>
@@ -1167,9 +1108,8 @@ export default function DashboardPage() {
             width: "100%",
             padding: "14px 16px",
             marginBottom: 28,
-            background:
-              "linear-gradient(135deg, rgba(168,85,247,0.08), rgba(59,130,246,0.08))",
-            border: "1px solid rgba(168,85,247,0.28)",
+            background: "var(--surface)",
+            border: "1px solid var(--border-mid)",
             borderRadius: 10,
             color: "var(--text)",
             cursor: "pointer",
@@ -1184,15 +1124,15 @@ export default function DashboardPage() {
                 width: 32,
                 height: 32,
                 borderRadius: 8,
-                background: "rgba(168,85,247,0.16)",
-                border: "1px solid rgba(168,85,247,0.35)",
+                background: "var(--primary-dim)",
+                border: "1px solid var(--border-mid)",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "center",
                 flexShrink: 0,
               }}
             >
-              <Sparkles size={14} style={{ color: "#c4b5fd" }} />
+              <Sparkles size={14} style={{ color: "var(--primary)" }} />
             </div>
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
@@ -1314,12 +1254,6 @@ export default function DashboardPage() {
         onClose={() => setDebriefCase(null)}
       />
 
-      <PostComposer
-        open={shareCaseId !== null}
-        onClose={() => setShareCaseId(null)}
-        source={shareCaseId ? { kind: "case", caseId: shareCaseId } : undefined}
-        onPublished={() => setShareCaseId(null)}
-      />
     </div>
   );
 }

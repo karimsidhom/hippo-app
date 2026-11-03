@@ -19,7 +19,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
 
-const TEAL = "#0EA5E9";
+const TEAL = "var(--auth-link)";
 const EASE = "cubic-bezier(.16,1,.3,1)";
 
 // ── Hooks ─────────────────────────────────────────────────────────────────
@@ -54,7 +54,7 @@ const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
   fontWeight: 500,
-  color: "rgba(255,255,255,0.25)",
+  color: "var(--text-2)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
   marginBottom: 6,
@@ -63,18 +63,17 @@ const labelStyle: React.CSSProperties = {
 function inputStyle(focused: boolean): React.CSSProperties {
   return {
     width: "100%",
-    background: "rgba(12,18,25,0.8)",
-    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "rgba(255,255,255,0.06)"}`,
-    color: "#E2E8F0",
+    background: "var(--surface)",
+    border: `1px solid ${focused ? "rgba(14,165,233,0.4)" : "var(--border-mid)"}`,
+    color: "var(--text)",
     borderRadius: 12,
     padding: "13px 16px",
-    fontSize: 14,
+    fontSize: 16,
     fontFamily: "inherit",
-    outline: "none",
     boxSizing: "border-box" as const,
     marginBottom: 16,
     transition: "border-color 0.2s, box-shadow 0.2s",
-    boxShadow: focused ? "0 0 0 3px rgba(14,165,233,0.06)" : "none",
+    boxShadow: focused ? "0 0 0 3px var(--primary-glow)" : "none",
   };
 }
 
@@ -252,7 +251,7 @@ export default function LoginPage() {
             flexDirection: "column",
             alignItems: "center",
             justifyContent: "center",
-            background: "#060d13",
+            background: "var(--bg)",
             animation: splashPhase === "fading"
               ? `oe-splashExit 0.9s ease-out forwards`
               : undefined,
@@ -292,7 +291,7 @@ export default function LoginPage() {
           <h1 style={{
             fontSize: 36,
             fontWeight: 700,
-            color: "#E2E8F0",
+            color: "var(--text)",
             letterSpacing: "-0.8px",
             margin: "24px 0 0",
             animation: `oe-fadeInUp 0.6s ${EASE} 0.9s both`,
@@ -316,7 +315,7 @@ export default function LoginPage() {
 
       {/* ═══ LOGIN CONTENT ════════════════════════════════════════════ */}
       {showContent && (
-        <div style={{
+        <div className="auth-page" style={{
           width: "100%",
           maxWidth: 400,
           animation: authSuccess
@@ -335,19 +334,18 @@ export default function LoginPage() {
               <span style={{
                 fontSize: 28,
                 fontWeight: 700,
-                color: "#E2E8F0",
+                color: "var(--text)",
                 letterSpacing: "-0.6px",
               }}>
                 Hippo
               </span>
             </div>
             <p style={{
-              fontSize: 13,
-              color: TEAL,
+              fontSize: 13.5,
+              color: "var(--text-3)",
               margin: 0,
-              opacity: 0.6,
-              letterSpacing: "0.02em",
-              fontStyle: "italic",
+              letterSpacing: "-0.005em",
+              fontWeight: 450,
             }}>
               Track mastery. Share growth.
             </p>
@@ -385,8 +383,8 @@ export default function LoginPage() {
 
           {/* Glass form */}
           <div style={{
-            background: "rgba(14,165,233,0.015)",
-            border: "1px solid rgba(255,255,255,0.04)",
+            background: "var(--surface)",
+            border: "1px solid var(--border-mid)",
             borderRadius: 20,
             padding: "28px 24px",
             position: "relative",
@@ -408,7 +406,7 @@ export default function LoginPage() {
                   borderRadius: 10,
                   padding: "10px 14px",
                   fontSize: 13,
-                  color: "#fca5a5",
+                  color: "var(--danger)",
                   marginBottom: 16,
                   animation: `oe-fadeInUp 0.3s ${EASE} both`,
                 }}>
@@ -416,8 +414,9 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <label style={labelStyle}>Email</label>
+              <label htmlFor="login-email" style={labelStyle}>Email</label>
               <input
+                id="login-email"
                 type="email"
                 autoComplete="email"
                 placeholder="you@hospital.ca"
@@ -428,9 +427,10 @@ export default function LoginPage() {
                 style={inputStyle(focused === "email")}
               />
 
-              <label style={labelStyle}>Password</label>
+              <label htmlFor="login-password" style={labelStyle}>Password</label>
               <div style={{ position: "relative" }}>
                 <input
+                  id="login-password"
                   type={showPw ? "text" : "password"}
                   autoComplete="current-password"
                   placeholder="••••••••"
@@ -455,7 +455,7 @@ export default function LoginPage() {
                     border: "none",
                     cursor: "pointer",
                     padding: 0,
-                    color: "rgba(255,255,255,0.2)",
+                    color: "var(--text-3)",
                     transition: "color 0.15s",
                   }}
                   aria-label={showPw ? "Hide password" : "Show password"}
@@ -490,21 +490,21 @@ export default function LoginPage() {
                 style={{
                   width: "100%",
                   padding: "14px",
-                  background: `linear-gradient(135deg, ${TEAL}, #0284C7)`,
+                  background: btnHover && !loading ? "var(--primary-solid-hi)" : "var(--primary-solid)",
                   color: "#fff",
                   border: "none",
-                  borderRadius: 12,
+                  borderRadius: 10,
                   fontSize: 15,
                   fontWeight: 600,
                   cursor: loading ? "not-allowed" : "pointer",
                   fontFamily: "inherit",
                   opacity: loading ? 0.6 : 1,
-                  transition: `opacity 0.15s, transform 0.12s ${EASE}, box-shadow 0.2s`,
-                  boxShadow: btnHover && !loading
-                    ? "0 4px 32px -4px rgba(14,165,233,0.45), inset 0 1px 0 rgba(255,255,255,0.1)"
-                    : "0 4px 24px -4px rgba(14,165,233,0.3), inset 0 1px 0 rgba(255,255,255,0.08)",
-                  transform: btnActive ? "scale(0.98)" : "scale(1)",
-                  letterSpacing: "0.01em",
+                  transition: `opacity .15s, background-color .18s ${EASE}, transform .12s ${EASE}`,
+                  // One hairline inset highlight for a lit top edge. No
+                  // coloured glow — shadows are for elevation here, not decoration.
+                  boxShadow: "inset 0 1px 0 rgba(255,255,255,0.14)",
+                  transform: btnActive ? "scale(0.985)" : "scale(1)",
+                  letterSpacing: "-0.005em",
                 }}
               >
                 {loading ? "Signing in\u2026" : "Sign In"}
@@ -515,7 +515,7 @@ export default function LoginPage() {
           <p style={{
             textAlign: "center",
             fontSize: 14,
-            color: "rgba(255,255,255,0.3)",
+            color: "var(--text-2)",
             marginTop: 24,
           }}>
             Don&apos;t have an account?{" "}

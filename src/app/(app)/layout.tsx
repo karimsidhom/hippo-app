@@ -1,17 +1,23 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, Inbox, GraduationCap, type LucideIcon } from "lucide-react";
+import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, Inbox, GraduationCap, NotebookPen, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
+import { HippoDock } from "@/components/HippoDock";
+import { createClient } from "@/lib/supabase";
+import { useLinkInbox } from "@/hooks/useLinkInbox";
+import { PULSE_URL } from "@/lib/pulse";
+import { WorkspaceThemeToggle } from "@/components/WorkspaceThemeToggle";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useAuth } from "@/context/AuthContext";
 import { useInteraction } from "@/hooks/useInteraction";
+import "../cases-workspace.css";
 import {
   hydrateStyleProfile,
   flushStyleProfileWrites,
@@ -23,6 +29,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { user, profile, loading, onboardingDone, logout } = useAuth();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
   const fx = useInteraction();
+  // One suite switcher in the shell (sidebar on a computer, header on a
+  // phone). Stable client so it doesn't refetch per render; the Hippo Link
+  // count badges it when Handover has sent cases to log.
+  const suiteSupabase = useRef(createClient()).current;
+  const linkInbox = useLinkInbox({ pollMs: 60_000, enabled: !!user });
 
   useEffect(() => {
     if (loading) return;
@@ -72,6 +83,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div
       data-module={moduleAttr}
+      data-workspace={inClinic ? undefined : "cases"}
       className="app-shell"
       style={{
         background: "var(--bg)",
@@ -86,6 +98,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         alignItems: "center",
       }}
     >
+      <a className="workspace-skip" href="#workspace-content">Skip to content</a>
+
       <ShadowRecordBanner />
       <SubprocessorBanner />
       <DesktopSidebar
@@ -94,6 +108,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         name={user.name}
         subtitle={[profile?.trainingYearLabel, profile?.specialty].filter(Boolean).join(" \u00b7 ")}
         roleType={profile?.roleType}
+        suiteDock={<HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />}
         onLog={() => { fx.tap(); setQuickAddOpen(true); }}
         onLogout={() => { logout(); router.replace("/login"); }}
       />
@@ -214,7 +229,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
         >
           <HippoMark size={22} />
-          <span style={{
+          <span className="case-mobile-wordmark" style={{
             fontSize: 15,
             fontWeight: 700,
             color: "var(--text)",
@@ -243,6 +258,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {!inClinic && <HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />}
+          <WorkspaceThemeToggle />
           {/* The shared NotificationBell renders the existing global feed
               (EPA verifications, batch sign-offs, etc) — copy that's
               irrelevant for a clinic-only deployment. We hide it under
@@ -301,6 +318,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               Log
             </button>
           )}
+          {!inClinic ? <Link className="case-account-link" href="/profile" aria-label="Your profile and account"><User size={20} /></Link> : (
           <button
             onClick={() => { logout(); router.replace("/login"); }}
             title="Log out"
@@ -317,11 +335,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           >
             <LogOut size={13} />
           </button>
+          )}
         </div>
       </header>
 
       {/* ── Content ────────────────────────────────────────────────────── */}
-      <main className="app-main" style={{
+      <main id="workspace-content" tabIndex={-1} className="app-main" style={{
         margin: "0 auto",
       }}>
         {children}
@@ -459,98 +478,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </>
         ) : (
         <>
-        {/* ── Home ── */}
         <NavTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
+        <NavTab href="/cases" label="Cases" icon={ClipboardList} active={pathname.startsWith("/cases") || pathname === "/log"} />
+        <NavTab href="/analytics" label="Progress" icon={BarChart2} active={["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path))} />
+        <NavTab href="/notes" label="Notes" icon={NotebookPen} active={pathname.startsWith("/notes")} />
+        <NavTab href={profile?.roleType === "PROGRAM_DIRECTOR" ? "/pd-dashboard" : "/programs"} label="Program" icon={GraduationCap} active={["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path))} />
 
-        {/* ── Stats ── */}
-        <NavTab href="/analytics" label="Stats" icon={BarChart2} active={pathname === "/analytics"} />
-
-        {/* ── Cases (center anchor with integrated +) ── */}
-        {(() => {
-          const casesActive = pathname === "/cases";
-          return (
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              position: "relative",
-              marginTop: -12,
-            }}>
-              {/* + button — elevated, attached to Cases.
-                  44×44 hits Apple HIG's minimum tappable target so the
-                  most-used primary action never misfires on iPhone. */}
-              <button
-                className="press-key"
-                onClick={() => { fx.tap(); setQuickAddOpen(true); }}
-                aria-label="Log a case"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: "var(--primary)",
-                  border: "3px solid var(--bg)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  // Motion + haptic live in useInteraction() + the .press-key
-                  // class. This button now has a uniform press feel matching
-                  // every other primary action across the app.
-                  transition: "box-shadow .15s cubic-bezier(.16,1,.3,1)",
-                  boxShadow: "0 2px 8px rgba(99,102,241,.25)",
-                }}
-              >
-                <Plus size={20} color="#fff" strokeWidth={2.5} />
-              </button>
-              {/* Cases label/icon below */}
-              <Link
-                href="/cases"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 1,
-                  paddingTop: 2,
-                  paddingBottom: 4,
-                  textDecoration: "none",
-                  color: casesActive ? "var(--text)" : "var(--muted)",
-                  transition: "color .15s",
-                  position: "relative",
-                }}
-              >
-                {casesActive && (
-                  <div style={{
-                    position: "absolute",
-                    top: -2,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 16,
-                    height: 1.5,
-                    borderRadius: 1,
-                    background: "var(--primary)",
-                  }} />
-                )}
-                <ClipboardList size={15} strokeWidth={casesActive ? 2 : 1.5} />
-                <span style={{
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: ".06em",
-                  textTransform: "uppercase",
-                  fontFamily: "'Geist', sans-serif",
-                }}>Cases</span>
-              </Link>
-            </div>
-          );
-        })()}
-
-        {/* Cohort tab lives inside Stats for PDs — see src/app/(app)/analytics/page.tsx.
-            Kept off the bottom nav to avoid crowding. */}
-
-        {/* ── Profile ── */}
-        <NavTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />
-
-        {/* ── Community ── */}
-        <NavTab href="/social" label="Community" icon={Users} active={pathname === "/social"} />
         </>
         )}
       </nav>
@@ -574,6 +507,7 @@ function NavTab({
     <Link
       href={href}
       className="press"
+      aria-current={active ? "page" : undefined}
       style={{
         display: "flex",
         flexDirection: "column",
@@ -617,9 +551,10 @@ function NavTab({
 
 /** Desktop-only left sidebar (hidden below 1024px via .desk-sidebar). */
 function DesktopSidebar({
-  inClinic, pathname, name, subtitle, roleType, onLog, onLogout,
+  inClinic, pathname, name, subtitle, roleType, suiteDock, onLog, onLogout,
 }: {
   inClinic: boolean;
+  suiteDock: ReactNode;
   pathname: string;
   name: string;
   subtitle: string;
@@ -639,16 +574,16 @@ function DesktopSidebar({
     : [
         { href: "/dashboard", label: "Home", icon: LayoutDashboard, active: pathname === "/dashboard" },
         { href: "/cases", label: "Cases", icon: ClipboardList, active: pathname.startsWith("/cases") },
-        { href: "/analytics", label: "Stats", icon: BarChart2, active: pathname.startsWith("/analytics") },
+        { href: "/analytics", label: "Progress", icon: BarChart2, active: ["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path)) },
+        { href: "/notes", label: "Notes", icon: NotebookPen, active: pathname.startsWith("/notes") },
+        { href: isPD ? "/pd-dashboard" : "/programs", label: "Program", icon: GraduationCap, active: ["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path)) },
         ...(isStaff ? [{ href: "/inbox", label: "EPA inbox", icon: Inbox, active: pathname.startsWith("/inbox") }] : []),
-        ...(isPD ? [{ href: "/pd-dashboard", label: "Program", icon: GraduationCap, active: pathname.startsWith("/pd-dashboard") }] : []),
-        { href: "/social", label: "Community", icon: Users, active: pathname.startsWith("/social") },
-        { href: "/profile", label: "Profile", icon: User, active: pathname.startsWith("/profile") },
       ];
   const settingsActive = pathname.startsWith("/settings");
 
   return (
     <aside className="desk-sidebar" aria-label="Main navigation">
+      <div className="workspace-brand-row">
       <Link
         href={inClinic ? "/clinic" : "/dashboard"}
         style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px", textDecoration: "none" }}
@@ -663,6 +598,8 @@ function DesktopSidebar({
           }}>Clinic</span>
         )}
       </Link>
+      {!inClinic && <>{suiteDock}<WorkspaceThemeToggle /></>}
+      </div>
 
       {inClinic ? (
         <Link href="/clinic/new" className="press" style={deskPrimaryBtn}>
@@ -687,6 +624,12 @@ function DesktopSidebar({
 
       {!inClinic && (
         <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+          {/* Community lives on Hippo Pulse; Cases keeps the private record. */}
+          <a href={PULSE_URL} target="_blank" rel="noopener" className="desk-nav-link">
+            <Users size={17} strokeWidth={1.75} /> Community
+            <ArrowUpRight size={14} strokeWidth={1.75} style={{ marginLeft: "auto", opacity: 0.6 }} aria-label="opens Hippo Pulse" />
+          </a>
+          <Link href="/profile" className="desk-nav-link" aria-current={pathname === "/profile" ? "page" : undefined}><User size={17} /> Your profile</Link>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 4 }}>
             <Link href="/settings" className="desk-nav-link" aria-current={settingsActive ? "page" : undefined} style={{ flex: 1 }}>
               <SettingsIcon size={17} strokeWidth={settingsActive ? 2 : 1.75} />
@@ -734,7 +677,7 @@ function DesktopSidebar({
 const deskPrimaryBtn: React.CSSProperties = {
   display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
   height: 40, margin: "24px 0 18px",
-  background: "var(--primary)", color: "#fff",
+  background: "linear-gradient(135deg, var(--primary-solid-hi), var(--primary-solid))", color: "#fff",
   border: "none", borderRadius: 9,
   fontSize: 14, fontWeight: 600, fontFamily: "inherit",
   cursor: "pointer", textDecoration: "none",

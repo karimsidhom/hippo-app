@@ -233,7 +233,7 @@ function EpaRow({
               padding: "8px 16px",
               borderRadius: 6,
               border: "none",
-              background: "var(--primary)",
+              background: "var(--primary-solid)",
               color: "#fff",
               fontSize: 12,
               fontWeight: 600,
@@ -556,7 +556,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
             value: stats.notStarted,
             sub: "no observations yet",
             icon: <Clock size={14} />,
-            color: "#64748b",
+            color: "var(--text-2)",
           },
           {
             label: "Sub-Req Gaps",

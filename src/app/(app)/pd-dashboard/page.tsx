@@ -467,14 +467,7 @@ export default function PDDashboardPage() {
           aggregate competency level which we don't compute server-side
           yet — using "Avg EPA completion" already conveys cohort
           progress, so we keep that as the third progress tile. */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-          gap: 12,
-          marginBottom: 22,
-        }}
-      >
+      <div className="pd-kpis">
         <KpiCard
           icon={<Activity size={16} />}
           label="Mapped Cases"
@@ -886,7 +879,7 @@ function ResidentTable({
   const headers: Array<{ key: SortKey; label: string; align?: "right" }> = [
     { key: "name", label: "Resident" },
     { key: "year", label: "Year" },
-    { key: "casesMonth", label: "Cases / mo", align: "right" },
+    { key: "casesMonth", label: "Cases · 30 d", align: "right" },
     { key: "lastCase", label: "Last case", align: "right" },
     { key: "lastMeeting", label: "Last 1:1", align: "right" },
     { key: "epaProgress", label: "EPAs", align: "right" },
@@ -1401,7 +1394,7 @@ function ResidentCard({
             <span style={{ fontFamily: MONO, fontWeight: 600, color: "var(--text)" }}>
               {resident.casesThisMonth}
             </span>{" "}
-            cases this month
+            cases in 30 days
           </span>
           <span style={{ fontSize: 11, color: silent ? "var(--danger)" : "var(--text-3)" }}>
             {lastDays === null

@@ -78,7 +78,7 @@ export function MeetingInboxCard() {
           type="button"
           onClick={() => router.push('/profile/meetings')}
           style={{
-            padding: '8px 14px', background: 'var(--primary)', border: 'none',
+            padding: '8px 14px', background: 'var(--primary-solid)', border: 'none',
             borderRadius: 7, color: '#fff', fontSize: 12, fontWeight: 600,
             cursor: 'pointer', fontFamily: 'inherit', flexShrink: 0,
           }}

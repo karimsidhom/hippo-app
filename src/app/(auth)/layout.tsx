@@ -11,6 +11,7 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { CopyrightFooter } from "@/components/shared/CopyrightFooter";
+import "./auth-layout.css";
 
 export default function AuthLayout({
   children,
@@ -18,26 +19,7 @@ export default function AuthLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      style={{
-        position: "relative",
-        // 100dvh respects iOS Safari's collapsing URL bar; falls back to 100vh
-        // on browsers that don't support it. Avoids the "form pushed off
-        // screen when toolbar appears" jump on mobile Safari.
-        minHeight: "100dvh",
-        width: "100%",
-        maxWidth: "100vw",
-        background: "#060d13",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        padding:
-          "max(24px, env(safe-area-inset-top)) 16px max(24px, env(safe-area-inset-bottom))",
-        overflowX: "hidden",
-        fontFamily:
-          "'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
-      }}
-    >
+    <div className="auth-shell">
       {/* ── Ambient depth layers ─────────────────────────────────────── */}
       <div
         style={{
@@ -111,29 +93,12 @@ export default function AuthLayout({
       </div>
 
       {/* ── Content ──────────────────────────────────────────────────── */}
-      <div
-        style={{
-          position: "relative",
-          zIndex: 1,
-          width: "100%",
-          display: "flex",
-          justifyContent: "center",
-        }}
-      >
+      <main className="auth-shell__main">
         {children}
-      </div>
+      </main>
 
       {/* ── Copyright / legal links ──────────────────────────────────── */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: "max(8px, env(safe-area-inset-bottom))",
-          zIndex: 2,
-          pointerEvents: "auto",
-        }}
-      >
+      <div className="auth-shell__footer">
         <CopyrightFooter />
       </div>
     </div>

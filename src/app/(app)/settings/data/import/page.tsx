@@ -250,7 +250,7 @@ export default function ImportLogPage() {
             name, health card number) unless your institution permits it.
             Hippo will flag possible identifiers before import and offer
             de-identification. Imported cases stay private by default and
-            are never auto-shared to community feeds.
+            are never shared anywhere.
           </p>
         </div>
       </div>
@@ -347,7 +347,7 @@ export default function ImportLogPage() {
                       {reason && (
                         <span
                           title={reason}
-                          className="inline-flex text-[var(--muted)]"
+                          className="inline-flex text-[var(--text-3)]"
                         >
                           <HelpCircle className="w-3 h-3" />
                         </span>

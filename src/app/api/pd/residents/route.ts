@@ -75,7 +75,9 @@ export async function GET() {
 
   // Date boundaries
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  // Rolling 30 days, not the calendar month: on the 2nd of a month a
+  // calendar count reads 0 for every resident and tells a director nothing.
+  const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
   const dayOfWeek = now.getDay();
   const startOfWeek = new Date(now);
   startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
@@ -89,7 +91,7 @@ export async function GET() {
       // Case counts
       const [totalCases, casesThisMonth, casesThisWeek, lastCase] = await Promise.all([
         db.caseLog.count({ where: { userId } }),
-        db.caseLog.count({ where: { userId, caseDate: { gte: startOfMonth } } }),
+        db.caseLog.count({ where: { userId, caseDate: { gte: last30Days } } }),
         db.caseLog.count({ where: { userId, caseDate: { gte: startOfWeek } } }),
         db.caseLog.findFirst({
           where: { userId },

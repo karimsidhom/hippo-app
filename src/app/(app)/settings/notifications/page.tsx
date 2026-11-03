@@ -484,7 +484,7 @@ function SubscribedControls({ busy, onDisable }: { busy: boolean; onDisable: () 
             disabled={busy || testing}
             className="press"
             style={{
-              background: "var(--primary)",
+              background: "var(--primary-solid)",
               color: "#fff",
               border: "none",
               borderRadius: 5,
@@ -645,7 +645,7 @@ function PushControls({
         disabled={busy}
         className="press-key"
         style={{
-          background: "var(--primary)",
+          background: "var(--primary-solid)",
           color: "#fff",
           border: "none",
           borderRadius: 7,
@@ -713,7 +713,7 @@ function NotSupportedNotice({
             display: "inline-block",
             marginTop: 10,
             padding: "6px 12px",
-            background: "var(--primary)",
+            background: "var(--primary-solid)",
             color: "#fff",
             borderRadius: 5,
             fontSize: 11,

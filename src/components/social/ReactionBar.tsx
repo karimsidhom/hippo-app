@@ -17,7 +17,7 @@ const REACTIONS: {
   { kind: "saved",     glyph: "\uD83C\uDFAF", label: "Saved me", color: "#10B981" }, // 🎯
   { kind: "teaching",  glyph: "\uD83E\uDDE0", label: "Teaching", color: "#8B5CF6" }, // 🧠
   { kind: "warning",   glyph: "\uD83D\uDEA8", label: "Watch out", color: "#F59E0B" }, // 🚨
-  { kind: "seen",      glyph: "\uD83D\uDC40", label: "Seen it",  color: "#64748B" }, // 👀
+  { kind: "seen",      glyph: "\uD83D\uDC40", label: "Seen it",  color: "var(--text-2)" }, // 👀
 ];
 
 interface Props {

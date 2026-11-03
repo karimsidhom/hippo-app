@@ -71,7 +71,7 @@ const TYPE_META: Record<
   string,
   { label: string; color: string; bg: string; icon: LucideIcon }
 > = {
-  GENERAL: { label: "Event", color: "#64748b", bg: "#64748b20", icon: CalendarDays },
+  GENERAL: { label: "Event", color: "var(--text-2)", bg: "#64748b20", icon: CalendarDays },
   VACATION: { label: "Vacation", color: "#10B981", bg: "#10B98120", icon: Palmtree },
   MEETING: { label: "Meeting", color: "#0EA5E9", bg: "#0EA5E920", icon: Users2 },
   CONFERENCE: { label: "Conference", color: "#8B5CF6", bg: "#8B5CF620", icon: Presentation },
@@ -259,7 +259,7 @@ export function ProgramCalendar() {
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
-                background: "var(--primary)",
+                background: "var(--primary-solid)",
                 color: "#fff",
                 border: "none",
                 borderRadius: 6,
@@ -665,13 +665,13 @@ function EventRow({
           <span>{formatEventTime(event)}</span>
           {event.programName && (
             <>
-              <span style={{ color: "var(--muted)" }}>·</span>
+              <span style={{ color: "var(--text-3)" }}>·</span>
               <span>{event.programName}</span>
             </>
           )}
           {hasLink && (
             <>
-              <span style={{ color: "var(--muted)" }}>·</span>
+              <span style={{ color: "var(--text-3)" }}>·</span>
               <span
                 style={{
                   display: "inline-flex",

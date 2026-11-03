@@ -29,6 +29,10 @@ interface Observation {
   professionalismConcern?: boolean;
   concernDetails?: string;
   status: string;
+  user?: {
+    name: string | null;
+    profile?: { trainingYearLabel: string | null } | null;
+  } | null;
   caseLog?: {
     id: string;
     procedureName: string;
@@ -175,7 +179,7 @@ export default function ReviewPage() {
         }}>
           <HippoMark size={24} />
           <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.4px" }}>Hippo</span>
-          <span style={{ fontSize: 12, color: "#64748b", marginLeft: 4 }}>EPA Review</span>
+          <span style={{ fontSize: 12, color: "var(--text-2)", marginLeft: 4 }}>EPA Review</span>
         </div>
 
         {/* Loading */}
@@ -188,7 +192,7 @@ export default function ReviewPage() {
               animation: "spin .7s linear infinite",
               margin: "0 auto 12px",
             }} />
-            <p style={{ fontSize: 13, color: "#64748b" }}>Loading observation...</p>
+            <p style={{ fontSize: 13, color: "var(--text-2)" }}>Loading observation...</p>
             <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
           </div>
         )}
@@ -203,7 +207,7 @@ export default function ReviewPage() {
           }}>
             <AlertTriangle size={28} style={{ color: "#f87171", margin: "0 auto 12px" }} />
             <p style={{ fontSize: 15, color: "#f87171", fontWeight: 600 }}>{error}</p>
-            <p style={{ fontSize: 13, color: "#64748b", marginTop: 8 }}>
+            <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 8 }}>
               This review link may have expired or already been used.
             </p>
           </div>
@@ -259,11 +263,11 @@ export default function ReviewPage() {
             borderRadius: 12,
             border: "1px solid rgba(255,255,255,0.08)",
           }}>
-            <Check size={28} style={{ color: "#64748b", margin: "0 auto 12px" }} />
+            <Check size={28} style={{ color: "var(--text-2)", margin: "0 auto 12px" }} />
             <p style={{ fontSize: 15, color: "#94a3b8", fontWeight: 600 }}>
               This review has already been completed.
             </p>
-            <p style={{ fontSize: 13, color: "#64748b", marginTop: 8 }}>
+            <p style={{ fontSize: 13, color: "var(--text-2)", marginTop: 8 }}>
               Status: <strong style={{ color: "#e2e8f0" }}>{observation?.status}</strong>
             </p>
           </div>
@@ -292,6 +296,13 @@ export default function ReviewPage() {
                 <span style={{ fontSize: 14, fontWeight: 600 }}>{observation.epaTitle}</span>
               </div>
 
+              {observation.user?.name && (
+                <div style={{ fontSize: 13, color: "#e2e8f0", marginBottom: 10 }}>
+                  Resident: <strong>{observation.user.name}</strong>
+                  {observation.user.profile?.trainingYearLabel ? ` · ${observation.user.profile.trainingYearLabel}` : ""}
+                </div>
+              )}
+
               {observation.caseLog && (
                 <div style={{
                   background: "#0e1520",
@@ -307,6 +318,7 @@ export default function ReviewPage() {
                     <strong style={{ color: "#e2e8f0" }}>Date:</strong>{" "}
                     {new Date(observation.caseLog.caseDate).toLocaleDateString("en-CA", {
                       year: "numeric", month: "long", day: "numeric",
+                      timeZone: "UTC",
                     })}
                   </div>
                   {observation.caseLog.surgicalApproach && (
@@ -318,12 +330,12 @@ export default function ReviewPage() {
                 </div>
               )}
 
-              <div style={{ fontSize: 12, color: "#64748b" }}>
+              <div style={{ fontSize: 12, color: "var(--text-2)" }}>
                 Assessed by: <strong style={{ color: "#94a3b8" }}>{observation.assessorName}</strong>
                 {observation.assessorRole && ` (${observation.assessorRole})`}
               </div>
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>
-                Date: {new Date(observation.observationDate).toLocaleDateString("en-CA")}
+              <div style={{ fontSize: 12, color: "var(--text-2)", marginTop: 2 }}>
+                Date: {new Date(observation.observationDate).toLocaleDateString("en-CA", { timeZone: "UTC" })}
                 {observation.setting && ` | Setting: ${observation.setting}`}
                 {observation.complexity && ` | Complexity: ${observation.complexity}`}
               </div>
@@ -338,7 +350,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
                   Resident&apos;s Entrustment Self-Assessment
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -375,7 +387,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
                   Resident&apos;s Notes
                 </div>
                 {observation.observationNotes && (
@@ -408,7 +420,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
                   CanMEDS Milestone Ratings
                 </div>
                 {observation.canmedsRatings.map((r) => (

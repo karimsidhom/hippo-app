@@ -56,7 +56,7 @@ export function EpaObservationCard({
   const isPending = observation.status === "PENDING_REVIEW";
   const dateStr = new Date(observation.observationDate).toLocaleDateString(
     undefined,
-    { month: "short", day: "numeric", year: "numeric" }
+    { month: "short", day: "numeric", year: "numeric", timeZone: "UTC" }
   );
   const oScore = observation.entrustmentScore;
 
