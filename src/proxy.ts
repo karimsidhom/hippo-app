@@ -58,11 +58,13 @@ export async function proxy(request: NextRequest) {
     }
   }
 
-  // Always allow static assets + PWA manifest
+  // Always allow static assets + PWA manifest and service worker
   if (
     pathname.startsWith('/_next') ||
     pathname.startsWith('/favicon') ||
     pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/sw.js.map' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json)$/)
