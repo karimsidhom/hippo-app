@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { directsResident } from '@/lib/program-auth';
+import { directsResident, STAFF_PROFILE_ROLES } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/residents/:userId/summary
@@ -11,8 +11,8 @@ import { directsResident } from '@/lib/program-auth';
  * distribution (last 30d vs prior 30d), the EPA heatmap data, and recent
  * pearls in a single round-trip.
  *
- * Gated on PROGRAM_DIRECTOR role + the target being a member of a program
- * the caller directs.
+ * Gated on a staff role + the target being a resident in a program the
+ * caller is on staff for.
  */
 export async function GET(
   _req: NextRequest,
@@ -21,11 +21,11 @@ export async function GET(
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  // PD role check
+  // Staff only; which residents they see is decided by program membership.
   const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!pdProfile || pdProfile.roleType !== 'PROGRAM_DIRECTOR') {
+  if (!pdProfile || !STAFF_PROFILE_ROLES.includes(pdProfile.roleType ?? '')) {
     return NextResponse.json(
-      { error: 'Access denied. Program Director role required.' },
+      { error: 'Access denied. Staff role required.' },
       { status: 403 },
     );
   }

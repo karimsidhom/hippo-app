@@ -555,7 +555,6 @@ function DesktopSidebar({
   onLogout: () => void;
 }) {
   const isStaff = roleType === "STAFF" || roleType === "ATTENDING" || roleType === "PROGRAM_DIRECTOR";
-  const isPD = roleType === "PROGRAM_DIRECTOR";
   const items: { href: string; label: string; icon: LucideIcon; active: boolean }[] = inClinic
     ? [
         { href: "/clinic", label: "Home", icon: LayoutDashboard, active: pathname === "/clinic" },
@@ -568,7 +567,7 @@ function DesktopSidebar({
         { href: "/cases", label: "Cases", icon: ClipboardList, active: pathname.startsWith("/cases") },
         { href: "/analytics", label: "Progress", icon: BarChart2, active: ["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path)) },
         { href: "/notes", label: "Notes", icon: NotebookPen, active: pathname.startsWith("/notes") },
-        { href: isPD ? "/pd-dashboard" : "/programs", label: "Program", icon: GraduationCap, active: ["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path)) },
+        { href: isStaff ? "/pd-dashboard" : "/programs", label: "Program", icon: GraduationCap, active: ["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path)) },
         ...(isStaff ? [{ href: "/inbox", label: "EPA inbox", icon: Inbox, active: pathname.startsWith("/inbox") }] : []),
       ];
   const settingsActive = pathname.startsWith("/settings");

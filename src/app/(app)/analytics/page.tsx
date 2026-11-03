@@ -53,16 +53,13 @@ export default function AnalyticsPage() {
   const [activeTab, setActiveTab] = useState("Overview");
   const [selectedProcedure, setSelectedProcedure] = useState("");
 
-  const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
   const isSmsna = isSmsnaProfile(profile);
 
-  // Staff see Cohort in place of Volume; PDs also get a
-  // direct link to the full PD Dashboard.
+  // Staff see Cohort in place of Volume and a direct link to the
+  // full PD Dashboard.
   const CHART_TABS = isStaff
-    ? (isPD
-        ? ["Overview", "EPAs", "Milestones", "Cohort", "PD Dashboard"]
-        : ["Overview", "EPAs", "Milestones", "Cohort"])
+    ? ["Overview", "EPAs", "Milestones", "Cohort", "PD Dashboard"]
     : ["Overview", "EPAs", "Milestones", "Volume"];
   const [quickAddOpen, setQuickAddOpen] = useState(false);
 
@@ -431,7 +428,7 @@ export default function AnalyticsPage() {
             </div>
           ) : (
             <div>
-              {isPD && (
+              {isStaff && (
                 <Link
                   href="/pd-dashboard"
                   style={{
@@ -573,7 +570,7 @@ export default function AnalyticsPage() {
                   }}
                 >
                   <h2 className="analytics-section-title">Residents</h2>
-                  {isPD && (
+                  {isStaff && (
                     <Link
                       href="/pd-dashboard"
                       style={{

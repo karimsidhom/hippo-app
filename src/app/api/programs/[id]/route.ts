@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { getMembership, isProgramOwner } from '@/lib/program-auth';
+import { getMembership, isProgramOwner, roleCanManageProgram } from '@/lib/program-auth';
 
 /**
  * GET /api/programs/[id]
@@ -40,7 +40,7 @@ export async function GET(
         },
       },
     }),
-    membership.role === 'OWNER'
+    roleCanManageProgram(membership.role)
       ? db.programInvite.findMany({
           where: { programId: id, acceptedAt: null, revokedAt: null },
           orderBy: { createdAt: 'desc' },

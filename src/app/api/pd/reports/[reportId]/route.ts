@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth, ensureDbUser } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { isProgramOwner } from '@/lib/program-auth';
+import { isProgramStaff } from '@/lib/program-auth';
 import { buildCsv, csvResponse, type CsvColumn } from '@/lib/reports/csv';
 import {
   REPORTS,
@@ -27,9 +27,9 @@ import {
 // /api/pd/reports/[reportId]?programId=…
 //
 // Returns a UTF-8 CSV with a Hippo-branded filename, or 404 if the
-// reportId is unknown. Only program owners (OWNER / PD) can pull
-// reports — they contain cohort-level data we don't want every
-// member to see.
+// reportId is unknown. Program staff (directors and every staff role)
+// can pull reports; residents, coordinators and unassigned members
+// cannot, since they hold cohort-level data.
 // ---------------------------------------------------------------------------
 
 export const runtime = 'nodejs';
@@ -48,9 +48,9 @@ export async function GET(req: NextRequest, ctx: ParamsCtx) {
   if (!programId) {
     return NextResponse.json({ error: 'programId is required' }, { status: 400 });
   }
-  if (!(await isProgramOwner(user.id, programId))) {
+  if (!(await isProgramStaff(user.id, programId))) {
     return NextResponse.json(
-      { error: 'Only program owners can pull accreditation reports.' },
+      { error: 'Only program staff can pull accreditation reports.' },
       { status: 403 },
     );
   }

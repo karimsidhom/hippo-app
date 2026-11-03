@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { canDirectMeetings } from '@/lib/pd-meeting/access';
+import { PROGRAM_STAFF_ROLES } from '@/lib/program-auth';
 import { emptySections } from '@/lib/pd-meeting/types';
 
 /**
@@ -37,7 +38,7 @@ export async function POST(req: Request) {
   let programId = body.programId;
   if (!programId) {
     const mine = await db.programMember.findMany({
-      where: { userId: user.id, role: { in: ['OWNER', 'PD'] } },
+      where: { userId: user.id, role: { in: [...PROGRAM_STAFF_ROLES] } },
       select: { programId: true },
     });
     const shared = await db.programMember.findMany({
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
     });
     if (shared.length === 0) {
       return NextResponse.json(
-        { error: 'That resident is not in a program you direct.' },
+        { error: 'That resident is not in a program you are on staff for.' },
         { status: 400 },
       );
     }
@@ -128,7 +129,7 @@ export async function GET(req: Request) {
   }
 
   const memberships = await db.programMember.findMany({
-    where: { userId: user.id, role: { in: ['OWNER', 'PD'] } },
+    where: { userId: user.id, role: { in: [...PROGRAM_STAFF_ROLES] } },
     select: { programId: true },
   });
   const managed = memberships.map((m) => m.programId);

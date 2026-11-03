@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
+import { roleIsProgramStaff } from "@/lib/program-auth";
 
 // ---------------------------------------------------------------------------
 // /api/cc-reviews/[id]/notes
-//   POST   — append a note from the calling member.
+//   POST   — append a note from a staff member of the program.
 //   DELETE — remove a note (only the original author).
 // ---------------------------------------------------------------------------
 
@@ -40,7 +41,7 @@ export async function POST(
   const member = await db.programMember.findFirst({
     where: { programId: review.programId, userId: user.id },
   });
-  if (!member)
+  if (!member || !roleIsProgramStaff(member.role))
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 
   let body: CreateNoteBody;

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import type { CCDecision, Prisma } from "@prisma/client";
+import { PROGRAM_STAFF_ROLES, roleIsProgramStaff } from "@/lib/program-auth";
 
 // ---------------------------------------------------------------------------
 // /api/cc-reviews
@@ -23,7 +24,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "programId is required" }, { status: 400 });
   }
 
-  // Caller must be a member of the program OR the resident under review.
+  // Staff read every review in the program. Any other member, a resident
+  // included, reads only the reviews about themselves: this used to hand
+  // every member the whole program's reviews.
   const member = await db.programMember.findFirst({
     where: { programId, userId: user.id },
   });
@@ -32,7 +35,7 @@ export async function GET(req: NextRequest) {
   }
 
   const reviews = await db.cCReview.findMany({
-    where: { programId },
+    where: roleIsProgramStaff(member.role) ? { programId } : { programId, residentId: user.id },
     include: {
       resident: { select: { id: true, name: true, email: true, image: true } },
       finalisedBy: { select: { id: true, name: true } },
@@ -70,12 +73,12 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  const owner = await db.programMember.findFirst({
-    where: { programId: body.programId, userId: user.id, role: "OWNER" },
+  const staff = await db.programMember.findFirst({
+    where: { programId: body.programId, userId: user.id, role: { in: [...PROGRAM_STAFF_ROLES] } },
   });
-  if (!owner) {
+  if (!staff) {
     return NextResponse.json(
-      { error: "Only program owners can open a CC review." },
+      { error: "Only program staff can open a CC review." },
       { status: 403 },
     );
   }

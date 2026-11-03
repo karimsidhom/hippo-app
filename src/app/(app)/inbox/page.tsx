@@ -104,7 +104,6 @@ function SignOffInbox() {
   const fx = useInteraction();
   const roleType = profile?.roleType;
   const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
-  const isPD = roleType === "PROGRAM_DIRECTOR";
 
   const [loading, setLoading] = useState(true);
   const [pending, setPending] = useState<Observation[]>([]);
@@ -262,7 +261,7 @@ function SignOffInbox() {
             label="Residents to observe"
             value={summary.residentsToObserve}
             accentColor="var(--text-3)"
-            href={isPD ? "/pd-dashboard" : undefined}
+            href={isStaff ? "/pd-dashboard" : undefined}
           />
         </div>
       )}
@@ -280,16 +279,16 @@ function SignOffInbox() {
             You&apos;re all caught up
           </div>
           <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
-            {isPD ? "Check the cohort for who to observe next." : "New EPA review requests will appear here."}
+            {isStaff ? "Check the cohort for who to observe next." : "New EPA review requests will appear here."}
           </div>
           <Link
-            href={isPD ? "/pd-dashboard" : "/cases"}
+            href={isStaff ? "/pd-dashboard" : "/cases"}
             style={{
               fontSize: 12, fontWeight: 600, color: "var(--primary)",
               textDecoration: "none",
             }}
           >
-            {isPD ? "Open PD dashboard →" : "Back to cases →"}
+            {isStaff ? "Open PD dashboard →" : "Back to cases →"}
           </Link>
         </div>
       ) : (

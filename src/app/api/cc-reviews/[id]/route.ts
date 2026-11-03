@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { requireAuth, ensureDbUser } from "@/lib/api-auth";
 import { db } from "@/lib/db";
 import type { CCDecision, CCReviewStatus } from "@prisma/client";
+import { roleCanFinaliseCC, roleIsProgramStaff } from "@/lib/program-auth";
 
 // ---------------------------------------------------------------------------
 // /api/cc-reviews/[id]
@@ -23,11 +24,13 @@ async function ensureAccess(reviewId: string, userId: string) {
     return { review, role: "resident" as const };
   }
 
+  // Staff only. Any other member, another resident included, is refused:
+  // membership alone used to be enough to read and edit anyone's review.
   const member = await db.programMember.findFirst({
     where: { programId: review.programId, userId },
   });
-  if (!member) return { review, error: "forbidden" as const };
-  return { review, role: member.role === "OWNER" ? "owner" : "member" as const };
+  if (!member || !roleIsProgramStaff(member.role)) return { review, error: "forbidden" as const };
+  return { review, role: roleCanFinaliseCC(member.role) ? ("chair" as const) : ("staff" as const) };
 }
 
 export async function GET(
@@ -96,10 +99,11 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  // Only OWNERs can finalise.
-  if (body.status === "FINALISED" && access.role !== "owner") {
+  // Finalising, reopening or archiving is the director's or chair's call;
+  // every other staff member edits the working fields.
+  if (body.status !== undefined && access.role !== "chair") {
     return NextResponse.json(
-      { error: "Only program owners can finalise a CC review." },
+      { error: "Only the program director or chair can finalise, reopen or archive a CC review." },
       { status: 403 },
     );
   }

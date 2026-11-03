@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { directsResident } from '@/lib/program-auth';
+import { directsResident, STAFF_PROFILE_ROLES } from '@/lib/program-auth';
 
 /**
  * GET /api/pd/residents/:userId/epa
@@ -14,11 +14,11 @@ export async function GET(
   const { user, error } = await requireAuth();
   if (error) return error;
 
-  // Verify PD role
+  // Staff only; which residents they see is decided by program membership.
   const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!pdProfile || pdProfile.roleType !== 'PROGRAM_DIRECTOR') {
+  if (!pdProfile || !STAFF_PROFILE_ROLES.includes(pdProfile.roleType ?? '')) {
     return NextResponse.json(
-      { error: 'Access denied. Program Director role required.' },
+      { error: 'Access denied. Staff role required.' },
       { status: 403 },
     );
   }
