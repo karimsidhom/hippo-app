@@ -2,31 +2,20 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { Share, Plus, CheckCircle2, ArrowDown, Download, Sparkles } from "lucide-react";
+import {
+  Check,
+  CheckCircle2,
+  Compass,
+  Download,
+  Globe,
+  MoreVertical,
+  Share,
+  SquarePlus,
+  type LucideIcon,
+} from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
-import { usePWAInstall } from "@/hooks/usePWAInstall";
-
-// ---------------------------------------------------------------------------
-// /onboarding/install — the finale of the sign-up flow.
-//
-// Three visual states keyed off usePWAInstall().kind:
-//
-//   "native"      — big "Install Hippo" button. One tap, browser's native
-//                   install sheet, done. This is the Android Chrome + desktop
-//                   Chrome path.
-//
-//   "ios"         — three-step visual guide with the Share icon + Plus icon
-//                   + arrow pointing at Safari's toolbar. Apple gives us no
-//                   programmatic install so instructions are the only way.
-//
-//   "installed" / "unavailable" — no install UI, just a "Continue to
-//                   dashboard" button. This page is NOT on a path a user
-//                   would hit accidentally; onboarding routes here only
-//                   after they finish the profile step.
-//
-// Uses `<HippoMark />` inline — the vector version the onboarding splash
-// uses, not a PNG. The user asked specifically for this.
-// ---------------------------------------------------------------------------
+import { usePWAInstall, type PWAInstallState } from "@/hooks/usePWAInstall";
+import "../onboarding.css";
 
 export default function InstallPage() {
   const router = useRouter();
@@ -56,477 +45,194 @@ export default function InstallPage() {
 
   const handleSkip = () => router.replace("/welcome");
 
+  const installed = kind === "installed" || triedInstall === "accepted";
+
   return (
-    <div
-      style={{
-        minHeight: "100dvh",
-        background: "#060d13",
-        color: "#E2E8F0",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        padding:
-          "max(24px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))",
-        fontFamily:
-          "var(--font-sans)",
-      }}
-    >
-      {/* Ambient teal glow — matches the auth splash vibe */}
-      <div
-        aria-hidden
-        style={{
-          position: "absolute",
-          top: "30%",
-          left: "50%",
-          width: 500,
-          height: 500,
-          transform: "translate(-50%, -50%)",
-          background:
-            "radial-gradient(ellipse, rgba(14,165,233,0.12) 0%, transparent 70%)",
-          pointerEvents: "none",
-        }}
-      />
-
-      {/* Logo — the actual SVG, NOT a raster. Always crisp. */}
-      <div
-        style={{
-          marginTop: "8vh",
-          marginBottom: 20,
-          animation: "hippo-install-fadeup .5s cubic-bezier(.16,1,.3,1) .05s both",
-          position: "relative",
-        }}
-      >
-        <HippoMark size={96} />
-      </div>
-
-      {/* Wordmark + progress chip */}
-      <div
-        style={{
-          textAlign: "center",
-          marginBottom: 4,
-          animation: "hippo-install-fadeup .5s cubic-bezier(.16,1,.3,1) .15s both",
-        }}
-      >
-        <div
-          style={{
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: "-0.03em",
-            color: "#E2E8F0",
-            marginBottom: 6,
-          }}
-        >
-          Hippo
+    <div className="onboarding">
+      <header className="onboarding__topbar">
+        <div className="onboarding__topbar-inner">
+          <div className="onboarding__brand">
+            <HippoMark size={28} />
+            <span>Hippo Cases</span>
+          </div>
+          <span className="onboarding__eyebrow">LAST STEP</span>
         </div>
-        <div
-          style={{
-            display: "inline-flex",
-            alignItems: "center",
-            gap: 5,
-            padding: "3px 9px",
-            borderRadius: 999,
-            background: "rgba(14,165,233,0.12)",
-            color: "var(--primary-hi)",
-            fontSize: 11,
-            fontWeight: 600,
-            letterSpacing: "0.06em",
-            textTransform: "uppercase",
-          }}
-        >
-          <Sparkles size={10} /> One more step
+      </header>
+
+      <main className="onboarding__main">
+        <section className="onboarding__step" aria-labelledby="install-title">
+          <div className="onboarding__heading">
+            <h1 id="install-title" className="onboarding__title">
+              Add Hippo to your home screen
+            </h1>
+            <p className="onboarding__description">
+              Opens full screen, like an app, and works offline in the OR.
+            </p>
+          </div>
+
+          {installed ? (
+            <div className="onboarding__card onboarding__install-status" role="status">
+              <CheckCircle2 size={24} className="onboarding__install-icon" aria-hidden="true" />
+              <div className="onboarding__install-copy">
+                <h2>Hippo is installed</h2>
+                <p>Tap the Hippo icon on your home screen to open it next time.</p>
+              </div>
+            </div>
+          ) : (
+            <InstallGuide kind={kind} />
+          )}
+        </section>
+      </main>
+
+      <footer className="onboarding__footer">
+        <div className="onboarding__footer-inner">
+          <div className="onboarding__install-actions">
+            {kind === "native" && !installed && (
+              <button
+                type="button"
+                className="onboarding__button onboarding__button--primary onboarding__button--full"
+                onClick={handleInstall}
+                disabled={!canInstallNative || installing}
+              >
+                <Download size={18} aria-hidden="true" />
+                {installing ? "Opening install sheet..." : "Install Hippo"}
+              </button>
+            )}
+            <button
+              type="button"
+              className="onboarding__button onboarding__button--quiet onboarding__button--full"
+              onClick={handleSkip}
+            >
+              Skip, continue in the browser
+            </button>
+          </div>
         </div>
-      </div>
-
-      {/* Heading */}
-      <h1
-        style={{
-          marginTop: 32,
-          marginBottom: 10,
-          fontSize: 26,
-          fontWeight: 600,
-          letterSpacing: "-0.025em",
-          lineHeight: 1.2,
-          textAlign: "center",
-          maxWidth: 340,
-          animation: "hippo-install-fadeup .5s cubic-bezier(.16,1,.3,1) .25s both",
-        }}
-      >
-        Install Hippo on your phone
-      </h1>
-      <p
-        style={{
-          fontSize: 14,
-          color: "#94A3B8",
-          textAlign: "center",
-          maxWidth: 320,
-          lineHeight: 1.55,
-          marginBottom: 28,
-          animation: "hippo-install-fadeup .5s cubic-bezier(.16,1,.3,1) .3s both",
-        }}
-      >
-        Home-screen icon, full-screen, works offline in the OR. Takes 3 seconds.
-      </p>
-
-      {/* Kind-specific body */}
-      <div
-        style={{
-          width: "100%",
-          maxWidth: 420,
-          animation: "hippo-install-fadeup .5s cubic-bezier(.16,1,.3,1) .4s both",
-        }}
-      >
-        {kind === "native" || kind === "installed" ? (
-          <NativeInstallPanel
-            canInstall={canInstallNative}
-            installing={installing}
-            installed={kind === "installed" || triedInstall === "accepted"}
-            onInstall={handleInstall}
-          />
-        ) : kind === "ios" ? (
-          <IOSGuidePanel />
-        ) : (
-          <UnavailablePanel />
-        )}
-      </div>
-
-      {/* Skip — always available but muted so it doesn't compete */}
-      <button
-        onClick={handleSkip}
-        style={{
-          marginTop: 28,
-          padding: "10px 22px",
-          background: "transparent",
-          border: "none",
-          color: "var(--text-2)",
-          fontSize: 13,
-          fontWeight: 500,
-          cursor: "pointer",
-          fontFamily: "inherit",
-          letterSpacing: "0.01em",
-        }}
-      >
-        Skip — continue in browser
-      </button>
-
-      <style jsx>{`
-        @keyframes hippo-install-fadeup {
-          from {
-            opacity: 0;
-            transform: translateY(12px);
-          }
-          to {
-            opacity: 1;
-            transform: translateY(0);
-          }
-        }
-      `}</style>
+      </footer>
     </div>
   );
 }
 
-// ─── Android / desktop-Chrome path: real install button ────────────────
+interface InstallInstruction {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}
 
-function NativeInstallPanel({
-  canInstall,
-  installing,
-  installed,
-  onInstall,
-}: {
-  canInstall: boolean;
-  installing: boolean;
-  installed: boolean;
-  onInstall: () => void;
-}) {
-  if (installed) {
-    return (
-      <div
-        style={{
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          gap: 12,
-          padding: "24px 20px",
-          background: "rgba(16,185,129,0.08)",
-          border: "1px solid rgba(16,185,129,0.25)",
-          borderRadius: 14,
-        }}
-      >
-        <CheckCircle2 size={32} color="#10B981" />
-        <div style={{ fontSize: 16, fontWeight: 600, color: "#E2E8F0" }}>
-          Hippo is installed
-        </div>
-        <div
-          style={{
-            fontSize: 13,
-            color: "#94A3B8",
-            textAlign: "center",
-            lineHeight: 1.5,
-          }}
-        >
-          Tap the Hippo icon on your home screen to open it next time.
-        </div>
-      </div>
-    );
+function InstallGuide({ kind }: { kind: PWAInstallState["kind"] }) {
+  let steps: InstallInstruction[];
+
+  if (kind === "native") {
+    steps = [
+      {
+        title: "Choose Install Hippo",
+        description: "Use the button below to open your browser's installation prompt.",
+        icon: Download,
+      },
+      {
+        title: "Confirm installation",
+        description: "Hippo will appear on your home screen or in your apps.",
+        icon: Check,
+      },
+    ];
+  } else if (kind === "ios") {
+    steps = [
+      {
+        title: "Tap the Share icon",
+        description: "At the bottom of Safari.",
+        icon: Share,
+      },
+      {
+        title: 'Tap "Add to Home Screen"',
+        description: "Scroll down if you don't see it.",
+        icon: SquarePlus,
+      },
+      {
+        title: 'Tap "Add" in the top right',
+        description: "Hippo lands on your home screen.",
+        icon: Check,
+      },
+    ];
+  } else if (kind === "chrome-manual") {
+    steps = [
+      {
+        title: "Open the browser menu",
+        description: "Tap or click the three dots in Chrome or Edge.",
+        icon: MoreVertical,
+      },
+      {
+        title: 'Choose "Install app" or "Add to Home screen"',
+        description: "On desktop, the install option may be under the save and share menu.",
+        icon: SquarePlus,
+      },
+      {
+        title: "Confirm installation",
+        description: "Hippo will appear on your home screen or in your apps.",
+        icon: Check,
+      },
+    ];
+  } else if (kind === "ios-chrome") {
+    steps = [
+      {
+        title: "Open Hippo in Safari",
+        description: "Open hippomedicine.com in Safari on your iPhone or iPad.",
+        icon: Compass,
+      },
+      {
+        title: "Tap the Share icon",
+        description: "Find it at the bottom of Safari.",
+        icon: Share,
+      },
+      {
+        title: 'Choose "Add to Home Screen", then "Add"',
+        description: "Hippo will appear on your home screen.",
+        icon: SquarePlus,
+      },
+    ];
+  } else if (kind === "in-app-browser") {
+    steps = [
+      {
+        title: "Open this browser's menu",
+        description: "Choose the option to open this page in Safari or Chrome.",
+        icon: MoreVertical,
+      },
+      {
+        title: "Follow your browser's install steps",
+        description: "Safari uses Share, then Add to Home Screen. Chrome offers an install option in its menu.",
+        icon: SquarePlus,
+      },
+    ];
+  } else {
+    steps = [
+      {
+        title: "Open a supported browser",
+        description: "Open hippomedicine.com in Safari on iPhone or iPad, or Chrome on Android or desktop.",
+        icon: Globe,
+      },
+      {
+        title: "Follow your browser's install steps",
+        description: "Safari uses Share, then Add to Home Screen. Chrome offers an install option in its menu.",
+        icon: SquarePlus,
+      },
+    ];
   }
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-      <button
-        onClick={onInstall}
-        disabled={!canInstall || installing}
-        style={{
-          width: "100%",
-          padding: "18px 22px",
-          background:
-            canInstall && !installing
-              ? "linear-gradient(135deg, var(--primary-hi), var(--primary-lo))"
-              : "rgba(14,165,233,0.18)",
-          color: "#fff",
-          border: "none",
-          borderRadius: 14,
-          fontSize: 16,
-          fontWeight: 600,
-          letterSpacing: "0.01em",
-          cursor: canInstall && !installing ? "pointer" : "not-allowed",
-          fontFamily: "inherit",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 10,
-          boxShadow:
-            canInstall && !installing
-              ? "0 20px 40px -15px rgba(14,165,233,0.55), inset 0 1px 0 rgba(255,255,255,0.1)"
-              : "none",
-          transition: "transform .1s cubic-bezier(.16,1,.3,1), opacity .2s",
-          minHeight: 56,
-        }}
-      >
-        <Download size={18} />
-        {installing ? "Opening install sheet…" : "Add Hippo to my phone"}
-      </button>
-      <div
-        style={{
-          fontSize: 11,
-          color: "var(--text-2)",
-          textAlign: "center",
-          lineHeight: 1.5,
-        }}
-      >
-        Your browser will show a confirmation. It&rsquo;s instant and free.
-      </div>
-    </div>
-  );
-}
-
-// ─── iOS path: visual guide, no programmatic install possible ───────────
-
-function IOSGuidePanel() {
-  return (
-    <div
-      style={{
-        background: "rgba(14,165,233,0.04)",
-        border: "1px solid rgba(14,165,233,0.15)",
-        borderRadius: 16,
-        padding: "20px 18px 18px",
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "var(--primary-hi)",
-          marginBottom: 12,
-          textAlign: "center",
-        }}
-      >
-        On iPhone · 3 taps
-      </div>
-
-      <ol
-        style={{
-          listStyle: "none",
-          padding: 0,
-          margin: 0,
-          display: "flex",
-          flexDirection: "column",
-          gap: 10,
-        }}
-      >
-        <IOSStep
-          n={1}
-          title="Tap the Share icon"
-          subtitle="At the bottom of Safari."
-          icon={<Share size={20} color="var(--primary-hi)" strokeWidth={2.5} />}
-        />
-        <IOSStep
-          n={2}
-          title={'Tap "Add to Home Screen"'}
-          subtitle="Scroll down if you don't see it."
-          icon={<Plus size={20} color="var(--primary-hi)" strokeWidth={2.5} />}
-        />
-        <IOSStep
-          n={3}
-          title='Tap "Add" in the top right'
-          subtitle="Hippo lands on your home screen."
-          icon={
-            <div
-              style={{
-                width: 22,
-                height: 22,
-                borderRadius: 5,
-                overflow: "hidden",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-              }}
-            >
-              <HippoMark size={22} />
+    <>
+      <ol className="onboarding__install-steps">
+        {steps.map(({ title, description, icon: Icon }, index) => (
+          <li className="onboarding__install-step" key={title}>
+            <span className="onboarding__install-number" aria-hidden="true">{index + 1}</span>
+            <div className="onboarding__install-copy">
+              <h2>{title}</h2>
+              <p>{description}</p>
             </div>
-          }
-        />
+            <Icon size={20} className="onboarding__install-icon" aria-hidden="true" />
+          </li>
+        ))}
       </ol>
-
-      {/* Arrow pointing to Safari's toolbar */}
-      <div
-        style={{
-          marginTop: 16,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 6,
-          color: "#94A3B8",
-          fontSize: 12,
-        }}
-      >
-        <ArrowDown
-          size={14}
-          style={{
-            animation: "hippo-bounce 1.5s ease-in-out infinite",
-          }}
-        />
-        <span>The Share icon is at the bottom of Safari</span>
-      </div>
-
-      <style jsx>{`
-        @keyframes hippo-bounce {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(4px); }
-        }
-      `}</style>
-    </div>
-  );
-}
-
-function IOSStep({
-  n,
-  title,
-  subtitle,
-  icon,
-}: {
-  n: number;
-  title: string;
-  subtitle: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <li
-      style={{
-        display: "flex",
-        gap: 12,
-        alignItems: "center",
-        padding: "10px 12px",
-        background: "rgba(255,255,255,0.02)",
-        border: "1px solid rgba(14,165,233,0.14)",
-        borderRadius: 10,
-      }}
-    >
-      <div
-        style={{
-          width: 26,
-          height: 26,
-          borderRadius: 13,
-          background: "rgba(14,165,233,0.18)",
-          color: "var(--primary-hi)",
-          fontSize: 13,
-          fontWeight: 600,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flexShrink: 0,
-        }}
-      >
-        {n}
-      </div>
-      <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            fontSize: 13.5,
-            fontWeight: 600,
-            color: "#E2E8F0",
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-          }}
-        >
-          {title}
-          <span style={{ flexShrink: 0 }}>{icon}</span>
-        </div>
-        <div
-          style={{
-            fontSize: 11.5,
-            color: "var(--text-2)",
-            marginTop: 2,
-          }}
-        >
-          {subtitle}
-        </div>
-      </div>
-    </li>
-  );
-}
-
-// ─── Fallback: browser doesn't support install (iOS Chrome, Edge, FB webview) ─
-
-function UnavailablePanel() {
-  return (
-    <div
-      style={{
-        padding: "20px 18px",
-        background: "rgba(245,158,11,0.05)",
-        border: "1px solid rgba(245,158,11,0.2)",
-        borderRadius: 14,
-      }}
-    >
-      <div
-        style={{
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: "#F59E0B",
-          marginBottom: 10,
-        }}
-      >
-        One quick note
-      </div>
-      <div
-        style={{
-          fontSize: 13.5,
-          color: "#E2E8F0",
-          lineHeight: 1.55,
-          marginBottom: 10,
-        }}
-      >
-        Install isn&rsquo;t available in this browser. You can still use
-        Hippo normally — just open hippomedicine.com when you need it.
-      </div>
-      <div style={{ fontSize: 12, color: "#94A3B8", lineHeight: 1.55 }}>
-        To install the app, open <strong>hippomedicine.com</strong> in Safari
-        (iPhone / iPad) or Chrome (Android / desktop) and you&rsquo;ll see an
-        install button here.
-      </div>
-    </div>
+      {kind !== "native" && kind !== "ios" && (
+        <p className="onboarding__muted">You can still use Hippo in your browser.</p>
+      )}
+    </>
   );
 }

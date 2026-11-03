@@ -307,7 +307,7 @@ export default function LoginPage() {
             opacity: 0.6,
             animation: `oe-fadeInUp 0.5s ${EASE} 1.2s both`,
           }}>
-            Track mastery. Share growth.
+            The case log for surgical residents
           </p>
         </div>
       )}
@@ -346,7 +346,7 @@ export default function LoginPage() {
               letterSpacing: "-0.005em",
               fontWeight: 450,
             }}>
-              Track mastery. Share growth.
+              The case log for surgical residents
             </p>
           </div>
 

@@ -44,13 +44,13 @@ export const POLICY_META: Record<
     title: "End User Licence Agreement",
     href: "/legal/eula",
     summary:
-      "The binding contract — licence grants, ownership of your content, restrictions, liability caps.",
+      "The binding contract: licence grants, ownership of your content, restrictions, liability caps.",
   },
   terms: {
     title: "Terms of Use",
     href: "/legal/terms",
     summary:
-      "Operational terms — not an official training record, no medical advice, fees and cancellation.",
+      "Operational terms: not an official training record, no medical advice, fees and cancellation.",
   },
   privacy: {
     title: "Privacy Policy",
