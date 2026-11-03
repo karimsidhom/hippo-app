@@ -67,6 +67,7 @@ export async function proxy(request: NextRequest) {
     pathname === '/sw.js.map' ||
     pathname === '/robots.txt' ||
     pathname === '/sitemap.xml' ||
+    pathname === '/surfacing-cases-login.mp4' ||
     pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json)$/)
   ) {
     return NextResponse.next();
