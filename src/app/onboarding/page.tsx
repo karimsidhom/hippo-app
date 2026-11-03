@@ -7,7 +7,9 @@ import { useUser } from "@/hooks/useUser";
 import { SPECIALTIES, USER_ROLE_TYPES, PGY_YEARS } from "@/lib/constants";
 import { POLICY_KEYS, POLICY_VERSIONS, POLICY_META, type PolicyKey } from "@/lib/legal";
 import { ProgramPicker, type PickedProgram } from "@/components/programs/ProgramPicker";
-import { Shield, Activity, Users, Trophy, ChevronRight, ChevronLeft, Check, ExternalLink } from "lucide-react";
+import { BadgeCheck, Check, ClipboardList, ExternalLink, GraduationCap, NotebookPen } from "lucide-react";
+import { HippoMark } from "@/components/HippoMark";
+import "./onboarding.css";
 
 const TOTAL_STEPS = 11;
 
@@ -27,9 +29,7 @@ export default function OnboardingPage() {
     institution: "",
     city: "",
     publicProfile: false,
-    allowLeaderboardParticipation: true,
     allowBenchmarkSharing: true,
-    allowFriendRequests: true,
     phiaAgreed: false,
   });
 
@@ -67,7 +67,7 @@ export default function OnboardingPage() {
     });
   };
 
-  // Fired on both finish paths. Non-blocking by design: onboarding has
+  // Fired after the profile is saved. Non-blocking by design: onboarding has
   // already saved the profile by this point, and an unsent request can
   // be retried from the dashboard card or from Programs.
   const requestProgramJoin = async () => {
@@ -98,469 +98,387 @@ export default function OnboardingPage() {
     router.push("/onboarding/install");
   };
 
-  const progress = (step / TOTAL_STEPS) * 100;
+  const continueDisabled =
+    (step === 3 && !allLegalAccepted) ||
+    (step === 8 && institutionRequired && !form.institution.trim());
+  const continueHint = step === 3 && !allLegalAccepted
+    ? "Accept all policies and the privacy pledge to continue"
+    : step === 8 && institutionRequired && !form.institution.trim()
+      ? "Add your institution to continue"
+      : "";
+  const sectionName = step <= 2 ? "WELCOME"
+    : step === 3 ? "AGREEMENTS"
+      : step <= 8 ? "ABOUT YOU"
+        : step === 9 ? "YOUR PROGRAM"
+          : step === 10 ? "PRIVACY" : "READY";
+  const countries = [
+    { value: "US", label: "United States", description: "ACGME milestones and EPAs" },
+    { value: "CA", label: "Canada", description: "Royal College CBD and CanMEDS" },
+    { value: "SMSNA", label: "SMSNA Fellowship", description: "Sexual medicine fellowship: SMSNA case log and OPRS assessments" },
+  ];
+  const countryLabel = countries.find((country) => country.value === form.trainingCountry)?.label || "Not selected";
+  const yearLabel = form.trainingCountry === "SMSNA"
+    ? "SMSNA Fellow"
+    : PGY_YEARS.find((year) => year.value === form.pgyYear)?.label;
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] flex flex-col items-center justify-center p-4">
-      {/* Progress bar */}
-      <div className="w-full max-w-md mb-8">
-        <div className="h-1.5 bg-[#1e2130] rounded-full overflow-hidden">
-          <div
-            className="h-full bg-[#2563eb] rounded-full transition-all duration-500"
-            style={{ width: `${progress}%` }}
-          />
+    <div className="onboarding">
+      <header className="onboarding__topbar">
+        <div className="onboarding__topbar-inner">
+          <div className="onboarding__brand">
+            <HippoMark size={28} />
+            <span>Hippo Cases</span>
+          </div>
+          <p className="onboarding__eyebrow">Step {step} of {TOTAL_STEPS}</p>
         </div>
-        <p className="text-xs text-[#64748b] mt-2 text-center">
-          Step {step} of {TOTAL_STEPS}
-        </p>
-      </div>
+        <div className="onboarding__progress" aria-label={`Step ${step} of ${TOTAL_STEPS}`}>
+          {Array.from({ length: TOTAL_STEPS }, (_, index) => (
+            <span
+              key={index}
+              className={`onboarding__progress-segment${index < step ? " onboarding__progress-segment--complete" : ""}`}
+              aria-current={index + 1 === step ? "step" : undefined}
+            />
+          ))}
+        </div>
+      </header>
 
-      <div className="w-full max-w-md">
-        {/* Step 1: Welcome */}
-        {step === 1 && (
-          <div className="text-center space-y-6 animate-slide-up">
-            <div className="flex justify-center">
-              <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-[#2563eb] to-[#6366f1] flex items-center justify-center shadow-glow-blue animate-bounce-in">
-                <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
-                  <path d="M10 30 L20 5 L30 30" stroke="white" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M13 22 L27 22" stroke="white" strokeWidth="3.5" strokeLinecap="round"/>
-                  <circle cx="30" cy="30" r="5" fill="#10b981"/>
-                </svg>
-              </div>
-            </div>
-            <div>
-              <h1 className="text-4xl font-semibold text-[#f1f5f9]">Hippo</h1>
-              <p className="text-[#2563eb] font-semibold mt-1 text-lg">Track mastery. Share growth.</p>
-              <p className="text-[#94a3b8] mt-3 leading-relaxed">
-                The premier case logging platform for surgical trainees. Track your operative journey, measure your growth, and achieve your milestones.
-              </p>
-            </div>
-            <button
-              onClick={() => setStep(2)}
-              className="w-full py-3.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-xl transition-all active:scale-95 shadow-glow-blue"
-            >
-              Get Started
-            </button>
-          </div>
-        )}
+      <main key={step} className="onboarding__main" aria-labelledby="onboarding-title">
+        <section className="onboarding__step">
+          <p className="onboarding__eyebrow onboarding__section-label">{sectionName}</p>
 
-        {/* Step 2: What the app does */}
-        {step === 2 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Operative Journey</h2>
-              <p className="text-[#94a3b8] mt-2">Every case you log builds the picture of how you operate</p>
-            </div>
-            <div className="space-y-3">
-              {[
-                { icon: Activity, color: "#2563eb", title: "Log Cases", desc: "Capture every procedure with rich metadata, approach, autonomy level, and OR times" },
-                { icon: Trophy, color: "#f59e0b", title: "Earn Milestones", desc: "Unlock badges when you hit 10, 25, 50 cases of a procedure or achieve independence" },
-                { icon: Users, color: "#10b981", title: "Compare with Peers", desc: "Privacy-safe benchmarks against national training data — see where you stand" },
-              ].map(({ icon: Icon, color, title, desc }) => (
-                <div key={title} className="flex gap-4 p-4 bg-[#111118] border border-[#1e2130] rounded-xl">
-                  <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${color}20` }}>
-                    <Icon className="w-5 h-5" style={{ color }} />
-                  </div>
-                  <div>
-                    <p className="font-semibold text-[#f1f5f9]">{title}</p>
-                    <p className="text-sm text-[#94a3b8] mt-0.5 leading-relaxed">{desc}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 3: Legal acceptance (click-wrap) */}
-        {step === 3 && (
-          <div className="space-y-5 animate-slide-up">
-            <div className="text-center">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1a1a2e] border border-[#2563eb]/30 flex items-center justify-center">
-                <Shield className="w-8 h-8 text-[#3b82f6]" />
-              </div>
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Terms & Privacy</h2>
-              <p className="text-[#94a3b8] mt-2 text-sm">
-                Please review each document and tick to accept. We record the
-                version and timestamp of each acceptance.
-              </p>
-            </div>
-
-            {/* Per-policy checkboxes */}
-            <div className="space-y-2">
-              {POLICY_KEYS.map((key) => {
-                const meta = POLICY_META[key];
-                const checked = legalAccepted[key];
-                return (
-                  <label
-                    key={key}
-                    className={`flex items-start gap-3 cursor-pointer p-3.5 rounded-xl border transition-colors ${
-                      checked
-                        ? "bg-[#1a1a2e] border-[#2563eb]/60"
-                        : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
-                    }`}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={checked}
-                      onChange={() => toggleLegal(key)}
-                      className="w-4 h-4 mt-0.5 accent-[#2563eb] flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-semibold text-[#f1f5f9]">
-                          I have read & agree to the {meta.title}
-                        </span>
-                        <Link
-                          href={meta.href}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          onClick={(e) => e.stopPropagation()}
-                          className="inline-flex items-center gap-1 text-xs text-[#3b82f6] hover:underline"
-                        >
-                          Read
-                          <ExternalLink className="w-3 h-3" />
-                        </Link>
-                      </div>
-                      <p className="text-xs text-[#64748b] mt-0.5 leading-relaxed">
-                        {meta.summary}
-                      </p>
-                      <p className="text-[11px] text-[#475569] mt-1 uppercase tracking-[0.06em] font-semibold">
-                        v{POLICY_VERSIONS[key]}
-                      </p>
-                    </div>
-                  </label>
-                );
-              })}
-            </div>
-
-            {/* PHIA pledge (separate, affirmative) */}
-            <div className="bg-[#111118] border border-[#1e2130] rounded-xl p-4 space-y-2.5">
-              <h3 className="font-semibold text-[#f1f5f9] text-sm">Patient privacy pledge</h3>
-              {[
-                "I will never enter patient names, health-card numbers, MRNs, or other identifiers.",
-                "I will use age groups or decades instead of exact dates of birth.",
-                "I understand Hippo scrubs for PHI patterns automatically, but I am ultimately responsible.",
-              ].map((item, i) => (
-                <div key={i} className="flex items-start gap-2.5">
-                  <Check className="w-3.5 h-3.5 text-[#10b981] mt-0.5 flex-shrink-0" />
-                  <p className="text-xs text-[#94a3b8] leading-relaxed">{item}</p>
-                </div>
-              ))}
-              <label className="flex items-start gap-3 cursor-pointer pt-2 mt-2 border-t border-[#1e2130]">
-                <input
-                  type="checkbox"
-                  checked={form.phiaAgreed}
-                  onChange={(e) => update({ phiaAgreed: e.target.checked })}
-                  className="w-4 h-4 mt-0.5 accent-[#2563eb] flex-shrink-0"
-                />
-                <p className="text-xs text-[#f1f5f9]">
-                  I understand and commit to never entering patient-identifying information in Hippo.
+          {step === 1 && (
+            <>
+              <div className="onboarding__welcome-mark"><HippoMark size={56} /></div>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Welcome to Hippo Cases</h1>
+                <p className="onboarding__description">
+                  Your private surgical case log. Log a case in seconds, get your EPAs signed, and keep notes on what each case taught you. A few questions first so Hippo fits your training.
                 </p>
-              </label>
-            </div>
+              </div>
+            </>
+          )}
 
-            {!allLegalAccepted && (
-              <p className="text-xs text-[#64748b] text-center">
-                Please accept every document above to continue.
-              </p>
-            )}
-          </div>
-        )}
-
-        {/* Step 4: Role Selection */}
-        {step === 4 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Role</h2>
-              <p className="text-[#94a3b8] mt-1">This helps personalize your experience</p>
-            </div>
-            <div className="space-y-3">
-              {USER_ROLE_TYPES.map((role) => (
-                <button
-                  key={role.value}
-                  onClick={() => update({ roleType: role.value })}
-                  className={`w-full flex items-start gap-4 p-4 rounded-xl border text-left transition-all ${
-                    form.roleType === role.value
-                      ? "bg-[#1a1a2e] border-[#2563eb]"
-                      : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
-                  }`}
-                >
-                  <div className={`w-4 h-4 rounded-full border-2 mt-0.5 flex-shrink-0 transition-all ${
-                    form.roleType === role.value ? "border-[#2563eb] bg-[#2563eb]" : "border-[#64748b]"
-                  }`} />
-                  <div>
-                    <p className={`font-semibold ${form.roleType === role.value ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>
-                      {role.label}
-                    </p>
-                    <p className="text-sm text-[#64748b] mt-0.5">{role.description}</p>
+          {step === 2 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">What you can do here</h1>
+              </div>
+              <div className="onboarding__stack">
+                {[
+                  { icon: ClipboardList, title: "Log a case", description: "Procedure, role and autonomy in a few taps, from the + at the bottom of the screen." },
+                  { icon: BadgeCheck, title: "EPAs", description: "Send an observation to your attending and get it signed in Hippo." },
+                  { icon: NotebookPen, title: "Case notes", description: "Private notes and reflections, tied to each case." },
+                  { icon: GraduationCap, title: "Your program", description: "The program calendar, shared documents and your progress." },
+                ].map(({ icon: Icon, title, description }) => (
+                  <div key={title} className="onboarding__feature">
+                    <span className="onboarding__feature-icon"><Icon size={20} aria-hidden="true" /></span>
+                    <div>
+                      <h2>{title}</h2>
+                      <p>{description}</p>
+                    </div>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                ))}
+              </div>
+              <p className="onboarding__muted">Community and friends live in Hippo Pulse.</p>
+            </>
+          )}
 
-        {/* Step 5: Training Country */}
-        {step === 5 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Training Country</h2>
-              <p className="text-[#94a3b8] mt-1">This determines your case-log taxonomy and assessment framework</p>
-            </div>
-            <div className="space-y-3">
-              {[
-                { value: "US", label: "United States", desc: "ACGME milestones & EPAs", flag: "🇺🇸" },
-                { value: "CA", label: "Canada", desc: "Royal College CBD & CanMEDS", flag: "🇨🇦" },
-                { value: "SMSNA", label: "SMSNA Fellowship", desc: "Sexual medicine fellowship: SMSNA case log + OPRS assessments", flag: "🧬" },
-              ].map((country) => (
-                <button
-                  key={country.value}
-                  onClick={() => {
-                    update({ trainingCountry: country.value });
-                    if (country.value === "SMSNA") {
-                      update({ roleType: "FELLOW", pgyYear: 6, specialty: form.specialty || "Andrology" });
-                    }
-                  }}
-                  className={`w-full flex items-center gap-4 p-4 rounded-xl border text-left transition-all ${
-                    form.trainingCountry === country.value
-                      ? "bg-[#1a1a2e] border-[#2563eb]"
-                      : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
-                  }`}
-                >
-                  <span className="text-3xl">{country.flag}</span>
-                  <div>
-                    <p className={`font-semibold ${form.trainingCountry === country.value ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>
-                      {country.label}
-                    </p>
-                    <p className="text-sm text-[#64748b] mt-0.5">{country.desc}</p>
+          {step === 3 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Agreements</h1>
+                <p className="onboarding__description">Read each one and tick to accept. We record the version and time of each acceptance.</p>
+              </div>
+              <div className="onboarding__stack">
+                {POLICY_KEYS.map((key) => {
+                  const meta = POLICY_META[key];
+                  const checked = legalAccepted[key];
+                  return (
+                    <label key={key} className={`onboarding__policy${checked ? " onboarding__policy--accepted" : ""}`}>
+                      <input type="checkbox" checked={checked} onChange={() => toggleLegal(key)} />
+                      <span className="onboarding__policy-content">
+                        <span className="onboarding__policy-heading">
+                          <span className="onboarding__policy-title">I have read &amp; agree to the {meta.title}</span>
+                          <Link
+                            href={meta.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(event) => event.stopPropagation()}
+                            className="onboarding__policy-link"
+                          >
+                            Read <ExternalLink size={12} aria-hidden="true" />
+                          </Link>
+                        </span>
+                        <span className="onboarding__policy-summary">{meta.summary}</span>
+                        <span className="onboarding__eyebrow onboarding__policy-version">v{POLICY_VERSIONS[key]}</span>
+                      </span>
+                    </label>
+                  );
+                })}
+              </div>
+              <div className="onboarding__card onboarding__pledge">
+                <h2>Patient privacy pledge</h2>
+                {[
+                  "I will never enter patient names, health-card numbers, MRNs, or other identifiers.",
+                  "I will use age groups or decades instead of exact dates of birth.",
+                  "I understand Hippo scrubs for PHI patterns automatically, but I am ultimately responsible.",
+                ].map((item) => (
+                  <div key={item} className="onboarding__pledge-item">
+                    <Check size={14} aria-hidden="true" />
+                    <p>{item}</p>
                   </div>
-                  <div className={`ml-auto w-4 h-4 rounded-full border-2 flex-shrink-0 transition-all ${
-                    form.trainingCountry === country.value ? "border-[#2563eb] bg-[#2563eb]" : "border-[#64748b]"
-                  }`} />
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 6: Specialty */}
-        {step === 6 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Specialty</h2>
-              <p className="text-[#94a3b8] mt-1">Select your primary surgical specialty</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {SPECIALTIES.map((spec) => (
-                <button
-                  key={spec.slug}
-                  onClick={() => update({ specialty: spec.name })}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    form.specialty === spec.name
-                      ? "bg-[#1a1a2e] border-[#2563eb]"
-                      : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
-                  }`}
-                >
-                  <span className="text-xl">{spec.icon}</span>
-                  <p className={`text-xs font-medium mt-1 ${form.specialty === spec.name ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>
-                    {spec.name.replace(" Surgery", "").replace(" Oncology", "")}
-                  </p>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 7: PGY Level */}
-        {step === 7 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Training Year</h2>
-              <p className="text-[#94a3b8] mt-1">Helps calibrate benchmarks for your level</p>
-            </div>
-            <div className="grid grid-cols-2 gap-2">
-              {PGY_YEARS.map((pgy) => (
-                <button
-                  key={pgy.value}
-                  onClick={() => update({ pgyYear: pgy.value })}
-                  className={`p-3 rounded-xl border text-left transition-all ${
-                    form.pgyYear === pgy.value
-                      ? "bg-[#1a1a2e] border-[#2563eb]"
-                      : "bg-[#111118] border-[#1e2130] hover:border-[#252838]"
-                  }`}
-                >
-                  <p className={`font-semibold ${form.pgyYear === pgy.value ? "text-[#f1f5f9]" : "text-[#94a3b8]"}`}>
-                    {pgy.label}
-                  </p>
-                  {pgy.description && (
-                    <p className="text-xs text-[#64748b] mt-0.5">{pgy.description}</p>
-                  )}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Step 8: Institution */}
-        {step === 8 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Institution</h2>
-              <p className="text-[#94a3b8] mt-1">
-                {institutionRequired
-                  ? "Required for attending and program director roles"
-                  : "Helps with benchmark comparison (optional)"}
-              </p>
-            </div>
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm text-[#94a3b8] mb-2">
-                  Institution / Hospital{institutionRequired && <span className="text-[var(--primary-hi)] ml-1">*</span>}
+                ))}
+                <label className="onboarding__pledge-accept">
+                  <input
+                    type="checkbox"
+                    checked={form.phiaAgreed}
+                    onChange={(event) => update({ phiaAgreed: event.target.checked })}
+                  />
+                  <span>I understand and commit to never entering patient-identifying information in Hippo.</span>
                 </label>
-                <input
-                  type="text"
-                  value={form.institution}
-                  onChange={(e) => update({ institution: e.target.value })}
-                  placeholder="e.g. University Health Network"
-                  className={`w-full bg-[#16161f] border text-[#f1f5f9] placeholder-[#64748b] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb] ${
-                    institutionRequired && !form.institution.trim()
-                      ? "border-[#ef4444]/40"
-                      : "border-[#1e2130]"
-                  }`}
-                />
-                {institutionRequired && !form.institution.trim() && (
-                  <p className="text-xs text-[#ef4444] mt-1.5">
-                    Institution is required for your selected role.
-                  </p>
-                )}
               </div>
-              <div>
-                <label className="block text-sm text-[#94a3b8] mb-2">City</label>
-                <input
-                  type="text"
-                  value={form.city}
-                  onChange={(e) => update({ city: e.target.value })}
-                  placeholder="e.g. Toronto"
-                  className="w-full bg-[#16161f] border border-[#1e2130] text-[#f1f5f9] placeholder-[#64748b] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563eb]"
-                />
+            </>
+          )}
+
+          {step === 4 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Your role</h1>
+                <p className="onboarding__description">This sets what Hippo shows you.</p>
               </div>
-            </div>
-          </div>
-        )}
-
-        {/* Step 9: Program */}
-        {step === 9 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Program</h2>
-              <p className="text-[#94a3b8] mt-1">
-                Join your training program so your program director can see
-                your progress. Optional, and you can join later.
-              </p>
-            </div>
-            <ProgramPicker value={program} onChange={setProgram} />
-          </div>
-        )}
-
-        {/* Step 10: Privacy Prefs */}
-        {step === 10 && (
-          <div className="space-y-6 animate-slide-up">
-            <div className="text-center">
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Privacy Settings</h2>
-              <p className="text-[#94a3b8] mt-1">Control how your data is shared</p>
-            </div>
-            <div className="space-y-3">
-              {[
-                { key: "publicProfile" as const, label: "Public profile", desc: "Visible to other Hippo users" },
-                { key: "allowFriendRequests" as const, label: "Allow friend requests", desc: "Other surgeons can add you as a friend" },
-                { key: "allowLeaderboardParticipation" as const, label: "Leaderboard participation", desc: "Show in anonymized rankings" },
-                { key: "allowBenchmarkSharing" as const, label: "Contribute to benchmarks", desc: "Help improve national benchmark data" },
-              ].map(({ key, label, desc }) => (
-                <div key={key} className="flex items-center justify-between p-4 bg-[#111118] border border-[#1e2130] rounded-xl">
-                  <div>
-                    <p className="text-sm font-medium text-[#f1f5f9]">{label}</p>
-                    <p className="text-xs text-[#64748b] mt-0.5">{desc}</p>
-                  </div>
+              <div className="onboarding__stack" role="group" aria-label="Your role">
+                {USER_ROLE_TYPES.map((role) => (
                   <button
-                    onClick={() => update({ [key]: !form[key] })}
-                    className={`relative w-10 h-5 rounded-full transition-colors flex-shrink-0 ml-4 ${form[key] ? "bg-[#2563eb]" : "bg-[#1e2130]"}`}
+                    key={role.value}
+                    type="button"
+                    aria-pressed={form.roleType === role.value}
+                    onClick={() => update({ roleType: role.value })}
+                    className="onboarding__option"
                   >
-                    <span className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${form[key] ? "translate-x-5" : "translate-x-0.5"}`} />
+                    <span className="onboarding__option-copy">
+                      <span className="onboarding__option-title">{role.label}</span>
+                      <span className="onboarding__option-description">{role.description}</span>
+                    </span>
+                    <span className="onboarding__option-check" aria-hidden="true">
+                      {form.roleType === role.value && <Check size={14} />}
+                    </span>
                   </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 5 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Where you train</h1>
+                <p className="onboarding__description">This sets your case-log categories and assessment framework.</p>
+              </div>
+              <div className="onboarding__stack" role="group" aria-label="Training country">
+                {countries.map((country) => (
+                  <button
+                    key={country.value}
+                    type="button"
+                    aria-pressed={form.trainingCountry === country.value}
+                    onClick={() => {
+                      update({ trainingCountry: country.value });
+                      if (country.value === "SMSNA") {
+                        update({ roleType: "FELLOW", pgyYear: 6, specialty: form.specialty || "Andrology" });
+                      }
+                    }}
+                    className="onboarding__option"
+                  >
+                    <span className="onboarding__option-copy">
+                      <span className="onboarding__option-title">{country.label}</span>
+                      <span className="onboarding__option-description">{country.description}</span>
+                    </span>
+                    <span className="onboarding__option-check" aria-hidden="true">
+                      {form.trainingCountry === country.value && <Check size={14} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 6 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Your specialty</h1>
+                <p className="onboarding__description">Choose your primary surgical specialty.</p>
+              </div>
+              <div className="onboarding__grid" role="group" aria-label="Your specialty">
+                {SPECIALTIES.map((specialty) => (
+                  <button
+                    key={specialty.slug}
+                    type="button"
+                    aria-pressed={form.specialty === specialty.name}
+                    onClick={() => update({ specialty: specialty.name })}
+                    className="onboarding__option onboarding__option--tile"
+                  >
+                    <span className="onboarding__option-title">{specialty.name}</span>
+                    <span className="onboarding__option-check" aria-hidden="true">
+                      {form.specialty === specialty.name && <Check size={14} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 7 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Training year</h1>
+                <p className="onboarding__description">Used for your progress and EPA expectations.</p>
+              </div>
+              <div className="onboarding__grid" role="group" aria-label="Training year">
+                {PGY_YEARS.map((year) => (
+                  <button
+                    key={year.value}
+                    type="button"
+                    aria-pressed={form.pgyYear === year.value}
+                    onClick={() => update({ pgyYear: year.value })}
+                    className="onboarding__option onboarding__option--tile"
+                  >
+                    <span className="onboarding__option-copy">
+                      <span className="onboarding__option-title">{year.label}</span>
+                      {year.description && <span className="onboarding__option-description">{year.description}</span>}
+                    </span>
+                    <span className="onboarding__option-check" aria-hidden="true">
+                      {form.pgyYear === year.value && <Check size={14} />}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {step === 8 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Your institution</h1>
+                <p className="onboarding__description">
+                  {institutionRequired ? "Required for staff, attendings and program directors." : "Optional for residents and fellows."}
+                </p>
+              </div>
+              <div className="onboarding__fields">
+                <div className="onboarding__field">
+                  <label htmlFor="onboarding-institution">Institution / Hospital{institutionRequired && <span aria-hidden="true"> *</span>}</label>
+                  <input
+                    id="onboarding-institution"
+                    type="text"
+                    value={form.institution}
+                    onChange={(event) => update({ institution: event.target.value })}
+                    placeholder="e.g. University Health Network"
+                    required={institutionRequired}
+                    aria-describedby={institutionRequired && !form.institution.trim() ? "onboarding-institution-hint" : undefined}
+                    className="onboarding__input"
+                  />
+                  {institutionRequired && !form.institution.trim() && (
+                    <p id="onboarding-institution-hint" className="onboarding__field-hint">Institution is required for your selected role.</p>
+                  )}
                 </div>
-              ))}
-            </div>
-          </div>
-        )}
+                <div className="onboarding__field">
+                  <label htmlFor="onboarding-city">City</label>
+                  <input
+                    id="onboarding-city"
+                    type="text"
+                    value={form.city}
+                    onChange={(event) => update({ city: event.target.value })}
+                    placeholder="e.g. Toronto"
+                    className="onboarding__input"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
-        {/* Step 11: First Case Prompt */}
-        {step === 11 && (
-          <div className="text-center space-y-6 animate-bounce-in">
-            <div className="text-6xl">🎉</div>
-            <div>
-              <h2 className="text-2xl font-semibold text-[#f1f5f9]">You're all set!</h2>
-              <p className="text-[#94a3b8] mt-2 leading-relaxed">
-                Welcome to Hippo, {form.specialty ? `${form.specialty} ` : ""}resident.
-                Let's log your first case!
-              </p>
-            </div>
-            <div className="space-y-3">
-              <button
-                onClick={handleFinish}
-                disabled={saving}
-                className="w-full py-3.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-semibold rounded-xl transition-all active:scale-95 shadow-glow-blue disabled:opacity-50"
-              >
-                {saving ? "Saving..." : "Go to Dashboard →"}
-              </button>
-              <button
-                onClick={async () => {
-                  setSaving(true);
-                  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-                  const { phiaAgreed: _pa, ...skipData } = form;
-                  await recordLegalAcceptances();
-                  await updateProfile({ ...(skipData as Parameters<typeof updateProfile>[0]), onboardingCompleted: true });
-                  await requestProgramJoin();
-                  setSaving(false);
-                  // Same finale as the full-fill path — offer install before
-                  // they land in the app. The install page self-skips if it
-                  // can't offer anything useful.
-                  router.push("/onboarding/install");
-                }}
-                className="w-full py-3 text-[#64748b] hover:text-[#94a3b8] text-sm transition-colors"
-              >
-                Skip for now, go to dashboard
-              </button>
-            </div>
-          </div>
-        )}
+          {step === 9 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Your program</h1>
+                <p className="onboarding__description">
+                  Join your training program so your program director can see your progress. Optional, and you can join later.
+                </p>
+              </div>
+              <div className={`onboarding__program-picker${program ? " onboarding__program-picker--selected" : ""}`}>
+                <ProgramPicker value={program} onChange={setProgram} />
+              </div>
+            </>
+          )}
 
-        {/* Navigation */}
-        {step > 1 && (
-          <div className="flex items-center justify-between mt-8">
-            <button
-              onClick={() => setStep(Math.max(1, step - 1))}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#16161f] border border-[#1e2130] text-[#94a3b8] rounded-lg text-sm hover:text-[#f1f5f9] transition-all"
-            >
-              <ChevronLeft className="w-4 h-4" />
-              Back
-            </button>
+          {step === 10 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">Privacy</h1>
+                <p className="onboarding__description">You can change these any time in Settings.</p>
+              </div>
+              <div className="onboarding__stack">
+                {[
+                  { key: "publicProfile" as const, label: "Public profile", description: "Program members and colleagues can see your profile." },
+                  { key: "allowBenchmarkSharing" as const, label: "Contribute to benchmarks", description: "Adds your anonymized case counts to national benchmarks." },
+                ].map(({ key, label, description }) => (
+                  <div key={key} className="onboarding__privacy-row">
+                    <div>
+                      <p id={`onboarding-${key}-label`} className="onboarding__option-title">{label}</p>
+                      <p id={`onboarding-${key}-description`} className="onboarding__option-description">{description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={form[key]}
+                      aria-labelledby={`onboarding-${key}-label`}
+                      aria-describedby={`onboarding-${key}-description`}
+                      onClick={() => update({ [key]: !form[key] })}
+                      className="onboarding__switch"
+                    >
+                      <span className="onboarding__switch-track"><span className="onboarding__switch-thumb" /></span>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <p className="onboarding__muted">Friends, leaderboards and community settings live in Hippo Pulse.</p>
+            </>
+          )}
 
-            {step < TOTAL_STEPS && (
-              <button
-                onClick={() => setStep(step + 1)}
-                disabled={
-                  (step === 3 && !allLegalAccepted) ||
-                  (step === 8 && institutionRequired && !form.institution.trim())
-                }
-                className="flex items-center gap-2 px-5 py-2.5 bg-[#2563eb] hover:bg-[#1d4ed8] text-white font-medium rounded-lg text-sm disabled:opacity-40 disabled:cursor-not-allowed transition-all active:scale-95"
-              >
-                Continue
-                <ChevronRight className="w-4 h-4" />
-              </button>
+          {step === 11 && (
+            <>
+              <div className="onboarding__heading">
+                <h1 id="onboarding-title" className="onboarding__title">You're set</h1>
+                <p className="onboarding__description">Here is what we saved. You can change any of it in Settings.</p>
+              </div>
+              <dl className="onboarding__card onboarding__summary">
+                <div><dt>Role</dt><dd>{USER_ROLE_TYPES.find((role) => role.value === form.roleType)?.label}</dd></div>
+                <div><dt>Training</dt><dd>{countryLabel}, {yearLabel}</dd></div>
+                <div><dt>Specialty</dt><dd>{form.specialty || "Not selected"}</dd></div>
+                {form.institution.trim() && <div><dt>Institution</dt><dd>{form.institution}</dd></div>}
+                {program && <div><dt>Program</dt><dd>We'll ask {program.name} to add you</dd></div>}
+              </dl>
+            </>
+          )}
+        </section>
+      </main>
+
+      <footer className="onboarding__footer">
+        <div className="onboarding__footer-inner">
+          <p className="onboarding__footer-hint" aria-live="polite">{continueHint}</p>
+          <div className="onboarding__actions">
+            {step === 1 ? (
+              <button type="button" onClick={() => setStep(2)} className="onboarding__button onboarding__button--primary onboarding__button--full">Get started</button>
+            ) : (
+              <>
+                <button type="button" onClick={() => setStep(Math.max(1, step - 1))} className="onboarding__button onboarding__button--quiet">Back</button>
+                {step < TOTAL_STEPS ? (
+                  <button type="button" onClick={() => setStep(step + 1)} disabled={continueDisabled} className="onboarding__button onboarding__button--primary">Continue</button>
+                ) : (
+                  <button type="button" onClick={handleFinish} disabled={saving} className="onboarding__button onboarding__button--primary">{saving ? "Saving..." : "Finish setup"}</button>
+                )}
+              </>
             )}
           </div>
-        )}
-      </div>
+        </div>
+      </footer>
     </div>
   );
 }

@@ -139,7 +139,7 @@ export default function SignupPage() {
             letterSpacing: "0.02em",
           }}
         >
-          Precision in practice
+          The case log for surgical residents
         </p>
       </div>
 
