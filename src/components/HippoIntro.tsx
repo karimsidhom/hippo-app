@@ -7,7 +7,10 @@
  * name with a light sweep). About 2.5 s, once per browser session, on
  * whatever page the visitor lands on.
  *
- * - Tap, click or any key skips straight to the exit.
+ * - It also replays after every sign-in (AuthContext dispatches
+ *   "hippo:intro"), carrying over the route change into the dashboard.
+ * - It always plays through; only Escape skips, so a stray tap can't cut
+ *   it short.
  * - Reduced-motion users never see it.
  * - The decision is made by an inline script before first paint, so a
  *   returning visitor never sees the overlay flash.
@@ -31,12 +34,15 @@ const RINGS = [
   { r: 340, w: 0.7, o: 0.08, frac: 0.33, rot: 250, dur: 1.3, delay: 0.42, spin: 90, dir: -1 },
 ];
 
-const EXIT_AT_MS = 2300;
-const EXIT_MS = 520;
+const EXIT_AT_MS = 2900;
+const EXIT_MS = 600;
+
+/** Fired by the sign-in flow to replay the intro over the route change. */
+export const HIPPO_INTRO_EVENT = "hippo:intro";
 
 const CSS = `
 .hi{position:fixed;inset:0;z-index:2147483000;display:flex;flex-direction:column;align-items:center;justify-content:center;
-  background:var(--hi-bg);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;
+  background:var(--hi-bg);overflow:hidden;-webkit-tap-highlight-color:transparent;
   font-family:'Geist',-apple-system,'Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased;
   --hi-ease:cubic-bezier(.16,1,.3,1);--hi-bg:#060d13;--hi-text:#E2E8F0;--hi-text-hi:#ffffff;--hi-sub:#7c8ea3;
   --hi-accent:#0EA5E9;--hi-accent-hi:#7dd3fc;--hi-glow:rgba(14,165,233,.20);--hi-glow-2:rgba(14,165,233,.06);
@@ -66,6 +72,10 @@ const CSS = `
   animation:hi-shine 1s ease-in-out 1.5s both}
 .hi-sub{margin-top:min(16px,3vmin);padding:0 24px;text-align:center;font-size:clamp(15px,3.2vmin,24px);font-weight:500;color:var(--hi-sub);
   letter-spacing:-.01em;opacity:0;transform:translateY(14px);animation:hi-up .63s var(--hi-ease) 1.08s both}
+.hi-quote{max-width:min(560px,86vw);margin-top:min(22px,4vmin);padding:0 24px;text-align:center;opacity:0;transform:translateY(12px);
+  animation:hi-up .7s var(--hi-ease) 1.3s both}
+.hi-quote q{display:block;font-size:clamp(15px,2.6vmin,19px);line-height:1.5;color:var(--hi-text);font-weight:450;letter-spacing:-.005em;quotes:"“" "”"}
+.hi-quote cite{display:block;margin-top:10px;font-style:normal;font-size:clamp(12px,1.9vmin,13px);color:var(--hi-sub);letter-spacing:.02em}
 .hi[data-out]{animation:hi-exit ${EXIT_MS}ms var(--hi-ease) 0s forwards;pointer-events:none}
 @keyframes hi-bloom{to{opacity:1;transform:translate(-50%,-56%) scale(1)}}
 @keyframes hi-draw{to{stroke-dashoffset:0}}
@@ -131,8 +141,17 @@ function Mark() {
   );
 }
 
-export function HippoIntro({ app, line }: { app: string; line: string }) {
+export function HippoIntro({
+  app, line, quote,
+}: {
+  app: string;
+  line: string;
+  /** Today's principle, chosen on the server so the quote library stays out of the bundle. */
+  quote?: { text: string; author: string } | null;
+}) {
   const [phase, setPhase] = useState<"on" | "out" | "gone">("on");
+  // Bumped on each sign-in replay so the CSS timeline restarts from zero.
+  const [run, setRun] = useState(0);
 
   useEffect(() => {
     if (document.documentElement.hasAttribute(SKIP_ATTR)) { setPhase("gone"); return; }
@@ -144,10 +163,35 @@ export function HippoIntro({ app, line }: { app: string; line: string }) {
       setPhase("gone");
       document.documentElement.setAttribute(SKIP_ATTR, "");
     }, Math.max(0, EXIT_AT_MS + EXIT_MS - elapsed) + 60);
-    const skip = () => setPhase((p) => (p === "on" ? "out" : p));
-    window.addEventListener("keydown", skip, { once: true });
-    return () => { window.clearTimeout(remove); window.removeEventListener("keydown", skip); };
+    return () => window.clearTimeout(remove);
   }, []);
+
+  // Sign-in replay: show it again over the route change, and remove it once
+  // its own CSS timeline has finished.
+  useEffect(() => {
+    let remove: number | undefined;
+    const replay = () => {
+      if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
+      document.documentElement.removeAttribute(SKIP_ATTR);
+      setRun((r) => r + 1);
+      setPhase("on");
+      window.clearTimeout(remove);
+      remove = window.setTimeout(() => {
+        setPhase("gone");
+        document.documentElement.setAttribute(SKIP_ATTR, "");
+      }, EXIT_AT_MS + EXIT_MS + 60);
+    };
+    window.addEventListener(HIPPO_INTRO_EVENT, replay);
+    return () => { window.removeEventListener(HIPPO_INTRO_EVENT, replay); window.clearTimeout(remove); };
+  }, []);
+
+  // Escape is the only skip: it should play through for everyone.
+  useEffect(() => {
+    if (phase !== "on") return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") setPhase("out"); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [phase]);
 
   useEffect(() => {
     if (phase !== "out") return;
@@ -159,26 +203,35 @@ export function HippoIntro({ app, line }: { app: string; line: string }) {
     return () => window.clearTimeout(done);
   }, [phase]);
 
-  if (phase === "gone") return null;
-
+  // The script and style stay mounted after the intro ends; removing them and
+  // re-adding them on a replay would make React render a script on the client.
   return (
     <>
       <script dangerouslySetInnerHTML={{ __html: DECIDE_SCRIPT }} />
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      <div
-        className="hi"
-        data-out={phase === "out" ? "" : undefined}
-        role="presentation"
-        aria-hidden
-        onClick={() => setPhase((p) => (p === "on" ? "out" : p))}
-      >
-        <div className="hi-glow" />
-        <Rings />
-        <div className="hi-ripple" />
-        <div className="hi-mark"><Mark /></div>
-        <div className="hi-title">Hippo <b>{app}</b></div>
-        <div className="hi-sub">{line}</div>
-      </div>
+      {phase !== "gone" && (
+        <div
+          key={run}
+          className="hi"
+          data-out={phase === "out" ? "" : undefined}
+          role="presentation"
+          aria-hidden
+        >
+          <div className="hi-glow" />
+          <Rings />
+          <div className="hi-ripple" />
+          <div className="hi-mark"><Mark /></div>
+          <div className="hi-title">Hippo <b>{app}</b></div>
+          {quote ? (
+            <figure className="hi-quote">
+              <q>{quote.text}</q>
+              <cite>{quote.author}</cite>
+            </figure>
+          ) : (
+            <div className="hi-sub">{line}</div>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -2,137 +2,76 @@
 
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ProgramMembersSection } from "@/components/programs/ProgramMembersSection";
+import { MyProgramStatus } from "@/components/programs/MyProgramStatus";
+import { JoinRequestQueue } from "@/components/programs/JoinRequestQueue";
+import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
+import { isPdLike, type ProgramDetail, type ProgramListItem } from "@/components/programs/types";
 import {
   GraduationCap,
   Plus,
-  Users2,
   CalendarDays,
-  Mail,
   X,
-  Copy,
-  Check,
   Loader2,
-  Trash2,
-  LogOut,
-  ShieldCheck,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 
-interface ProgramListItem {
-  id: string;
-  name: string;
-  institution: string | null;
-  specialty: string | null;
-  description: string | null;
-  createdById: string;
-  createdAt: string;
-  updatedAt: string;
-  myRole: ProgramRole;
-  memberCount: number;
-  eventCount: number;
-}
-
-// Granular program roles (Stage-2 entrada-takeover sprint).
-// OWNER and MEMBER stay valid for backward compatibility — OWNER acts
-// as the PD-equivalent and MEMBER as FACULTY-equivalent until the
-// institution upgrades the row.
-type ProgramRole =
-  | "OWNER"
-  | "PD"
-  | "CHAIR"
-  | "CC_MEMBER"
-  | "FACULTY"
-  | "COORDINATOR"
-  | "DEPT_HEAD"
-  | "MEMBER"
-  | "RESIDENT";
-
-const ROLE_LABELS: Record<ProgramRole, string> = {
-  OWNER:       "Owner / PD",
-  PD:          "Program Director",
-  CHAIR:       "Department Chair",
-  CC_MEMBER:   "CC member",
-  FACULTY:     "Faculty / supervisor",
-  COORDINATOR: "Coordinator (no PHI)",
-  DEPT_HEAD:   "Department head",
-  MEMBER:      "Member",
-  RESIDENT:    "Resident",
-};
-
-const PD_LIKE_ROLES: ProgramRole[] = ["OWNER", "PD"];
-const isPdLike = (r: ProgramRole) => PD_LIKE_ROLES.includes(r);
-// Resident first: the role menu shows the member's current role, and with
-// no Resident option a resident's row read "Program Director", one stray
-// tap from a promotion.
-const ROLE_OPTIONS: ProgramRole[] = [
-  "RESIDENT",
-  "PD",
-  "CHAIR",
-  "CC_MEMBER",
-  "FACULTY",
-  "COORDINATOR",
-  "DEPT_HEAD",
-];
-
-interface ProgramDetail {
-  program: {
-    id: string;
-    name: string;
-    institution: string | null;
-    specialty: string | null;
-    description: string | null;
-    createdById: string;
-    createdAt: string;
-    updatedAt: string;
-  };
-  myRole: ProgramRole;
-  members: Array<{
-    id: string;
-    userId: string;
-    role: ProgramRole;
-    joinedAt: string;
-    name: string | null;
-    email: string;
-    image: string | null;
-    roleType: string | null;
-    trainingYearLabel: string | null;
-  }>;
-  invites: Array<{
-    id: string;
-    email: string;
-    createdAt: string;
-    expiresAt: string;
-    acceptedAt: string | null;
-    revokedAt: string | null;
-  }>;
-}
-
 export default function ProgramsPage() {
   const { profile } = useAuth();
+  const router = useRouter();
   const [programs, setPrograms] = useState<ProgramListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
+  const [explicitCreate, setExplicitCreate] = useState(false);
 
   const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
 
   const load = useCallback(async () => {
     try {
       const res = await fetch("/api/programs", { credentials: "include" });
-      if (!res.ok) {
-        setLoading(false);
-        return;
-      }
-      const data = await res.json();
-      setPrograms(data.programs ?? []);
+      if (!res.ok) return;
+      const data = (await res.json()) as { programs: ProgramListItem[] };
+      const nextPrograms = data.programs ?? [];
+      setPrograms(nextPrograms);
+      if (nextPrograms.length !== 1 || new URLSearchParams(window.location.search).get("create") === "1") return;
+
+      // Redirect only after every pending-request source succeeds. A failed
+      // request must never hide an invitation or a director's approval queue.
+      const [requestRes, inviteRes, queueRes] = await Promise.all([
+        fetch("/api/programs/my-requests", { credentials: "include" }),
+        fetch("/api/programs/pending-invites", { credentials: "include" }),
+        fetch("/api/pd/join-requests", { credentials: "include" }),
+      ]);
+      if (!requestRes.ok || !inviteRes.ok || !queueRes.ok) return;
+      const [requestData, inviteData, queueData] = await Promise.all([
+        requestRes.json() as Promise<{ requests: unknown[] }>,
+        inviteRes.json() as Promise<{ invites: unknown[] }>,
+        queueRes.json() as Promise<{ requests: unknown[] }>,
+      ]);
+      if (
+        Array.isArray(requestData.requests) && requestData.requests.length === 0 &&
+        Array.isArray(inviteData.invites) && inviteData.invites.length === 0 &&
+        Array.isArray(queueData.requests) && queueData.requests.length === 0
+      ) router.replace(`/programs/${nextPrograms[0].id}`);
+    } catch {
+      // Leave the program list and pending-flow components available on failure.
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  useEffect(() => {
+    if (isPD && new URLSearchParams(window.location.search).get("create") === "1") {
+      setExplicitCreate(true);
+      setCreating(true);
+    }
+  }, [isPD]);
 
   return (
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
@@ -263,15 +202,20 @@ export default function ProgramsPage() {
         </div>
       )}
 
+      <ProgramInviteBanner onChanged={load} />
+      <MyProgramStatus onChanged={load} />
+      <JoinRequestQueue onChanged={load} />
+
       {/* Program list */}
       {!loading && programs.length > 0 && (
         <div>
           {programs.map((p) => (
-            <button
+            <Link
               key={p.id}
-              onClick={() => setSelectedId(p.id)}
+              href={`/programs/${p.id}`}
               style={{
                 width: "100%",
+                textDecoration: "none",
                 display: "flex",
                 alignItems: "center",
                 gap: 14,
@@ -364,16 +308,27 @@ export default function ProgramsPage() {
                   )}
                 </div>
               </div>
-            </button>
+            </Link>
           ))}
         </div>
       )}
 
       {creating && (
         <CreateProgramSheet
-          onClose={() => setCreating(false)}
+          onClose={() => {
+            setCreating(false);
+            if (explicitCreate) {
+              setExplicitCreate(false);
+              router.replace(programs.length === 1 ? `/programs/${programs[0].id}` : "/programs");
+            }
+          }}
           onCreated={(id) => {
             setCreating(false);
+            if (explicitCreate) {
+              setExplicitCreate(false);
+              router.replace(`/programs/${id}`);
+              return;
+            }
             load();
             setSelectedId(id);
           }}
@@ -515,7 +470,7 @@ function CreateProgramSheet({
           disabled={saving}
           style={{
             ...footerBtnPrimary,
-            background: saving ? "var(--text-3)" : "var(--primary)",
+            background: saving ? "var(--text-3)" : "var(--primary-solid)",
             cursor: saving ? "wait" : "pointer",
           }}
         >
@@ -529,16 +484,6 @@ function CreateProgramSheet({
 
 // ─── Program Detail Sheet ───────────────────────────────────────────────────
 
-interface UserSearchResult {
-  id: string;
-  name: string | null;
-  email: string;
-  image: string | null;
-  roleType: string | null;
-  trainingYearLabel: string | null;
-  institution: string | null;
-}
-
 function ProgramDetailSheet({
   programId,
   onClose,
@@ -550,676 +495,32 @@ function ProgramDetailSheet({
 }) {
   const [detail, setDetail] = useState<ProgramDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [inviteEmails, setInviteEmails] = useState("");
-  const [sending, setSending] = useState(false);
-  const [sendResult, setSendResult] = useState<string | null>(null);
-  const [searchResults, setSearchResults] = useState<UserSearchResult[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchOpen, setSearchOpen] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const load = useCallback(async () => {
-    setLoading(true);
     try {
-      const res = await fetch(`/api/programs/${programId}`, {
-        credentials: "include",
-      });
-      if (!res.ok) {
-        setLoading(false);
-        return;
-      }
+      const res = await fetch(`/api/programs/${programId}`, { credentials: "include" });
+      if (!res.ok) throw new Error("Could not load this program.");
       setDetail(await res.json());
+      setError(null);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Could not load this program.");
     } finally {
       setLoading(false);
     }
   }, [programId]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
-
-  // Debounced in-app user search — suggests existing Hippo users as the PD types.
-  useEffect(() => {
-    const last = inviteEmails.split(/[\s,;]+/).pop()?.trim() ?? "";
-    // If the last token contains @ + ., we treat it as a real email and skip search.
-    const looksLikeEmail = /.+@.+\..+/.test(last);
-    if (last.length < 2 || looksLikeEmail) {
-      setSearchResults([]);
-      setSearchOpen(false);
-      return;
-    }
-    let cancelled = false;
-    setSearching(true);
-    const t = setTimeout(async () => {
-      try {
-        const res = await fetch(
-          `/api/programs/${programId}/search-users?q=${encodeURIComponent(last)}`,
-          { credentials: "include" },
-        );
-        if (!res.ok) {
-          if (!cancelled) setSearchResults([]);
-          return;
-        }
-        const data = (await res.json()) as { users: UserSearchResult[] };
-        if (!cancelled) {
-          setSearchResults(data.users ?? []);
-          setSearchOpen(true);
-        }
-      } finally {
-        if (!cancelled) setSearching(false);
-      }
-    }, 200);
-    return () => {
-      cancelled = true;
-      clearTimeout(t);
-    };
-  }, [inviteEmails, programId]);
-
-  const pickSearchedUser = (u: UserSearchResult) => {
-    // Replace the last token in the input with this user's email, then add a comma for the next one.
-    const parts = inviteEmails.split(/([\s,;]+)/);
-    if (parts.length > 0) {
-      // Drop the trailing partial token, replace with user.email + ", "
-      const trailing = parts[parts.length - 1];
-      const isSeparator = /^[\s,;]+$/.test(trailing);
-      if (!isSeparator) parts.pop();
-      parts.push(u.email);
-    }
-    setInviteEmails(parts.join("") + ", ");
-    setSearchOpen(false);
-    setSearchResults([]);
-  };
-
-  const sendInvites = async () => {
-    if (sending) return;
-    const emails = inviteEmails
-      .split(/[\s,;]+/)
-      .map((e) => e.trim())
-      .filter((e) => e.length > 0);
-    if (emails.length === 0) {
-      setSendResult("Enter at least one email.");
-      return;
-    }
-    setSending(true);
-    setSendResult(null);
-    try {
-      const res = await fetch(`/api/programs/${programId}/invites`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "content-type": "application/json" },
-        body: JSON.stringify({ emails }),
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        setSendResult(err?.error ?? "Send failed");
-      } else {
-        const data = await res.json();
-        const sent = data.results.filter(
-          (r: { status: string }) => r.status === "sent",
-        ).length;
-        const alreadyMembers = data.results.filter(
-          (r: { status: string }) => r.status === "already-member",
-        ).length;
-        const alreadyInvited = data.results.filter(
-          (r: { status: string }) => r.status === "already-invited",
-        ).length;
-        const parts: string[] = [];
-        if (sent) parts.push(`${sent} sent`);
-        if (alreadyMembers) parts.push(`${alreadyMembers} already in`);
-        if (alreadyInvited) parts.push(`${alreadyInvited} pending`);
-        setSendResult(parts.join(", ") || "Done");
-        setInviteEmails("");
-        load();
-      }
-    } finally {
-      setSending(false);
-    }
-  };
-
-  const revokeInvite = async (inviteId: string) => {
-    await fetch(`/api/programs/${programId}/invites/${inviteId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    load();
-  };
-
-  const removeMember = async (memberId: string) => {
-    if (!confirm("Remove this member from the program?")) return;
-    await fetch(`/api/programs/${programId}/members/${memberId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    load();
-    onChanged();
-  };
-
-  // Change a member's role. PATCH the member endpoint with the new
-  // role value; the server enforces the "can't demote the last owner"
-  // guard. Optimistic — refetch on success/failure to stay in sync.
-  const updateMemberRole = async (memberId: string, role: ProgramRole) => {
-    const res = await fetch(
-      `/api/programs/${programId}/members/${memberId}`,
-      {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ role }),
-      },
-    );
-    if (!res.ok) {
-      const j = await res.json().catch(() => ({}));
-      alert(j.error ?? "Could not change role");
-    }
-    load();
-    onChanged();
-  };
-
-  const leaveProgram = async (memberId: string) => {
-    if (!confirm("Leave this program?")) return;
-    const res = await fetch(`/api/programs/${programId}/members/${memberId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (res.ok) {
-      onChanged();
-      onClose();
-    }
-  };
-
-  const deleteProgram = async () => {
-    if (!detail) return;
-    if (
-      !confirm(
-        `Permanently delete "${detail.program.name}"? All events and member connections will be lost. This cannot be undone.`,
-      )
-    )
-      return;
-    const res = await fetch(`/api/programs/${programId}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    if (res.ok) {
-      onChanged();
-      onClose();
-    }
-  };
+  useEffect(() => { void load(); }, [load]);
 
   return (
     <SheetShell
-      title={detail?.program.name ?? "Loading..."}
+      title={detail?.program.name ?? "Program"}
       onClose={onClose}
-      headerSubtitle={
-        detail?.program.institution || detail?.program.specialty
-          ? [detail.program.institution, detail.program.specialty]
-              .filter(Boolean)
-              .join(" · ")
-          : undefined
-      }
+      headerSubtitle={detail ? [detail.program.institution, detail.program.specialty].filter(Boolean).join(" · ") : undefined}
     >
-      {loading || !detail ? (
-        <div style={{ padding: 32, textAlign: "center", color: "var(--text-3)" }}>
-          Loading...
-        </div>
-      ) : (
-        <>
-          {/* Invite (owner only) */}
-          {isPdLike(detail.myRole) && (
-            <div style={{ marginBottom: 20, position: "relative" }}>
-              <SectionTitle>Invite members</SectionTitle>
-              <div style={{ display: "flex", gap: 8 }}>
-                <div style={{ flex: 1, position: "relative" }}>
-                  <input
-                    type="text"
-                    value={inviteEmails}
-                    onChange={(e) => setInviteEmails(e.target.value)}
-                    onFocus={() => {
-                      if (searchResults.length > 0) setSearchOpen(true);
-                    }}
-                    onBlur={() => {
-                      // Delay so a click on a suggestion still registers.
-                      setTimeout(() => setSearchOpen(false), 150);
-                    }}
-                    placeholder="Search by name or type an email"
-                    style={inputStyle}
-                  />
-                  {searchOpen && searchResults.length > 0 && (
-                    <div
-                      style={{
-                        position: "absolute",
-                        top: "calc(100% + 4px)",
-                        left: 0,
-                        right: 0,
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        borderRadius: 8,
-                        boxShadow: "0 10px 30px rgba(0,0,0,0.35)",
-                        maxHeight: 240,
-                        overflow: "auto",
-                        zIndex: 10,
-                      }}
-                    >
-                      {searchResults.map((u) => (
-                        <button
-                          key={u.id}
-                          onMouseDown={(e) => {
-                            e.preventDefault();
-                            pickSearchedUser(u);
-                          }}
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: 10,
-                            width: "100%",
-                            padding: "8px 12px",
-                            background: "transparent",
-                            border: "none",
-                            borderBottom: "1px solid var(--border)",
-                            cursor: "pointer",
-                            textAlign: "left",
-                            color: "var(--text)",
-                            fontFamily: "inherit",
-                          }}
-                        >
-                          <div
-                            style={{
-                              width: 28,
-                              height: 28,
-                              borderRadius: "50%",
-                              background: "var(--surface2)",
-                              border: "1px solid var(--border)",
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "center",
-                              overflow: "hidden",
-                              flexShrink: 0,
-                            }}
-                          >
-                            {u.image ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img
-                                src={u.image}
-                                alt=""
-                                style={{
-                                  width: "100%",
-                                  height: "100%",
-                                  objectFit: "cover",
-                                }}
-                              />
-                            ) : (
-                              <span
-                                style={{
-                                  fontSize: 11,
-                                  fontWeight: 600,
-                                  color: "var(--text-3)",
-                                }}
-                              >
-                                {(u.name ?? u.email)[0]?.toUpperCase() ?? "?"}
-                              </span>
-                            )}
-                          </div>
-                          <div style={{ minWidth: 0, flex: 1 }}>
-                            <div
-                              style={{
-                                fontSize: 13,
-                                fontWeight: 500,
-                                color: "var(--text)",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {u.name ?? u.email}
-                            </div>
-                            <div
-                              style={{
-                                fontSize: 11,
-                                color: "var(--text-3)",
-                                whiteSpace: "nowrap",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                              }}
-                            >
-                              {[
-                                u.trainingYearLabel,
-                                u.roleType?.replace(/_/g, " ").toLowerCase(),
-                                u.institution,
-                              ]
-                                .filter(Boolean)
-                                .join(" · ") || u.email}
-                            </div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                </div>
-                <button
-                  onClick={sendInvites}
-                  disabled={sending}
-                  style={{
-                    padding: "10px 14px",
-                    background: sending ? "var(--text-3)" : "var(--primary)",
-                    color: "#fff",
-                    border: "none",
-                    borderRadius: 8,
-                    fontSize: 13,
-                    fontWeight: 600,
-                    cursor: sending ? "wait" : "pointer",
-                    fontFamily: "inherit",
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 6,
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {sending ? (
-                    <Loader2 size={13} className="animate-spin" />
-                  ) : (
-                    <Mail size={13} />
-                  )}
-                  Send
-                </button>
-              </div>
-              <div
-                style={{
-                  fontSize: 11,
-                  color: "var(--text-3)",
-                  marginTop: 6,
-                  lineHeight: 1.5,
-                }}
-              >
-                {searching
-                  ? "Searching Hippo users..."
-                  : "Existing Hippo users will see the invite in-app. We also email them so they don't miss it."}
-              </div>
-              {sendResult && (
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: "var(--text-3)",
-                    marginTop: 6,
-                  }}
-                >
-                  {sendResult}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Pending invites */}
-          {isPdLike(detail.myRole) && detail.invites.length > 0 && (
-            <div style={{ marginBottom: 20 }}>
-              <SectionTitle>Pending invites ({detail.invites.length})</SectionTitle>
-              {detail.invites.map((inv) => (
-                <div
-                  key={inv.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "8px 0",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
-                  <Mail
-                    size={13}
-                    style={{ color: "var(--text-3)", flexShrink: 0 }}
-                  />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        color: "var(--text)",
-                        whiteSpace: "nowrap",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                      }}
-                    >
-                      {inv.email}
-                    </div>
-                    <div style={{ fontSize: 11, color: "var(--text-3)" }}>
-                      Expires{" "}
-                      {new Date(inv.expiresAt).toLocaleDateString("en-US", {
-                        month: "short",
-                        day: "numeric",
-                      })}
-                    </div>
-                  </div>
-                  <button
-                    onClick={() => revokeInvite(inv.id)}
-                    aria-label="Revoke"
-                    style={{
-                      width: 24,
-                      height: 24,
-                      borderRadius: 6,
-                      border: "1px solid var(--border)",
-                      background: "transparent",
-                      color: "var(--text-3)",
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                    }}
-                  >
-                    <X size={12} />
-                  </button>
-                </div>
-              ))}
-            </div>
-          )}
-
-          {/* Members */}
-          <div style={{ marginBottom: 20 }}>
-            <SectionTitle>Members ({detail.members.length})</SectionTitle>
-            {detail.members.map((m) => {
-              const isSelf = m.userId === detail.members.find((x) => x.role === detail.myRole)?.userId;
-              return (
-                <div
-                  key={m.id}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 10,
-                    padding: "10px 0",
-                    borderBottom: "1px solid var(--border)",
-                  }}
-                >
-                  <div
-                    style={{
-                      width: 32,
-                      height: 32,
-                      borderRadius: 8,
-                      background: "var(--surface2)",
-                      border: "1px solid var(--border)",
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "var(--text-2)",
-                      flexShrink: 0,
-                    }}
-                  >
-                    {(m.name ?? m.email).slice(0, 1).toUpperCase()}
-                  </div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 6,
-                        marginBottom: 1,
-                      }}
-                    >
-                      <span
-                        style={{
-                          fontSize: 13,
-                          fontWeight: 500,
-                          color: "var(--text)",
-                          whiteSpace: "nowrap",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
-                        }}
-                      >
-                        {m.name ?? m.email}
-                      </span>
-                      {isPdLike(m.role) && (
-                        <ShieldCheck
-                          size={12}
-                          style={{ color: "var(--primary)" }}
-                        />
-                      )}
-                    </div>
-                    <div
-                      style={{
-                        fontSize: 11,
-                        color: "var(--text-3)",
-                        display: "flex",
-                        gap: 4,
-                        flexWrap: "wrap",
-                      }}
-                    >
-                      {(() => {
-                        // A training year belongs to trainees only; a program
-                        // director's stale PGY from sign-up must not show.
-                        const trainee = m.roleType === "RESIDENT" || m.roleType === "FELLOW";
-                        const kind = m.roleType
-                          ? m.roleType.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
-                          : "Member";
-                        const programRole = ROLE_LABELS[m.role];
-                        const parts = [
-                          kind,
-                          trainee ? m.trainingYearLabel : null,
-                          programRole && programRole.toLowerCase() !== kind.toLowerCase() ? programRole : null,
-                        ].filter(Boolean) as string[];
-                        return parts.map((part, i) => (
-                          <span key={part} style={{ display: "inline-flex", gap: 4 }}>
-                            {i > 0 && <span style={{ color: "var(--text-3)" }}>·</span>}
-                            <span style={{ color: i === parts.length - 1 && isPdLike(m.role) && part === programRole ? "var(--primary)" : "var(--text-3)" }}>{part}</span>
-                          </span>
-                        ));
-                      })()}
-                    </div>
-                  </div>
-                  {/* PD-only role dropdown — change a member's permissions */}
-                  {isPdLike(detail.myRole) && !isSelf && (
-                    <select
-                      value={m.role}
-                      onChange={(e) => updateMemberRole(m.id, e.target.value as ProgramRole)}
-                      title="Change role"
-                      style={{
-                        background: "var(--surface)",
-                        border: "1px solid var(--border)",
-                        color: "var(--text-2)",
-                        borderRadius: 6,
-                        padding: "4px 8px",
-                        fontSize: 11,
-                        fontFamily: "inherit",
-                        cursor: "pointer",
-                      }}
-                    >
-                      {/* Keep OWNER as a non-selectable option only when
-                          the user already holds it — discourages
-                          casually demoting/transferring ownership.    */}
-                      {m.role === "OWNER" && (
-                        <option value="OWNER">{ROLE_LABELS.OWNER}</option>
-                      )}
-                      {ROLE_OPTIONS.map((r) => (
-                        <option key={r} value={r}>
-                          {ROLE_LABELS[r]}
-                        </option>
-                      ))}
-                      {m.role === "MEMBER" && (
-                        <option value="MEMBER">{ROLE_LABELS.MEMBER}</option>
-                      )}
-                    </select>
-                  )}
-                  {isPdLike(detail.myRole) && !isPdLike(m.role) && !isSelf && (
-                    <button
-                      onClick={() => removeMember(m.id)}
-                      aria-label="Remove"
-                      style={{
-                        width: 24,
-                        height: 24,
-                        borderRadius: 6,
-                        border: "1px solid var(--border)",
-                        background: "transparent",
-                        color: "var(--text-3)",
-                        cursor: "pointer",
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <X size={12} />
-                    </button>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Destructive actions */}
-          <div
-            style={{
-              display: "flex",
-              gap: 8,
-              paddingTop: 8,
-              borderTop: "1px solid var(--border)",
-              marginTop: 8,
-            }}
-          >
-            {isPdLike(detail.myRole) ? (
-              <button
-                onClick={deleteProgram}
-                style={{
-                  padding: "8px 12px",
-                  background: "transparent",
-                  border: "1px solid #ef444440",
-                  color: "#ef4444",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <Trash2 size={12} />
-                Delete program
-              </button>
-            ) : (
-              <button
-                onClick={() => {
-                  const me = detail.members.find(
-                    (m) => m.role === detail.myRole,
-                  );
-                  if (me) leaveProgram(me.id);
-                }}
-                style={{
-                  padding: "8px 12px",
-                  background: "transparent",
-                  border: "1px solid var(--border)",
-                  color: "var(--text-3)",
-                  borderRadius: 8,
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: "pointer",
-                  fontFamily: "inherit",
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 4,
-                }}
-              >
-                <LogOut size={12} />
-                Leave program
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      {loading ? <p style={{ color: "var(--text-3)" }}>Loading...</p> : detail ? (
+        <ProgramMembersSection detail={detail} onReload={load} onChanged={onChanged} onExited={onClose} />
+      ) : <p role="alert" style={{ color: "var(--text-2)" }}>{error}</p>}
     </SheetShell>
   );
 }
@@ -1366,23 +667,6 @@ function Field({
       >
         {label}
       </div>
-      {children}
-    </div>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div
-      style={{
-        fontSize: 11,
-        color: "var(--text-3)",
-        fontWeight: 600,
-        textTransform: "uppercase",
-        letterSpacing: "0.06em",
-        marginBottom: 10,
-      }}
-    >
       {children}
     </div>
   );

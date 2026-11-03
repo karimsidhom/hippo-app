@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useId } from "react";
+import { useState, useEffect, useId, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useCases } from "@/hooks/useCases";
 import { useMilestones } from "@/hooks/useMilestones";
@@ -20,12 +20,13 @@ import type {
   ComplicationCategory, AgeBin, Milestone, PersonalRecord,
   EpaSuggestion, EpaObservationInput,
 } from "@/lib/types";
-import { X, Check, AlertTriangle, LockKeyhole } from "lucide-react";
+import { X, Check, ChevronDown, AlertTriangle, LockKeyhole } from "lucide-react";
 import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
 import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
 import { OprsObservationForm } from "@/components/smsna/OprsObservationForm";
 import "./quick-add.css";
 import { useDialogFocus } from "@/hooks/useDialogFocus";
+import { useVisualViewport } from "@/hooks/useVisualViewport";
 
 interface QuickAddModalProps {
   open: boolean;
@@ -44,13 +45,16 @@ function ageToAgeBin(age: number): AgeBin {
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
+  const viewportStyle = useVisualViewport(open);
   const formId = useId();
   const fieldId = (name: string) => `${formId}-${name}`;
   const { cases, addCaseAsync } = useCases();
   const { milestones, personalRecords, addMilestone } = useMilestones();
   const { user, profile } = useUser();
+  const defaultSpecialtySlug = SPECIALTIES.find(s => s.name === profile?.specialty || s.slug === profile?.specialty)?.slug ?? "urology";
+  const specialtyChanged = useRef(false);
 
-  const [specialtySlug, setSpecialtySlug] = useState("urology");
+  const [specialtySlug, setSpecialtySlug] = useState(defaultSpecialtySlug);
   const [procedureName, setProcedureName] = useState("");
   const [caseDate, setCaseDate] = useState(todayStr());
   const [role, setRole] = useState("First Surgeon");
@@ -67,6 +71,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const [conversionOccurred, setConversionOccurred] = useState(false);
   const [notes, setNotes] = useState("");
   const [reflection, setReflection] = useState("");
+
   const [notesValidation, setNotesValidation] = useState<{ safe: boolean; warnings: string[] }>({ safe: true, warnings: [] });
   const [submitting, setSubmitting] = useState(false);
   const [celebration, setCelebration] = useState<{
@@ -97,6 +102,12 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   const dialogRef = useDialogFocus<HTMLDivElement>(
     open && !showEpaSuggestions && !selectedEpaSuggestion && !celebration && !showOprs && !epaDelivery,
   );
+
+  // The profile can arrive after the form mounts. Only hydrate an untouched
+  // specialty; an in-progress procedure or explicit chip choice stays intact.
+  useEffect(() => {
+    if (!specialtyChanged.current && !procedureName) setSpecialtySlug(defaultSpecialtySlug);
+  }, [defaultSpecialtySlug, procedureName]);
 
   // Portal root for rendering EPA modals above everything
   const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
@@ -362,7 +373,8 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   };
 
   const resetForm = () => {
-    setSpecialtySlug("urology");
+    specialtyChanged.current = false;
+    setSpecialtySlug(defaultSpecialtySlug);
     setProcedureName("");
     setCaseDate(todayStr());
     setRole("First Surgeon");
@@ -590,7 +602,7 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
   if (!open) return null;
 
   return (
-    <div className="quick-add">
+    <div className="quick-add" style={viewportStyle}>
       <div className="quick-add__backdrop" onClick={onClose} />
 
       <div
@@ -620,68 +632,25 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
         </header>
 
         <div className="quick-add__body">
-          <section className="quick-add__section" aria-labelledby={fieldId("case-heading")}>
+          <section className="quick-add__section" aria-labelledby={fieldId("essentials-heading")}>
             <div className="quick-add__section-head">
-              <span className="quick-add__section-number" aria-hidden="true">01</span>
-              <h3 id={fieldId("case-heading")}>The case</h3>
+              <h3 id={fieldId("essentials-heading")}>Essentials</h3>
               <span className="quick-add__section-hint">Procedure is required</span>
-            </div>
-            <div className="quick-add__field">
-              <div className="quick-add__label" id={fieldId("specialty-label")}>Specialty</div>
-              <div className="quick-add__specialties" role="group" aria-labelledby={fieldId("specialty-label")}>
-                {isSmsna ? (
-                  <button type="button" className="quick-add__chip" aria-pressed="true" disabled>
-                    SMSNA Fellowship
-                  </button>
-                ) : SPECIALTIES.filter(s => s.slug !== "other").map(s => (
-                  <button
-                    key={s.slug}
-                    type="button"
-                    className="quick-add__chip"
-                    aria-pressed={specialtySlug === s.slug}
-                    onClick={() => { setSpecialtySlug(s.slug); setProcedureName(""); }}
-                  >
-                    {s.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
-                  </button>
-                ))}
-              </div>
             </div>
             <div className="quick-add__field" role="group" aria-labelledby={fieldId("procedure-label")}>
               <div className="quick-add__label" id={fieldId("procedure-label")}>Procedure <span className="quick-add__required" aria-label="required">*</span></div>
               <ProcedurePicker procedures={procedures} value={procedureName} onChange={handleProcedureChange} />
             </div>
-            <div className="quick-add__grid">
-              <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("date")}>Date</label>
-                <input id={fieldId("date")} type="date" value={caseDate} max={todayStr()} onChange={e => setCaseDate(e.target.value)} className="st-input" />
-              </div>
-              <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("attending")}>Attending surgeon</label>
-                <input id={fieldId("attending")} type="text" placeholder="Attending name" value={attendingLabel} onChange={e => setAttendingLabel(e.target.value)} className="st-input" />
-              </div>
-              <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("site")}>Hospital / site</label>
-                <input id={fieldId("site")} type="text" placeholder="Hospital or site" value={institutionSite} onChange={e => setInstitutionSite(e.target.value)} className="st-input" />
-              </div>
-              <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("age")}>Patient age</label>
-                <input id={fieldId("age")} type="number" min={0} max={120} placeholder="e.g. 58" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="st-input" aria-describedby={fieldId("age-hint")} />
-                <p className="quick-add__hint" id={fieldId("age-hint")}>Saved as an age range.</p>
-              </div>
+            <div className="quick-add__field">
+              <label className="quick-add__label" htmlFor={fieldId("date")}>Date</label>
+              <input id={fieldId("date")} type="date" value={caseDate} max={todayStr()} onChange={e => setCaseDate(e.target.value)} className="st-input" />
             </div>
             <div className="quick-add__field">
-              <label className="quick-add__label" htmlFor={fieldId("diagnosis")}>Diagnosis / indication</label>
-              <input id={fieldId("diagnosis")} type="text" placeholder="e.g. Bladder cancer, BPH, renal mass" value={diagnosisCategory} onChange={e => setDiagnosisCategory(e.target.value)} className="st-input" />
-            </div>
-          </section>
-
-          <section className="quick-add__section" aria-labelledby={fieldId("contribution-heading")}>
-            <div className="quick-add__section-head">
-              <span className="quick-add__section-number" aria-hidden="true">02</span>
-              <h3 id={fieldId("contribution-heading")}>Your contribution</h3>
+              <label className="quick-add__label" htmlFor={fieldId("attending")}>Attending surgeon</label>
+              <input id={fieldId("attending")} type="text" placeholder="Attending name" value={attendingLabel} onChange={e => setAttendingLabel(e.target.value)} className="st-input" />
             </div>
             <div className="quick-add__field">
-              <div className="quick-add__label" id={fieldId("role-label")}>Role</div>
+              <div className="quick-add__label" id={fieldId("role-label")}>Your role</div>
               <div className="quick-add__choices quick-add__choices--equal" role="group" aria-labelledby={fieldId("role-label")}>
                 {["First Surgeon", "Assist", "Observer"].map(r => (
                   <button key={r} type="button" className="quick-add__chip" aria-pressed={role === r} onClick={() => setRole(r)}>{r}</button>
@@ -696,106 +665,144 @@ export function QuickAddModal({ open, onClose }: QuickAddModalProps) {
                 ))}
               </div>
             </div>
-            <div className="quick-add__field">
-              <div className="quick-add__label" id={fieldId("approach-label")}>Approach</div>
-              <div className="quick-add__choices" role="group" aria-labelledby={fieldId("approach-label")}>
-                {SURGICAL_APPROACHES.map(a => (
-                  <button key={a.value} type="button" className="quick-add__chip" aria-pressed={approach === a.value} onClick={() => setApproach(a.value as SurgicalApproach)}>{a.label}</button>
-                ))}
-              </div>
-            </div>
-            <div className="quick-add__grid">
+          </section>
+
+          <details className="quick-add__section quick-add__disclosure">
+            <summary className="quick-add__section-head">
+              <h3>More details</h3>
+              <ChevronDown size={18} strokeWidth={1.7} aria-hidden="true" />
+            </summary>
+            <div className="quick-add__disclosure-body">
               <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("duration")}>OR duration <span>(min)</span></label>
-                <input id={fieldId("duration")} type="number" min={1} max={1440} placeholder="e.g. 180" value={duration} onChange={e => setDuration(e.target.value)} className="st-input" />
-              </div>
-              <div className="quick-add__field">
-                <div className="quick-add__label" id={fieldId("difficulty-label")}>Difficulty <span>(1–5)</span></div>
-                <div className="quick-add__choices quick-add__choices--difficulty" role="group" aria-labelledby={fieldId("difficulty-label")}>
-                  {[1, 2, 3, 4, 5].map(n => (
-                    <button key={n} type="button" className="quick-add__chip" aria-pressed={difficultyScore === n} aria-label={`Difficulty ${n} of 5`} onClick={() => setDifficultyScore(n)}>{n}</button>
+                <div className="quick-add__label" id={fieldId("specialty-label")}>Specialty</div>
+                <div className="quick-add__specialties" role="group" aria-labelledby={fieldId("specialty-label")}>
+                  {isSmsna ? (
+                    <button type="button" className="quick-add__chip" aria-pressed="true" disabled>
+                      SMSNA Fellowship
+                    </button>
+                  ) : SPECIALTIES.filter(s => s.slug !== "other").map(s => (
+                    <button
+                      key={s.slug}
+                      type="button"
+                      className="quick-add__chip"
+                      aria-pressed={specialtySlug === s.slug}
+                      onClick={() => { specialtyChanged.current = true; setSpecialtySlug(s.slug); setProcedureName(""); }}
+                    >
+                      {s.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
+                    </button>
                   ))}
                 </div>
               </div>
-            </div>
-          </section>
-
-          <section className="quick-add__section" aria-labelledby={fieldId("outcome-heading")}>
-            <div className="quick-add__section-head">
-              <span className="quick-add__section-number" aria-hidden="true">03</span>
-              <h3 id={fieldId("outcome-heading")}>Outcome</h3>
-            </div>
-            <div className="quick-add__field">
-              <div className="quick-add__label" id={fieldId("outcome-label")}>Case outcome</div>
-              <div className="quick-add__choices" role="group" aria-labelledby={fieldId("outcome-label")}>
-                {OUTCOME_CATEGORIES.map(o => (
-                  <button
-                    key={o.value}
-                    type="button"
-                    className="quick-add__chip"
-                    aria-pressed={outcomeCategory === o.value}
-                    onClick={() => {
-                      setOutcomeCategory(o.value as OutcomeCategory);
-                      if (o.value === "UNCOMPLICATED") setComplicationCategory("NONE");
-                    }}
-                  >{o.label}</button>
-                ))}
+              <div className="quick-add__grid">
+                <div className="quick-add__field">
+                  <label className="quick-add__label" htmlFor={fieldId("site")}>Hospital / site</label>
+                  <input id={fieldId("site")} type="text" placeholder="Hospital or site" value={institutionSite} onChange={e => setInstitutionSite(e.target.value)} className="st-input" />
+                </div>
+                <div className="quick-add__field">
+                  <label className="quick-add__label" htmlFor={fieldId("age")}>Patient age</label>
+                  <input id={fieldId("age")} type="number" min={0} max={120} placeholder="e.g. 58" value={patientAge} onChange={e => setPatientAge(e.target.value)} className="st-input" aria-describedby={fieldId("age-hint")} />
+                  <p className="quick-add__hint" id={fieldId("age-hint")}>Saved as an age range.</p>
+                </div>
               </div>
-            </div>
-            {outcomeCategory !== "UNCOMPLICATED" && (
               <div className="quick-add__field">
-                <label className="quick-add__label" htmlFor={fieldId("complication")}>Complication type</label>
-                <select id={fieldId("complication")} value={complicationCategory} onChange={e => setComplicationCategory(e.target.value as ComplicationCategory)} className="st-input">
-                  {COMPLICATION_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
-                </select>
+                <label className="quick-add__label" htmlFor={fieldId("diagnosis")}>Diagnosis / indication</label>
+                <input id={fieldId("diagnosis")} type="text" placeholder="e.g. Bladder cancer, BPH, renal mass" value={diagnosisCategory} onChange={e => setDiagnosisCategory(e.target.value)} className="st-input" />
               </div>
-            )}
-            <label className="quick-add__checkbox">
-              <input type="checkbox" checked={conversionOccurred} onChange={e => setConversionOccurred(e.target.checked)} />
-              <span><strong>Conversion occurred</strong><span>e.g. laparoscopic to open</span></span>
-            </label>
-          </section>
-
-          <section className="quick-add__section" aria-labelledby={fieldId("learning-heading")}>
-            <div className="quick-add__section-head">
-              <span className="quick-add__section-number" aria-hidden="true">04</span>
-              <h3 id={fieldId("learning-heading")}>Notes &amp; learning</h3>
-              <span className="quick-add__section-hint">Optional</span>
-            </div>
-            <div className="quick-add__privacy" id={fieldId("privacy")}>
-              <LockKeyhole size={15} strokeWidth={1.7} aria-hidden="true" />
-              <p>Keep notes de-identified. Leave out names, birth dates, and patient identifiers.</p>
-            </div>
-            <div className="quick-add__field">
-              <label className="quick-add__label" htmlFor={fieldId("notes")}>Operative notes</label>
-              <textarea
-                id={fieldId("notes")}
-                value={notes}
-                onChange={e => {
-                  setNotes(e.target.value);
-                  if (e.target.value.length > 10) {
-                    const result = validateNotes(e.target.value);
-                    setNotesValidation({ safe: result.safe, warnings: result.warnings });
-                  } else {
-                    setNotesValidation({ safe: true, warnings: [] });
-                  }
-                }}
-                placeholder="Key steps, challenges, learning points…"
-                rows={3}
-                className="st-input"
-                aria-describedby={notesValidation.warnings.length ? `${fieldId("privacy")} ${fieldId("notes-warnings")}` : fieldId("privacy")}
-              />
-              {notesValidation.warnings.length > 0 && (
-                <div className="quick-add__warnings" id={fieldId("notes-warnings")} role="status">
-                  {notesValidation.warnings.map((w, i) => <p key={i}>&#9888; {w}</p>)}
+              <div className="quick-add__field">
+                <div className="quick-add__label" id={fieldId("approach-label")}>Approach</div>
+                <div className="quick-add__choices" role="group" aria-labelledby={fieldId("approach-label")}>
+                  {SURGICAL_APPROACHES.map(a => (
+                    <button key={a.value} type="button" className="quick-add__chip" aria-pressed={approach === a.value} onClick={() => setApproach(a.value as SurgicalApproach)}>{a.label}</button>
+                  ))}
+                </div>
+              </div>
+              <div className="quick-add__grid">
+                <div className="quick-add__field">
+                  <label className="quick-add__label" htmlFor={fieldId("duration")}>OR duration <span>(min)</span></label>
+                  <input id={fieldId("duration")} type="number" min={1} max={1440} placeholder="e.g. 180" value={duration} onChange={e => setDuration(e.target.value)} className="st-input" />
+                </div>
+                <div className="quick-add__field">
+                  <div className="quick-add__label" id={fieldId("difficulty-label")}>Difficulty <span>(1–5)</span></div>
+                  <div className="quick-add__choices quick-add__choices--difficulty" role="group" aria-labelledby={fieldId("difficulty-label")}>
+                    {[1, 2, 3, 4, 5].map(n => (
+                      <button key={n} type="button" className="quick-add__chip" aria-pressed={difficultyScore === n} aria-label={`Difficulty ${n} of 5`} onClick={() => setDifficultyScore(n)}>{n}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+              <div className="quick-add__field">
+                <div className="quick-add__label" id={fieldId("outcome-label")}>Case outcome</div>
+                <div className="quick-add__choices" role="group" aria-labelledby={fieldId("outcome-label")}>
+                  {OUTCOME_CATEGORIES.map(o => (
+                    <button
+                      key={o.value}
+                      type="button"
+                      className="quick-add__chip"
+                      aria-pressed={outcomeCategory === o.value}
+                      onClick={() => {
+                        setOutcomeCategory(o.value as OutcomeCategory);
+                        if (o.value === "UNCOMPLICATED") setComplicationCategory("NONE");
+                      }}
+                    >{o.label}</button>
+                  ))}
+                </div>
+              </div>
+              {outcomeCategory !== "UNCOMPLICATED" && (
+                <div className="quick-add__field">
+                  <label className="quick-add__label" htmlFor={fieldId("complication")}>Complication type</label>
+                  <select id={fieldId("complication")} value={complicationCategory} onChange={e => setComplicationCategory(e.target.value as ComplicationCategory)} className="st-input">
+                    {COMPLICATION_CATEGORIES.map(c => <option key={c.value} value={c.value}>{c.label}</option>)}
+                  </select>
                 </div>
               )}
+              <label className="quick-add__checkbox">
+                <input type="checkbox" checked={conversionOccurred} onChange={e => setConversionOccurred(e.target.checked)} />
+                <span><strong>Conversion occurred</strong><span>e.g. laparoscopic to open</span></span>
+              </label>
             </div>
-            <div className="quick-add__field">
-              <label className="quick-add__label" htmlFor={fieldId("reflection")}>Personal reflection</label>
-              <textarea id={fieldId("reflection")} value={reflection} onChange={e => setReflection(e.target.value)} placeholder="What did you learn? What would you do differently?" rows={3} className="st-input" aria-describedby={fieldId("privacy")} />
+          </details>
+
+          <details className="quick-add__section quick-add__disclosure">
+            <summary className="quick-add__section-head">
+              <h3>Notes &amp; learning</h3>
+              <ChevronDown size={18} strokeWidth={1.7} aria-hidden="true" />
+            </summary>
+            <div className="quick-add__disclosure-body">
+              <div className="quick-add__privacy" id={fieldId("privacy")}>
+                <LockKeyhole size={15} strokeWidth={1.7} aria-hidden="true" />
+                <p>Keep notes de-identified. Leave out names, birth dates, and patient identifiers.</p>
+              </div>
+              <div className="quick-add__field">
+                <label className="quick-add__label" htmlFor={fieldId("notes")}>Operative notes</label>
+                <textarea
+                  id={fieldId("notes")}
+                  value={notes}
+                  onChange={e => {
+                    setNotes(e.target.value);
+                    if (e.target.value.length > 10) {
+                      const result = validateNotes(e.target.value);
+                      setNotesValidation({ safe: result.safe, warnings: result.warnings });
+                    } else {
+                      setNotesValidation({ safe: true, warnings: [] });
+                    }
+                  }}
+                  placeholder="Key steps, challenges, learning points…"
+                  rows={3}
+                  className="st-input"
+                  aria-describedby={notesValidation.warnings.length ? `${fieldId("privacy")} ${fieldId("notes-warnings")}` : fieldId("privacy")}
+                />
+                {notesValidation.warnings.length > 0 && (
+                  <div className="quick-add__warnings" id={fieldId("notes-warnings")} role="status">
+                    {notesValidation.warnings.map((w, i) => <p key={i}><AlertTriangle size={14} aria-hidden="true" />{w}</p>)}
+                  </div>
+                )}
+              </div>
+              <div className="quick-add__field">
+                <label className="quick-add__label" htmlFor={fieldId("reflection")}>Personal reflection</label>
+                <textarea id={fieldId("reflection")} value={reflection} onChange={e => setReflection(e.target.value)} placeholder="What did you learn? What would you do differently?" rows={3} className="st-input" aria-describedby={fieldId("privacy")} />
+              </div>
             </div>
-          </section>
+          </details>
         </div>
 
         <footer className="quick-add__footer">

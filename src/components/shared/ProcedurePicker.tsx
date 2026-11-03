@@ -36,9 +36,12 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { Search, X, Check, Plus } from 'lucide-react';
 import type { Procedure } from '@/lib/procedureLibrary';
 import { useDialogFocus } from '@/hooks/useDialogFocus';
+import { useVisualViewport } from '@/hooks/useVisualViewport';
+import './procedure-picker.css';
 
 interface ProcedurePickerProps {
   /** Procedures already filtered to the current specialty */
@@ -111,9 +114,25 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
   const [category, setCategory] = useState<string>('All');
   const [active, setActive]     = useState(-1);
   const [recents, setRecents]   = useState<string[]>([]);
+  const [portalTokens, setPortalTokens] = useState<React.CSSProperties>({});
+  const viewportStyle = useVisualViewport(open);
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const listRef  = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const openPicker = () => {
+    // A body portal escapes clipping ancestors while retaining the workspace's
+    // resolved tokens, including its light/dark palette and typography.
+    if (triggerRef.current) {
+      const computed = getComputedStyle(triggerRef.current);
+      const tokens = Object.fromEntries(Array.from(computed)
+        .filter(name => name.startsWith('--'))
+        .map(name => [name, computed.getPropertyValue(name)]));
+      setPortalTokens(tokens as React.CSSProperties);
+    }
+    setOpen(true);
+  };
 
   const q = norm(query);
   const live = useMemo(() => procedures.filter(p => p.active !== false), [procedures]);
@@ -245,10 +264,11 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
       <button
         type="button"
         className="pp-trigger"
+        ref={triggerRef}
         data-filled={!!value}
         aria-haspopup="dialog"
         aria-expanded={open}
-        onClick={() => setOpen(true)}
+        onClick={openPicker}
       >
         <span className="pp-trigger__text">{value || 'Choose a procedure'}</span>
         {!value && <Search size={14} strokeWidth={1.8} className="pp-trigger__icon" />}
@@ -266,8 +286,8 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
       </div>
 
       {/* ── The one overlay ────────────────────────────────────────────── */}
-      {open && (
-        <div className="pp-scrim" onClick={() => setOpen(false)}>
+      {open && createPortal(
+        <div className="pp-scrim" style={{ ...portalTokens, ...viewportStyle }} onClick={() => setOpen(false)}>
           <div
             className="pp-sheet"
             ref={dialogRef}
@@ -278,15 +298,13 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
             onClick={e => e.stopPropagation()}
             onKeyDown={onKeyDown}
           >
-            <div className="pp-sheet__grab" aria-hidden />
-
             <header className="pp-sheet__head">
               <h2 className="pp-sheet__title">Procedure</h2>
               <button
                 type="button"
-                className="icon-btn"
+                className="pp-sheet__close"
                 onClick={() => setOpen(false)}
-                aria-label="Close"
+                aria-label="Close procedure picker"
               >
                 <X size={16} strokeWidth={1.8} />
               </button>
@@ -386,7 +404,8 @@ export function ProcedurePicker({ procedures, value, onChange }: ProcedurePicker
               )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </>
   );
