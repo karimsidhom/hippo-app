@@ -25,7 +25,7 @@ interface PendingInvite {
   createdAt: string;
 }
 
-export function ProgramInviteBanner() {
+export function ProgramInviteBanner({ onChanged }: { onChanged?: () => void } = {}) {
   const router = useRouter();
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -71,6 +71,7 @@ export function ProgramInviteBanner() {
       // Remove from local list; refresh router so widgets (ProgramCalendar) re-fetch.
       setInvites((prev) => prev.filter((i) => i.id !== invite.id));
       setAccepting(null);
+      onChanged?.();
       router.refresh();
     } catch {
       alert("Network error. Please try again.");

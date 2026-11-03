@@ -29,7 +29,7 @@ interface MyRequest {
 
 const NUDGE_DISMISSED_KEY = "hippo-program-nudge-dismissed";
 
-export function MyProgramStatus() {
+export function MyProgramStatus({ onChanged }: { onChanged?: () => void } = {}) {
   const router = useRouter();
   const [requests, setRequests] = useState<MyRequest[]>([]);
   const [hasProgram, setHasProgram] = useState(true);
@@ -98,6 +98,7 @@ export function MyProgramStatus() {
         return;
       }
       await refresh();
+      onChanged?.();
       setBusy(null);
       // Joining changes what the rest of the dashboard should show.
       if (action === "accept") router.refresh();

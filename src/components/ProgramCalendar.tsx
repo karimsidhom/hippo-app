@@ -112,7 +112,19 @@ function endOfMonth(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 }
 
-export function ProgramCalendar() {
+interface ProgramCalendarProps {
+  programId?: string;
+  onEventsChanged?: () => void;
+}
+
+export function ProgramCalendar(props: ProgramCalendarProps = {}) {
+  return <ProgramCalendarView key={props.programId ?? "all-programs"} {...props} />;
+}
+
+function ProgramCalendarView({
+  programId,
+  onEventsChanged,
+}: ProgramCalendarProps) {
   const [loading, setLoading] = useState(true);
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
@@ -121,6 +133,10 @@ export function ProgramCalendar() {
   const [composerOpen, setComposerOpen] = useState(false);
   const [composerPrefillDate, setComposerPrefillDate] = useState<Date | null>(null);
   const [detailEvent, setDetailEvent] = useState<CalendarEvent | null>(null);
+  const composerPrograms = useMemo(
+    () => programs.filter((program) => !programId || program.id === programId),
+    [programs, programId],
+  );
 
   const loadEvents = useCallback(async () => {
     // Fetch a wide enough window: start of the viewed month through 45 days
@@ -129,9 +145,11 @@ export function ProgramCalendar() {
     const from = startOfMonth(viewMonth);
     const to = new Date(endOfMonth(viewMonth).getTime() + 45 * 86400_000);
 
+    const programQuery = programId ? `&programId=${encodeURIComponent(programId)}` : "";
+
     try {
       const res = await fetch(
-        `/api/programs/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}`,
+        `/api/programs/events?from=${encodeURIComponent(from.toISOString())}&to=${encodeURIComponent(to.toISOString())}${programQuery}`,
         { credentials: "include" },
       );
       if (!res.ok) {
@@ -140,13 +158,13 @@ export function ProgramCalendar() {
       }
       const data = (await res.json()) as EventsResponse;
       setEvents(data.events ?? []);
-      setPrograms(data.programs ?? []);
+      setPrograms((data.programs ?? []).filter((program) => !programId || program.id === programId));
     } catch {
       // silent fail — widget just stays empty
     } finally {
       setLoading(false);
     }
-  }, [viewMonth]);
+  }, [viewMonth, programId]);
 
   useEffect(() => {
     loadEvents();
@@ -238,7 +256,7 @@ export function ProgramCalendar() {
           </span>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <Link
-              href="/programs"
+              href={programId ? `/programs/${programId}` : "/programs"}
               style={{
                 fontSize: 11,
                 color: "var(--text-3)",
@@ -538,13 +556,15 @@ export function ProgramCalendar() {
       </section>
 
       <EventComposerSheet
+        key={programId ?? "all-programs"}
         open={composerOpen}
         onClose={() => setComposerOpen(false)}
         onCreated={() => {
           setComposerOpen(false);
-          loadEvents();
+          void loadEvents();
+          onEventsChanged?.();
         }}
-        programs={programs}
+        programs={composerPrograms}
         prefillDate={composerPrefillDate}
       />
 
@@ -553,7 +573,8 @@ export function ProgramCalendar() {
         onClose={() => setDetailEvent(null)}
         onChanged={() => {
           setDetailEvent(null);
-          loadEvents();
+          void loadEvents();
+          onEventsChanged?.();
         }}
       />
     </>

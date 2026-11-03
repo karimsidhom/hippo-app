@@ -192,7 +192,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       {/*
         Installed-PWA safe area: iOS runs the app "black-translucent" so
         our content renders BEHIND the status bar (time / wifi / battery).
-        Without a top inset, the Hippo logo + Log button sit underneath
+        Without a top inset, the Hippo logo and header controls sit underneath
         the clock and are unreachable. Paint the status-bar area in our
         bg colour and add safe-area-inset-top padding so the actual chrome
         starts below the clock.
@@ -267,7 +267,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               vocabulary by mistake. Clinic-specific notifications live
               at /clinic/settings/notifications and on the dashboard. */}
           {!inClinic && <NotificationBell />}
-          {inClinic ? (
+          {inClinic && (
             <Link
               href="/clinic/new"
               className="press"
@@ -293,30 +293,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               <Plus size={12} strokeWidth={2.5} />
               Note
             </Link>
-          ) : (
-            <button
-              className="press"
-              onClick={() => { fx.tap(); setQuickAddOpen(true); }}
-              style={{
-                background: "var(--primary)",
-                color: "#fff",
-                border: "none",
-                borderRadius: 5,
-                padding: "6px 12px",
-                fontSize: 11,
-                fontWeight: 600,
-                cursor: "pointer",
-                display: "flex",
-                alignItems: "center",
-                gap: 3,
-                fontFamily: "var(--font-sans)",
-                letterSpacing: ".01em",
-                transition: "all .15s cubic-bezier(.16,1,.3,1)",
-              }}
-            >
-              <Plus size={12} strokeWidth={2.5} />
-              Log
-            </button>
           )}
           {!inClinic ? <Link className="case-account-link" href="/profile" aria-label="Your profile and account"><User size={20} /></Link> : (
           <button
@@ -388,8 +364,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         // Center vertically so the elevated + button (negative margin-top)
         // doesn't drag the other tabs upward via flex-end alignment.
         alignItems: "center",
-        // Reserve enough vertical space for the elevated + button to sit
-        // 12px above the bar without being clipped at the top.
+        // The center logging action rises above the dock without clipping.
         minHeight: 56,
         paddingBottom: "max(6px, env(safe-area-inset-bottom))",
         paddingTop: 4,
@@ -479,8 +454,25 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         ) : (
         <>
         <NavTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
-        <NavTab href="/cases" label="Cases" icon={ClipboardList} active={pathname.startsWith("/cases") || pathname === "/log"} />
         <NavTab href="/analytics" label="Progress" icon={BarChart2} active={["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path))} />
+        {/* Cases stays the center anchor, with a separate logging action above. */}
+        <div className="app-nav__case">
+          <button
+            type="button"
+            className="press-key app-nav__case-add"
+            aria-label="Log a case"
+            onClick={() => { fx.tap(); setQuickAddOpen(true); }}
+          >
+            <Plus size={25} color="#fff" strokeWidth={2.5} />
+          </button>
+          <Link
+            href="/cases"
+            className="app-nav__case-label"
+            aria-current={pathname.startsWith("/cases") || pathname === "/log" ? "page" : undefined}
+          >
+            Cases
+          </Link>
+        </div>
         <NavTab href="/notes" label="Notes" icon={NotebookPen} active={pathname.startsWith("/notes")} />
         <NavTab href={profile?.roleType === "PROGRAM_DIRECTOR" ? "/pd-dashboard" : "/programs"} label="Program" icon={GraduationCap} active={["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path))} />
 
@@ -489,7 +481,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       </nav>
 
       <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
-      <IOSInstallPrompt />
+      {!quickAddOpen && <IOSInstallPrompt />}
     </div>
   );
 }

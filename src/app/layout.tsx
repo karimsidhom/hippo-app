@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { getQuoteOfTheDay } from "@/lib/quotes/utils";
 import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import { HippoIntro } from "@/components/HippoIntro";
@@ -122,6 +123,12 @@ export default function RootLayout({
   // gradient apply on EVERY page — login, onboarding, splash, and clinic
   // routes alike. Other deployments leave the var unset and stay teal.
   const moduleScope = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic" ? "clinic" : undefined;
+  // Today's principle for the entry animation, picked here on the server so
+  // the quote library never ships to the browser. Long ones fall back to
+  // the app's line rather than crowd the card.
+  const todays = getQuoteOfTheDay();
+  const introText = todays.short_quote || todays.quote;
+  const introQuote = introText.length <= 150 ? { text: introText, author: todays.author } : null;
   return (
     <html lang="en" className={`light ${GeistSans.variable} ${GeistMono.variable}`} data-theme="light" suppressHydrationWarning data-module={moduleScope}>
       <head>
@@ -144,6 +151,7 @@ export default function RootLayout({
         <HippoIntro
           app={moduleScope === "clinic" ? "Clinic" : "Cases"}
           line={moduleScope === "clinic" ? "Clinical documentation" : "The case log for surgical residents"}
+          quote={introQuote}
         />
         <ThemeProvider>
           <AuthProvider>

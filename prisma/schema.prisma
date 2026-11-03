@@ -196,6 +196,7 @@ model User {
   sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
   acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
   createdProgramEvents  ProgramEvent[]
+  uploadedProgramDocuments ProgramDocument[] @relation("ProgramDocumentUploader")
   programJoinRequests    ProgramJoinRequest[] @relation("ProgramJoinRequests")
   programJoinInvitesSent ProgramJoinRequest[] @relation("ProgramJoinInvitesSent")
   programJoinDecisions   ProgramJoinRequest[] @relation("ProgramJoinDecisions")
@@ -971,6 +972,7 @@ model Program {
   members      ProgramMember[]
   invites      ProgramInvite[]
   events       ProgramEvent[]
+  documents    ProgramDocument[]
   rotations    Rotation[]
   ccReviews    CCReview[]
   formTemplates FormTemplate[]
@@ -982,6 +984,23 @@ model Program {
 
   @@index([createdById])
   @@map("programs")
+}
+
+model ProgramDocument {
+  id           String   @id @default(cuid())
+  programId    String
+  program      Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?    @relation("ProgramDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  title        String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([programId, createdAt])
+  @@map("program_documents")
 }
 
 model ProgramMember {

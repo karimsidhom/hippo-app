@@ -118,24 +118,54 @@
 .case-ledger .case-sheet__action { min-height: 48px; padding: 0 12px; font-size: var(--fs-12); }
 .case-sheet__notice { margin: 0; width: 100%; color: var(--text-2); font-size: var(--fs-12); }
 .ledger-error { padding: 12px 16px; margin: 0 0 16px; color: var(--text); background: var(--surface2); border: 1px solid var(--danger); border-radius: 8px; font-size: var(--fs-13); }
-.app-shell[data-workspace="cases"] .pp-sheet { border-radius: 16px; }
-.app-shell[data-workspace="cases"] .pp-sheet__head { padding: 22px 20px 16px; }
-.app-shell[data-workspace="cases"] .pp-sheet__title { font-family: var(--font-sans); font-size: 26px; font-weight: 600; letter-spacing: -.025em; line-height: 1.15; }
-.app-shell[data-workspace="cases"] .pp-section__label { font-size: var(--fs-11); font-weight: 600; letter-spacing: .06em; }
-.app-shell[data-workspace="cases"] .pp-chip { min-height: 44px; border-radius: 6px; }
-.app-shell[data-workspace="cases"] .pp-row { min-height: 62px; }
-.pp-field { position: relative; }
-.pp-field .pp-trigger[data-filled="true"] { padding-right: 52px; }
-.pp-field > .pp-trigger__clear { position: absolute; right: 3px; top: 50%; transform: translateY(-50%); width: 44px; height: 44px; border: 0; background: transparent; }
-.pp-search input { font-size: var(--fs-16); }
-.case-sheet:focus, .pp-sheet:focus { outline: none; }
+.case-sheet:focus { outline: none; }
 .case-log-flow h1 { font-family: var(--font-sans); font-size: 38px; font-weight: 600; letter-spacing: -.025em; line-height: 1.15; }
 .case-log-flow > :nth-child(3) { box-shadow: none; border-color: var(--border-mid); }
-/* Four clinical destinations share the phone dock evenly.
-   Each action keeps its own column after removing the community entries. */
-.app-shell[data-workspace="cases"] .app-nav { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); }
+/* Five destinations share the phone dock, with Cases as the raised anchor. */
+.app-shell[data-workspace="cases"] .app-nav { display: grid !important; grid-template-columns: repeat(5, minmax(0, 1fr)); overflow: visible; }
 .app-shell[data-workspace="cases"] .app-nav > a { min-width: 0 !important; padding-inline: 4px !important; }
 .app-shell[data-workspace="cases"] .app-nav > div { min-width: 0; }
+.app-shell[data-workspace="cases"] .app-nav__case { position: relative; height: 56px; }
+.app-shell[data-workspace="cases"] .app-nav__case-add {
+  position: absolute;
+  top: -24px;
+  left: 50%;
+  margin-left: -26px;
+  width: 52px;
+  height: 52px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid var(--bg);
+  border-radius: 16px;
+  background: linear-gradient(135deg, var(--primary-solid-hi), var(--primary-solid));
+  color: #fff;
+  box-shadow: 0 4px 16px color-mix(in srgb, var(--primary-solid) 28%, transparent);
+  cursor: pointer;
+}
+.app-shell[data-workspace="cases"] .app-nav__case-label {
+  position: absolute;
+  inset: 28px 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted);
+  text-decoration: none;
+  font: 600 var(--fs-11)/1.4 var(--font-sans);
+}
+.app-shell[data-workspace="cases"] .app-nav__case-label[aria-current="page"] { color: var(--text); }
+.app-shell[data-workspace="cases"] .app-nav__case-label[aria-current="page"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--primary);
+}
 @media (min-width: 1024px) { .app-shell[data-workspace="cases"] .app-nav { display: none !important; } }
 @media (hover: hover) and (pointer: fine) {
   .case-ledger .case-row:hover .case-row__duration, .case-ledger .case-row:focus-within .case-row__duration { visibility: hidden; }
@@ -177,9 +207,6 @@
 @media (min-width: 1024px) { .app-shell[data-workspace="cases"] { --app-header-h: 0px; } }
 
 .app-shell[data-workspace="cases"] .desk-sidebar > .press { min-height: 48px; font-size: var(--fs-14); }
-.app-shell[data-workspace="cases"] .app-nav button[aria-label="Log a case"] { width: 48px !important; height: 48px !important; }
-.app-shell[data-workspace="cases"] .pp-row__name { font-size: var(--fs-15); }
-.app-shell[data-workspace="cases"] .pp-trigger { min-height: 48px; }
 
 /* Dictation reads as a document; controls retain a separate, steady row. */
 .dictation-scrim { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--modal-scrim); backdrop-filter: blur(8px); }

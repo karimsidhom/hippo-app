@@ -1,5 +1,6 @@
 'use client';
 
+import { HIPPO_INTRO_EVENT } from '@/components/HippoIntro';
 import { stripHonorific } from '@/lib/names';
 import React, {
   createContext, useContext, useState,
@@ -329,6 +330,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // Ensure DB user row exists (idempotent)
       await fetch('/api/auth/sync', { method: 'POST' }).catch(() => {});
+
+      // Replay the hippo intro over the route change into the app; it lives
+      // in the root layout, so it plays through while the dashboard loads.
+      window.dispatchEvent(new Event(HIPPO_INTRO_EVENT));
 
       // Redirect based on onboarding status
       const meRes = await fetch('/api/auth/me');
