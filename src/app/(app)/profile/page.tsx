@@ -330,7 +330,7 @@ export default function ProfilePage() {
   const maxCount = topProcedures[0]?.[1] ?? 1;
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       {/* Profile Header */}
       <ProfileHeader
         profile={profileData}

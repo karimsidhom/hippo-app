@@ -143,7 +143,7 @@ export default function AnalyticsPage() {
   }, [cohortData]);
 
   return (
-    <div className="analytics-workspace" style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div className="analytics-workspace" style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       <ProgressNav active="analytics" />
       {/* Header */}
       <header className="analytics-heading">

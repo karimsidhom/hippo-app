@@ -298,7 +298,7 @@ export default function DashboardPage() {
     : "";
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
 
       {/* ══════════════════════════════════════════════════════════════════
           SHARED CORE — all roles see everything above the divider

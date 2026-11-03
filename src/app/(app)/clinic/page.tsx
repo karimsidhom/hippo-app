@@ -87,7 +87,7 @@ export default async function ClinicDashboardPage() {
   const greeting = hour < 5 ? "Up late" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div style={{ paddingTop: 6, animation: "fadeIn .35s ease forwards" }}>
+    <div style={{ paddingTop: 6, animation: "fadeIn .35s ease backwards" }}>
       {/* Greeting */}
       <div style={{ marginBottom: 18 }}>
         <div className="section-title">Hippo Clinic</div>

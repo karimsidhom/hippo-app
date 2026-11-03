@@ -25,8 +25,6 @@
   --glass: #9bcdf508;
   --glass-mid: #9bcdf510;
   --glass-hi: #9bcdf518;
-  --hippo-mark-stop-1: #9bcdf5;
-  --hippo-mark-stop-2: #68a6d8;
   --r: 8px;
 }
 [data-theme="light"] .app-shell[data-workspace="cases"] {
@@ -50,8 +48,6 @@
   --glass: #225f9906;
   --glass-mid: #225f990d;
   --glass-hi: #225f9916;
-  --hippo-mark-stop-1: #3c7eb5;
-  --hippo-mark-stop-2: #225f99;
 }
 .app-shell[data-workspace="cases"] :where(button, a, input, select, textarea):focus-visible {
   outline: 2px solid var(--primary-hi);

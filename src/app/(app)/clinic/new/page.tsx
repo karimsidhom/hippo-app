@@ -138,7 +138,7 @@ function NewClinicNoteInner() {
   }
 
   return (
-    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease forwards" }}>
+    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards" }}>
       <div style={{ marginBottom: 18 }}>
         <div className="section-title">New encounter</div>
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.3px" }}>

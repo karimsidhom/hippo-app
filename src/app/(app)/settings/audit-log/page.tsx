@@ -69,7 +69,7 @@ export default function AuditLogPage() {
     : logs;
 
   return (
-    <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 20px", animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ maxWidth: 800, margin: "0 auto", padding: "24px 20px", animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       <Link
         href="/settings"
         style={{

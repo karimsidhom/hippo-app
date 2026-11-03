@@ -157,7 +157,7 @@ export default function FormBuilderPage() {
   }
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       <Link
         href="/forms"
         style={{

@@ -109,7 +109,7 @@ function ContourRings({ animate }: { animate: boolean }) {
         fill="url(#splash-glow)"
         style={animate ? {
           opacity: 0,
-          animation: `oe-fadeIn 1.4s ease-out 0.1s forwards`,
+          animation: `oe-fadeIn 1.4s ease-out 0.1s backwards`,
         } : {}}
       />
 
@@ -200,10 +200,9 @@ export default function LoginPage() {
 
   const [splashPhase, setSplashPhase] = useState<SplashPhase>("done");
 
-  useEffect(() => {
-    if (reducedMotion) return;
-    if (firstVisit) setSplashPhase("splash");
-  }, [firstVisit, reducedMotion]);
+  // The sign-in page no longer runs its own first-visit splash: the suite
+  // entry animation (HippoIntro, mounted in the root layout) plays once per
+  // session on whichever page someone lands on, so this one would double it.
 
   useEffect(() => {
     if (splashPhase === "splash") {

@@ -87,7 +87,7 @@ export default function InboxPage() {
   return (
     <>
       {!isStaff && (
-        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
           <Inbox size={20} style={{ color: "var(--text)" }} />
           <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Inbox</h1>
         </div>
@@ -223,7 +223,7 @@ function SignOffInbox() {
   }
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <Inbox size={20} style={{ color: "var(--text)" }} />
         <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Sign-Offs</h1>

@@ -44,7 +44,8 @@ type ProgramRole =
   | "FACULTY"
   | "COORDINATOR"
   | "DEPT_HEAD"
-  | "MEMBER";
+  | "MEMBER"
+  | "RESIDENT";
 
 const ROLE_LABELS: Record<ProgramRole, string> = {
   OWNER:       "Owner / PD",
@@ -55,11 +56,16 @@ const ROLE_LABELS: Record<ProgramRole, string> = {
   COORDINATOR: "Coordinator (no PHI)",
   DEPT_HEAD:   "Department head",
   MEMBER:      "Member",
+  RESIDENT:    "Resident",
 };
 
 const PD_LIKE_ROLES: ProgramRole[] = ["OWNER", "PD"];
 const isPdLike = (r: ProgramRole) => PD_LIKE_ROLES.includes(r);
+// Resident first: the role menu shows the member's current role, and with
+// no Resident option a resident's row read "Program Director", one stray
+// tap from a promotion.
 const ROLE_OPTIONS: ProgramRole[] = [
+  "RESIDENT",
   "PD",
   "CHAIR",
   "CC_MEMBER",
@@ -129,7 +135,7 @@ export default function ProgramsPage() {
   }, [load]);
 
   return (
-    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) forwards" }}>
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       {/* Header */}
       <div style={{ marginBottom: 28 }}>
         <div
@@ -1073,20 +1079,26 @@ function ProgramDetailSheet({
                         flexWrap: "wrap",
                       }}
                     >
-                      <span>
-                        {m.roleType?.replace(/_/g, " ").toLowerCase() ?? "member"}
-                      </span>
-                      {m.trainingYearLabel && (
-                        <>
-                          <span style={{ color: "var(--text-3)" }}>·</span>
-                          <span>{m.trainingYearLabel}</span>
-                        </>
-                      )}
-                      {/* Granular program role label */}
-                      <span style={{ color: "var(--text-3)" }}>·</span>
-                      <span style={{ color: isPdLike(m.role) ? "var(--primary)" : "var(--text-3)" }}>
-                        {ROLE_LABELS[m.role]}
-                      </span>
+                      {(() => {
+                        // A training year belongs to trainees only; a program
+                        // director's stale PGY from sign-up must not show.
+                        const trainee = m.roleType === "RESIDENT" || m.roleType === "FELLOW";
+                        const kind = m.roleType
+                          ? m.roleType.replace(/_/g, " ").toLowerCase().replace(/^\w/, (c) => c.toUpperCase())
+                          : "Member";
+                        const programRole = ROLE_LABELS[m.role];
+                        const parts = [
+                          kind,
+                          trainee ? m.trainingYearLabel : null,
+                          programRole && programRole.toLowerCase() !== kind.toLowerCase() ? programRole : null,
+                        ].filter(Boolean) as string[];
+                        return parts.map((part, i) => (
+                          <span key={part} style={{ display: "inline-flex", gap: 4 }}>
+                            {i > 0 && <span style={{ color: "var(--text-3)" }}>·</span>}
+                            <span style={{ color: i === parts.length - 1 && isPdLike(m.role) && part === programRole ? "var(--primary)" : "var(--text-3)" }}>{part}</span>
+                          </span>
+                        ));
+                      })()}
                     </div>
                   </div>
                   {/* PD-only role dropdown — change a member's permissions */}
