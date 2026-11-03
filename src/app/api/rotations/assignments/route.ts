@@ -5,7 +5,7 @@ import { reattributeAssignments } from "@/lib/rotations";
 
 // ---------------------------------------------------------------------------
 // /api/rotations/assignments
-//   POST   — assign yourself (or, for OWNER program members, another
+//   POST   — assign yourself (or, for the program's director, another
 //            resident) to a rotation across a date range.
 //   DELETE — remove an assignment.
 //
@@ -55,11 +55,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Rotation not found" }, { status: 404 });
     }
     const member = await db.programMember.findFirst({
-      where: { programId: rotation.programId, userId: user.id, role: "OWNER" },
+      where: { programId: rotation.programId, userId: user.id, role: { in: ["OWNER", "PD"] } },
     });
     if (!member) {
       return NextResponse.json(
-        { error: "Only program owners can assign other residents." },
+        { error: "Only the program director can assign other residents." },
         { status: 403 },
       );
     }
@@ -123,12 +123,12 @@ export async function DELETE(req: NextRequest) {
       where: {
         programId: assignment.rotation.programId,
         userId: user.id,
-        role: "OWNER",
+        role: { in: ["OWNER", "PD"] },
       },
     });
     if (!member) {
       return NextResponse.json(
-        { error: "Only the assigned resident or a program owner can delete this." },
+        { error: "Only the assigned resident or the program director can delete this." },
         { status: 403 },
       );
     }

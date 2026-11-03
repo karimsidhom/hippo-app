@@ -1,15 +1,17 @@
 "use client";
 
 // ---------------------------------------------------------------------------
-// /cc-reviews — Competence Committee dashboard (program owners only).
+// /cc-reviews — Competence Committee dashboard (program staff).
 //
-// Lists every CC review in the program with newest first. Owners can open
+// Lists every CC review in the program with newest first. Staff can open
 // a review to land on the per-resident scrubbing page, or open a new
-// review for a resident at an upcoming meeting date.
+// review for a resident at an upcoming meeting date. Finalising stays
+// with the director or chair (enforced by the API).
 // ---------------------------------------------------------------------------
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { isProgramStaff } from "@/components/programs/types";
 import { useRouter } from "next/navigation";
 import {
   Gavel,
@@ -23,7 +25,7 @@ import {
 interface Program {
   id: string;
   name: string;
-  myRole: "OWNER" | "MEMBER";
+  myRole: string;
 }
 interface ProgramDetailMember {
   user: { id: string; name: string | null; email: string };
@@ -91,7 +93,7 @@ export default function CCReviewsPage() {
   const [formMeetingDate, setFormMeetingDate] = useState("");
   const [formCycleLabel, setFormCycleLabel] = useState("");
 
-  // Bootstrap — pull programs the user owns + the most recent reviews.
+  // Bootstrap — pull programs the user is on staff for + the most recent reviews.
   useEffect(() => {
     (async () => {
       try {
@@ -99,7 +101,7 @@ export default function CCReviewsPage() {
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const json = await res.json();
         const owned = (json.programs ?? []).filter(
-          (p: Program) => p.myRole === "OWNER",
+          (p: Program) => isProgramStaff(p.myRole),
         );
         setPrograms(owned);
         if (owned[0]) setActiveProgramId(owned[0].id);
@@ -194,8 +196,9 @@ export default function CCReviewsPage() {
           Competence Committee
         </h1>
         <p style={{ fontSize: 13, lineHeight: 1.6 }}>
-          You aren't an owner of a Hippo program yet. CC reviews are
-          available to program owners. Set up your program from{" "}
+          You aren't on a Hippo program's staff yet. CC reviews are
+          open to the program director and staff. Ask your director to
+          add you, or set up your program from{" "}
           <Link href="/programs" style={{ color: "var(--primary)" }}>
             /programs
           </Link>{" "}

@@ -14,6 +14,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
+import { isProgramStaff } from "@/components/programs/types";
 import {
   ArrowLeft,
   Download,
@@ -57,7 +58,7 @@ export default function ReportsHubPage() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const json = await res.json();
       const owned = (json.programs ?? []).filter(
-        (p: OwnedProgram) => p.myRole === "OWNER" || p.myRole === "PD",
+        (p: OwnedProgram) => isProgramStaff(p.myRole),
       );
       setPrograms(owned);
       if (owned[0]) setActiveProgramId(owned[0].id);
@@ -116,8 +117,9 @@ export default function ReportsHubPage() {
           Accreditation reports
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-2)", lineHeight: 1.6 }}>
-          You aren&rsquo;t a program owner yet. Reports are restricted to
-          OWNER / PD roles since they contain cohort-level data. Set up
+          You aren&rsquo;t on a program&rsquo;s staff yet. Reports are open
+          to the program director and staff, since they contain
+          cohort-level data. Ask your director to add you, or set up
           a program from{" "}
           <Link href="/programs" style={{ color: "var(--primary)" }}>
             /programs

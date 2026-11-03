@@ -180,7 +180,6 @@ export default function DashboardPage() {
   const now = new Date();
 
   const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
-  const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
   const isResident = !isStaff;
 
   // Pre-Op Brief sheet
@@ -974,11 +973,10 @@ export default function DashboardPage() {
         )}
       </div>
       <div className="dash-b" style={{ order: 11 }}>
-        {/* ── PD only: big, obvious PD Dashboard CTA ─────────────────────
-            Intentionally gated to PROGRAM_DIRECTOR. Attendings (ATTENDING/
-            STAFF) don't see this — they don't manage the cohort, just
-            review their residents' sign-offs via the inbox above. */}
-        {isPD && (
+        {/* ── Staff: big, obvious PD Dashboard CTA ───────────────────────
+            Every staff profile, not only Program Director: staff and
+            directors have full access to their program (2026-11-03). */}
+        {isStaff && (
           <section style={{ marginBottom: 28 }}>
             <Link
               href="/pd-dashboard"

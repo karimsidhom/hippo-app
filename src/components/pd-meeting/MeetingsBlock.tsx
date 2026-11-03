@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { isProgramStaff } from '@/components/programs/types';
 
 interface MeetingRow {
   id: string;
@@ -61,7 +62,7 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
       if (!res.ok) return;
       const d = await res.json();
       const mine = (d.programs ?? []).filter(
-        (p: { myRole?: string }) => p.myRole === 'OWNER' || p.myRole === 'PD',
+        (p: { myRole?: string }) => isProgramStaff(p.myRole),
       );
       setMyPrograms(mine.map((p: { id: string; name: string }) => ({ id: p.id, name: p.name })));
     } catch {

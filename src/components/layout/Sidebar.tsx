@@ -141,8 +141,9 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
           </Link>
         )}
 
-        {/* PD Dashboard link — only for Program Directors */}
-        {profile?.roleType === "PROGRAM_DIRECTOR" && (
+        {/* PD Dashboard link — every staff profile; what each one sees is
+            decided by program membership on the server */}
+        {isAssessor && (
           <Link
             href="/pd-dashboard"
             className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 group ${

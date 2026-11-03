@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requireAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
-import { getDirectedResidents } from '@/lib/program-auth';
+import { getDirectedResidents, STAFF_PROFILE_ROLES } from '@/lib/program-auth';
 import { programSlope, residentSlope, MIN_RESIDENTS_TO_REPORT } from '@/lib/autonomy-slope';
 import type { CaseLog } from '@/lib/types';
 
@@ -20,8 +20,8 @@ export async function GET() {
   if (error) return error;
 
   const pd = await db.profile.findUnique({ where: { userId: user.id } });
-  if (!pd || pd.roleType !== 'PROGRAM_DIRECTOR') {
-    return NextResponse.json({ error: 'Program Director role required.' }, { status: 403 });
+  if (!pd || !STAFF_PROFILE_ROLES.includes(pd.roleType ?? '')) {
+    return NextResponse.json({ error: 'Staff role required.' }, { status: 403 });
   }
   // Scoped to the residents the caller actually directs. This used to be a
   // plain institution string match, so the slope table leaked per-resident

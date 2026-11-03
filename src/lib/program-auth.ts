@@ -1,22 +1,25 @@
 // ---------------------------------------------------------------------------
 // Program authorization helpers
 //
-// CBD programmes have multiple roles with very different blast radii:
+// CBD programmes have multiple roles. Staff and program directors have
+// full access to their program (Karim's call, 2026-11-03): every staff
+// role below reads everything the director reads, including every
+// resident and the 1:1 meeting records. Two acts stay with the director's
+// seat, because they change the program rather than read it: managing the
+// roster and roles, and finalising a CC decision (which the chair shares).
 //
-//   PD / OWNER     — full read+write, finalises CC reviews, manages
-//                    roster + invites
-//   CHAIR          — read-only program-wide; can finalise CC reviews
-//   CC_MEMBER      — read-only program-wide; writes notes + decisions
-//                    on CC reviews they're invited to
-//   FACULTY        — sees ONLY the residents they have an active
-//                    FacultyAssignment to. Standard EPA sign-off.
-//   COORDINATOR    — manages invites + scheduling; never sees PHI
-//   DEPT_HEAD      — read across programmes they belong to (rolled up)
+//   PD / OWNER     — full access; manages roster + invites; finalises CC
+//   CHAIR          — full access; finalises CC reviews
+//   CC_MEMBER      — full access; writes notes + decisions on CC reviews
+//   FACULTY        — full access. Standard EPA sign-off.
+//   DEPT_HEAD      — full access across programmes they belong to
+//   COORDINATOR    — manages invites + scheduling; sees the roster, never
+//                    case content or 1:1 records
 //
 // Legacy values:
 //   OWNER  — kept as the PD-equivalent.
-//   MEMBER — pre-Stage-2 vanilla member; treated as FACULTY by the
-//            access predicates below until the institution upgrades it.
+//   MEMBER — what an accepted invite creates, residents included, until a
+//            director assigns a role. Sees only residents assigned to it.
 // ---------------------------------------------------------------------------
 import type { ProgramMemberRole } from '@prisma/client';
 import { db } from './db';
@@ -45,23 +48,30 @@ export async function getMembership(userId: string, programId: string) {
 // Map each new role to its capabilities here.
 
 const PD_LIKE: ProgramMemberRole[] = ['OWNER', 'PD'];
+// Every role a director gives a staff physician. MEMBER is not one: it is
+// what an invite creates before anyone has decided who the person is.
+const STAFF: ProgramMemberRole[] = ['OWNER', 'PD', 'CHAIR', 'CC_MEMBER', 'FACULTY', 'DEPT_HEAD'];
 const READ_ALL: ProgramMemberRole[] = [
-  'OWNER',
-  'PD',
-  'CHAIR',
-  'CC_MEMBER',
-  'DEPT_HEAD',
+  ...STAFF,
   'COORDINATOR', // sees the roster, just not the PHI
 ];
 const FINALISES_CC: ProgramMemberRole[] = ['OWNER', 'PD', 'CHAIR'];
 const PHI_BLIND: ProgramMemberRole[] = ['COORDINATOR'];
-// PD 1:1 meeting records are a private conversation between the director
-// and one resident, so they get a bucket of their own. Deliberately
-// narrower than READ_ALL: a CC member or coordinator holding roster
-// access must NOT thereby see someone's 1:1 record. Keep this list at
-// two entries unless a programme explicitly asks otherwise.
-const READS_PD_MEETINGS: ProgramMemberRole[] = ['OWNER', 'PD'];
+// PD 1:1 meeting records were the director's alone until Karim opened
+// them to all staff (2026-11-03). The coordinator holds roster access but
+// still never sees a 1:1 record.
+const READS_PD_MEETINGS: ProgramMemberRole[] = STAFF;
 
+/** For Prisma `role: { in: PROGRAM_STAFF_ROLES }` filters. */
+export const PROGRAM_STAFF_ROLES: readonly ProgramMemberRole[] = STAFF;
+
+/** Profile roles that may open the staff surfaces at all. What they then
+ *  see is decided by program membership, never by this self-chosen role. */
+export const STAFF_PROFILE_ROLES: readonly string[] = ['PROGRAM_DIRECTOR', 'ATTENDING', 'STAFF'];
+
+export function roleIsProgramStaff(role: ProgramMemberRole): boolean {
+  return STAFF.includes(role);
+}
 export function roleCanManageProgram(role: ProgramMemberRole): boolean {
   return PD_LIKE.includes(role);
 }
@@ -91,6 +101,18 @@ export async function isProgramOwner(
 }
 
 /**
+ * True if the user holds a staff role on the program: full read access,
+ * reports and 1:1 records included.
+ */
+export async function isProgramStaff(
+  userId: string,
+  programId: string,
+): Promise<boolean> {
+  const m = await getMembership(userId, programId);
+  return m ? roleIsProgramStaff(m.role) : false;
+}
+
+/**
  * True if the user is any member (any role).
  */
 export async function isProgramMember(
@@ -111,10 +133,10 @@ export async function isProgramDirector(userId: string): Promise<boolean> {
   return profile?.roleType === 'PROGRAM_DIRECTOR';
 }
 
-// ─── Resident-roster scoping for FACULTY-role members ──────────────────
-// FACULTY (or legacy MEMBER) only sees residents they have an active
-// FacultyAssignment to. Returns the userIds of every resident the
-// caller is allowed to see in this program.
+// ─── Resident-roster scoping ───────────────────────────────────────────
+// Staff and the coordinator see the whole program. A MEMBER with no role
+// assigned yet only sees residents it has an active FacultyAssignment to.
+// Returns the userIds of every resident the caller is allowed to see.
 
 export interface ResidentRosterScope {
   /** The list of resident userIds the caller is allowed to see. */
@@ -127,9 +149,8 @@ export interface ResidentRosterScope {
 
 /**
  * Compute the resident roster a given user is allowed to see in a
- * given program. PD / CHAIR / CC_MEMBER / DEPT_HEAD / COORDINATOR see
- * everyone; FACULTY (and legacy MEMBER until upgraded) see only their
- * directly-assigned residents.
+ * given program. Staff roles and the coordinator see everyone; a MEMBER
+ * with no role yet sees only its directly-assigned residents.
  */
 export async function getResidentRosterScope(
   userId: string,
@@ -147,7 +168,7 @@ export async function getResidentRosterScope(
     };
   }
 
-  // FACULTY scope — only residents this faculty has an assignment to.
+  // MEMBER scope: only residents this member has an assignment to.
   const now = new Date();
   const assignments = await db.facultyAssignment.findMany({
     where: {
@@ -198,10 +219,10 @@ export interface DirectedRoster {
 
 /**
  * The set of users a staff member is allowed to see, derived purely from
- * program membership. PD / CHAIR / CC_MEMBER / DEPT_HEAD / COORDINATOR get
- * everyone in those programs; FACULTY (and legacy MEMBER) get only their
- * actively-assigned residents. Belonging to no program returns an empty
- * set — never an institution-wide fallback.
+ * program membership. Staff roles and the coordinator get everyone in
+ * those programs; a MEMBER with no role yet gets only its actively-assigned
+ * residents. Belonging to no program returns an empty set, never an
+ * institution-wide fallback.
  */
 export async function getDirectedResidents(
   userId: string,
@@ -232,7 +253,7 @@ export async function getDirectedResidents(
     for (const r of rows) ids.add(r.userId);
   }
 
-  // FACULTY / legacy MEMBER: only their active assignments.
+  // MEMBER with no role yet: only its active assignments.
   const boundedMemberIds = memberships
     .filter((m) => !roleCanReadAllResidents(m.role))
     .map((m) => m.id);

@@ -13,9 +13,8 @@ export interface ProgramListItem {
 }
 
 // Granular program roles (Stage-2 entrada-takeover sprint).
-// OWNER and MEMBER stay valid for backward compatibility — OWNER acts
-// as the PD-equivalent and MEMBER as FACULTY-equivalent until the
-// institution upgrades the row.
+// OWNER stays valid as the PD-equivalent. MEMBER is what an accepted
+// invite creates until a director assigns a role.
 export type ProgramRole =
   | "OWNER"
   | "PD"
@@ -41,6 +40,11 @@ export const ROLE_LABELS: Record<ProgramRole, string> = {
 
 const PD_LIKE_ROLES: ProgramRole[] = ["OWNER", "PD"];
 export const isPdLike = (r: ProgramRole) => PD_LIKE_ROLES.includes(r);
+// Staff and directors have full access to their program. Mirrors
+// roleIsProgramStaff in lib/program-auth.ts, which the server enforces.
+const STAFF_ROLES: ProgramRole[] = ["OWNER", "PD", "CHAIR", "CC_MEMBER", "FACULTY", "DEPT_HEAD"];
+export const isProgramStaff = (r: ProgramRole | string | null | undefined) =>
+  STAFF_ROLES.includes(r as ProgramRole);
 // Resident first: the role menu shows the member's current role, and with
 // no Resident option a resident's row read "Program Director", one stray
 // tap from a promotion.

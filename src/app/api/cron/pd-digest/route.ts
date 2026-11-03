@@ -7,7 +7,7 @@ import { buildDigestEmail } from '@/lib/email/digest-shell';
 // ---------------------------------------------------------------------------
 // /api/cron/pd-digest
 //
-// Weekly email to every program OWNER (Program Director). Surfaces the
+// Weekly email to every program director (OWNER or PD role). Surfaces the
 // two action signals that drive PD work:
 //   1. Residents who have been silent ≥ 14 d (no logged case).
 //   2. EPAs in CC review backlog (PENDING_REVIEW for the cohort).
@@ -35,9 +35,9 @@ export async function POST(req: NextRequest) {
   let errored = 0;
 
   try {
-    // Find all OWNER memberships across every program.
+    // Every director seat across every program, legacy OWNER and PD alike.
     const owners = await db.programMember.findMany({
-      where: { role: 'OWNER' },
+      where: { role: { in: ['OWNER', 'PD'] } },
       include: {
         user: { select: { id: true, email: true, name: true } },
         program: { select: { id: true, name: true } },
