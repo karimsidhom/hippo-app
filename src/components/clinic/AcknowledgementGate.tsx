@@ -119,7 +119,7 @@ export function AcknowledgementGate() {
         }}
       >
         <div className="section-title">Hippo Clinic</div>
-        <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--text)", margin: "4px 0 16px", letterSpacing: "-0.3px" }}>
+        <h2 style={{ fontSize: 18, fontWeight: 600, color: "var(--text)", margin: "4px 0 16px", letterSpacing: "-0.3px" }}>
           Before you start using the AI scribe
         </h2>
         <pre

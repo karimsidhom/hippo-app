@@ -26,8 +26,8 @@ export function PearlCard({ pearl, onLike, onSave }: Props) {
             background: "var(--primary-dim)",
             border: "1px solid var(--border)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 10, fontWeight: 700, color: "var(--primary)",
-            fontFamily: "'Geist', sans-serif",
+            fontSize: 10, fontWeight: 600, color: "var(--primary)",
+            fontFamily: "var(--font-sans)",
           }}>
             {pearl.author.name?.charAt(0)?.toUpperCase() || "?"}
           </div>
@@ -96,13 +96,13 @@ export function PearlCard({ pearl, onLike, onSave }: Props) {
           style={{
             background: "none", border: "none", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 4,
-            padding: 0, fontFamily: "'Geist', sans-serif",
+            padding: 0, fontFamily: "var(--font-sans)",
             color: pearl.liked ? "#EF4444" : "var(--text-3)",
             transition: "color .15s",
           }}
         >
           <Heart size={14} fill={pearl.liked ? "#EF4444" : "none"} />
-          <span style={{ fontSize: 11, fontFamily: "'Geist Mono', monospace" }}>
+          <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
             {pearl.likeCount}
           </span>
         </button>
@@ -111,13 +111,13 @@ export function PearlCard({ pearl, onLike, onSave }: Props) {
           style={{
             background: "none", border: "none", cursor: "pointer",
             display: "flex", alignItems: "center", gap: 4,
-            padding: 0, fontFamily: "'Geist', sans-serif",
+            padding: 0, fontFamily: "var(--font-sans)",
             color: pearl.saved ? "var(--primary)" : "var(--text-3)",
             transition: "color .15s",
           }}
         >
           <Bookmark size={14} fill={pearl.saved ? "var(--primary)" : "none"} />
-          <span style={{ fontSize: 11, fontFamily: "'Geist Mono', monospace" }}>
+          <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
             {pearl.saveCount}
           </span>
         </button>

@@ -165,7 +165,7 @@ export default function WelcomePage() {
             <span
               style={{
                 fontSize: 36,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "#E2E8F0",
                 letterSpacing: "-0.8px",
               }}

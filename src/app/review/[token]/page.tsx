@@ -161,7 +161,7 @@ export default function ReviewPage() {
       minHeight: "100vh",
       background: "#0e1520",
       color: "#e2e8f0",
-      fontFamily: "'Geist', -apple-system, BlinkMacSystemFont, sans-serif",
+      fontFamily: "var(--font-sans)",
     }}>
       <div style={{
         maxWidth: 600,
@@ -178,7 +178,7 @@ export default function ReviewPage() {
           paddingTop: 12,
         }}>
           <HippoMark size={24} />
-          <span style={{ fontSize: 18, fontWeight: 700, letterSpacing: "-0.4px" }}>Hippo</span>
+          <span style={{ fontSize: 18, fontWeight: 600, letterSpacing: "-0.4px" }}>Hippo</span>
           <span style={{ fontSize: 12, color: "var(--text-2)", marginLeft: 4 }}>EPA Review</span>
         </div>
 
@@ -231,7 +231,7 @@ export default function ReviewPage() {
                 }}>
                   <Check size={24} style={{ color: "#10b981" }} />
                 </div>
-                <p style={{ fontSize: 18, fontWeight: 700, color: "#10b981" }}>Signed Off</p>
+                <p style={{ fontSize: 18, fontWeight: 600, color: "#10b981" }}>Signed Off</p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 8 }}>
                   Thank you for reviewing this EPA observation. The resident has been notified.
                 </p>
@@ -246,7 +246,7 @@ export default function ReviewPage() {
                 }}>
                   <RotateCcw size={24} style={{ color: "#f59e0b" }} />
                 </div>
-                <p style={{ fontSize: 18, fontWeight: 700, color: "#f59e0b" }}>Returned for Revision</p>
+                <p style={{ fontSize: 18, fontWeight: 600, color: "#f59e0b" }}>Returned for Revision</p>
                 <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 8 }}>
                   The resident will revise and resubmit this observation.
                 </p>
@@ -286,10 +286,10 @@ export default function ReviewPage() {
             }}>
               <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
                 <span style={{
-                  fontSize: 11, fontWeight: 700, color: "#0ea5e9",
+                  fontSize: 11, fontWeight: 600, color: "#0ea5e9",
                   background: "rgba(14,165,233,0.12)",
                   padding: "3px 8px", borderRadius: 4,
-                  fontFamily: "'Geist Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                 }}>
                   {observation.epaId}
                 </span>
@@ -350,7 +350,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
                   Resident&apos;s Entrustment Self-Assessment
                 </div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -387,7 +387,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
                   Resident&apos;s Notes
                 </div>
                 {observation.observationNotes && (
@@ -420,7 +420,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "var(--text-2)", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
                   CanMEDS Milestone Ratings
                 </div>
                 {observation.canmedsRatings.map((r) => (
@@ -433,7 +433,7 @@ export default function ReviewPage() {
                     <span style={{
                       fontSize: 12, fontWeight: 600,
                       color: r.rating ? "#e2e8f0" : "#475569",
-                      fontFamily: "'Geist Mono', monospace",
+                      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                     }}>
                       {r.rating ?? "—"}
                     </span>
@@ -453,7 +453,7 @@ export default function ReviewPage() {
                 padding: 16,
                 marginBottom: 16,
               }}>
-                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 10 }}>
+                <div style={{ fontSize: 11, fontWeight: 600, color: "#64748b", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
                   OPRS Item Ratings
                 </div>
                 {observation.criteriaRatings.map((r) => (
@@ -466,7 +466,7 @@ export default function ReviewPage() {
                       <span style={{
                         fontSize: 12, fontWeight: 600,
                         color: r.entrustmentRating ? "#e2e8f0" : "#475569",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                       }}>
                         {r.entrustmentRating ?? "—"}
                       </span>
@@ -512,7 +512,7 @@ export default function ReviewPage() {
               padding: 20,
               marginBottom: 16,
             }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: "#e2e8f0", marginBottom: 16 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "#e2e8f0", marginBottom: 16 }}>
                 Your Assessment
               </div>
 
@@ -534,12 +534,12 @@ export default function ReviewPage() {
                           padding: "8px 4px",
                           borderRadius: 6,
                           fontSize: 16,
-                          fontWeight: 700,
+                          fontWeight: 600,
                           border: `1px solid ${isSelected ? `${e.color}60` : "rgba(255,255,255,0.08)"}`,
                           background: isSelected ? `${e.color}18` : "transparent",
                           color: isSelected ? e.color : "#475569",
                           cursor: "pointer",
-                          fontFamily: "'Geist Mono', monospace",
+                          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                           transition: "all .15s",
                         }}
                       >

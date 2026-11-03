@@ -54,12 +54,13 @@ export function StatsStrip({ totalCases, streak, avgORMinutes, independentRate }
           textAlign: "center",
         }}>
           <div style={{
-            fontSize: 20, fontWeight: 700, color: "var(--text)",
-            fontFamily: "'Geist Mono', monospace", letterSpacing: "-0.5px",
+            fontSize: 20, fontWeight: 600, color: "var(--text)",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', letterSpacing: "-0.5px",
           }}>{s.value}</div>
           <div style={{
-            fontSize: 9, color: "var(--text-3)", marginTop: 3,
-            textTransform: "uppercase", letterSpacing: ".7px",
+            fontSize: 11, color: "var(--text-3)", marginTop: 3,
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            fontWeight: 600,
           }}>{s.label}</div>
         </div>
       ))}

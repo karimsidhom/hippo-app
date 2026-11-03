@@ -70,7 +70,7 @@ export function EndorsementRibbon({ pearlId, initialCount, initialMine, viewerRo
       {count > 0 && (
         <div style={{ display: "flex", alignItems: "center", gap: 6, color: GOLD, flex: 1, minWidth: 0 }}>
           <BadgeCheck size={14} fill={GOLD} color="#1a1a1a" strokeWidth={2.5} />
-          <span style={{ fontWeight: 700, letterSpacing: ".1px" }}>
+          <span style={{ fontWeight: 600, letterSpacing: ".1px" }}>
             Co-signed by {count} attending{count === 1 ? "" : "s"}
           </span>
         </div>
@@ -88,8 +88,8 @@ export function EndorsementRibbon({ pearlId, initialCount, initialMine, viewerRo
             border: `1px solid ${GOLD}`,
             borderRadius: 999,
             cursor: busy ? "wait" : "pointer",
-            fontSize: 11, fontWeight: 700,
-            fontFamily: "'Geist', sans-serif",
+            fontSize: 11, fontWeight: 600,
+            fontFamily: "var(--font-sans)",
             transition: "background .12s",
           }}
         >

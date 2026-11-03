@@ -42,7 +42,7 @@ export function PatientHeader({ initial }: { initial: PatientShape }) {
       <div className="section-title">Patient</div>
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 8 }}>
         <div>
-          <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: "2px 0", letterSpacing: "-0.4px" }}>
+          <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text)", margin: "2px 0", letterSpacing: "-0.4px" }}>
             {patient.preferredName || patient.givenName} {patient.familyName}
           </h1>
           <div style={{ fontSize: 12, color: "var(--text-2)", marginBottom: 8 }}>

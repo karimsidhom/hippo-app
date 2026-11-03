@@ -89,7 +89,7 @@ export default function InboxPage() {
       {!isStaff && (
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
           <Inbox size={20} style={{ color: "var(--text)" }} />
-          <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Inbox</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>Inbox</h1>
         </div>
       )}
       <HandoffInbox showEmpty={!isStaff} />
@@ -226,7 +226,7 @@ function SignOffInbox() {
     <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
         <Inbox size={20} style={{ color: "var(--text)" }} />
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Sign-Offs</h1>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>Sign-Offs</h1>
         {pending.length > 0 && (
           <span style={{
             fontSize: 11, fontWeight: 600, padding: "2px 8px",
@@ -301,8 +301,8 @@ function SignOffInbox() {
                 marginBottom: 12,
               }}>
                 <div style={{
-                  fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                  letterSpacing: "1px", color: "var(--text-3)",
+                  fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+                  letterSpacing: "0.06em", color: "var(--text-3)",
                 }}>
                   Pending ({pending.length})
                 </div>
@@ -487,8 +487,8 @@ function SignOffInbox() {
           {recent.length > 0 && (
             <section>
               <div style={{
-                fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-                letterSpacing: "1px", color: "var(--text-3)", marginBottom: 12,
+                fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+                letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 12,
               }}>
                 Recently signed
               </div>
@@ -653,9 +653,9 @@ function ObservationCard({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <span style={{
-              fontSize: 10, fontWeight: 700, padding: "1px 6px", borderRadius: 3,
+              fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 3,
               background: "rgba(14,165,233,.12)", color: "#0ea5e9",
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}>
               {obs.epaId}
             </span>
@@ -674,7 +674,7 @@ function ObservationCard({
         {obs.entrustmentScore && (
           <div style={{
             fontSize: 11, color: "var(--text-3)",
-            fontFamily: "'Geist Mono', monospace", flexShrink: 0,
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', flexShrink: 0,
           }}>
             Self: {obs.entrustmentScore}/5
           </div>
@@ -698,11 +698,11 @@ function ObservationCard({
               {obs.entrustmentScore && (
                 <Row label="Self-assessment">
                   <span style={{
-                    fontSize: 11, fontWeight: 700,
+                    fontSize: 11, fontWeight: 600,
                     color: ENTRUSTMENT_COLORS[obs.entrustmentScore],
                     background: `${ENTRUSTMENT_COLORS[obs.entrustmentScore]}15`,
                     padding: "2px 8px", borderRadius: 4,
-                    fontFamily: "'Geist Mono', monospace",
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                   }}>
                     O-{obs.entrustmentScore} · {ENTRUSTMENT_LABELS[obs.entrustmentScore]}
                   </span>
@@ -811,7 +811,7 @@ function ObservationCard({
                           display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
                         }}
                       >
-                        <span style={{ fontSize: 14, fontWeight: 700 }}>{n}</span>
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{n}</span>
                         <span style={{ fontSize: 10, opacity: .85 }}>{ENTRUSTMENT_LABELS[n]}</span>
                       </button>
                     );
@@ -958,7 +958,7 @@ function ObservationCard({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 10, alignItems: "start" }}>
-      <span style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em", paddingTop: 2 }}>{label}</span>
+      <span style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 2, fontWeight: 600 }}>{label}</span>
       <span style={{ color: "var(--text-2)", lineHeight: 1.5 }}>{children}</span>
     </div>
   );
@@ -967,8 +967,8 @@ function Row({ label, children }: { label: string; children: React.ReactNode }) 
 function SectionHeader({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      fontSize: 10, fontWeight: 600, textTransform: "uppercase",
-      letterSpacing: "1px", color: "var(--text-3)", marginBottom: 10,
+      fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+      letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 10,
     }}>
       {children}
     </div>
@@ -1020,8 +1020,8 @@ function SummaryTile({
       }}>
         <span style={{ color: accentColor }}>{icon}</span>
         <span style={{
-          fontSize: 22, fontWeight: 700,
-          fontFamily: "'Geist Mono', monospace",
+          fontSize: 22, fontWeight: 600,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           color: accentColor === "var(--text-3)" ? "var(--text)" : accentColor,
           lineHeight: 1,
         }}>
@@ -1214,7 +1214,7 @@ function BulkQueue({ pending, scores, onScore, signing, onSignAll, onReturnAll }
                   border: `1px solid ${ENTRUSTMENT_COLORS[n]}40`,
                   background: `${ENTRUSTMENT_COLORS[n]}15`,
                   color: ENTRUSTMENT_COLORS[n],
-                  fontSize: 11, fontWeight: 700,
+                  fontSize: 11, fontWeight: 600,
                   cursor: signing ? "wait" : "pointer",
                   fontFamily: "inherit",
                 }}
@@ -1266,8 +1266,8 @@ function BulkQueue({ pending, scores, onScore, signing, onSignAll, onReturnAll }
                   fontSize: 12,
                 }}>
                   <span style={{
-                    fontSize: 9, fontWeight: 700, padding: "1px 5px", borderRadius: 3,
-                    fontFamily: "'Geist Mono', monospace",
+                    fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
+                    fontFamily: "var(--font-mono)",
                     background: "rgba(14,165,233,.12)", color: "#0ea5e9",
                   }}>
                     {obs.epaId}
@@ -1303,7 +1303,7 @@ function BulkQueue({ pending, scores, onScore, signing, onSignAll, onReturnAll }
                           ? `${ENTRUSTMENT_COLORS[n]}22`
                           : "var(--surface2)",
                         color: selected ? ENTRUSTMENT_COLORS[n] : "var(--text-3)",
-                        fontSize: 11, fontWeight: 700,
+                        fontSize: 11, fontWeight: 600,
                         cursor: signing ? "wait" : "pointer",
                         fontFamily: "inherit",
                       }}

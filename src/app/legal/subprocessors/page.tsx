@@ -13,7 +13,7 @@ const ROWS: { vendor: string; purpose: string; data: string; region: string }[] 
 export default function SubprocessorsPage() {
   return (
     <>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Subprocessors</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Subprocessors</h1>
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Last updated: 2026-04-14</p>
 
       <p>A &quot;subprocessor&quot; is a third-party service Hippo uses to deliver the product. This page lists all of them. We will notify customers in-app 30 days before adding a new subprocessor that processes personal data.</p>
@@ -52,5 +52,5 @@ export default function SubprocessorsPage() {
   );
 }
 
-const TH: React.CSSProperties = { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "var(--text-3, #71717a)", textTransform: "uppercase", letterSpacing: ".06em" };
+const TH: React.CSSProperties = { textAlign: "left", padding: "10px 14px", fontSize: 11, fontWeight: 600, color: "var(--text-3, #71717a)", textTransform: "uppercase", letterSpacing: "0.06em" };
 const TD: React.CSSProperties = { padding: "12px 14px", color: "var(--text-2, #d4d4d8)", verticalAlign: "top" };

@@ -31,7 +31,7 @@ export default function OfflinePage() {
         background: "var(--bg, #060d13)",
         color: "var(--text, #E2E8F0)",
         fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif",
+          "var(--font-sans)",
         textAlign: "center",
       }}
     >
@@ -41,7 +41,7 @@ export default function OfflinePage() {
       <h1
         style={{
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 600,
           letterSpacing: "-0.02em",
           marginBottom: 8,
           color: "var(--text, #E2E8F0)",

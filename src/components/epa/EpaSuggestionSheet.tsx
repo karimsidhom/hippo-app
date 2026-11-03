@@ -158,13 +158,13 @@ export function EpaSuggestionSheet({
       >
         {/* Header */}
         <div style={{ padding: "20px 24px 12px" }}>
-          <div style={{ fontSize: 11, fontWeight: 700, color: "#10b981", letterSpacing: ".5px", textTransform: "uppercase", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#10b981", letterSpacing: "0.06em", textTransform: "uppercase", marginBottom: 4 }}>
             Case saved
           </div>
           <h2
             style={{
               fontSize: 18,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text-1, #E2E8F0)",
               margin: 0,
               letterSpacing: "-.2px",
@@ -186,7 +186,7 @@ export function EpaSuggestionSheet({
 
         {/* Section label above EPA list */}
         <div style={{ padding: "4px 24px 8px" }}>
-          <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: ".5px", textTransform: "uppercase", color: "var(--text-3, #475569)" }}>
+          <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--text-3, #475569)" }}>
             Suggested EPAs
           </div>
         </div>
@@ -278,9 +278,9 @@ export function EpaSuggestionSheet({
                     <span
                       style={{
                         fontSize: 10,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: stageColor,
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                         background: `${stageColor}15`,
                         padding: "2px 6px",
                         borderRadius: 4,
@@ -375,7 +375,7 @@ export function EpaSuggestionSheet({
                       style={{
                         fontSize: 11,
                         color: "var(--text-3, #475569)",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                         flexShrink: 0,
                       }}
                     >

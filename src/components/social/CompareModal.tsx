@@ -68,7 +68,7 @@ export function CompareModal({ currentUser, friend, onClose }: CompareModalProps
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-6">
-          <h2 className="text-slate-100 font-bold text-lg">Head-to-Head</h2>
+          <h2 className="text-slate-100 font-semibold text-lg">Head-to-Head</h2>
           <button onClick={onClose} className="text-slate-500 hover:text-slate-300 transition-colors">
             <X className="w-5 h-5" />
           </button>
@@ -77,7 +77,7 @@ export function CompareModal({ currentUser, friend, onClose }: CompareModalProps
         {/* Headers */}
         <div className="grid grid-cols-3 items-center mb-2">
           <div className="text-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-bold text-sm mx-auto mb-1">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm mx-auto mb-1">
               {currentUser.initials}
             </div>
             <p className="text-slate-300 text-xs font-medium truncate">{currentUser.name.split(' ').pop()}</p>
@@ -85,7 +85,7 @@ export function CompareModal({ currentUser, friend, onClose }: CompareModalProps
           </div>
           <div className="text-center text-slate-600 text-sm font-medium">vs</div>
           <div className="text-center">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-bold text-sm mx-auto mb-1">
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-600 to-purple-600 flex items-center justify-center text-white font-semibold text-sm mx-auto mb-1">
               {friend.avatarInitials}
             </div>
             <p className="text-slate-300 text-xs font-medium truncate">{friend.name.split(' ').pop()}</p>

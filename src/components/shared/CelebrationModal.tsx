@@ -70,7 +70,7 @@ export function CelebrationModal({ milestones, prs, onClose }: CelebrationModalP
           )}
         </div>
 
-        <h2 className="text-2xl font-bold text-slate-100 mb-1">
+        <h2 className="text-2xl font-semibold text-slate-100 mb-1">
           {hasMilestones && hasPRs ? 'Double Achievement!' : hasMilestones ? 'Milestone Unlocked!' : 'New Personal Record!'}
         </h2>
         <p className="text-slate-400 text-sm mb-6">You're building something extraordinary.</p>

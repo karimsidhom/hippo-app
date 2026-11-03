@@ -58,8 +58,6 @@ interface SummaryResponse {
   }[];
 }
 
-const MONO = "'Geist Mono', monospace";
-
 const AUTONOMY_ORDER = [
   "OBSERVER",
   "ASSISTANT",
@@ -254,7 +252,7 @@ export default function ResidentDetailPage({
           <h1
             style={{
               fontSize: 24,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               margin: 0,
               letterSpacing: "-0.01em",
@@ -273,7 +271,7 @@ export default function ResidentDetailPage({
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontFamily: MONO }}>
+            <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {resident.trainingYearLabel ||
                 (resident.pgyYear != null ? `PGY-${resident.pgyYear}` : "—")}
             </span>
@@ -297,8 +295,8 @@ export default function ResidentDetailPage({
         <div style={{ textAlign: "right" }}>
           <div
             style={{
-              fontSize: 10,
-              fontWeight: 700,
+              fontSize: 11,
+              fontWeight: 600,
               color: "var(--text-3)",
               textTransform: "uppercase",
               letterSpacing: "0.06em",
@@ -313,7 +311,7 @@ export default function ResidentDetailPage({
                 lastDays !== null && lastDays >= 14
                   ? "var(--danger)"
                   : "var(--text)",
-              fontFamily: MONO,
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               marginTop: 4,
               fontWeight: 600,
             }}
@@ -421,7 +419,7 @@ function CaseVolumeChart({ weeks }: { weeks: { weekStart: string; count: number 
                     textAnchor="middle"
                     fontSize={3}
                     fill="var(--text-2)"
-                    fontFamily="Geist Mono, monospace"
+                    fontFamily="var(--font-sans)" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}
                   >
                     {w.count}
                   </text>
@@ -442,7 +440,7 @@ function CaseVolumeChart({ weeks }: { weeks: { weekStart: string; count: number 
                 textAnchor="middle"
                 fontSize={3}
                 fill="var(--text-3)"
-                fontFamily="Geist Mono, monospace"
+                fontFamily="var(--font-sans)" style={{ fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}
               >
                 {label}
               </text>
@@ -506,7 +504,7 @@ function AutonomyBar({
         <span
           style={{
             fontSize: 11,
-            fontWeight: 700,
+            fontWeight: 600,
             color: faded ? "var(--text-3)" : "var(--text-2)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -514,7 +512,7 @@ function AutonomyBar({
         >
           {label}
         </span>
-        <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: MONO }}>
+        <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
           {total} case{total === 1 ? "" : "s"}
         </span>
       </div>
@@ -637,7 +635,7 @@ function EpaHeatmap({
                 <span
                   style={{
                     fontSize: 11,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "var(--text-2)",
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
@@ -649,7 +647,7 @@ function EpaHeatmap({
                   style={{
                     fontSize: 11,
                     color: "var(--text-3)",
-                    fontFamily: MONO,
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                   }}
                 >
                   {items.length} EPA{items.length === 1 ? "" : "s"}
@@ -676,14 +674,14 @@ function EpaHeatmap({
                         textAlign: "center",
                         background: heatColor(pct),
                         color: pct <= 25 ? "var(--text)" : "#0b0f1a",
-                        fontFamily: MONO,
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                         fontSize: 11,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         border: "1px solid rgba(0,0,0,0.2)",
                         cursor: "default",
                       }}
                     >
-                      <div>{epa.id}</div>
+                      <div style={{ fontFamily: "var(--font-mono)" }}>{epa.id}</div>
                       <div style={{ fontSize: 9, fontWeight: 600, opacity: 0.85, marginTop: 1 }}>
                         {count}/{target}
                       </div>
@@ -744,8 +742,8 @@ function SectionCard({
         <div style={{ color: "var(--primary)", display: "flex" }}>{icon}</div>
         <h3
           style={{
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: 11,
+            fontWeight: 600,
             color: "var(--text-2)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -804,8 +802,8 @@ function MiniKpi({
         </div>
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
+            fontSize: 11,
+            fontWeight: 600,
             color: "var(--text-3)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -819,7 +817,7 @@ function MiniKpi({
           fontSize: 24,
           fontWeight: 700,
           color: "var(--text)",
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           letterSpacing: "-0.01em",
         }}
       >
@@ -867,7 +865,7 @@ function ResidentAvatar({
         alignItems: "center",
         justifyContent: "center",
         fontSize: size * 0.4,
-        fontWeight: 700,
+        fontWeight: 600,
         color: "var(--primary)",
         flexShrink: 0,
       }}

@@ -40,6 +40,7 @@
     "bcryptjs": "^2.4.3",
     "clsx": "^2.1.0",
     "exceljs": "^4.4.0",
+    "geist": "^1.5.1",
     "lucide-react": "^0.358.0",
     "next": "^16.2.2",
     "next-auth": "^4.24.7",

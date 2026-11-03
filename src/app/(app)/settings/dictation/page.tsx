@@ -224,7 +224,7 @@ export default function DictationSettingsPage() {
         </Link>
         <div className="flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold text-[var(--text)] flex items-center gap-2">
+            <h1 className="text-2xl font-semibold text-[var(--text)] flex items-center gap-2">
               <Sparkles className="w-5 h-5 text-[#3b82f6]" />
               Dictation Style
             </h1>
@@ -729,7 +729,7 @@ export default function DictationSettingsPage() {
                   className="flex items-start justify-between gap-3 px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] rounded-lg"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-[var(--text-3)]">
+                    <div className="flex items-center gap-2 text-[11px] uppercase tracking-[0.06em] text-[var(--text-3)] font-semibold">
                       <span>{ex.service}</span>
                       <span>·</span>
                       <span>{ex.noteType}</span>

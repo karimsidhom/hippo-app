@@ -35,7 +35,7 @@ export default function GlobalError({
           background: "#060d13",
           color: "#E2E8F0",
           fontFamily:
-            "'Geist', -apple-system, BlinkMacSystemFont, system-ui, sans-serif",
+            'var(--font-sans, -apple-system, BlinkMacSystemFont, system-ui, sans-serif)',
           minHeight: "100dvh",
           margin: 0,
           display: "flex",
@@ -80,7 +80,7 @@ export default function GlobalError({
               style={{
                 fontSize: 11,
                 color: "rgba(226,232,240,0.3)",
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-mono, ui-monospace, SFMono-Regular, Menlo, monospace)",
                 margin: "0 0 20px",
               }}
             >

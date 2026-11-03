@@ -109,7 +109,7 @@ export default function FormsHubPage() {
           <h1
             style={{
               fontSize: 22,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               letterSpacing: "-0.4px",
               margin: 0,
@@ -221,7 +221,7 @@ export default function FormsHubPage() {
               </div>
               <span
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
                   textTransform: "uppercase",
                   letterSpacing: "0.06em",
@@ -263,7 +263,7 @@ function Section({
     <section style={{ marginBottom: 22 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",

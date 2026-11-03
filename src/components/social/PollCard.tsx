@@ -103,7 +103,7 @@ export function PollCard({ pearlId, options }: Props) {
               border: `1px solid ${mine ? "rgba(14,165,233,0.45)" : "var(--border)"}`,
               borderRadius: 8,
               color: "var(--text)",
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               fontSize: 13,
               cursor: busy ? "wait" : "pointer",
               overflow: "hidden",
@@ -127,7 +127,7 @@ export function PollCard({ pearlId, options }: Props) {
               {mine && <Check size={12} style={{ color: "var(--primary)", flexShrink: 0 }} />}
               <span style={{ flex: 1, fontWeight: mine ? 600 : 500 }}>{o.label}</span>
               <span style={{
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                 fontSize: 12,
                 color: "var(--text-2)",
                 flexShrink: 0,

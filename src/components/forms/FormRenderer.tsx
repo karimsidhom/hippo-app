@@ -363,11 +363,11 @@ function FieldInput({
                     key={c.id}
                     style={{
                       padding: 6,
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 600,
                       color: "var(--text-3)",
                       textTransform: "uppercase",
-                      letterSpacing: "0.04em",
+                      letterSpacing: "0.06em",
                       textAlign: "center",
                     }}
                   >

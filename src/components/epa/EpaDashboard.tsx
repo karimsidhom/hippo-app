@@ -104,7 +104,7 @@ function MilestoneRadar({ milestones }: { milestones: MilestoneProgress[] }) {
           <div key={m.milestoneId} style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <div style={{
               width: 44, fontSize: 11, fontWeight: 600, color: "var(--text-2)",
-              fontFamily: "'Geist Mono', monospace", flexShrink: 0,
+              fontFamily: "var(--font-mono)", flexShrink: 0,
             }}>
               {m.milestoneId}
             </div>
@@ -121,7 +121,7 @@ function MilestoneRadar({ milestones }: { milestones: MilestoneProgress[] }) {
             </div>
             <div style={{
               width: 20, fontSize: 11, fontWeight: 600, color: "var(--text-2)",
-              fontFamily: "'Geist Mono', monospace", textAlign: "right",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', textAlign: "right",
             }}>
               {m.estimatedLevel}
             </div>
@@ -157,8 +157,8 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSu
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 10, fontWeight: 700, color: "var(--text)",
-            fontFamily: "'Geist Mono', monospace",
+            fontSize: 10, fontWeight: 600, color: "var(--text)",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           }}>
             {epa.percentComplete}%
           </div>
@@ -166,7 +166,7 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSu
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{
-              fontSize: 10, fontWeight: 700, color, fontFamily: "'Geist Mono', monospace",
+              fontSize: 10, fontWeight: 600, color, fontFamily: "var(--font-mono)",
               background: `${color}15`, padding: "1px 5px", borderRadius: 3,
               flexShrink: 0,
             }}>
@@ -223,12 +223,12 @@ function EpaCard({ epa, expanded, onToggle, observationCount, onLogEpa, subReqSu
                 textAlign: "center",
               }}>
                 <div style={{
-                  fontSize: 14, fontWeight: 700, color: "var(--text)",
-                  fontFamily: "'Geist Mono', monospace",
+                  fontSize: 14, fontWeight: 600, color: "var(--text)",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                 }}>
                   {count}
                 </div>
-                <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".5px" }}>
+                <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
                   {level.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())}
                 </div>
               </div>
@@ -316,9 +316,9 @@ function StageLegend({ epaData }: { epaData: SpecialtyEpaData }) {
           .replace("Transition to Practice", "TTP");
         return (
           <span key={stage} style={{
-            fontSize: 9, fontWeight: 600, color,
+            fontSize: 11, fontWeight: 600, color,
             background: `${color}15`, padding: "2px 6px", borderRadius: 3,
-            letterSpacing: ".5px", textTransform: "uppercase",
+            letterSpacing: "0.06em", textTransform: "uppercase",
           }}>
             {shortLabel}
           </span>
@@ -398,14 +398,14 @@ function EpaPanel({
         display: "flex", alignItems: "center", gap: 8, marginBottom: 16,
       }}>
         <span style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: ".5px",
+          fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
           textTransform: "uppercase", color: "#0ea5e9",
           background: "#0ea5e915", padding: "3px 8px", borderRadius: 4,
         }}>
           {systemLabel}
         </span>
         <span style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: ".5px",
+          fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
           textTransform: "uppercase", color: "#10b981",
           background: "#10b98115", padding: "3px 8px", borderRadius: 4,
         }}>
@@ -429,8 +429,8 @@ function EpaPanel({
             borderRadius: 8, padding: "10px 12px", textAlign: "center",
           }}>
             <div style={{
-              fontSize: 18, fontWeight: 700, color: "var(--text)",
-              fontFamily: "'Geist Mono', monospace",
+              fontSize: 18, fontWeight: 600, color: "var(--text)",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             }}>
               {stat.value}
             </div>
@@ -463,7 +463,7 @@ function EpaPanel({
                 border: active ? "1px solid var(--border-mid)" : "1px solid transparent",
                 color: active ? "var(--text)" : "var(--text-3)",
                 borderRadius: 4, fontSize: 11, fontWeight: active ? 600 : 500,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
                 transition: "all .15s",
                 whiteSpace: "nowrap",
               }}
@@ -480,8 +480,8 @@ function EpaPanel({
           {dashboard.strengths.length > 0 && (
             <section style={{ marginBottom: 24 }}>
               <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
               }}>Top Strengths</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
                 {dashboard.strengths.map((s) => (
@@ -491,8 +491,8 @@ function EpaPanel({
                     borderRadius: 8, padding: "8px 12px",
                   }}>
                     <span style={{
-                      fontSize: 10, fontWeight: 700, color: getStageColor(s.epaId),
-                      fontFamily: "'Geist Mono', monospace",
+                      fontSize: 10, fontWeight: 600, color: getStageColor(s.epaId),
+                      fontFamily: "var(--font-mono)",
                       background: `${getStageColor(s.epaId)}15`,
                       padding: "1px 5px", borderRadius: 3,
                     }}>
@@ -502,8 +502,8 @@ function EpaPanel({
                       {s.title}
                     </span>
                     <span style={{
-                      fontSize: 12, fontWeight: 700, color: "#10b981",
-                      fontFamily: "'Geist Mono', monospace",
+                      fontSize: 12, fontWeight: 600, color: "#10b981",
+                      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                     }}>
                       {s.cases}
                     </span>
@@ -517,8 +517,8 @@ function EpaPanel({
             paddingTop: 20, borderTop: "1px solid var(--border)",
           }}>
             <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
+              fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12,
             }}>{frameworkLabel} Progress</div>
             {Object.entries(milestonesByDomain).map(([domain, milestones]) => (
               <div key={domain} style={{ marginBottom: 16 }}>
@@ -558,8 +558,8 @@ function EpaPanel({
           {Object.entries(milestonesByDomain).map(([domain, milestones]) => (
             <section key={domain} style={{ marginBottom: 24 }}>
               <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12,
               }}>{domain}</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {milestones.map((m) => (
@@ -571,8 +571,8 @@ function EpaPanel({
                       <div>
                         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                           <span style={{
-                            fontSize: 10, fontWeight: 700, color: LEVEL_COLORS[Math.min(m.estimatedLevel - 1, 4)],
-                            fontFamily: "'Geist Mono', monospace",
+                            fontSize: 10, fontWeight: 600, color: LEVEL_COLORS[Math.min(m.estimatedLevel - 1, 4)],
+                            fontFamily: "var(--font-mono)",
                             background: `${LEVEL_COLORS[Math.min(m.estimatedLevel - 1, 4)]}15`,
                             padding: "1px 5px", borderRadius: 3,
                           }}>
@@ -635,8 +635,8 @@ function EpaPanel({
           ) : (
             <>
               <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12,
               }}>EPAs Below 50% Completion</div>
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                 {dashboard.gaps.map((gap) => {
@@ -651,8 +651,8 @@ function EpaPanel({
                           width: 36, height: 36, borderRadius: 8,
                           background: "#ef444420", display: "flex",
                           alignItems: "center", justifyContent: "center",
-                          fontSize: 10, fontWeight: 700, color: "#ef4444",
-                          fontFamily: "'Geist Mono', monospace",
+                          fontSize: 10, fontWeight: 600, color: "#ef4444",
+                          fontFamily: "var(--font-mono)",
                         }}>
                           {gap.epaId}
                         </div>
@@ -679,8 +679,8 @@ function EpaPanel({
                             <div style={{
                               position: "absolute", inset: 0,
                               display: "flex", alignItems: "center", justifyContent: "center",
-                              fontSize: 9, fontWeight: 700, color: "var(--text-2)",
-                              fontFamily: "'Geist Mono', monospace",
+                              fontSize: 9, fontWeight: 600, color: "var(--text-2)",
+                              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                             }}>
                               {epaProgress.percentComplete}%
                             </div>
@@ -729,8 +729,8 @@ function EpaPanel({
               {observations.filter(o => o.status === "SIGNED").length > 0 && (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{
-                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                    fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
                   }}>Signed</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {observations.filter(o => o.status === "SIGNED").map((obs) => (
@@ -744,8 +744,8 @@ function EpaPanel({
               {observations.filter(o => o.status === "PENDING_REVIEW" || o.status === "SUBMITTED").length > 0 && (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{
-                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                    fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
                   }}>Pending Review</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {observations.filter(o => o.status === "PENDING_REVIEW" || o.status === "SUBMITTED").map((obs) => (
@@ -759,8 +759,8 @@ function EpaPanel({
               {observations.filter(o => o.status === "DRAFT").length > 0 && (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{
-                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                    fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
                   }}>Drafts</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {observations.filter(o => o.status === "DRAFT").map((obs) => (
@@ -774,8 +774,8 @@ function EpaPanel({
               {observations.filter(o => o.status === "RETURNED").length > 0 && (
                 <section style={{ marginBottom: 24 }}>
                   <div style={{
-                    fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                    textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+                    fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                    textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
                   }}>Returned</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                     {observations.filter(o => o.status === "RETURNED").map((obs) => (
@@ -1023,9 +1023,9 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
               background: topTab === "foundations" ? "var(--surface)" : "transparent",
               border: topTab === "foundations" ? "1px solid var(--border-mid)" : "1px solid transparent",
               borderRadius: 6, cursor: "pointer",
-              fontSize: 12, fontWeight: topTab === "foundations" ? 700 : 500,
+              fontSize: 12, fontWeight: topTab === "foundations" ? 600 : 500,
               color: topTab === "foundations" ? "var(--text)" : "var(--text-3)",
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               transition: "all .15s",
               boxShadow: topTab === "foundations" ? "0 1px 3px rgba(0,0,0,.08)" : "none",
             }}
@@ -1040,9 +1040,9 @@ export function EpaDashboard({ cases, specialty, trainingCountry, initialTab }: 
               background: topTab === "specialty" ? "var(--surface)" : "transparent",
               border: topTab === "specialty" ? "1px solid var(--border-mid)" : "1px solid transparent",
               borderRadius: 6, cursor: "pointer",
-              fontSize: 12, fontWeight: topTab === "specialty" ? 700 : 500,
+              fontSize: 12, fontWeight: topTab === "specialty" ? 600 : 500,
               color: topTab === "specialty" ? "var(--text)" : "var(--text-3)",
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               transition: "all .15s",
               boxShadow: topTab === "specialty" ? "0 1px 3px rgba(0,0,0,.08)" : "none",
             }}

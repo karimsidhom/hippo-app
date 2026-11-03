@@ -30,11 +30,11 @@ export function TodaysPrinciple() {
       {/* Label — uppercase like the logo wordmark */}
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",
-          letterSpacing: "1.6px",
+          letterSpacing: "0.06em",
           marginBottom: 14,
           opacity: 0,
           animation: "principleLabel .6s ease .1s forwards",

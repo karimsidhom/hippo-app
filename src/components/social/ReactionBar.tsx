@@ -91,7 +91,7 @@ export function ReactionBar({ pearlId, initialMine = [], initialCount = 0, initi
             style={{
               display: "flex", alignItems: "center", gap: 4,
               padding: pad,
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               fontSize: fs,
               background: selected ? `${r.color}18` : "var(--surface2)",
               border: `1px solid ${selected ? r.color + "55" : "var(--border)"}`,
@@ -104,7 +104,7 @@ export function ReactionBar({ pearlId, initialMine = [], initialCount = 0, initi
           >
             <span aria-hidden style={{ fontSize: fs + 1, lineHeight: 1 }}>{r.glyph}</span>
             {count > 0 && (
-              <span style={{ fontFamily: "'Geist Mono', monospace", fontSize: fs - 1 }}>{count}</span>
+              <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', fontSize: fs - 1 }}>{count}</span>
             )}
           </button>
         );

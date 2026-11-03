@@ -140,11 +140,11 @@ const styles: Record<string, CSSProperties> = {
   section: { marginBottom: 28 },
   headRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 },
   eyebrow: {
-    margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+    margin: 0, fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: 'uppercase',
     color: 'var(--text-2)',
   },
   count: {
-    minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, fontSize: 11, fontWeight: 700,
+    minWidth: 18, height: 18, padding: '0 5px', borderRadius: 9, fontSize: 11, fontWeight: 600,
     lineHeight: '18px', textAlign: 'center', background: 'var(--primary)', color: '#fff',
   },
   card: {

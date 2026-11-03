@@ -227,7 +227,7 @@ export default function ImportLogPage() {
           Back to Settings
         </Link>
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)] flex items-center gap-2">
+          <h1 className="text-2xl font-semibold text-[var(--text)] flex items-center gap-2">
             <FileSpreadsheet className="w-5 h-5 text-[#3b82f6]" />
             Import Existing Case Log
           </h1>
@@ -339,7 +339,7 @@ export default function ImportLogPage() {
                 const reason = preview.mappingRationale?.[field];
                 return (
                   <div key={field} className="space-y-1">
-                    <label className="text-[10px] text-[var(--text-3)] uppercase tracking-wider flex items-center gap-1">
+                    <label className="text-[11px] text-[var(--text-3)] uppercase tracking-[0.06em] flex items-center gap-1 font-semibold">
                       <span>{HIPPO_FIELD_LABELS[field]}</span>
                       {mapping[field] && conf !== undefined && (
                         <ConfidenceBadge value={conf} />
@@ -374,7 +374,7 @@ export default function ImportLogPage() {
 
             {preview.unmappedColumns.length > 0 && (
               <div className="pt-2 border-t border-[var(--border)]">
-                <p className="text-[10px] text-[var(--text-2)] uppercase tracking-wider mb-1">
+                <p className="text-[11px] text-[var(--text-2)] uppercase tracking-[0.06em] mb-1 font-semibold">
                   Extra columns (will be saved to notes / metadata)
                 </p>
                 <div className="flex flex-wrap gap-1.5">
@@ -450,7 +450,7 @@ export default function ImportLogPage() {
           {preview.previewCoerced && preview.previewCoerced.length > 0 && (
             <section className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-4 overflow-auto">
               <div className="flex items-center justify-between mb-2 px-2">
-                <p className="text-[10px] text-[var(--text-2)] uppercase tracking-wider">
+                <p className="text-[11px] text-[var(--text-2)] uppercase tracking-[0.06em] font-semibold">
                   Hippo preview — first {preview.previewCoerced.length} rows the way they&apos;ll land in your log
                 </p>
                 {preview.usedLlmForRows && (
@@ -482,7 +482,7 @@ export default function ImportLogPage() {
                       className="text-[var(--text-2)] border-t border-[var(--border)] align-top"
                     >
                       <td className="px-2 py-1 text-[var(--text-3)]">{p.rowNumber}</td>
-                      <td className="px-2 py-1 whitespace-nowrap font-mono text-[var(--text-2)]">
+                      <td className="px-2 py-1 whitespace-nowrap font-sans tabular-nums text-[var(--text-2)]" style={{ fontFeatureSettings: '"tnum" 1' }}>
                         {p.coerced.caseDate ?? <span className="text-[#ef4444]">—</span>}
                       </td>
                       <td
@@ -491,19 +491,19 @@ export default function ImportLogPage() {
                       >
                         {p.coerced.procedureName ?? <span className="text-[#ef4444]">missing</span>}
                       </td>
-                      <td className="px-2 py-1 text-[10px] uppercase">
+                      <td className="px-2 py-1 text-[11px] uppercase font-semibold tracking-[0.06em]">
                         <EnumPill value={p.coerced.surgicalApproach} uncertain={p.coerced.uncertain.includes("surgicalApproach")} />
                       </td>
-                      <td className="px-2 py-1 text-[10px] uppercase">
+                      <td className="px-2 py-1 text-[11px] uppercase font-semibold tracking-[0.06em]">
                         <EnumPill value={p.coerced.autonomyLevel} uncertain={p.coerced.uncertain.includes("autonomyLevel")} />
                       </td>
-                      <td className="px-2 py-1 text-[10px] uppercase">
+                      <td className="px-2 py-1 text-[11px] uppercase font-semibold tracking-[0.06em]">
                         <EnumPill value={p.coerced.outcomeCategory} uncertain={p.coerced.uncertain.includes("outcomeCategory")} />
                       </td>
-                      <td className="px-2 py-1 text-[10px] uppercase">
+                      <td className="px-2 py-1 text-[11px] uppercase font-semibold tracking-[0.06em]">
                         <EnumPill value={p.coerced.complicationCategory} uncertain={p.coerced.uncertain.includes("complicationCategory")} />
                       </td>
-                      <td className="px-2 py-1 text-[10px] uppercase">
+                      <td className="px-2 py-1 text-[11px] uppercase font-semibold tracking-[0.06em]">
                         <EnumPill value={p.coerced.patientAgeBin} uncertain={p.coerced.uncertain.includes("patientAgeBin")} />
                       </td>
                       <td className="px-2 py-1 text-[var(--text-2)] whitespace-nowrap">
@@ -533,7 +533,7 @@ export default function ImportLogPage() {
 
           {/* Raw preview rows (collapsed by default) */}
           <details className="bg-[var(--surface)] border border-[var(--border)] rounded-xl overflow-hidden">
-            <summary className="cursor-pointer px-4 py-3 text-[10px] text-[var(--text-2)] uppercase tracking-wider hover:text-[var(--text-2)]">
+            <summary className="cursor-pointer px-4 py-3 text-[11px] text-[var(--text-2)] uppercase tracking-[0.06em] hover:text-[var(--text-2)] font-semibold">
               Raw spreadsheet preview (first 10 rows)
             </summary>
             <div className="p-4 overflow-auto border-t border-[var(--border)]">
@@ -662,7 +662,7 @@ function Stat({
 }) {
   return (
     <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-3">
-      <p className="text-[10px] text-[var(--text-3)] uppercase tracking-wider">{label}</p>
+      <p className="text-[11px] text-[var(--text-3)] uppercase tracking-[0.06em] font-semibold">{label}</p>
       <p
         className="text-2xl font-bold mt-0.5"
         style={{ color: accent ?? "var(--text)" }}
@@ -691,7 +691,7 @@ function ConfidenceBadge({ value }: { value: number }) {
   }
   return (
     <span
-      className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[9px] uppercase tracking-wider ${cls}`}
+      className={`inline-flex items-center px-1.5 py-0.5 rounded-full border text-[11px] font-semibold uppercase tracking-[0.06em] ${cls}`}
       title={`Mapping confidence ${(value * 100).toFixed(0)}%`}
     >
       {label}

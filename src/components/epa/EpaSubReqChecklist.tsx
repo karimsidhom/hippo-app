@@ -95,8 +95,8 @@ function SubReqRow({ progress }: { progress: SubRequirementProgress }) {
       <div
         style={{
           fontSize: 11,
-          fontWeight: 700,
-          fontFamily: "'Geist Mono', monospace",
+          fontWeight: 600,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           color: met ? "#10b981" : pct >= 50 ? "#f59e0b" : "#ef4444",
           flexShrink: 0,
         }}
@@ -185,7 +185,7 @@ export function EpaSubReqChecklist({
             fontWeight: 600,
             color: "var(--text-2)",
             textTransform: "uppercase",
-            letterSpacing: "0.05em",
+            letterSpacing: "0.06em",
           }}
         >
           Specific Requirements

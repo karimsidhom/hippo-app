@@ -203,7 +203,7 @@ export function ReferenceSuggestions({ encounterId, hasNote, isFinalized, onAcce
           >
             {/* Section + verbatim claim */}
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 6 }}>
-              <span className="badge badge-muted" style={{ textTransform: "uppercase", letterSpacing: ".08em" }}>
+              <span className="badge badge-muted" style={{ textTransform: "uppercase", letterSpacing: "0.06em", fontSize: 11, fontWeight: 600 }}>
                 {sectionLabel(s.section)}
               </span>
             </div>

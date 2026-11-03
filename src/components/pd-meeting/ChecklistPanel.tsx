@@ -62,7 +62,7 @@ export function ChecklistPanel({
                 gap: 8,
               }}
             >
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 {c.title}
               </h3>
               <span style={{ fontSize: 12, color: 'var(--text-3)' }}>

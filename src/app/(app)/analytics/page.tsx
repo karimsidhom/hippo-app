@@ -214,7 +214,7 @@ export default function AnalyticsPage() {
                   border: "1px solid transparent",
                   color: "var(--accent, #0EA5E9)",
                   borderRadius: 8, fontSize: 14, fontWeight: 600,
-                  cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                  cursor: "pointer", fontFamily: "var(--font-sans)",
                   transition: "all .15s cubic-bezier(.16,1,.3,1)",
                   whiteSpace: "nowrap", letterSpacing: ".01em",
                   textDecoration: "none",
@@ -236,7 +236,7 @@ export default function AnalyticsPage() {
                 border: active ? "1px solid var(--border-mid)" : "1px solid transparent",
                 color: active ? "var(--text)" : "var(--text-3)",
                 borderRadius: 8, fontSize: 14, fontWeight: active ? 600 : 500,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
                 whiteSpace: "nowrap",
                 letterSpacing: ".01em",
@@ -468,7 +468,7 @@ export default function AnalyticsPage() {
                     <div
                       style={{
                         fontSize: 14,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: "var(--text)",
                       }}
                     >
@@ -645,7 +645,7 @@ export default function AnalyticsPage() {
                                 style={{
                                   ...cohortTd,
                                   textAlign: "right",
-                                  fontFamily: "'Geist Mono', monospace",
+                                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                                   color: "var(--text-2)",
                                 }}
                               >
@@ -655,7 +655,7 @@ export default function AnalyticsPage() {
                                 style={{
                                   ...cohortTd,
                                   textAlign: "right",
-                                  fontFamily: "'Geist Mono', monospace",
+                                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                                   color: "var(--text-2)",
                                 }}
                               >
@@ -665,7 +665,7 @@ export default function AnalyticsPage() {
                                 style={{
                                   ...cohortTd,
                                   textAlign: "right",
-                                  fontFamily: "'Geist Mono', monospace",
+                                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                                   color:
                                     r.epaPending > 0
                                       ? "#0EA5E9"
@@ -678,7 +678,7 @@ export default function AnalyticsPage() {
                                 style={{
                                   ...cohortTd,
                                   textAlign: "right",
-                                  fontFamily: "'Geist Mono', monospace",
+                                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                                   color: silent ? "#F59E0B" : "var(--text-3)",
                                 }}
                               >
@@ -767,9 +767,9 @@ function CohortKpi({
       <div
         style={{
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 600,
           color: accent ? "#0EA5E9" : "var(--text)",
-          fontFamily: "'Geist Mono', monospace",
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           letterSpacing: "-1px",
           lineHeight: 1,
         }}
@@ -778,12 +778,12 @@ function CohortKpi({
       </div>
       <div
         style={{
-          fontSize: 14,
+          fontSize: 11,
           color: "var(--text-3)",
           marginTop: 6,
           textTransform: "uppercase",
-          letterSpacing: ".6px",
-          fontWeight: 500,
+          letterSpacing: "0.06em",
+          fontWeight: 600,
         }}
       >
         {label}

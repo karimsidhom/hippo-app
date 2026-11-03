@@ -101,7 +101,7 @@ export function LiveTranscript({
           {r.text}{" "}
         </span>
       ))}
-      <div style={{ marginTop: 12, fontSize: 10, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: ".06em" }}>
+      <div style={{ marginTop: 12, fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
         {rows.length} segment{rows.length === 1 ? "" : "s"} · {text.length} chars
       </div>
     </div>

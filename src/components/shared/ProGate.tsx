@@ -82,7 +82,7 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
       onClick={onClose}
     >
       <div
-        style={{ background: '#0f0f11', borderTop: '1px solid #1f1f23', borderRadius: '20px 20px 0 0', padding: '0 0 max(24px, env(safe-area-inset-bottom))', width: '100%', maxWidth: 500, fontFamily: '-apple-system, BlinkMacSystemFont, "SF Pro Text", system-ui, sans-serif' }}
+        style={{ background: '#0f0f11', borderTop: '1px solid #1f1f23', borderRadius: '20px 20px 0 0', padding: '0 0 max(24px, env(safe-area-inset-bottom))', width: '100%', maxWidth: 500, fontFamily: "var(--font-sans)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Handle */}
@@ -91,8 +91,8 @@ export function UpgradeModal({ onClose }: { onClose: () => void }) {
         {/* Header */}
         <div style={{ padding: '20px 24px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: '.08em', textTransform: 'uppercase', color: '#3b82f6', marginBottom: 6 }}>Hippo Pro</div>
-            <div style={{ fontSize: 24, fontWeight: 700, letterSpacing: '-.02em', color: '#fafafa', lineHeight: 1.2 }}>
+            <div style={{ fontSize: 11, fontWeight: 600, letterSpacing: "0.06em", textTransform: 'uppercase', color: '#3b82f6', marginBottom: 6 }}>Hippo Pro</div>
+            <div style={{ fontSize: 24, fontWeight: 600, letterSpacing: '-.02em', color: '#fafafa', lineHeight: 1.2 }}>
               Unlock everything.
             </div>
             <div style={{ fontSize: 14, color: '#52525b', marginTop: 6 }}>

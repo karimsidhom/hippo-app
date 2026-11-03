@@ -161,10 +161,10 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
         <h2
           style={{
             margin: 0,
-            fontSize: 12,
-            fontWeight: 700,
+            fontSize: 11,
+            fontWeight: 600,
             textTransform: 'uppercase',
-            letterSpacing: '0.08em',
+            letterSpacing: "0.06em",
             color: 'var(--text-3)',
           }}
         >
@@ -314,11 +314,12 @@ export function MeetingsBlock({ residentId }: { residentId: string }) {
                   style={{
                     fontSize: 11,
                     textTransform: 'uppercase',
-                    letterSpacing: '0.06em',
+                    letterSpacing: "0.06em",
                     padding: '2px 9px',
                     borderRadius: 999,
                     background: m.status === 'PUBLISHED' ? 'var(--surface2)' : 'var(--warning)',
                     color: m.status === 'PUBLISHED' ? 'var(--text-3)' : '#fff',
+                    fontWeight: 600,
                   }}
                 >
                   {m.status === 'PUBLISHED'

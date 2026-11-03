@@ -177,7 +177,7 @@ export default function FormBuilderPage() {
       <h1
         style={{
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 600,
           color: "var(--text)",
           letterSpacing: "-0.4px",
           margin: 0,
@@ -324,7 +324,7 @@ export default function FormBuilderPage() {
                 className="st-input"
                 style={{
                   resize: "vertical",
-                  fontFamily: "'Geist Mono', monospace",
+                  fontFamily: "var(--font-mono)",
                   fontSize: 12,
                   lineHeight: 1.55,
                 }}
@@ -359,7 +359,7 @@ export default function FormBuilderPage() {
       {/* Preview */}
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",
@@ -410,8 +410,8 @@ export default function FormBuilderPage() {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 10,
-  fontWeight: 500,
+  fontSize: 11,
+  fontWeight: 600,
   color: "var(--text-3)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",

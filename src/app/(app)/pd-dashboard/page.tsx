@@ -59,7 +59,6 @@ interface ResidentData {
   lastMeetingStatus: string | null;
 }
 
-const MONO = "'Geist Mono', monospace";
 const SILENT_DAYS = 14;
 const PD_STAFF_ROLES = ["PROGRAM_DIRECTOR", "ATTENDING", "STAFF"];
 
@@ -194,7 +193,7 @@ export default function PDDashboardPage() {
         <h1
           style={{
             fontSize: 22,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text)",
             marginBottom: 8,
           }}
@@ -376,9 +375,9 @@ export default function PDDashboardPage() {
             <span
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 textTransform: "uppercase",
-                letterSpacing: "0.08em",
+                letterSpacing: "0.06em",
                 color: "var(--text-3)",
               }}
             >
@@ -388,7 +387,7 @@ export default function PDDashboardPage() {
           <h1
             style={{
               fontSize: 28,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               margin: 0,
               letterSpacing: "-0.01em",
@@ -401,7 +400,7 @@ export default function PDDashboardPage() {
               fontSize: 13,
               color: "var(--text-3)",
               marginTop: 4,
-              fontFamily: MONO,
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             }}
           >
             {residentCount} resident{residentCount === 1 ? "" : "s"} ·{" "}
@@ -525,7 +524,7 @@ export default function PDDashboardPage() {
             <span
               style={{
                 fontSize: 11,
-                fontWeight: 700,
+                fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
                 color: "var(--text-2)",
@@ -537,7 +536,7 @@ export default function PDDashboardPage() {
               style={{
                 fontSize: 11,
                 color: "var(--text-3)",
-                fontFamily: MONO,
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                 marginLeft: "auto",
               }}
             >
@@ -595,7 +594,7 @@ export default function PDDashboardPage() {
                       style={{
                         fontSize: 10,
                         color: "var(--danger)",
-                        fontFamily: MONO,
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                       }}
                     >
                       {days === null ? "0d" : `${days}d`}
@@ -606,7 +605,7 @@ export default function PDDashboardPage() {
                       style={{
                         fontSize: 10,
                         color: "var(--warning)",
-                        fontFamily: MONO,
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                       }}
                     >
                       {r.epaPending} EPA
@@ -919,8 +918,8 @@ function ResidentTable({
                     style={{
                       textAlign: h.align ?? "left",
                       padding: "10px 14px",
-                      fontSize: 10,
-                      fontWeight: 700,
+                      fontSize: 11,
+                      fontWeight: 600,
                       textTransform: "uppercase",
                       letterSpacing: "0.06em",
                       color: active ? "var(--text)" : "var(--text-3)",
@@ -1048,8 +1047,8 @@ function ResidentRow({
           {resident.roleType === "FELLOW" && (
             <span
               style={{
-                fontSize: 9,
-                fontWeight: 700,
+                fontSize: 11,
+                fontWeight: 600,
                 textTransform: "uppercase",
                 letterSpacing: "0.06em",
                 padding: "2px 6px",
@@ -1071,7 +1070,7 @@ function ResidentRow({
           padding: "10px 14px",
           borderTop: "1px solid var(--border)",
           color: "var(--text-2)",
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           fontSize: 12,
           whiteSpace: "nowrap",
         }}
@@ -1086,7 +1085,7 @@ function ResidentRow({
           padding: "10px 14px",
           borderTop: "1px solid var(--border)",
           color: "var(--text)",
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           fontSize: 13,
           textAlign: "right",
           whiteSpace: "nowrap",
@@ -1103,7 +1102,7 @@ function ResidentRow({
           textAlign: "right",
           whiteSpace: "nowrap",
           fontSize: 12,
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           color: silent ? "var(--danger)" : "var(--text-2)",
         }}
       >
@@ -1122,7 +1121,7 @@ function ResidentRow({
           textAlign: "right",
           whiteSpace: "nowrap",
           fontSize: 12,
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           color: meetingOverdue ? "var(--warning)" : "var(--text-2)",
         }}
         title={
@@ -1182,7 +1181,7 @@ function ResidentRow({
             style={{
               fontSize: 11,
               color: "var(--text-2)",
-              fontFamily: MONO,
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               minWidth: 56,
               textAlign: "right",
               whiteSpace: "nowrap",
@@ -1214,14 +1213,14 @@ function ResidentRow({
               color: "var(--warning)",
               fontSize: 11,
               fontWeight: 600,
-              fontFamily: MONO,
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             }}
           >
             <AlertTriangle size={10} />
             {resident.epaPending}
           </span>
         ) : (
-          <span style={{ color: "var(--text-3)", fontFamily: MONO, fontSize: 11 }}>—</span>
+          <span style={{ color: "var(--text-3)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', fontSize: 11 }}>—</span>
         )}
       </td>
     </tr>
@@ -1344,7 +1343,7 @@ function ResidentCard({
               flexWrap: "wrap",
             }}
           >
-            <span style={{ fontFamily: MONO }}>
+            <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {resident.trainingYearLabel ||
                 (resident.pgyYear != null ? `PGY-${resident.pgyYear}` : "—")}
             </span>
@@ -1358,8 +1357,8 @@ function ResidentCard({
         </div>
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
+            fontSize: 11,
+            fontWeight: 600,
             textTransform: "uppercase",
             letterSpacing: "0.06em",
             padding: "3px 7px",
@@ -1391,7 +1390,7 @@ function ResidentCard({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <span style={{ fontSize: 12, color: "var(--text-2)" }}>
-            <span style={{ fontFamily: MONO, fontWeight: 600, color: "var(--text)" }}>
+            <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', fontWeight: 600, color: "var(--text)" }}>
               {resident.casesThisMonth}
             </span>{" "}
             cases in 30 days
@@ -1431,8 +1430,8 @@ function ResidentCard({
         >
           <span
             style={{
-              fontSize: 10,
-              fontWeight: 700,
+              fontSize: 11,
+              fontWeight: 600,
               textTransform: "uppercase",
               letterSpacing: "0.06em",
               color: "var(--text-3)",
@@ -1440,7 +1439,7 @@ function ResidentCard({
           >
             EPA progress
           </span>
-          <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: MONO }}>
+          <span style={{ fontSize: 12, color: "var(--text-2)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
             {resident.epaSigned} / {resident.epaTotal} signed
           </span>
         </div>
@@ -1543,8 +1542,8 @@ function KpiCard({
         </div>
         <span
           style={{
-            fontSize: 10,
-            fontWeight: 700,
+            fontSize: 11,
+            fontWeight: 600,
             color: "var(--text-3)",
             textTransform: "uppercase",
             letterSpacing: "0.06em",
@@ -1558,7 +1557,7 @@ function KpiCard({
           fontSize: 26,
           fontWeight: 700,
           color: emphasize ? "var(--danger)" : "var(--text)",
-          fontFamily: MONO,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           letterSpacing: "-0.01em",
         }}
       >
@@ -1570,7 +1569,7 @@ function KpiCard({
         )}
       </div>
       {sublabel && (
-        <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.05em" }}>
+        <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 2, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
           {sublabel}
         </div>
       )}
@@ -1620,7 +1619,7 @@ function ResidentAvatar({
         alignItems: "center",
         justifyContent: "center",
         fontSize,
-        fontWeight: 700,
+        fontWeight: 600,
         color: "var(--primary)",
         flexShrink: 0,
       }}

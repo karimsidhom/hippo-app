@@ -76,12 +76,12 @@ export function NotificationBell() {
               background: "var(--primary-solid)",
               color: "#fff",
               fontSize: 9,
-              fontWeight: 700,
+              fontWeight: 600,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
               boxShadow: "0 0 8px rgba(14,165,233,0.45)",
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               letterSpacing: "-0.02em",
             }}
           >
@@ -170,7 +170,7 @@ function NotificationSheet({
                 background: "var(--primary-dim)",
                 padding: "2px 7px",
                 borderRadius: 4,
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               }}>
                 {unreadCount}
               </span>
@@ -309,7 +309,7 @@ function NotificationRow({
           fontSize: 10,
           color: "var(--text-3)",
           marginTop: 4,
-          fontFamily: "'Geist Mono', monospace",
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           letterSpacing: "0.02em",
         }}>
           {formatRelative(notification.createdAt)}

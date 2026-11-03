@@ -67,7 +67,7 @@ export default function FollowUpsPage() {
   return (
     <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards" }}>
       <div className="section-title">Follow-ups</div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "2px 0 14px", letterSpacing: "-0.3px" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", margin: "2px 0 14px", letterSpacing: "-0.3px" }}>
         Pending tasks
       </h1>
 

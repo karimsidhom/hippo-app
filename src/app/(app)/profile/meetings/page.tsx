@@ -69,7 +69,7 @@ export default function MyMeetingsPage() {
       </Link>
 
       <h1 style={{
-        margin: '12px 0 6px', fontSize: 26, fontWeight: 700,
+        margin: '12px 0 6px', fontSize: 26, fontWeight: 600,
         color: 'var(--text)', letterSpacing: '-0.01em',
       }}>
         Program director 1:1
@@ -120,10 +120,11 @@ export default function MyMeetingsPage() {
                   </p>
                 </div>
                 <span style={{
-                  fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.06em',
+                  fontSize: 11, textTransform: 'uppercase', letterSpacing: "0.06em",
                   padding: '3px 10px', borderRadius: 999, flexShrink: 0,
                   background: acked ? 'var(--surface2)' : 'var(--primary)',
                   color: acked ? 'var(--text-3)' : '#fff',
+                  fontWeight: 600,
                 }}>
                   {acked ? 'Confirmed' : 'Needs your confirmation'}
                 </span>

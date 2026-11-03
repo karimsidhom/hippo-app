@@ -94,7 +94,7 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
             color: "var(--text-3)",
             fontSize: 12, fontWeight: 500,
             cursor: "pointer",
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all .15s",
             marginTop: 4,
@@ -114,8 +114,8 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
           marginTop: 4,
         }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+            fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
           }}>New Pearl</div>
 
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
@@ -182,7 +182,7 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
               style={{
                 padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
                 opacity: saving || !procedureName.trim() || !title.trim() || !content.trim() ? 0.5 : 1,
               }}
             >
@@ -194,7 +194,7 @@ export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
                 padding: "8px 16px", background: "none",
                 border: "1px solid var(--border)", color: "var(--text-3)",
                 borderRadius: 6, fontSize: 12,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
               }}
             >
               Cancel

@@ -102,7 +102,7 @@ export default function InstallPage() {
 
         <h1 style={{
           fontSize: 28,
-          fontWeight: 700,
+          fontWeight: 600,
           letterSpacing: "-0.8px",
           margin: "0 0 10px",
           color: "var(--text)",
@@ -299,8 +299,8 @@ function Step({
         border: "1px solid var(--border-glass)",
         color: "var(--primary-hi)",
         display: "flex", alignItems: "center", justifyContent: "center",
-        fontSize: 12, fontWeight: 700,
-        fontFamily: "'Geist Mono', monospace",
+        fontSize: 12, fontWeight: 600,
+        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
         flexShrink: 0,
       }}>
         {n}
@@ -397,7 +397,7 @@ function ChromeManualPanel() {
         n={1}
         title="Tap the three-dot menu"
         subtitle="Top-right of Chrome / Edge / Samsung Internet."
-        icon={<span style={{ fontSize: 18, fontWeight: 700 }}>⋮</span>}
+        icon={<span style={{ fontSize: 18, fontWeight: 600 }}>⋮</span>}
       />
       <Step
         n={2}

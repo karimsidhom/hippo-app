@@ -379,7 +379,7 @@ export default function EncounterPage() {
                 color: data.patient ? "var(--text)" : "var(--text-3)",
               }}
             >
-              <h1 style={{ fontSize: 18, fontWeight: 700, margin: 0, letterSpacing: "-0.3px" }}>
+              <h1 style={{ fontSize: 18, fontWeight: 600, margin: 0, letterSpacing: "-0.3px" }}>
                 {data.patient ? patientLabel : "Add patient name"}
               </h1>
               {!isFinalized && <Pencil size={11} style={{ opacity: 0.6 }} />}

@@ -108,7 +108,7 @@ export function DonutChart({
             textAnchor="middle"
             fill="#f1f5f9"
             fontSize={hoveredSegment ? 20 : 22}
-            fontWeight="bold"
+            fontWeight={600}
           >
             {hoveredSegment ? `${hoveredSegment.percentage}%` : total}
           </text>

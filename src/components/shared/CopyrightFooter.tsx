@@ -26,7 +26,7 @@ export function CopyrightFooter({ variant = "dark" }: { variant?: "dark" | "subt
         fontSize: 11,
         lineHeight: 1.6,
         color,
-        fontFamily: "'Geist', -apple-system, system-ui, sans-serif",
+        fontFamily: "var(--font-sans)",
         letterSpacing: 0,
       }}
     >

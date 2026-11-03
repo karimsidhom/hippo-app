@@ -353,7 +353,7 @@ export default function ProfilePage() {
             aria-label="Dismiss"
             style={{
               background: "none", border: "none", color: "#ef4444", cursor: "pointer",
-              fontSize: 14, fontWeight: 700, flexShrink: 0, padding: 0, lineHeight: 1,
+              fontSize: 14, fontWeight: 600, flexShrink: 0, padding: 0, lineHeight: 1,
             }}
           >
             ×
@@ -437,7 +437,7 @@ export default function ProfilePage() {
                     padding: "2px 8px", background: "none",
                     border: "1px solid var(--border-mid)", color: "var(--primary)",
                     borderRadius: 6, fontSize: 11, cursor: "pointer",
-                    fontFamily: "'Geist', sans-serif",
+                    fontFamily: "var(--font-sans)",
                   }}
                 >
                   Use PGY-{suggestedPgy}
@@ -473,14 +473,14 @@ export default function ProfilePage() {
             <button onClick={handleSave} disabled={saving} style={{
               padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
               border: "none", borderRadius: "var(--rs)", fontSize: 12, fontWeight: 600,
-              cursor: "pointer", fontFamily: "'Geist', sans-serif",
+              cursor: "pointer", fontFamily: "var(--font-sans)",
               transition: "opacity .15s", opacity: saving ? 0.6 : 1,
             }}>{saving ? "Saving..." : "Save"}</button>
             <button onClick={() => setEditing(false)} style={{
               padding: "8px 16px", background: "none",
               border: "1px solid var(--border)", color: "var(--text-3)",
               borderRadius: "var(--rs)", fontSize: 12,
-              cursor: "pointer", fontFamily: "'Geist', sans-serif",
+              cursor: "pointer", fontFamily: "var(--font-sans)",
             }}>Cancel</button>
           </div>
         </div>
@@ -522,8 +522,8 @@ export default function ProfilePage() {
           {topProcedures.length > 0 && (
             <section style={{ marginBottom: 24 }}>
               <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12,
               }}>Top Procedures</div>
               {topProcedures.map(([name, count], i) => (
                 <div key={name} style={{
@@ -533,7 +533,7 @@ export default function ProfilePage() {
                 }}>
                   <span style={{
                     fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                    fontFamily: "'Geist Mono', monospace", width: 16, flexShrink: 0,
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', width: 16, flexShrink: 0,
                   }}>{i + 1}</span>
                   <span style={{
                     flex: 1, fontSize: 13, fontWeight: 500, color: "var(--text)",
@@ -547,7 +547,7 @@ export default function ProfilePage() {
                   </div>
                   <span style={{
                     fontSize: 12, fontWeight: 600, color: "var(--text-2)",
-                    fontFamily: "'Geist Mono', monospace", minWidth: 20, textAlign: "right",
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', minWidth: 20, textAlign: "right",
                   }}>{count}</span>
                 </div>
               ))}
@@ -558,8 +558,8 @@ export default function ProfilePage() {
           {milestones.length > 0 && (
             <section>
               <div style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px", marginBottom: 12,
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 12,
               }}>Milestones</div>
               {milestones.map((m, i) => {
                 const formatted = formatMilestone(m);
@@ -583,7 +583,7 @@ export default function ProfilePage() {
                       }}>{formatted.title}</div>
                       <div style={{
                         fontSize: 10, color: "var(--text-3)",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                       }}>
                         {new Date(m.achievedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
                       </div>

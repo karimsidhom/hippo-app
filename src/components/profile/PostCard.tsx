@@ -126,8 +126,8 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
               background: pearl.isAnonymous ? "var(--surface2)" : "var(--primary-dim)",
               border: "1px solid var(--border)",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 10, fontWeight: 700, color: "var(--primary)",
-              fontFamily: "'Geist', sans-serif",
+              fontSize: 10, fontWeight: 600, color: "var(--primary)",
+              fontFamily: "var(--font-sans)",
               overflow: "hidden",
             }}>
               {pearl.isAnonymous ? (
@@ -295,13 +295,13 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
             style={{
               background: "none", border: "none", cursor: "pointer",
               display: "flex", alignItems: "center", gap: 4,
-              padding: 0, fontFamily: "'Geist', sans-serif",
+              padding: 0, fontFamily: "var(--font-sans)",
               color: pearl.liked ? "#EF4444" : "var(--text-3)",
               transition: "color .15s",
             }}
           >
             <Heart size={14} fill={pearl.liked ? "#EF4444" : "none"} />
-            <span style={{ fontSize: 11, fontFamily: "'Geist Mono', monospace" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {pearl.likeCount}
             </span>
           </button>
@@ -310,13 +310,13 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
             style={{
               background: "none", border: "none", cursor: "pointer",
               display: "flex", alignItems: "center", gap: 4,
-              padding: 0, fontFamily: "'Geist', sans-serif",
+              padding: 0, fontFamily: "var(--font-sans)",
               color: pearl.saved ? "var(--primary)" : "var(--text-3)",
               transition: "color .15s",
             }}
           >
             <Bookmark size={14} fill={pearl.saved ? "var(--primary)" : "none"} />
-            <span style={{ fontSize: 11, fontFamily: "'Geist Mono', monospace" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {pearl.saveCount}
             </span>
           </button>
@@ -325,13 +325,13 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
             style={{
               background: "none", border: "none", cursor: "pointer",
               display: "flex", alignItems: "center", gap: 4,
-              padding: 0, fontFamily: "'Geist', sans-serif",
+              padding: 0, fontFamily: "var(--font-sans)",
               color: showComments ? "var(--primary)" : "var(--text-3)",
               transition: "color .15s",
             }}
           >
             <MessageCircle size={14} />
-            <span style={{ fontSize: 11, fontFamily: "'Geist Mono', monospace" }}>
+            <span style={{ fontSize: 11, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {localCommentCount}
             </span>
             {showComments ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
@@ -358,7 +358,7 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
                 style={{
                   padding: "8px 12px", background: "var(--primary-solid)", color: "#fff",
                   border: "none", borderRadius: 6, cursor: "pointer",
-                  fontFamily: "'Geist', sans-serif",
+                  fontFamily: "var(--font-sans)",
                   opacity: submittingComment || !commentText.trim() ? 0.5 : 1,
                   display: "flex", alignItems: "center",
                 }}
@@ -387,8 +387,8 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
                     background: "var(--primary-dim)",
                     border: "1px solid var(--border)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 8, fontWeight: 700, color: "var(--primary)",
-                    fontFamily: "'Geist', sans-serif",
+                    fontSize: 8, fontWeight: 600, color: "var(--primary)",
+                    fontFamily: "var(--font-sans)",
                     flexShrink: 0,
                     overflow: "hidden",
                   }}>
@@ -403,7 +403,7 @@ export function PostCard({ pearl, onLike, onSave, viewerRoleType }: Props) {
                       <span style={{ fontSize: 11, fontWeight: 600, color: "var(--text)" }}>
                         {comment.author?.name || "Anonymous"}
                       </span>
-                      <span style={{ fontSize: 9, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
+                      <span style={{ fontSize: 9, color: "var(--text-3)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                         {new Date(comment.createdAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
                       </span>
                     </div>

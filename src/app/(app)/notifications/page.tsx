@@ -39,7 +39,7 @@ export default function NotificationsPage() {
         <div>
           <h1 style={{
             fontSize: 22,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text)",
             letterSpacing: "-0.5px",
             margin: 0,
@@ -183,7 +183,7 @@ function Row({ n, onClick, isLast }: { n: AppNotification; onClick: () => void; 
           <div style={{
             fontSize: 10,
             color: "var(--text-3)",
-            fontFamily: "'Geist Mono', monospace",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             flexShrink: 0,
           }}>
             {formatRelative(n.createdAt)}

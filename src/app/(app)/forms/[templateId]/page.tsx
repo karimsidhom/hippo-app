@@ -164,7 +164,7 @@ export default function FormFillerPage() {
       <h1
         style={{
           fontSize: 22,
-          fontWeight: 700,
+          fontWeight: 600,
           color: "var(--text)",
           letterSpacing: "-0.4px",
           margin: 0,
@@ -271,8 +271,8 @@ export default function FormFillerPage() {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 10,
-  fontWeight: 500,
+  fontSize: 11,
+  fontWeight: 600,
   color: "var(--text-3)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",

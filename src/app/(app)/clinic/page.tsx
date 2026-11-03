@@ -91,7 +91,7 @@ export default async function ClinicDashboardPage() {
       {/* Greeting */}
       <div style={{ marginBottom: 18 }}>
         <div className="section-title">Hippo Clinic</div>
-        <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.4px" }}>
+        <h1 style={{ fontSize: 22, fontWeight: 600, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.4px" }}>
           {greeting}{greetingName ? `, ${greetingName}` : ""}.
         </h1>
         <p style={{ fontSize: 13, color: "var(--text-2)", margin: 0 }}>

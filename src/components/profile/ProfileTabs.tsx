@@ -39,7 +39,7 @@ export function ProfileTabs({ active, onChange, portfolioCount }: Props) {
               fontSize: 12,
               fontWeight: isActive ? 600 : 500,
               cursor: "pointer",
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               transition: "all .15s",
               display: "flex",
               alignItems: "center",
@@ -52,7 +52,7 @@ export function ProfileTabs({ active, onChange, portfolioCount }: Props) {
               <span style={{
                 fontSize: 10,
                 color: isActive ? "var(--primary)" : "var(--text-3)",
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               }}>
                 {count}
               </span>

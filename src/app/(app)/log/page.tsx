@@ -567,7 +567,7 @@ export default function LogCasePage() {
     <div className="case-log-flow max-w-2xl mx-auto animate-fade-in">
       {/* Header */}
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-[var(--text)]">Log a Case</h1>
+        <h1 className="text-2xl font-semibold text-[var(--text)]">Log a Case</h1>
         <p className="text-[var(--text-2)] text-sm mt-1">Record your operative experience</p>
       </div>
 
@@ -958,7 +958,7 @@ export default function LogCasePage() {
                   <button
                     key={d.value}
                     onClick={() => updateForm({ difficultyScore: d.value })}
-                    className={`flex-1 py-3 rounded-lg text-sm font-bold transition-all duration-150 border ${
+                    className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-all duration-150 border ${
                       form.difficultyScore === d.value
                         ? "border-current opacity-100"
                         : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-3)] opacity-60 hover:opacity-80"
