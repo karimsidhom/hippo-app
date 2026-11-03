@@ -1,20 +1,22 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { LayoutDashboard, ClipboardList, BarChart2, User, LogOut, Plus, Users, FilePlus, CalendarClock, Settings as SettingsIcon, Inbox, GraduationCap, NotebookPen, ArrowUpRight, type LucideIcon } from "lucide-react";
 import { QuickAddModal } from "@/components/cases/QuickAddModal";
 import { IOSInstallPrompt } from "@/components/IOSInstallPrompt";
 import { HippoMark } from "@/components/HippoMark";
+import { HippoDock } from "@/components/HippoDock";
+import { createClient } from "@/lib/supabase";
+import { useLinkInbox } from "@/hooks/useLinkInbox";
+import { PULSE_URL } from "@/lib/pulse";
+import { WorkspaceThemeToggle } from "@/components/WorkspaceThemeToggle";
 import { ShadowRecordBanner } from "@/components/shared/ShadowRecordBanner";
 import { SubprocessorBanner } from "@/components/SubprocessorBanner";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
-import { HippoDock } from "@/components/HippoDock";
-import { createClient } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
 import { useInteraction } from "@/hooks/useInteraction";
-import { PULSE_URL } from "@/lib/pulse";
 import "../cases-workspace.css";
 import {
   hydrateStyleProfile,
@@ -26,12 +28,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router   = useRouter();
   const { user, profile, loading, onboardingDone, logout } = useAuth();
   const [quickAddOpen, setQuickAddOpen] = useState(false);
-  // The suite switcher reads its own session and hub profile. Cases was named
-  // in HippoDock's own docstring as one of the three repos that carry it, but
-  // never actually received the copy — so Study (and every other app) was
-  // unreachable from here. Stable client so the dock doesn't refetch per render.
-  const suiteSupabase = useRef(createClient()).current;
   const fx = useInteraction();
+  // One suite switcher in the shell (sidebar on a computer, header on a
+  // phone). Stable client so it doesn't refetch per render; the Hippo Link
+  // count badges it when Handover has sent cases to log.
+  const suiteSupabase = useRef(createClient()).current;
+  const linkInbox = useLinkInbox({ pollMs: 60_000, enabled: !!user });
 
   useEffect(() => {
     if (loading) return;
@@ -76,9 +78,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   // Pure CSS-variable swap (see globals.css [data-module="clinic"]) — no logic
   // or component changes needed elsewhere in the app.
   const inClinic = pathname.startsWith("/clinic");
-  const roleType = profile?.roleType;
-  const isStaff = roleType === "STAFF" || roleType === "ATTENDING" || roleType === "PROGRAM_DIRECTOR";
-  const isPD = roleType === "PROGRAM_DIRECTOR";
   const moduleAttr = inClinic ? "clinic" : undefined;
 
   return (
@@ -91,6 +90,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         minHeight: "100dvh",
         width: "100%",
         maxWidth: "100vw",
+        overflowX: "hidden",
         // Center the entire app shell on wide screens so header / main / nav
         // share the same horizontal axis instead of each centering itself.
         display: "flex",
@@ -99,8 +99,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }}
     >
       <a className="workspace-skip" href="#workspace-content">Skip to content</a>
+
       <ShadowRecordBanner />
       <SubprocessorBanner />
+      <DesktopSidebar
+        inClinic={inClinic}
+        pathname={pathname}
+        name={user.name}
+        subtitle={[profile?.trainingYearLabel, profile?.specialty].filter(Boolean).join(" \u00b7 ")}
+        roleType={profile?.roleType}
+        suiteDock={<HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />}
+        onLog={() => { fx.tap(); setQuickAddOpen(true); }}
+        onLogout={() => { logout(); router.replace("/login"); }}
+      />
       {/* Responsive breakpoint styles.
        *
        * Width strategy:
@@ -122,7 +133,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
            Side padding folds in env(safe-area-inset-left/right) so an
            iPhone in landscape with the notch on the left doesn't shove
            content sideways. */
-        .app-shell { --sidebar-w: 236px; }
         .app-header, .app-main {
           width: 100%;
           max-width: 640px;
@@ -156,79 +166,19 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             padding-bottom: 96px;
           }
         }
-        /* Desktop (≥ 1024): the phone dock retires and a proper left
-           sidebar takes over. The shell is inset by the sidebar width so
-           header + main stay centred in the REMAINING space rather than
-           the whole viewport — otherwise content drifts right. Bottom
-           padding drops to 56px because there's no longer a fixed bar
-           sitting over the last row of content. */
-        .app-sidebar { display: none; }
-        @media (min-width: 1024px) {
-          .app-shell { padding-left: var(--sidebar-w); }
-          .app-sidebar { display: flex; }
-          .app-nav, .app-nav-backdrop { display: none !important; }
-          /* Brand lives at the top of the sidebar on desktop, so the
-             header keeps only its actions and stops reading as a phone
-             title bar. */
-          .app-brand { display: none !important; }
-          .app-header, .app-main { max-width: 1040px; }
+        @media (min-width: 1200px) {
+          .app-header, .app-main { max-width: 880px; }
           .app-header {
-            /* With the brand hidden, space-between would strand the
-               actions on the LEFT — they're the only remaining child. */
-            justify-content: flex-end !important;
-            padding-left: max(32px, env(safe-area-inset-left));
-            padding-right: max(32px, env(safe-area-inset-right));
+            padding-left: max(36px, env(safe-area-inset-left));
+            padding-right: max(36px, env(safe-area-inset-right));
           }
           .app-main {
-            padding-left: max(32px, env(safe-area-inset-left));
-            padding-right: max(32px, env(safe-area-inset-right));
+            padding-left: max(36px, env(safe-area-inset-left));
+            padding-right: max(36px, env(safe-area-inset-right));
             padding-top: 28px;
-            padding-bottom: 56px;
+            padding-bottom: 96px;
           }
         }
-        /* Only past 1600 does the column grow again — at 1440 the sidebar
-           already eats 236px, so a 1200px column would run to the right
-           edge with no gutter. */
-        @media (min-width: 1600px) {
-          .app-header, .app-main { max-width: 1200px; }
-          .app-header {
-            padding-left: max(40px, env(safe-area-inset-left));
-            padding-right: max(40px, env(safe-area-inset-right));
-          }
-          .app-main {
-            padding-left: max(40px, env(safe-area-inset-left));
-            padding-right: max(40px, env(safe-area-inset-right));
-          }
-        }
-        /* Sidebar chrome */
-        .app-sidebar {
-          position: fixed;
-          top: 0;
-          left: 0;
-          bottom: 0;
-          width: var(--sidebar-w);
-          flex-direction: column;
-          gap: 2px;
-          padding: 18px 14px max(18px, env(safe-area-inset-bottom));
-          background: var(--bg);
-          border-right: 1px solid var(--border);
-          z-index: 60;
-        }
-        .side-tab {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          padding: 9px 10px;
-          border-radius: 6px;
-          font-size: 13px;
-          font-weight: 500;
-          letter-spacing: -.01em;
-          text-decoration: none;
-          color: var(--text-2);
-          transition: background .15s cubic-bezier(.16,1,.3,1), color .15s;
-        }
-        .side-tab:hover { background: var(--surface); color: var(--text); }
-        .side-tab[data-active="true"] { background: var(--surface2); color: var(--text); }
         /* Premium polish — sticky header sits above a subtle blur so
            content scrolling underneath ghosts through tastefully rather
            than slamming a hard line at the bottom of the bar. */
@@ -238,104 +188,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           background: color-mix(in oklab, var(--bg) 78%, transparent) !important;
         }
       `}</style>
-      {/* ── Desktop sidebar (≥ 1024px only) ────────────────────────────── */}
-      {/*
-        Same destinations as the bottom nav — nothing new, nothing hidden.
-        On a wide screen a fixed 480px dock floating over an empty page
-        reads as a phone app in a browser window; a labelled rail reads as
-        a web app. Below 1024px this is display:none and the phone dock is
-        untouched.
-      */}
-      <aside className="app-sidebar" aria-label="Primary">
-        <Link
-          href={inClinic ? "/clinic" : "/dashboard"}
-          style={{
-            display: "flex", alignItems: "center", gap: 8,
-            textDecoration: "none", padding: "4px 10px 18px",
-          }}
-        >
-          <HippoMark size={22} />
-          <span style={{
-            fontSize: 15, fontWeight: 700, color: "var(--text)",
-            letterSpacing: "-.3px", fontFamily: "'Geist', sans-serif",
-          }}>
-            Hippo
-          </span>
-          {inClinic && (
-            <span style={{
-              marginLeft: 2, padding: "2px 6px", fontSize: 9, fontWeight: 600,
-              letterSpacing: ".08em", textTransform: "uppercase",
-              color: "var(--primary)", background: "var(--primary-dim)",
-              border: "1px solid var(--border-glow)", borderRadius: 4,
-              fontFamily: "'Geist', sans-serif",
-            }}>
-              Clinic
-            </span>
-          )}
-        </Link>
-
-        {inClinic ? (
-          <Link
-            href="/clinic/new"
-            className="press"
-            onClick={() => fx.tap()}
-            style={sidebarPrimaryStyle}
-          >
-            <FilePlus size={14} strokeWidth={2.5} />
-            New note
-          </Link>
-        ) : (
-          <button
-            className="press"
-            onClick={() => { fx.tap(); setQuickAddOpen(true); }}
-            style={{ ...sidebarPrimaryStyle, cursor: "pointer" }}
-          >
-            <Plus size={14} strokeWidth={2.5} />
-            Log a case
-          </button>
-        )}
-
-        <div style={{ height: 14 }} />
-
-        {inClinic ? (
-          <>
-            <SideTab href="/clinic" label="Home" icon={LayoutDashboard} active={pathname === "/clinic"} />
-            <SideTab href="/clinic/patients" label="Patients" icon={Users} active={pathname.startsWith("/clinic/patients")} />
-            <SideTab href="/clinic/follow-ups" label="Follow-ups" icon={CalendarClock} active={pathname.startsWith("/clinic/follow-ups")} />
-            <SideTab href="/clinic/settings" label="Settings" icon={SettingsIcon} active={pathname.startsWith("/clinic/settings")} />
-          </>
-        ) : (
-          <>
-            <SideTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
-            <SideTab href="/cases" label="Cases" icon={ClipboardList} active={pathname === "/cases"} />
-            <SideTab href="/analytics" label="Stats" icon={BarChart2} active={pathname === "/analytics"} />
-            <SideTab href="/notes" label="Notes" icon={NotebookPen} active={pathname.startsWith("/notes")} />
-            {isStaff && <SideTab href="/inbox" label="EPA inbox" icon={Inbox} active={pathname.startsWith("/inbox")} />}
-            {isPD && <SideTab href="/pd-dashboard" label="Program" icon={GraduationCap} active={pathname.startsWith("/pd-dashboard")} />}
-            <SideTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />
-            <a href={PULSE_URL} className="side-tab" target="_blank" rel="noopener">
-              <Users size={16} strokeWidth={1.5} />
-              <span>Community</span>
-              <ArrowUpRight size={13} strokeWidth={1.75} style={{ marginLeft: "auto", opacity: 0.6 }} aria-label="opens Hippo Pulse" />
-            </a>
-          </>
-        )}
-
-        <div style={{ flex: 1 }} />
-
-        <button
-          onClick={() => { logout(); router.replace("/login"); }}
-          className="side-tab"
-          style={{
-            background: "none", border: "none", cursor: "pointer",
-            fontFamily: "'Geist', sans-serif", textAlign: "left", width: "100%",
-          }}
-        >
-          <LogOut size={16} strokeWidth={1.5} />
-          Log out
-        </button>
-      </aside>
-
       {/* ── Header ─────────────────────────────────────────────────────── */}
       {/*
         Installed-PWA safe area: iOS runs the app "black-translucent" so
@@ -374,11 +226,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       }}>
         <Link
           href={inClinic ? "/clinic" : "/dashboard"}
-          className="app-brand"
           style={{ display: "flex", alignItems: "center", gap: 8, textDecoration: "none" }}
         >
           <HippoMark size={22} />
-          <span style={{
+          <span className="case-mobile-wordmark" style={{
             fontSize: 15,
             fontWeight: 700,
             color: "var(--text)",
@@ -407,21 +258,21 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+          {!inClinic && <HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" inbox={linkInbox.count} inboxHref="/inbox" />}
+          <WorkspaceThemeToggle />
           {/* The shared NotificationBell renders the existing global feed
               (EPA verifications, batch sign-offs, etc) — copy that's
               irrelevant for a clinic-only deployment. We hide it under
               [data-module="clinic"] so the clinician never lands in EPA
               vocabulary by mistake. Clinic-specific notifications live
               at /clinic/settings/notifications and on the dashboard. */}
-          {/* The dashboard mounts its own dock with the Hippo Link inbox count. */}
-          {!inClinic && pathname !== "/dashboard" && <HippoDock current="cases" supabase={suiteSupabase} profileHref="/profile" />}
           {!inClinic && <NotificationBell />}
           {inClinic ? (
             <Link
               href="/clinic/new"
               className="press"
               style={{
-                background: "var(--primary-solid)",
+                background: "var(--primary)",
                 color: "#fff",
                 border: "none",
                 borderRadius: 5,
@@ -447,7 +298,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               className="press"
               onClick={() => { fx.tap(); setQuickAddOpen(true); }}
               style={{
-                background: "var(--primary-solid)",
+                background: "var(--primary)",
                 color: "#fff",
                 border: "none",
                 borderRadius: 5,
@@ -467,6 +318,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               Log
             </button>
           )}
+          {!inClinic ? <Link className="case-account-link" href="/profile" aria-label="Your profile and account"><User size={20} /></Link> : (
           <button
             onClick={() => { logout(); router.replace("/login"); }}
             title="Log out"
@@ -477,12 +329,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
               cursor: "pointer",
               display: "flex",
               alignItems: "center",
-              color: "var(--text-3)",
+              color: "var(--muted)",
               transition: "color .15s",
             }}
           >
             <LogOut size={13} />
           </button>
+          )}
         </div>
       </header>
 
@@ -592,7 +445,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       paddingTop: 2,
                       paddingBottom: 4,
                       textDecoration: "none",
-                      color: newActive ? "var(--text)" : "var(--text-3)",
+                      color: newActive ? "var(--text)" : "var(--muted)",
                       transition: "color .15s",
                       position: "relative",
                     }}
@@ -625,98 +478,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           </>
         ) : (
         <>
-        {/* ── Home ── */}
         <NavTab href="/dashboard" label="Home" icon={LayoutDashboard} active={pathname === "/dashboard"} />
-
-        {/* ── Stats ── */}
-        <NavTab href="/analytics" label="Stats" icon={BarChart2} active={pathname === "/analytics"} />
-
-        {/* ── Cases (center anchor with integrated +) ── */}
-        {(() => {
-          const casesActive = pathname === "/cases";
-          return (
-            <div style={{
-              display: "flex",
-              flexDirection: "column",
-              alignItems: "center",
-              position: "relative",
-              marginTop: -12,
-            }}>
-              {/* + button — elevated, attached to Cases.
-                  44×44 hits Apple HIG's minimum tappable target so the
-                  most-used primary action never misfires on iPhone. */}
-              <button
-                className="press-key"
-                onClick={() => { fx.tap(); setQuickAddOpen(true); }}
-                aria-label="Log a case"
-                style={{
-                  width: 44,
-                  height: 44,
-                  borderRadius: 14,
-                  background: "var(--primary)",
-                  border: "3px solid var(--bg)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  cursor: "pointer",
-                  // Motion + haptic live in useInteraction() + the .press-key
-                  // class. This button now has a uniform press feel matching
-                  // every other primary action across the app.
-                  transition: "box-shadow .15s cubic-bezier(.16,1,.3,1)",
-                  boxShadow: "0 2px 8px rgba(99,102,241,.25)",
-                }}
-              >
-                <Plus size={20} color="#fff" strokeWidth={2.5} />
-              </button>
-              {/* Cases label/icon below */}
-              <Link
-                href="/cases"
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  gap: 1,
-                  paddingTop: 2,
-                  paddingBottom: 4,
-                  textDecoration: "none",
-                  color: casesActive ? "var(--text)" : "var(--text-3)",
-                  transition: "color .15s",
-                  position: "relative",
-                }}
-              >
-                {casesActive && (
-                  <div style={{
-                    position: "absolute",
-                    top: -2,
-                    left: "50%",
-                    transform: "translateX(-50%)",
-                    width: 16,
-                    height: 1.5,
-                    borderRadius: 1,
-                    background: "var(--primary)",
-                  }} />
-                )}
-                <ClipboardList size={15} strokeWidth={casesActive ? 2 : 1.5} />
-                <span style={{
-                  fontSize: 9,
-                  fontWeight: 500,
-                  letterSpacing: ".06em",
-                  textTransform: "uppercase",
-                  fontFamily: "'Geist', sans-serif",
-                }}>Cases</span>
-              </Link>
-            </div>
-          );
-        })()}
-
-        {/* Cohort tab lives inside Stats for PDs — see src/app/(app)/analytics/page.tsx.
-            Kept off the bottom nav to avoid crowding. */}
-
-        {/* ── Profile ── */}
-        <NavTab href="/profile" label="Profile" icon={User} active={pathname === "/profile" || pathname.startsWith("/profile/")} />
-
-        {/* ── Notes ── Community lives on Hippo Pulse (header switcher). */}
+        <NavTab href="/cases" label="Cases" icon={ClipboardList} active={pathname.startsWith("/cases") || pathname === "/log"} />
+        <NavTab href="/analytics" label="Progress" icon={BarChart2} active={["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path))} />
         <NavTab href="/notes" label="Notes" icon={NotebookPen} active={pathname.startsWith("/notes")} />
+        <NavTab href={profile?.roleType === "PROGRAM_DIRECTOR" ? "/pd-dashboard" : "/programs"} label="Program" icon={GraduationCap} active={["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path))} />
+
         </>
         )}
       </nav>
@@ -724,42 +491,6 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <QuickAddModal open={quickAddOpen} onClose={() => setQuickAddOpen(false)} />
       <IOSInstallPrompt />
     </div>
-  );
-}
-
-/** Primary action button at the top of the desktop sidebar */
-const sidebarPrimaryStyle: React.CSSProperties = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  gap: 6,
-  background: "var(--primary-solid)",
-  color: "#fff",
-  border: "none",
-  borderRadius: 6,
-  padding: "9px 12px",
-  fontSize: 12,
-  fontWeight: 600,
-  letterSpacing: ".01em",
-  fontFamily: "'Geist', sans-serif",
-  textDecoration: "none",
-  transition: "all .15s cubic-bezier(.16,1,.3,1)",
-};
-
-/** Reusable desktop sidebar link */
-function SideTab({
-  href, label, icon: Icon, active,
-}: {
-  href: string;
-  label: string;
-  icon: LucideIcon;
-  active: boolean;
-}) {
-  return (
-    <Link href={href} className="side-tab" data-active={active} aria-current={active ? "page" : undefined}>
-      <Icon size={16} strokeWidth={active ? 2 : 1.5} />
-      <span>{label}</span>
-    </Link>
   );
 }
 
@@ -789,7 +520,7 @@ function NavTab({
         minWidth: 44,
         minHeight: 44,
         padding: "8px 14px",
-        color: active ? "var(--text)" : "var(--text-3)",
+        color: active ? "var(--text)" : "var(--muted)",
         textDecoration: "none",
         fontSize: 9,
         fontWeight: 500,
@@ -817,3 +548,138 @@ function NavTab({
     </Link>
   );
 }
+
+/** Desktop-only left sidebar (hidden below 1024px via .desk-sidebar). */
+function DesktopSidebar({
+  inClinic, pathname, name, subtitle, roleType, suiteDock, onLog, onLogout,
+}: {
+  inClinic: boolean;
+  suiteDock: ReactNode;
+  pathname: string;
+  name: string;
+  subtitle: string;
+  roleType?: string;
+  onLog: () => void;
+  onLogout: () => void;
+}) {
+  const isStaff = roleType === "STAFF" || roleType === "ATTENDING" || roleType === "PROGRAM_DIRECTOR";
+  const isPD = roleType === "PROGRAM_DIRECTOR";
+  const items: { href: string; label: string; icon: LucideIcon; active: boolean }[] = inClinic
+    ? [
+        { href: "/clinic", label: "Home", icon: LayoutDashboard, active: pathname === "/clinic" },
+        { href: "/clinic/patients", label: "Patients", icon: Users, active: pathname.startsWith("/clinic/patients") },
+        { href: "/clinic/follow-ups", label: "Follow-ups", icon: CalendarClock, active: pathname.startsWith("/clinic/follow-ups") },
+        { href: "/clinic/settings", label: "Settings", icon: SettingsIcon, active: pathname.startsWith("/clinic/settings") },
+      ]
+    : [
+        { href: "/dashboard", label: "Home", icon: LayoutDashboard, active: pathname === "/dashboard" },
+        { href: "/cases", label: "Cases", icon: ClipboardList, active: pathname.startsWith("/cases") },
+        { href: "/analytics", label: "Progress", icon: BarChart2, active: ["/analytics", "/meetings", "/requirements", "/assessments", "/epa"].some(path => pathname.startsWith(path)) },
+        { href: "/notes", label: "Notes", icon: NotebookPen, active: pathname.startsWith("/notes") },
+        { href: isPD ? "/pd-dashboard" : "/programs", label: "Program", icon: GraduationCap, active: ["/programs", "/rotations", "/pd-dashboard", "/cc-reviews", "/forms"].some(path => pathname.startsWith(path)) },
+        ...(isStaff ? [{ href: "/inbox", label: "EPA inbox", icon: Inbox, active: pathname.startsWith("/inbox") }] : []),
+      ];
+  const settingsActive = pathname.startsWith("/settings");
+
+  return (
+    <aside className="desk-sidebar" aria-label="Main navigation">
+      <div className="workspace-brand-row">
+      <Link
+        href={inClinic ? "/clinic" : "/dashboard"}
+        style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px", textDecoration: "none" }}
+      >
+        <HippoMark size={26} />
+        <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Hippo</span>
+        {inClinic && (
+          <span style={{
+            padding: "2px 6px", fontSize: 9, fontWeight: 600, letterSpacing: ".08em",
+            textTransform: "uppercase", color: "var(--primary)", background: "var(--primary-dim)",
+            border: "1px solid var(--border-glow)", borderRadius: 4,
+          }}>Clinic</span>
+        )}
+      </Link>
+      {!inClinic && <>{suiteDock}<WorkspaceThemeToggle /></>}
+      </div>
+
+      {inClinic ? (
+        <Link href="/clinic/new" className="press" style={deskPrimaryBtn}>
+          <FilePlus size={16} strokeWidth={2.25} /> New note
+        </Link>
+      ) : (
+        <button type="button" className="press" onClick={onLog} style={deskPrimaryBtn}>
+          <Plus size={16} strokeWidth={2.5} /> Log a case
+        </button>
+      )}
+
+      <nav style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        {items.map(({ href, label, icon: Icon, active }) => (
+          <Link key={href} href={href} className="desk-nav-link" aria-current={active ? "page" : undefined}>
+            <Icon size={17} strokeWidth={active ? 2 : 1.75} />
+            {label}
+          </Link>
+        ))}
+      </nav>
+
+      <div style={{ flex: 1 }} />
+
+      {!inClinic && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 2, marginBottom: 12 }}>
+          {/* Community lives on Hippo Pulse; Cases keeps the private record. */}
+          <a href={PULSE_URL} target="_blank" rel="noopener" className="desk-nav-link">
+            <Users size={17} strokeWidth={1.75} /> Community
+            <ArrowUpRight size={14} strokeWidth={1.75} style={{ marginLeft: "auto", opacity: 0.6 }} aria-label="opens Hippo Pulse" />
+          </a>
+          <Link href="/profile" className="desk-nav-link" aria-current={pathname === "/profile" ? "page" : undefined}><User size={17} /> Your profile</Link>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingRight: 4 }}>
+            <Link href="/settings" className="desk-nav-link" aria-current={settingsActive ? "page" : undefined} style={{ flex: 1 }}>
+              <SettingsIcon size={17} strokeWidth={settingsActive ? 2 : 1.75} />
+              Settings
+            </Link>
+            <NotificationBell />
+          </div>
+        </div>
+      )}
+
+      <div style={{
+        display: "flex", alignItems: "center", gap: 10,
+        padding: "12px 10px 4px", borderTop: "1px solid var(--border)",
+      }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 600, color: "var(--text)",
+            whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+          }}>{name}</div>
+          {subtitle && (
+            <div style={{
+              fontSize: 11, color: "var(--text-3)", marginTop: 2,
+              whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+            }}>{subtitle}</div>
+          )}
+        </div>
+        <button
+          type="button"
+          onClick={onLogout}
+          title="Log out"
+          aria-label="Log out"
+          style={{
+            background: "none", border: "1px solid var(--border-mid)", borderRadius: 7,
+            width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center",
+            color: "var(--text-2)", cursor: "pointer", flexShrink: 0,
+          }}
+        >
+          <LogOut size={14} />
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+const deskPrimaryBtn: React.CSSProperties = {
+  display: "flex", alignItems: "center", justifyContent: "center", gap: 7,
+  height: 40, margin: "24px 0 18px",
+  background: "linear-gradient(135deg, var(--primary-solid-hi), var(--primary-solid))", color: "#fff",
+  border: "none", borderRadius: 9,
+  fontSize: 14, fontWeight: 600, fontFamily: "inherit",
+  cursor: "pointer", textDecoration: "none",
+  boxShadow: "0 2px 10px rgba(14,165,233,.22)",
+};

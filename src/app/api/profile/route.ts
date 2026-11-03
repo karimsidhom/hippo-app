@@ -22,7 +22,7 @@ export async function GET() {
 
     if (!profile) {
       const created = await db.profile.create({
-        data: { userId: user.id, onboardingCompleted: false },
+        data: { userId: user.id, onboardingCompleted: false, theme: "light" },
       });
       return NextResponse.json(created);
     }
@@ -191,7 +191,7 @@ export async function PATCH(req: NextRequest) {
         bio,
         onboardingCompleted: onboardingCompleted ?? false,
         tier: 'free',
-        theme: safeTheme ?? 'dark',
+        theme: safeTheme ?? 'light',
       },
     });
 

@@ -95,6 +95,21 @@ function deserializeMilestone(raw: Record<string, unknown>): Milestone {
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
+/**
+ * supabase-js does not throw when the auth server can't be reached: it
+ * returns an AuthRetryableFetchError whose message is the browser's
+ * "Failed to fetch". Shown raw, that reads like a crash. Translate the
+ * network case; every other auth message passes through unchanged.
+ */
+const NETWORK_AUTH_MESSAGE =
+  "We couldn't reach Hippo's sign-in service. Check your connection and try again.";
+function authErrorMessage(error: { name?: string; message: string; status?: number }): string {
+  const network =
+    error.name === 'AuthRetryableFetchError' ||
+    /failed to fetch|network ?error|load failed|fetch failed/i.test(error.message);
+  return network ? NETWORK_AUTH_MESSAGE : error.message;
+}
+
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router     = useRouter();
   // Stable Supabase client (never recreated)
@@ -296,12 +311,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       // 2. Sign in from the browser to obtain a local session cookie
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: authErrorMessage(error) };
 
       router.push('/onboarding');
       return { ok: true, error: '' };
     } catch {
-      return { ok: false, error: 'Network error. Please try again.' };
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
     }
   }, [supabase, router]);
 
@@ -310,7 +325,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   ): Promise<AuthResult> => {
     try {
       const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { ok: false, error: error.message };
+      if (error) return { ok: false, error: authErrorMessage(error) };
 
       // Ensure DB user row exists (idempotent)
       await fetch('/api/auth/sync', { method: 'POST' }).catch(() => {});
@@ -326,7 +341,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
       return { ok: true, error: '' };
     } catch {
-      return { ok: false, error: 'Network error. Please try again.' };
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
     }
   }, [supabase, router]);
 
@@ -353,7 +368,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           if (/not found|invalid email/i.test(error.message)) {
             return { ok: true, error: '' };
           }
-          return { ok: false, error: error.message };
+          return { ok: false, error: authErrorMessage(error) };
         }
         return { ok: true, error: '' };
       } catch (err) {

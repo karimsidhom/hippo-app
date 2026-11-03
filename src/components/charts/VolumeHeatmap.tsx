@@ -11,12 +11,14 @@ interface VolumeHeatmapProps {
 const MONTH_LABELS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 const DAY_LABELS = ["", "Mon", "", "Wed", "", "Fri", ""];
 
+// Token-based so the grid reads on the light canvas as well as the dark
+// one: empty days sit on the surface, busier days step up the accent.
 function getCellColor(count: number): string {
-  if (count === 0) return "#16161f";
-  if (count === 1) return "#1e3a5f";
-  if (count === 2) return "#1d4ed8";
-  if (count === 3) return "#2563eb";
-  return "#3b82f6";
+  if (count === 0) return "var(--surface2)";
+  if (count === 1) return "color-mix(in srgb, var(--primary) 30%, var(--surface2))";
+  if (count === 2) return "color-mix(in srgb, var(--primary) 55%, var(--surface2))";
+  if (count === 3) return "color-mix(in srgb, var(--primary) 78%, var(--surface2))";
+  return "var(--primary)";
 }
 
 export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
@@ -112,7 +114,7 @@ export function VolumeHeatmap({ data, large = false }: VolumeHeatmapProps) {
                   width={cellSize}
                   height={cellSize}
                   rx={2}
-                  fill={color}
+                  style={{ fill: color }}
                   className="heatmap-cell transition-opacity duration-150"
                   onMouseEnter={(e) => {
                     const rect = e.currentTarget.getBoundingClientRect();

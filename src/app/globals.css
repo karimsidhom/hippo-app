@@ -11,6 +11,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 :root {
+  /* Filled-button fill. --primary (#0EA5E9) is tuned as an accent on the
+     dark canvas; white text on it measures 2.77:1 and fails AA. These are
+     the same blue stepped deep enough to carry white text (5.93:1, 4.94:1
+     on hover). */
+  --primary-solid:    #0369A1;
+  --primary-solid-hi: #0477AE;
+
   /* Canvas */
   --bg:           #060d13;
   --bg-elevated:  #0c1219;
@@ -48,14 +55,6 @@
   --primary-dim:  rgba(14,165,233,0.05);
   --primary-glow: rgba(14,165,233,0.10);
 
-  /* Filled-button fill. --primary (#0EA5E9) is tuned to sit ON the dark
-     canvas as a stroke/accent; white text on it measures only 2.77:1, so
-     every solid CTA in the app was failing AA. These two are the same teal
-     stepped deep enough to carry white text (5.93:1 / 4.94:1 on hover)
-     while still clearing 3:1 against the canvas as a UI surface. */
-  --primary-solid:    #0369A1;
-  --primary-solid-hi: #0477AE;
-
   /* Surface levels (used by EPA form and modals) */
   --bg-1:         #0e1520;
   --bg-2:         #141c28;
@@ -88,6 +87,13 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 [data-theme="light"] {
+  /* Filled-button fill. --primary (#0EA5E9) is tuned as an accent on the
+     dark canvas; white text on it measures 2.77:1 and fails AA. These are
+     the same blue stepped deep enough to carry white text (5.93:1, 4.94:1
+     on hover). */
+  --primary-solid:    #0369A1;
+  --primary-solid-hi: #0477AE;
+
   /* Canvas */
   --bg:           #f8fafc;
   --bg-elevated:  #ffffff;
@@ -122,9 +128,6 @@
   --primary-dim:  rgba(14,165,233,0.06);
   --primary-glow: rgba(14,165,233,0.12);
 
-  --primary-solid:    #0369A1;
-  --primary-solid-hi: #0477AE;
-
   /* Surface levels */
   --bg-1:         #ffffff;
   --bg-2:         #f8fafc;
@@ -153,14 +156,14 @@
    ═══════════════════════════════════════════════════════════════════════════ */
 
 [data-module="clinic"] {
+  --primary-solid:    #B91C1C;   /* white 6.06:1 */
+  --primary-solid-hi: #C62525;
+
   --primary:      #DC2626;
   --primary-hi:   #EF4444;
   --primary-lo:   #B91C1C;
   --primary-dim:  rgba(220,38,38,0.05);
   --primary-glow: rgba(220,38,38,0.10);
-
-  --primary-solid:    #B91C1C;   /* white 6.06:1 */
-  --primary-solid-hi: #C62525;
 
   --glass:        rgba(220,38,38,0.02);
   --glass-mid:    rgba(220,38,38,0.04);
@@ -178,14 +181,14 @@
 
 [data-theme="light"][data-module="clinic"],
 [data-module="clinic"][data-theme="light"] {
+  --primary-solid:    #B91C1C;   /* white 6.06:1 */
+  --primary-solid-hi: #C62525;
+
   --primary:      #B91C1C;
   --primary-hi:   #DC2626;
   --primary-lo:   #991B1B;
   --primary-dim:  rgba(220,38,38,0.06);
   --primary-glow: rgba(220,38,38,0.12);
-
-  --primary-solid:    #B91C1C;
-  --primary-solid-hi: #C62525;
 
   --glass:        rgba(220,38,38,0.03);
   --glass-mid:    rgba(220,38,38,0.05);
@@ -692,9 +695,8 @@ select.st-input {
 }
 .st-btn:active { transform: scale(0.98); opacity: .9; }
 .st-btn-primary {
-  background: var(--primary-solid);
+  background: linear-gradient(135deg, var(--primary-solid-hi), var(--primary-solid));
   color: #fff;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14);
   box-shadow: 0 2px 12px -2px rgba(14,165,233,0.25);
 }
 .st-btn-primary:hover {
@@ -1355,6 +1357,121 @@ button:not(:disabled):not([aria-disabled="true"]):active {
     transform: none !important;
     filter: none !important;
   }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   DESKTOP SHELL (≥ 1024px)
+   Phones keep the bottom-nav PWA layout untouched. On a computer the app
+   gets a fixed left sidebar, no bottom bar, a wider canvas and slightly
+   stronger text/border contrast (the phone values read too faint on a
+   monitor at arm's length).
+   ═══════════════════════════════════════════════════════════════════════════ */
+.desk-sidebar { display: none; }
+
+@media (min-width: 1024px) {
+  :root:not([data-theme="light"]) {
+    --text-2:     #8494a8;
+    --text-3:     #66768c;
+    --muted:      #4a5a70;
+    --border:     rgba(255,255,255,0.07);
+    --border-mid: rgba(255,255,255,0.10);
+  }
+
+  .desk-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    top: 0; left: 0; bottom: 0;
+    width: var(--desk-sidebar-w);
+    padding: 22px 14px 16px;
+    background: var(--bg-elevated);
+    border-right: 1px solid var(--border);
+    z-index: 60;
+    overflow-y: auto;
+  }
+  .app-shell { padding-left: var(--desk-sidebar-w); }
+  .app-header, .app-nav, .app-nav-backdrop { display: none !important; }
+  .app-shell .app-main {
+    max-width: 1240px !important;
+    padding: 36px 48px 64px !important;
+  }
+
+  .desk-nav-link {
+    display: flex; align-items: center; gap: 11px;
+    height: 38px; padding: 0 12px;
+    border-radius: 8px;
+    font-size: 14px; font-weight: 500;
+    color: var(--text-2);
+    text-decoration: none;
+    transition: background .15s, color .15s;
+  }
+  .desk-nav-link:hover { background: var(--surface2); color: var(--text); }
+  .desk-nav-link[aria-current="page"] {
+    background: var(--primary-dim);
+    color: var(--text);
+    box-shadow: inset 2px 0 0 var(--primary);
+  }
+  .desk-nav-link[aria-current="page"] svg { color: var(--primary); }
+  .desk-section-label {
+    font-size: 10px; font-weight: 600; letter-spacing: .1em;
+    text-transform: uppercase; color: var(--text-3);
+    padding: 18px 12px 6px;
+  }
+}
+:root { --desk-sidebar-w: 240px; }
+
+/* Dashboard: one column on phones (wrappers vanish, `order` keeps the
+   original sequence); main column + right rail on wide screens. */
+.dash-grid { display: flex; flex-direction: column; }
+.dash-main, .dash-side { display: contents; }
+@media (min-width: 1180px) {
+  .dash-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 340px;
+    gap: 48px;
+    align-items: start;
+  }
+  .dash-main, .dash-side { display: flex; flex-direction: column; min-width: 0; }
+  .dash-mobile-only { display: none; }
+}
+
+/* Case list: compact cards on phones, a scannable table on a computer. */
+.case-thead, .case-col { display: none; }
+@media (min-width: 1024px) {
+  .case-thead, .case-card {
+    display: grid;
+    grid-template-columns: 10px minmax(0, 2.4fr) minmax(0, 1.3fr) minmax(0, 1fr) 56px 64px 34px 34px 34px;
+    column-gap: 14px;
+    align-items: center;
+  }
+  .case-thead {
+    padding: 0 10px 10px;
+    margin: 0 -10px;
+    border-bottom: 1px solid var(--border-mid);
+    font-size: 10px; font-weight: 600; letter-spacing: .08em;
+    text-transform: uppercase; color: var(--text-3);
+  }
+  .case-card,
+  .case-card:hover {
+    padding: 10px;
+    margin: 0 -10px;
+    border-radius: 0;
+  }
+  .case-card:hover { background: var(--surface2); border-color: var(--border); }
+  .case-card > div:first-child { padding-top: 0 !important; }
+  .case-body, .case-top, .case-actions { display: contents !important; }
+  .case-meta { display: none; }
+  .case-proc { font-size: 14px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .case-col {
+    display: block;
+    font-size: 13px; color: var(--text-2);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .case-col-num { font-family: 'Geist Mono', monospace; font-size: 12px; }
+  .case-date { font-size: 12px; font-family: 'Geist Mono', monospace; }
+}
+@media (min-width: 1024px) {
+  .feed-fab { bottom: 32px !important; right: 32px !important; }
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -2593,21 +2710,6 @@ button:not(:disabled):not([aria-disabled="true"]):active {
 [data-theme="light"] .pp-row[data-selected="true"],
 [data-theme="light"] .pp-row--custom,
 [data-theme="light"] .case-sheet__action--danger:hover { color: var(--primary-lo); }
-
-/* Dashboard: one column on phones (wrappers vanish, `order` keeps the
-   original sequence); main column + right rail on wide screens. */
-.dash-grid { display: flex; flex-direction: column; }
-.dash-main, .dash-side { display: contents; }
-@media (min-width: 1180px) {
-  .dash-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) 340px;
-    gap: 48px;
-    align-items: start;
-  }
-  .dash-main, .dash-side { display: flex; flex-direction: column; min-width: 0; }
-  .dash-mobile-only { display: none; }
-}
 
 /* PD cohort KPIs: four tiles, never three plus an orphan. */
 .pd-kpis { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin-bottom: 22px; }

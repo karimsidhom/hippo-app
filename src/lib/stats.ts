@@ -1,3 +1,5 @@
+import { SPECIALTIES } from "@/lib/constants";
+import { SMSNA_SPECIALTY_NAME, SMSNA_SPECIALTY_SLUG } from "@/lib/smsna/gate";
 import type {
   CaseLog,
   CaseStats,
@@ -8,6 +10,13 @@ import type {
   RoleProgressionPoint,
   BenchmarkData,
 } from "./types";
+
+/** Cases store the specialty slug (specialtyId); only optimistic rows carry a name. */
+function specialtyNameOf(c: { specialtyName?: string; specialtyId?: string | null }): string {
+  return c.specialtyName
+    || (c.specialtyId === SMSNA_SPECIALTY_SLUG ? SMSNA_SPECIALTY_NAME : SPECIALTIES.find(s => s.slug === c.specialtyId)?.name)
+    || "Unknown";
+}
 
 // ============================================================
 // UTILITY HELPERS
@@ -78,7 +87,7 @@ export function getCaseStats(cases: CaseLog[]): CaseStats {
 
   for (const c of cases) {
     // By specialty
-    const specName = c.specialtyName || "Unknown";
+    const specName = specialtyNameOf(c);
     bySpecialty[specName] = (bySpecialty[specName] || 0) + 1;
 
     // By procedure
@@ -490,7 +499,7 @@ export function getSpecialtyBreakdown(cases: CaseLog[]): {
 
   const specMap: Record<string, { count: number; totalDuration: number }> = {};
   for (const c of cases) {
-    const spec = c.specialtyName || "Unknown";
+    const spec = specialtyNameOf(c);
     if (!specMap[spec]) specMap[spec] = { count: 0, totalDuration: 0 };
     specMap[spec].count++;
     specMap[spec].totalDuration += c.operativeDurationMinutes || 0;

@@ -60,6 +60,16 @@ export function DonutChart({
 
     const largeArc = angle > Math.PI ? 1 : 0;
 
+    // A single category is a full turn: start and end points coincide and
+    // the arc collapses to nothing, so draw the ring as two circles instead.
+    if (angle >= 2 * Math.PI - 1e-6) {
+      const ring = `
+        M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy} Z
+        M ${cx - innerRadius} ${cy} A ${innerRadius} ${innerRadius} 0 1 0 ${cx + innerRadius} ${cy} A ${innerRadius} ${innerRadius} 0 1 0 ${cx - innerRadius} ${cy} Z
+      `.trim();
+      return { ...d, path: ring, angle, percentage: 100 };
+    }
+
     const path = `
       M ${ix1.toFixed(2)} ${iy1.toFixed(2)}
       L ${x1.toFixed(2)} ${y1.toFixed(2)}
@@ -83,6 +93,7 @@ export function DonutChart({
               key={seg.label}
               d={seg.path}
               fill={seg.color}
+              fillRule="evenodd"
               opacity={hoveredIndex === null || hoveredIndex === i ? 0.9 : 0.4}
               className="cursor-pointer transition-all duration-150"
               onMouseEnter={() => setHoveredIndex(i)}

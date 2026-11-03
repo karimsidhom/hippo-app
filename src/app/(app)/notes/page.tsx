@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, BookOpen, LockKeyhole, Search, X } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { collectCaseNotes, filterCaseNotes } from "@/lib/case-notes";
+import { ProgressNav } from "@/components/academic/ProgressNav";
 import "../../academic-workspace.css";
 
 const dateLabel = (value: string) => value ? new Date(value).toLocaleDateString(undefined, { timeZone: "UTC", day: "numeric", month: "short", year: "numeric" }) : "Date not recorded";
@@ -25,6 +26,7 @@ export default function CaseNotesPage() {
   const clear = () => { setSearch(""); setYear(""); setSpecialty(""); setLimit(30); };
 
   return <div className="academic-workspace notebook">
+    <ProgressNav active="notes" />
     <header className="academic-heading">
       <div><p className="academic-eyebrow">Your private learning record</p><h1>Case notes</h1><p>What you noticed, what you learned, and what to carry into the next case.</p></div>
       <span className="academic-private"><LockKeyhole size={15} /> Only you</span>

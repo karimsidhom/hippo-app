@@ -2,6 +2,8 @@
 
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import type { ReactNode } from "react";
+import { THEME_BOOTSTRAP_SCRIPT, THEME_STORAGE_KEY } from "@/lib/theme-bootstrap";
+export { THEME_STORAGE_KEY } from "@/lib/theme-bootstrap";
 
 // ---------------------------------------------------------------------------
 // Theme Context
@@ -33,10 +35,8 @@ interface ThemeContextValue {
 
 const ThemeCtx = createContext<ThemeContextValue | null>(null);
 
-export const THEME_STORAGE_KEY = "hippo-theme";
-
 function getSystemPreference(): "light" | "dark" {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
@@ -72,7 +72,7 @@ function applyTheme(resolved: "light" | "dark") {
 
 /**
  * Inline script that runs SYNCHRONOUSLY in <head> before React hydrates.
- * Reads the stored theme (or system preference if "system" / unset) and
+ * Reads the stored theme (or light if unset; system preference only for saved "system") and
  * writes the matching `data-theme` attribute + `light`/`dark` class on
  * <html>. This makes the SSR markup and the first client render agree,
  * eliminating React error #418.
@@ -80,15 +80,12 @@ function applyTheme(resolved: "light" | "dark") {
  * Render via `<ThemeBootstrapScript />` inside <head> in the root layout.
  */
 export function ThemeBootstrapScript() {
-  // Build the script inline — single line, no template-literal interpolation
-  // of variables that could escape the string. STORAGE_KEY is hardcoded.
-  const code = `(function(){try{var k='${THEME_STORAGE_KEY}';var s=localStorage.getItem(k);var m=(s==='light'||s==='dark'||s==='system')?s:'dark';var r=m==='system'?(window.matchMedia('(prefers-color-scheme: light)').matches?'light':'dark'):m;var h=document.documentElement;h.setAttribute('data-theme',r);if(r==='light'){h.classList.remove('dark');h.classList.add('light');}else{h.classList.remove('light');h.classList.add('dark');}var meta=document.querySelector('meta[name="theme-color"]');if(meta){meta.setAttribute('content',r==='light'?'#f8fafc':'#0a0a0f');}}catch(e){}})();`;
-  return <script dangerouslySetInnerHTML={{ __html: code }} />;
+  return <script dangerouslySetInnerHTML={{ __html: THEME_BOOTSTRAP_SCRIPT }} />;
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   // Read whatever the bootstrap script already applied so React state
-  // matches the live DOM from the first render. Falls back to "dark" on
+  // matches the live DOM from the first render. Falls back to "light" on
   // the server (where document doesn't exist) — that's also the default
   // SSR class on <html> so the server-rendered markup matches.
   const initial = readInitialMode();
@@ -170,10 +167,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
 function readInitialMode(): { mode: ThemeMode; resolved: "light" | "dark" } {
   if (typeof document === "undefined") {
-    // Server render — match the SSR <html className="dark"> default.
-    return { mode: "dark", resolved: "dark" };
+    // Server render — match the SSR light default.
+    return { mode: "light", resolved: "light" };
   }
-  let stored: ThemeMode = "dark";
+  let stored: ThemeMode = "light";
   try {
     const raw = localStorage.getItem(THEME_STORAGE_KEY);
     if (raw === "light" || raw === "dark" || raw === "system") stored = raw;

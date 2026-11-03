@@ -136,7 +136,7 @@ export async function PATCH(req: NextRequest) {
   const updated = await db.profile.upsert({
     where: { userId: user.id },
     update: data,
-    create: { userId: user.id, ...data },
+    create: { userId: user.id, theme: "light", ...data },
     select: {
       roleType: true,
       dictationLength: true,

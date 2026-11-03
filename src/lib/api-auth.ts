@@ -92,7 +92,7 @@ export async function ensureDbUser(authUser: AuthedUser, name?: string) {
       id: authUser.id,
       email: authUser.email,
       name: name ?? authUser.email.split('@')[0],
-      profile: { create: { onboardingCompleted: false } },
+      profile: { create: { onboardingCompleted: false, theme: "light" } },
     },
     include: { profile: true },
   });
