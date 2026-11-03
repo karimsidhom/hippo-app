@@ -8,9 +8,15 @@
  * (Study, until launch) appear only for accounts that already use them. Styling uses the house
  * tokens every Hippo app already defines (--surface, --border, --text-*,
  * --primary, --r, --rl), so it takes on each app's light and dark theme.
+ *
+ * The panel renders into document.body with fixed positioning, placed from
+ * the trigger's position and kept inside the viewport, so a sidebar, header
+ * or transformed ancestor can never clip it. The trigger's token values are
+ * copied onto the panel, so tokens an app scopes to its shell still apply.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { createPortal } from "react-dom";
 import {
   HIPPO_PROFILE_URL,
   HIPPO_SUITE_APPS,
@@ -35,6 +41,13 @@ interface HippoDockProps {
 }
 
 const EASE = "cubic-bezier(.16,1,.3,1)";
+const EDGE = 12;
+const PANEL_WIDTH = 320;
+const PHONE_MAX = 640;
+const TOKENS = [
+  "--bg-elevated", "--bg-1", "--surface", "--surface2", "--border", "--border-mid",
+  "--text", "--text-2", "--primary", "--primary-dim", "--r", "--rl",
+];
 
 export function HippoDock({
   current,
@@ -46,8 +59,45 @@ export function HippoDock({
   const [open, setOpen] = useState(false);
   const [user, setUser] = useState<HippoUser | null>(null);
   const [apps, setApps] = useState<SuiteApp[]>(HIPPO_SUITE_APPS);
+  const [place, setPlace] = useState<CSSProperties | null>(null);
   const root = useRef<HTMLDivElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
+  const panel = useRef<HTMLDivElement>(null);
+
+  // Phones get a full-width sheet under the trigger; wider screens a 320 px
+  // panel, right-aligned to the trigger when it fits, else left-aligned.
+  const placePanel = useCallback(() => {
+    const t = trigger.current;
+    if (!t) return;
+    const r = t.getBoundingClientRect();
+    const vw = document.documentElement.clientWidth;
+    const vh = window.innerHeight;
+    const width = vw < PHONE_MAX ? vw - EDGE * 2 : Math.min(PANEL_WIDTH, vw - EDGE * 2);
+    const preferred = vw < PHONE_MAX ? EDGE : r.right - width >= EDGE ? r.right - width : r.left;
+    const left = Math.max(EDGE, Math.min(preferred, vw - width - EDGE));
+    const top = r.bottom + 8;
+    const cs = getComputedStyle(t);
+    const tokens: Record<string, string> = {};
+    for (const k of TOKENS) {
+      const v = cs.getPropertyValue(k).trim();
+      if (v) tokens[k] = v;
+    }
+    setPlace({ ...tokens, top, left, width, maxHeight: Math.max(200, vh - top - EDGE), fontFamily: cs.fontFamily } as CSSProperties);
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!open) {
+      setPlace(null);
+      return;
+    }
+    placePanel();
+    window.addEventListener("resize", placePanel);
+    window.addEventListener("scroll", placePanel, true);
+    return () => {
+      window.removeEventListener("resize", placePanel);
+      window.removeEventListener("scroll", placePanel, true);
+    };
+  }, [open, placePanel]);
 
   useEffect(() => {
     let alive = true;
@@ -65,7 +115,9 @@ export function HippoDock({
   useEffect(() => {
     if (!open) return;
     function onDown(e: PointerEvent) {
-      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+      const target = e.target as Node;
+      if (root.current?.contains(target) || panel.current?.contains(target)) return;
+      setOpen(false);
     }
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") {
@@ -105,8 +157,8 @@ export function HippoDock({
         {unread > 0 && <span style={styles.badge}>{unread > 9 ? "9+" : unread}</span>}
       </button>
 
-      {open && (
-        <div role="dialog" aria-label="Hippo Suite" className="hippo-dock-panel" style={styles.panel}>
+      {open && place && createPortal(
+        <div ref={panel} role="dialog" aria-label="Hippo Suite" className="hippo-dock-panel" style={{ ...styles.panel, ...place }}>
           <div style={styles.head}>
             <Avatar user={user} size={36} />
             <div style={{ minWidth: 0, flex: 1 }}>
@@ -152,7 +204,8 @@ export function HippoDock({
           <a href={profileHref} className="hippo-dock-row" style={styles.footer}>
             Edit profile in Cases
           </a>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   );
@@ -227,16 +280,16 @@ const styles: Record<string, CSSProperties> = {
     textAlign: "center",
   },
   panel: {
-    position: "absolute",
-    top: "calc(100% + 8px)",
-    right: 0,
-    width: "min(300px, calc(100vw - 24px))",
+    position: "fixed",
+    boxSizing: "border-box",
+    overflowY: "auto",
+    overscrollBehavior: "contain",
     padding: 8,
     borderRadius: "var(--rl, 10px)",
     border: "1px solid var(--border-mid, var(--border, rgba(255,255,255,0.08)))",
     background: "var(--bg-elevated, var(--bg-1, #0b1620))",
     boxShadow: "0 16px 40px rgba(0,0,0,0.35)",
-    zIndex: 80,
+    zIndex: 1000,
     animation: `hippo-dock-in .24s ${EASE} both`,
   },
   head: {
