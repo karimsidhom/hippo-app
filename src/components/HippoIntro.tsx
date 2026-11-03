@@ -19,6 +19,7 @@
  * copy this file unchanged and pass their own name and line.
  */
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
 
 const SEEN_KEY = "hippo-intro-session";
 const SKIP_ATTR = "data-hippo-intro-skip";
@@ -36,6 +37,8 @@ const RINGS = [
 
 const EXIT_AT_MS = 2900;
 const EXIT_MS = 600;
+const SURFACING_TIMEOUT_MS = 4800;
+const SURFACING_VIDEO = "/surfacing-cases-login.mp4";
 
 /** Fired by the sign-in flow to replay the intro over the route change. */
 export const HIPPO_INTRO_EVENT = "hippo:intro";
@@ -77,6 +80,16 @@ const CSS = `
 .hi-quote q{display:block;font-size:clamp(15px,2.6vmin,19px);line-height:1.5;color:var(--hi-text);font-weight:450;letter-spacing:-.005em;quotes:"“" "”"}
 .hi-quote cite{display:block;margin-top:10px;font-style:normal;font-size:clamp(12px,1.9vmin,13px);color:var(--hi-sub);letter-spacing:.02em}
 .hi[data-out]{animation:hi-exit ${EXIT_MS}ms var(--hi-ease) 0s forwards;pointer-events:none}
+.hi.hi-surfacing{background:#060d13;isolation:isolate;
+  animation:hi-exit ${EXIT_MS}ms var(--hi-ease) ${SURFACING_TIMEOUT_MS - EXIT_MS}ms forwards}
+.hi.hi-surfacing[data-out]{animation:hi-exit ${EXIT_MS}ms var(--hi-ease) 0s forwards}
+.hi-surfacing-video{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:max(100%,620px);height:100%;object-fit:contain}
+.hi-surfacing-skip{position:absolute;z-index:1;right:max(16px,env(safe-area-inset-right));
+  top:max(16px,env(safe-area-inset-top));min-height:44px;padding:0 15px;border-radius:999px;
+  border:1px solid #405364;background:#101c28;color:#e2e8f0;font:inherit;font-size:13px;cursor:pointer}
+.hi-surfacing-skip:focus-visible{outline:2px solid #7dd3fc;outline-offset:4px}
+@media(prefers-reduced-motion:reduce){.hi.hi-surfacing{display:none}}
 @keyframes hi-bloom{to{opacity:1;transform:translate(-50%,-56%) scale(1)}}
 @keyframes hi-draw{to{stroke-dashoffset:0}}
 @keyframes hi-spin{to{transform:rotate(360deg)}}
@@ -149,9 +162,13 @@ export function HippoIntro({
   /** Today's principle, chosen on the server so the quote library stays out of the bundle. */
   quote?: { text: string; author: string } | null;
 }) {
+  const pathname = usePathname();
+  const [firstLandingUsesSurfacing] = useState(() => pathname === "/login" && app === "Cases");
   const [phase, setPhase] = useState<"on" | "out" | "gone">("on");
   // Bumped on each sign-in replay so the CSS timeline restarts from zero.
   const [run, setRun] = useState(0);
+  const [surfacingReady, setSurfacingReady] = useState(false);
+  const showSurfacing = firstLandingUsesSurfacing && pathname === "/login" && run === 0;
 
   useEffect(() => {
     if (document.documentElement.hasAttribute(SKIP_ATTR)) { setPhase("gone"); return; }
@@ -162,9 +179,21 @@ export function HippoIntro({
     const remove = window.setTimeout(() => {
       setPhase("gone");
       document.documentElement.setAttribute(SKIP_ATTR, "");
-    }, Math.max(0, EXIT_AT_MS + EXIT_MS - elapsed) + 60);
+    }, Math.max(0, (firstLandingUsesSurfacing ? SURFACING_TIMEOUT_MS : EXIT_AT_MS + EXIT_MS) - elapsed) + 60);
     return () => window.clearTimeout(remove);
-  }, []);
+  }, [firstLandingUsesSurfacing]);
+
+  useEffect(() => {
+    if (!showSurfacing || phase !== "on" || document.documentElement.hasAttribute(SKIP_ATTR)) return;
+    const motion = window.matchMedia("(prefers-reduced-motion: reduce)");
+    if (motion.matches) return;
+    setSurfacingReady(true);
+    const onMotionChange = (event: MediaQueryListEvent) => {
+      if (event.matches) setPhase("out");
+    };
+    motion.addEventListener("change", onMotionChange);
+    return () => motion.removeEventListener("change", onMotionChange);
+  }, [showSurfacing, phase]);
 
   // Sign-in replay: show it again over the route change, and remove it once
   // its own CSS timeline has finished.
@@ -209,7 +238,26 @@ export function HippoIntro({
     <>
       <script dangerouslySetInnerHTML={{ __html: DECIDE_SCRIPT }} />
       <style dangerouslySetInnerHTML={{ __html: CSS }} />
-      {phase !== "gone" && (
+      {phase !== "gone" && showSurfacing && (
+        <div className="hi hi-surfacing" data-out={phase === "out" ? "" : undefined}>
+          {surfacingReady && (
+            <video
+              aria-hidden
+              className="hi-surfacing-video"
+              src={SURFACING_VIDEO}
+              autoPlay
+              muted
+              playsInline
+              onEnded={() => setPhase("out")}
+              onError={() => setPhase("out")}
+            />
+          )}
+          <button type="button" className="hi-surfacing-skip" onClick={() => setPhase("out")}>
+            Skip intro
+          </button>
+        </div>
+      )}
+      {phase !== "gone" && !showSurfacing && (
         <div
           key={run}
           className="hi"
