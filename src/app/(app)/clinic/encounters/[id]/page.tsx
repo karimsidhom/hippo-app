@@ -325,7 +325,7 @@ export default function EncounterPage() {
     : "Unassigned patient";
 
   return (
-    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease forwards", paddingBottom: 24 }}>
+    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards", paddingBottom: 24 }}>
       <Link href="/clinic" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-3)", textDecoration: "none", marginBottom: 12 }}>
         <ArrowLeft size={12} /> Clinic
       </Link>

@@ -13,6 +13,7 @@ const ALLOWED_ROLES: ProgramMemberRole[] = [
   'COORDINATOR',
   'DEPT_HEAD',
   'MEMBER',
+  'RESIDENT',
 ];
 
 /**

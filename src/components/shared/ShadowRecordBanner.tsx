@@ -45,7 +45,7 @@ export function ShadowRecordBanner() {
         backdropFilter: "blur(6px)",
         display: "flex", alignItems: "center", justifyContent: "center",
         padding: 20,
-        animation: "fadeIn .3s ease forwards",
+        animation: "fadeIn .3s ease backwards",
       }}
     >
       <div style={{

@@ -170,7 +170,7 @@ export function SafetyPanel({ encounterId, hasNote, isFinalized, note, noteType 
             style={{
               padding: 12,
               borderLeft: `2px solid ${a.severity === "critical" ? "var(--danger)" : "var(--warning)"}`,
-              animation: "fadeIn .2s ease forwards",
+              animation: "fadeIn .2s ease backwards",
             }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>

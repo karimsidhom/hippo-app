@@ -198,7 +198,7 @@ export function ReferenceSuggestions({ encounterId, hasNote, isFinalized, onAcce
             style={{
               borderLeft: "2px solid var(--primary)",
               padding: 12,
-              animation: "fadeIn .25s ease forwards",
+              animation: "fadeIn .25s ease backwards",
             }}
           >
             {/* Section + verbatim claim */}

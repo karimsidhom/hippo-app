@@ -82,7 +82,7 @@ function fadeStyle(
   if (!animate) return {};
   return {
     opacity: 0,
-    animation: `oe-fadeIn ${dur}s ${EASE} ${delay}s forwards`,
+    animation: `oe-fadeIn ${dur}s ${EASE} ${delay}s backwards`,
   };
 }
 

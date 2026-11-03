@@ -41,7 +41,7 @@ export default async function PatientDetailPage({ params }: { params: Promise<{ 
   const summaryByEncounter = new Map(summaries.map((s) => [s.encounterId, s.shortSummary]));
 
   return (
-    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease forwards" }}>
+    <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards" }}>
       <Link href="/clinic/patients" style={{ display: "inline-flex", alignItems: "center", gap: 4, fontSize: 12, color: "var(--text-3)", textDecoration: "none", marginBottom: 12 }}>
         <ArrowLeft size={12} /> Patients
       </Link>

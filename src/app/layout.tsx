@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from "next";
+import { HippoIntro } from "@/components/HippoIntro";
 import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -137,6 +138,13 @@ export default function RootLayout({
         suppressHydrationWarning
         style={{ background: "var(--bg)", color: "var(--text)" }}
       >
+        {/* The suite's entry animation: once per session, decided before
+            first paint, skipped for reduced motion. Same component in every
+            Hippo app; only the name and line change. */}
+        <HippoIntro
+          app={moduleScope === "clinic" ? "Clinic" : "Cases"}
+          line={moduleScope === "clinic" ? "Clinical documentation" : "The case log for surgical residents"}
+        />
         <ThemeProvider>
           <AuthProvider>
             <SubscriptionProvider>
