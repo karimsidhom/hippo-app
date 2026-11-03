@@ -39,7 +39,8 @@ const CSS = `
   background:var(--hi-bg);overflow:hidden;cursor:pointer;-webkit-tap-highlight-color:transparent;
   font-family:'Geist',-apple-system,'Helvetica Neue',sans-serif;-webkit-font-smoothing:antialiased;
   --hi-ease:cubic-bezier(.16,1,.3,1);--hi-bg:#060d13;--hi-text:#E2E8F0;--hi-text-hi:#ffffff;--hi-sub:#7c8ea3;
-  --hi-accent:#0EA5E9;--hi-accent-hi:#7dd3fc;--hi-glow:rgba(14,165,233,.20);--hi-glow-2:rgba(14,165,233,.06)}
+  --hi-accent:#0EA5E9;--hi-accent-hi:#7dd3fc;--hi-glow:rgba(14,165,233,.20);--hi-glow-2:rgba(14,165,233,.06);
+  animation:hi-exit ${EXIT_MS}ms var(--hi-ease) ${EXIT_AT_MS}ms forwards}
 [data-theme="light"] .hi{--hi-bg:#f8fafc;--hi-text:#0f172a;--hi-text-hi:#475569;--hi-sub:#64748b;
   --hi-accent:#0284C7;--hi-accent-hi:#38bdf8;--hi-glow:rgba(14,165,233,.16);--hi-glow-2:rgba(14,165,233,.05)}
 [${SKIP_ATTR}] .hi{display:none}
@@ -65,7 +66,7 @@ const CSS = `
   animation:hi-shine 1s ease-in-out 1.5s both}
 .hi-sub{margin-top:min(16px,3vmin);padding:0 24px;text-align:center;font-size:clamp(15px,3.2vmin,24px);font-weight:500;color:var(--hi-sub);
   letter-spacing:-.01em;opacity:0;transform:translateY(14px);animation:hi-up .63s var(--hi-ease) 1.08s both}
-.hi[data-out] {animation:hi-exit ${EXIT_MS}ms var(--hi-ease) both;pointer-events:none}
+.hi[data-out]{animation:hi-exit ${EXIT_MS}ms var(--hi-ease) 0s forwards;pointer-events:none}
 @keyframes hi-bloom{to{opacity:1;transform:translate(-50%,-56%) scale(1)}}
 @keyframes hi-draw{to{stroke-dashoffset:0}}
 @keyframes hi-spin{to{transform:rotate(360deg)}}
@@ -75,7 +76,7 @@ const CSS = `
 @keyframes hi-ripple{from{opacity:.9;transform:translate(-50%,-90%) scale(1)}to{opacity:0;transform:translate(-50%,-90%) scale(2.6)}}
 @keyframes hi-up{to{opacity:1;transform:none}}
 @keyframes hi-shine{from{background-position:100% 0}to{background-position:0% 0}}
-@keyframes hi-exit{to{opacity:0;transform:scale(1.035)}}
+@keyframes hi-exit{to{opacity:0;transform:scale(1.035);visibility:hidden}}
 `;
 
 function Rings() {
@@ -135,10 +136,17 @@ export function HippoIntro({ app, line }: { app: string; line: string }) {
 
   useEffect(() => {
     if (document.documentElement.hasAttribute(SKIP_ATTR)) { setPhase("gone"); return; }
-    const exit = window.setTimeout(() => setPhase("out"), EXIT_AT_MS);
+    // The fade itself runs in CSS from first paint (see .hi), so a slow
+    // hydration can't stretch it and a failed one can't strand it on screen.
+    // Here we only remove the node once the CSS fade has had time to finish.
+    const elapsed = performance.now();
+    const remove = window.setTimeout(() => {
+      setPhase("gone");
+      document.documentElement.setAttribute(SKIP_ATTR, "");
+    }, Math.max(0, EXIT_AT_MS + EXIT_MS - elapsed) + 60);
     const skip = () => setPhase((p) => (p === "on" ? "out" : p));
     window.addEventListener("keydown", skip, { once: true });
-    return () => { window.clearTimeout(exit); window.removeEventListener("keydown", skip); };
+    return () => { window.clearTimeout(remove); window.removeEventListener("keydown", skip); };
   }, []);
 
   useEffect(() => {
