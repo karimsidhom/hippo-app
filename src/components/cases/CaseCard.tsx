@@ -37,7 +37,7 @@ export function CaseCard({ caseLog, compact = false, onDelete, onDuplicate }: Ca
     return (
       <div className="flex items-center gap-3 p-3 bg-[var(--surface2)] border border-[var(--border)] rounded-lg hover:border-[var(--border-mid)] transition-colors">
         <div className="w-8 h-8 rounded-lg bg-[var(--surface2)] flex items-center justify-center flex-shrink-0">
-          <span className="text-xs font-bold text-[var(--primary)]">
+          <span className="text-xs font-semibold text-[var(--primary)]">
             {APPROACH_LABELS[caseLog.surgicalApproach]?.slice(0, 2) || "S"}
           </span>
         </div>
@@ -78,7 +78,7 @@ export function CaseCard({ caseLog, compact = false, onDelete, onDuplicate }: Ca
       >
         <div className="flex items-start gap-3 flex-1 min-w-0">
           <div className="w-10 h-10 rounded-xl bg-[var(--surface2)] border border-[var(--primary)]/20 flex items-center justify-center flex-shrink-0">
-            <span className="text-xs font-bold text-[var(--primary)]">
+            <span className="text-xs font-semibold text-[var(--primary)]">
               {APPROACH_LABELS[caseLog.surgicalApproach] || "S"}
             </span>
           </div>

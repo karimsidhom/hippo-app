@@ -55,7 +55,7 @@ export function ShadowRecordBanner() {
         maxWidth: 520, width: "100%",
         padding: 28,
         color: "var(--text)",
-        fontFamily: "'Geist', sans-serif",
+        fontFamily: "var(--font-sans)",
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
           <div style={{
@@ -66,7 +66,7 @@ export function ShadowRecordBanner() {
           }}>
             <Shield size={18} />
           </div>
-          <h2 style={{ fontSize: 17, fontWeight: 700, margin: 0, letterSpacing: "-.2px" }}>
+          <h2 style={{ fontSize: 17, fontWeight: 600, margin: 0, letterSpacing: "-.2px" }}>
             Before you start — a note on records
           </h2>
         </div>

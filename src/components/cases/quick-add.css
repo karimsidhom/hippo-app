@@ -50,10 +50,10 @@
 }
 .quick-add .quick-add__eyebrow {
   color: var(--primary-hi);
-  font-size: 10px;
+  font-size: var(--fs-11);
   line-height: 1.5;
   font-weight: 600;
-  letter-spacing: .11em;
+  letter-spacing: .06em;
   text-transform: uppercase;
   margin-bottom: 5px;
 }
@@ -106,7 +106,9 @@
 }
 .quick-add .quick-add__section-number {
   font-size: 10px;
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
   color: var(--primary-hi);
   font-weight: 600;
   letter-spacing: .03em;
@@ -193,7 +195,9 @@
   min-width: 0;
   padding-left: 3px;
   padding-right: 3px;
+  font-family: var(--font-sans);
   font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 .quick-add .quick-add__grid {
   display: grid;

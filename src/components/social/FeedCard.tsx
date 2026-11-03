@@ -47,7 +47,7 @@ export function FeedCard({ event }: FeedCardProps) {
         <div className="flex items-start justify-between gap-2">
           <div>
             <div className="flex items-center gap-2 mb-0.5">
-              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[9px] font-bold shrink-0">
+              <div className="w-5 h-5 rounded-full bg-gradient-to-br from-blue-600 to-indigo-600 flex items-center justify-center text-white text-[9px] font-semibold shrink-0">
                 {event.userInitials}
               </div>
               <span className="text-slate-300 text-sm font-medium">{event.userName}</span>

@@ -119,7 +119,7 @@ export function EventDetailSheet({
                   fontSize: 11,
                   color: "var(--text-3)",
                   textTransform: "uppercase",
-                  letterSpacing: "0.8px",
+                  letterSpacing: "0.06em",
                   fontWeight: 600,
                   marginBottom: 4,
                 }}
@@ -129,7 +129,7 @@ export function EventDetailSheet({
               <div
                 style={{
                   fontSize: 20,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text)",
                   letterSpacing: "-0.4px",
                 }}
@@ -161,7 +161,7 @@ export function EventDetailSheet({
             style={{
               fontSize: 13,
               color: "var(--text-2)",
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             }}
           >
             {start.toLocaleDateString("en-US", {
@@ -175,7 +175,7 @@ export function EventDetailSheet({
             style={{
               fontSize: 13,
               color: "var(--text-3)",
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               marginTop: 2,
             }}
           >
@@ -372,11 +372,11 @@ function Row({
     <div style={{ marginBottom: 14 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           color: "var(--text-3)",
           fontWeight: 600,
           textTransform: "uppercase",
-          letterSpacing: "0.8px",
+          letterSpacing: "0.06em",
           marginBottom: 4,
           display: "flex",
           alignItems: "center",

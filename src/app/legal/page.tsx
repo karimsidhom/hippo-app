@@ -44,7 +44,7 @@ const DOCS: { href: string; title: string; desc: string; badge?: string }[] = [
 export default function LegalIndex() {
   return (
     <>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>
         Legal
       </h1>
       <p style={{ fontSize: 13, color: "var(--text-3, #71717a)", marginBottom: 28 }}>

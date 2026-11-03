@@ -49,7 +49,7 @@ export default function RootPage() {
         <h1
           style={{
             fontSize: 24,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "#E2E8F0",
             letterSpacing: "-0.5px",
             margin: 0,

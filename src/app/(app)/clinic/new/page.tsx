@@ -141,7 +141,7 @@ function NewClinicNoteInner() {
     <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards" }}>
       <div style={{ marginBottom: 18 }}>
         <div className="section-title">New encounter</div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.3px" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", margin: "2px 0 4px", letterSpacing: "-0.3px" }}>
           Start a clinic note
         </h1>
         <p style={{ fontSize: 12, color: "var(--text-2)", margin: 0 }}>
@@ -258,7 +258,7 @@ function Step({ title, done, required, children }: { title: string; done?: boole
           border: `1px solid ${done ? "var(--border-glow)" : "var(--border-mid)"}`,
           color: done ? "var(--primary-hi)" : "var(--text-3)",
         }}>
-          {done ? <Check size={11} strokeWidth={2.5} /> : <span style={{ fontSize: 9, fontWeight: 700 }}>·</span>}
+          {done ? <Check size={11} strokeWidth={2.5} /> : <span style={{ fontSize: 9, fontWeight: 600 }}>·</span>}
         </span>
         <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
           {title}

@@ -557,11 +557,11 @@ function DebriefField({
     <div>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",
-          letterSpacing: "1px",
+          letterSpacing: "0.06em",
           marginBottom: 6,
         }}
       >

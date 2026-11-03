@@ -20,7 +20,7 @@ export default async function ClinicSettingsPage() {
   return (
     <div style={{ paddingTop: 4 }}>
       <div className="section-title">Settings</div>
-      <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "2px 0 14px", letterSpacing: "-0.3px" }}>
+      <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", margin: "2px 0 14px", letterSpacing: "-0.3px" }}>
         Hippo Clinic preferences
       </h1>
 

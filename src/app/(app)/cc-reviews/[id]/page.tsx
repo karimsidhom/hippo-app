@@ -254,7 +254,7 @@ export default function CCReviewDetailPage() {
         <div style={{ minWidth: 0, flex: 1 }}>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
               color: "var(--text-3)",
               textTransform: "uppercase",
@@ -267,7 +267,7 @@ export default function CCReviewDetailPage() {
           <h1
             style={{
               fontSize: 22,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               letterSpacing: "-0.4px",
               margin: 0,
@@ -364,7 +364,7 @@ export default function CCReviewDetailPage() {
       >
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 600,
             color: "var(--text-3)",
             textTransform: "uppercase",
@@ -394,7 +394,7 @@ export default function CCReviewDetailPage() {
           <>
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
                 color: "var(--text-3)",
                 textTransform: "uppercase",
@@ -427,7 +427,7 @@ export default function CCReviewDetailPage() {
                       style={{
                         fontSize: 11,
                         color: "var(--text-3)",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                       }}
                     >
                       {o.entrustmentScore}/5
@@ -455,7 +455,7 @@ export default function CCReviewDetailPage() {
       >
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 600,
             color: "var(--text-3)",
             textTransform: "uppercase",
@@ -524,7 +524,7 @@ export default function CCReviewDetailPage() {
       >
         <div
           style={{
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 600,
             color: "var(--text-3)",
             textTransform: "uppercase",
@@ -672,7 +672,7 @@ function SnapshotCell({ label, value }: { label: string; value: number | string 
     >
       <div
         style={{
-          fontSize: 9,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",
@@ -685,9 +685,9 @@ function SnapshotCell({ label, value }: { label: string; value: number | string 
       <div
         style={{
           fontSize: 16,
-          fontWeight: 700,
+          fontWeight: 600,
           color: "var(--text)",
-          fontFamily: "'Geist Mono', monospace",
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
         }}
       >
         {value}

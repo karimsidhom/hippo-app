@@ -221,7 +221,7 @@ export default function CCReviewsPage() {
           <h1
             style={{
               fontSize: 22,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               letterSpacing: "-0.4px",
               margin: 0,
@@ -440,12 +440,12 @@ export default function CCReviewsPage() {
                   <span
                     className={status.cls}
                     style={{
-                      fontSize: 10,
+                      fontSize: 11,
                       fontWeight: 600,
                       borderRadius: 99,
                       padding: "3px 8px",
                       textTransform: "uppercase",
-                      letterSpacing: "0.04em",
+                      letterSpacing: "0.06em",
                     }}
                   >
                     {status.label}
@@ -463,8 +463,8 @@ export default function CCReviewsPage() {
 
 const labelStyle: React.CSSProperties = {
   display: "block",
-  fontSize: 10,
-  fontWeight: 500,
+  fontSize: 11,
+  fontWeight: 600,
   color: "var(--text-3)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",

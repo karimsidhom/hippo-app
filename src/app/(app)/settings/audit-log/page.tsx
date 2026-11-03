@@ -83,7 +83,7 @@ export default function AuditLogPage() {
 
       <div style={{ marginBottom: 8, display: "flex", alignItems: "center", gap: 8 }}>
         <Shield size={18} style={{ color: "var(--text)" }} />
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>
           Activity & Audit Log
         </h1>
       </div>
@@ -103,7 +103,7 @@ export default function AuditLogPage() {
             flex: 1, padding: "8px 12px",
             background: "var(--surface2)", border: "1px solid var(--border-mid)",
             borderRadius: 6, color: "var(--text)", fontSize: 13,
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
           }}
         />
         <a
@@ -114,7 +114,7 @@ export default function AuditLogPage() {
             padding: "8px 12px", fontSize: 13, fontWeight: 500,
             background: "var(--surface2)", border: "1px solid var(--border-mid)",
             borderRadius: 6, color: "var(--text)", textDecoration: "none",
-            whiteSpace: "nowrap", fontFamily: "'Geist', sans-serif",
+            whiteSpace: "nowrap", fontFamily: "var(--font-sans)",
           }}
           title="Download your full audit log as a CSV (up to 10 000 rows)"
         >
@@ -148,11 +148,11 @@ export default function AuditLogPage() {
                 <div style={{ fontSize: 13, fontWeight: 500, color: "var(--text)" }}>
                   {formatAction(entry.action)}
                 </div>
-                <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace", flexShrink: 0 }}>
+                <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', flexShrink: 0 }}>
                   {formatDate(entry.createdAt)}
                 </div>
               </div>
-              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
+              <div style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-mono)" }}>
                 {entry.entityType}
                 {entry.entityId ? `/${entry.entityId.slice(0, 8)}` : ""}
                 {entry.ipAddress ? ` · ${entry.ipAddress}` : ""}

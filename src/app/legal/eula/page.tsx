@@ -3,7 +3,7 @@ export const metadata = { title: "End User Licence Agreement · Hippo" };
 export default function EulaPage() {
   return (
     <>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>
         End User Licence Agreement
       </h1>
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>

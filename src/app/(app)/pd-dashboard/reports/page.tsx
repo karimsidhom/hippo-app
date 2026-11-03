@@ -160,7 +160,7 @@ export default function ReportsHubPage() {
           <h1
             style={{
               fontSize: 22,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               letterSpacing: "-0.4px",
               margin: 0,

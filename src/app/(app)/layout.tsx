@@ -231,10 +231,10 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
           <HippoMark size={22} />
           <span className="case-mobile-wordmark" style={{
             fontSize: 15,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text)",
             letterSpacing: "-.3px",
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
           }}>
             Hippo
           </span>
@@ -242,15 +242,15 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
             <span style={{
               marginLeft: 2,
               padding: "2px 6px",
-              fontSize: 9,
+              fontSize: 11,
               fontWeight: 600,
-              letterSpacing: ".08em",
+              letterSpacing: "0.06em",
               textTransform: "uppercase",
               color: "var(--primary)",
               background: "var(--primary-dim)",
               border: "1px solid var(--border-glow)",
               borderRadius: 4,
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
             }}>
               Clinic
             </span>
@@ -283,7 +283,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontFamily: "'Geist', sans-serif",
+                fontFamily: "var(--font-sans)",
                 letterSpacing: ".01em",
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
                 textDecoration: "none",
@@ -309,7 +309,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                 display: "flex",
                 alignItems: "center",
                 gap: 3,
-                fontFamily: "'Geist', sans-serif",
+                fontFamily: "var(--font-sans)",
                 letterSpacing: ".01em",
                 transition: "all .15s cubic-bezier(.16,1,.3,1)",
               }}
@@ -463,11 +463,11 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
                       }} />
                     )}
                     <span style={{
-                      fontSize: 9,
-                      fontWeight: 500,
-                      letterSpacing: ".06em",
+                      fontSize: 11,
+                      fontWeight: 600,
+                      letterSpacing: "0.06em",
                       textTransform: "uppercase",
-                      fontFamily: "'Geist', sans-serif",
+                      fontFamily: "var(--font-sans)",
                     }}>New Note</span>
                   </Link>
                 </div>
@@ -522,13 +522,13 @@ function NavTab({
         padding: "8px 14px",
         color: active ? "var(--text)" : "var(--muted)",
         textDecoration: "none",
-        fontSize: 9,
-        fontWeight: 500,
+        fontSize: 11,
+        fontWeight: 600,
         transition: "color .15s",
-        letterSpacing: ".06em",
+        letterSpacing: "0.06em",
         textTransform: "uppercase",
         position: "relative",
-        fontFamily: "'Geist', sans-serif",
+        fontFamily: "var(--font-sans)",
       }}
     >
       {active && (
@@ -589,10 +589,10 @@ function DesktopSidebar({
         style={{ display: "flex", alignItems: "center", gap: 9, padding: "0 10px", textDecoration: "none" }}
       >
         <HippoMark size={26} />
-        <span style={{ fontSize: 17, fontWeight: 700, color: "var(--text)", letterSpacing: "-.3px" }}>Hippo</span>
+        <span style={{ fontSize: 17, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>Hippo</span>
         {inClinic && (
           <span style={{
-            padding: "2px 6px", fontSize: 9, fontWeight: 600, letterSpacing: ".08em",
+            padding: "2px 6px", fontSize: 11, fontWeight: 600, letterSpacing: "0.06em",
             textTransform: "uppercase", color: "var(--primary)", background: "var(--primary-dim)",
             border: "1px solid var(--border-glow)", borderRadius: 4,
           }}>Clinic</span>

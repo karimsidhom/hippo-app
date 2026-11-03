@@ -231,7 +231,7 @@ export function PostFeed({ onCreatePost }: Props) {
           <div style={railHeader}>
             <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
               <UserPlus size={14} color="#8B5CF6" />
-              <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>
                 Suggested to follow
               </span>
             </div>
@@ -255,7 +255,7 @@ export function PostFeed({ onCreatePost }: Props) {
                     width: 30, height: 30, borderRadius: 8, flexShrink: 0,
                     background: "linear-gradient(135deg, #8B5CF6, #A78BFA)",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 11, fontWeight: 700, color: "#fff",
+                    fontSize: 11, fontWeight: 600, color: "#fff",
                   }}>
                     {(u.name || "?").charAt(0).toUpperCase()}
                   </div>
@@ -396,7 +396,7 @@ function RailSection({
       <div style={railHeader}>
         <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
           {icon}
-          <span style={{ fontSize: 12, fontWeight: 700, color: "var(--text)" }}>{title}</span>
+          <span style={{ fontSize: 12, fontWeight: 600, color: "var(--text)" }}>{title}</span>
         </div>
         {subtitle && (
           <span style={{ fontSize: 10, color: "var(--text-3)" }}>{subtitle}</span>
@@ -425,8 +425,8 @@ function MiniPearl({ pearl, onClick }: { pearl: Pearl; onClick: () => void }) {
       }}
     >
       <div style={{
-        fontSize: 9, fontWeight: 600, color: "var(--primary)",
-        textTransform: "uppercase", letterSpacing: ".05em",
+        fontSize: 11, fontWeight: 600, color: "var(--primary)",
+        textTransform: "uppercase", letterSpacing: "0.06em",
       }}>
         {pearl.procedureName}
       </div>

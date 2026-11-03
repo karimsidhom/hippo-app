@@ -143,7 +143,7 @@ export default function NotificationSettingsPage() {
       </Link>
 
       <h1 style={{
-        fontSize: 22, fontWeight: 700, letterSpacing: "-0.5px",
+        fontSize: 22, fontWeight: 600, letterSpacing: "-0.5px",
         color: "var(--text)", margin: "0 0 6px",
       }}>
         Notifications

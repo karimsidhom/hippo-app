@@ -72,7 +72,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
           <div className="flex items-center gap-2.5">
             <HippoMark size={30} />
             <div>
-              <p className="font-bold text-[var(--text)] text-sm leading-none">Hippo</p>
+              <p className="font-semibold text-[var(--text)] text-sm leading-none">Hippo</p>
               <p className="text-[10px] text-[#0EA5E9] font-medium mt-0.5">Track mastery. Share growth.</p>
             </div>
           </div>
@@ -127,7 +127,7 @@ export function Sidebar({ collapsed, onToggleCollapse, onQuickAdd }: SidebarProp
             )}
             {pendingCount > 0 && (
               <span style={{
-                fontSize: 10, fontWeight: 700,
+                fontSize: 10, fontWeight: 600,
                 padding: collapsed ? "1px 4px" : "1px 6px",
                 borderRadius: 99,
                 background: "#2563eb", color: "#fff",

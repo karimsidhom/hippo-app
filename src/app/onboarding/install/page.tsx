@@ -68,7 +68,7 @@ export default function InstallPage() {
         padding:
           "max(24px, env(safe-area-inset-top)) 16px calc(24px + env(safe-area-inset-bottom))",
         fontFamily:
-          "-apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, sans-serif",
+          "var(--font-sans)",
       }}
     >
       {/* Ambient teal glow — matches the auth splash vibe */}
@@ -110,7 +110,7 @@ export default function InstallPage() {
         <div
           style={{
             fontSize: 28,
-            fontWeight: 800,
+            fontWeight: 600,
             letterSpacing: "-0.03em",
             color: "#E2E8F0",
             marginBottom: 6,
@@ -127,9 +127,9 @@ export default function InstallPage() {
             borderRadius: 999,
             background: "rgba(14,165,233,0.12)",
             color: "var(--primary-hi)",
-            fontSize: 10,
+            fontSize: 11,
             fontWeight: 600,
-            letterSpacing: "0.08em",
+            letterSpacing: "0.06em",
             textTransform: "uppercase",
           }}
         >
@@ -143,7 +143,7 @@ export default function InstallPage() {
           marginTop: 32,
           marginBottom: 10,
           fontSize: 26,
-          fontWeight: 700,
+          fontWeight: 600,
           letterSpacing: "-0.025em",
           lineHeight: 1.2,
           textAlign: "center",
@@ -285,7 +285,7 @@ function NativeInstallPanel({
           border: "none",
           borderRadius: 14,
           fontSize: 16,
-          fontWeight: 700,
+          fontWeight: 600,
           letterSpacing: "0.01em",
           cursor: canInstall && !installing ? "pointer" : "not-allowed",
           fontFamily: "inherit",
@@ -332,9 +332,9 @@ function IOSGuidePanel() {
     >
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.1em",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
           textTransform: "uppercase",
           color: "var(--primary-hi)",
           marginBottom: 12,
@@ -450,7 +450,7 @@ function IOSStep({
           background: "rgba(14,165,233,0.18)",
           color: "var(--primary-hi)",
           fontSize: 13,
-          fontWeight: 700,
+          fontWeight: 600,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -501,9 +501,9 @@ function UnavailablePanel() {
     >
       <div
         style={{
-          fontSize: 10,
-          fontWeight: 700,
-          letterSpacing: "0.1em",
+          fontSize: 11,
+          fontWeight: 600,
+          letterSpacing: "0.06em",
           textTransform: "uppercase",
           color: "#F59E0B",
           marginBottom: 10,

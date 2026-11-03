@@ -59,8 +59,8 @@ export function ProfileHeader({
       width: 64, height: 64, borderRadius: 16,
       background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
       display: "flex", alignItems: "center", justifyContent: "center",
-      fontSize: 20, fontWeight: 700, color: "#fff",
-      fontFamily: "'Geist', sans-serif",
+      fontSize: 20, fontWeight: 600, color: "#fff",
+      fontFamily: "var(--font-sans)",
     }}>
       {initials}
     </div>
@@ -150,7 +150,7 @@ export function ProfileHeader({
               style={{
                 background: "none", border: "none", padding: 0,
                 fontSize: 10, color: "var(--text-3)", cursor: removing ? "wait" : "pointer",
-                fontFamily: "'Geist', sans-serif", textDecoration: "underline",
+                fontFamily: "var(--font-sans)", textDecoration: "underline",
                 opacity: removing ? 0.6 : 1,
               }}
             >
@@ -172,9 +172,9 @@ export function ProfileHeader({
               style={{
                 display: "inline-flex", alignItems: "center", gap: 6,
                 background: "none", border: "none", padding: 0, marginBottom: 3,
-                fontSize: 18, fontWeight: 700, color: "var(--text)",
+                fontSize: 18, fontWeight: 600, color: "var(--text)",
                 letterSpacing: "-0.3px", cursor: "pointer", textAlign: "left",
-                fontFamily: "'Geist', sans-serif", maxWidth: "100%",
+                fontFamily: "var(--font-sans)", maxWidth: "100%",
               }}
             >
               <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
@@ -184,7 +184,7 @@ export function ProfileHeader({
             </button>
           ) : (
             <div style={{
-              fontSize: 18, fontWeight: 700, color: "var(--text)",
+              fontSize: 18, fontWeight: 600, color: "var(--text)",
               letterSpacing: "-0.3px", marginBottom: 3,
             }}>
               {profile.name || "Surgeon"}
@@ -216,7 +216,7 @@ export function ProfileHeader({
               fontSize: 12,
               fontWeight: 500,
               cursor: "pointer",
-              fontFamily: "'Geist', sans-serif",
+              fontFamily: "var(--font-sans)",
               transition: "all .15s",
               flexShrink: 0,
             }}

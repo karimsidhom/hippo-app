@@ -129,7 +129,7 @@ export default function OnboardingPage() {
               </div>
             </div>
             <div>
-              <h1 className="text-4xl font-bold text-[#f1f5f9]">Hippo</h1>
+              <h1 className="text-4xl font-semibold text-[#f1f5f9]">Hippo</h1>
               <p className="text-[#2563eb] font-semibold mt-1 text-lg">Track mastery. Share growth.</p>
               <p className="text-[#94a3b8] mt-3 leading-relaxed">
                 The premier case logging platform for surgical trainees. Track your operative journey, measure your growth, and achieve your milestones.
@@ -148,7 +148,7 @@ export default function OnboardingPage() {
         {step === 2 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Operative Journey</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Operative Journey</h2>
               <p className="text-[#94a3b8] mt-2">Every case you log builds the picture of how you operate</p>
             </div>
             <div className="space-y-3">
@@ -178,7 +178,7 @@ export default function OnboardingPage() {
               <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-[#1a1a2e] border border-[#2563eb]/30 flex items-center justify-center">
                 <Shield className="w-8 h-8 text-[#3b82f6]" />
               </div>
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Terms & Privacy</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Terms & Privacy</h2>
               <p className="text-[#94a3b8] mt-2 text-sm">
                 Please review each document and tick to accept. We record the
                 version and timestamp of each acceptance.
@@ -224,7 +224,7 @@ export default function OnboardingPage() {
                       <p className="text-xs text-[#64748b] mt-0.5 leading-relaxed">
                         {meta.summary}
                       </p>
-                      <p className="text-[10px] text-[#475569] mt-1 uppercase tracking-wider">
+                      <p className="text-[11px] text-[#475569] mt-1 uppercase tracking-[0.06em] font-semibold">
                         v{POLICY_VERSIONS[key]}
                       </p>
                     </div>
@@ -271,7 +271,7 @@ export default function OnboardingPage() {
         {step === 4 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Role</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Role</h2>
               <p className="text-[#94a3b8] mt-1">This helps personalize your experience</p>
             </div>
             <div className="space-y-3">
@@ -304,7 +304,7 @@ export default function OnboardingPage() {
         {step === 5 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Training Country</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Training Country</h2>
               <p className="text-[#94a3b8] mt-1">This determines your case-log taxonomy and assessment framework</p>
             </div>
             <div className="space-y-3">
@@ -347,7 +347,7 @@ export default function OnboardingPage() {
         {step === 6 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Specialty</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Specialty</h2>
               <p className="text-[#94a3b8] mt-1">Select your primary surgical specialty</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -375,7 +375,7 @@ export default function OnboardingPage() {
         {step === 7 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Training Year</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Training Year</h2>
               <p className="text-[#94a3b8] mt-1">Helps calibrate benchmarks for your level</p>
             </div>
             <div className="grid grid-cols-2 gap-2">
@@ -405,7 +405,7 @@ export default function OnboardingPage() {
         {step === 8 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Institution</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Institution</h2>
               <p className="text-[#94a3b8] mt-1">
                 {institutionRequired
                   ? "Required for attending and program director roles"
@@ -452,7 +452,7 @@ export default function OnboardingPage() {
         {step === 9 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Your Program</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Your Program</h2>
               <p className="text-[#94a3b8] mt-1">
                 Join your training program so your program director can see
                 your progress. Optional, and you can join later.
@@ -466,7 +466,7 @@ export default function OnboardingPage() {
         {step === 10 && (
           <div className="space-y-6 animate-slide-up">
             <div className="text-center">
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">Privacy Settings</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">Privacy Settings</h2>
               <p className="text-[#94a3b8] mt-1">Control how your data is shared</p>
             </div>
             <div className="space-y-3">
@@ -498,7 +498,7 @@ export default function OnboardingPage() {
           <div className="text-center space-y-6 animate-bounce-in">
             <div className="text-6xl">🎉</div>
             <div>
-              <h2 className="text-2xl font-bold text-[#f1f5f9]">You're all set!</h2>
+              <h2 className="text-2xl font-semibold text-[#f1f5f9]">You're all set!</h2>
               <p className="text-[#94a3b8] mt-2 leading-relaxed">
                 Welcome to Hippo, {form.specialty ? `${form.specialty} ` : ""}resident.
                 Let's log your first case!

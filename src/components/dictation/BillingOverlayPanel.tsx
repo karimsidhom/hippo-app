@@ -243,11 +243,11 @@ export function BillingOverlayPanel({
             <div style={{ marginBottom: 10 }}>
               <div
                 style={{
-                  fontSize: 10,
+                  fontSize: 11,
                   fontWeight: 600,
                   color: "var(--text-3)",
                   textTransform: "uppercase",
-                  letterSpacing: "0.05em",
+                  letterSpacing: "0.06em",
                   marginBottom: 6,
                 }}
               >
@@ -272,9 +272,9 @@ export function BillingOverlayPanel({
                     <span
                       style={{
                         fontSize: 12,
-                        fontWeight: 700,
+                        fontWeight: 600,
                         color: "#10b981",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-mono)",
                       }}
                     >
                       {code.code}
@@ -288,7 +288,7 @@ export function BillingOverlayPanel({
                           fontSize: 10,
                           fontWeight: 600,
                           color: "#10b981",
-                          fontFamily: "'Geist Mono', monospace",
+                          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                         }}
                       >
                         ${code.fee}
@@ -396,11 +396,11 @@ export function BillingOverlayPanel({
                 border: "none",
                 padding: 0,
                 cursor: "pointer",
-                fontSize: 10,
+                fontSize: 11,
                 fontWeight: 600,
                 color: "var(--text-3)",
                 textTransform: "uppercase",
-                letterSpacing: "0.05em",
+                letterSpacing: "0.06em",
                 display: "flex",
                 alignItems: "center",
                 gap: 4,
@@ -443,7 +443,7 @@ export function BillingOverlayPanel({
                         width: 70,
                         padding: "4px 8px",
                         fontSize: 12,
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                         background: "var(--glass-lo, #0c1219)",
                         border: "1px solid var(--border, rgba(255,255,255,0.08))",
                         borderRadius: 5,

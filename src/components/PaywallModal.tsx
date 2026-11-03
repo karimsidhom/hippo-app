@@ -146,9 +146,9 @@ export function PaywallModal({
               borderRadius: 999,
               background: "rgba(59,130,246,.2)",
               color: "#60a5fa",
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: ".08em",
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
               textTransform: "uppercase",
               marginBottom: 10,
             }}
@@ -158,7 +158,7 @@ export function PaywallModal({
           <div
             style={{
               fontSize: 18,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text, #fafafa)",
               letterSpacing: "-.01em",
               lineHeight: 1.3,
@@ -191,7 +191,7 @@ export function PaywallModal({
             <span
               style={{
                 fontSize: 28,
-                fontWeight: 800,
+                fontWeight: 700,
                 color: "var(--text, #fafafa)",
                 letterSpacing: "-.03em",
               }}

@@ -56,7 +56,7 @@ function Avatar({ className, src, name, size = "md", online, ...props }: AvatarP
       ) : (
         <div className={`w-full h-full bg-gradient-to-br ${gradient} flex items-center justify-center`}>
           <span
-            className={clsx("font-bold text-white leading-none", {
+            className={clsx("font-semibold text-white leading-none", {
               "text-[10px]": size === "xs",
               "text-xs": size === "sm",
               "text-sm": size === "md",

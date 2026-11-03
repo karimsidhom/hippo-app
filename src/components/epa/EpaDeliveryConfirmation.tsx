@@ -187,7 +187,7 @@ export function EpaDeliveryConfirmation({
               color: "var(--text-2, #94a3b8)",
               fontSize: 12,
               padding: "7px 9px",
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-mono)",
             }}
           />
           <div style={{ display: "flex", gap: 8 }}>

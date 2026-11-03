@@ -427,7 +427,7 @@ function BriefView({ brief, warnings, onReset }: BriefViewProps) {
         <div
           style={{
             fontSize: 20,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "var(--text)",
             letterSpacing: "-.5px",
           }}
@@ -724,11 +724,11 @@ function Section({
           alignItems: "center",
           gap: 6,
           marginBottom: 8,
-          fontSize: 10,
+          fontSize: 11,
           fontWeight: 600,
           color: "var(--text-3)",
           textTransform: "uppercase",
-          letterSpacing: "1px",
+          letterSpacing: "0.06em",
         }}
       >
         <span style={{ color: "var(--text-2)" }}>{icon}</span>

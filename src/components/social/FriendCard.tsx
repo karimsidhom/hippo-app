@@ -47,8 +47,8 @@ export function FriendCard({ friend, onOpen, onUnfriend }: FriendCardProps) {
               width: 44, height: 44, borderRadius: 12,
               background: "linear-gradient(135deg, var(--primary), var(--primary-lo))",
               display: "flex", alignItems: "center", justifyContent: "center",
-              fontSize: 14, fontWeight: 700, color: "#fff",
-              fontFamily: "'Geist', sans-serif",
+              fontSize: 14, fontWeight: 600, color: "#fff",
+              fontFamily: "var(--font-sans)",
             }}>
               {initials}
             </div>
@@ -66,13 +66,13 @@ export function FriendCard({ friend, onOpen, onUnfriend }: FriendCardProps) {
 
         <div style={{ display: "flex", gap: 12, flexShrink: 0 }}>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {friend.totalCases}
             </div>
             <div style={{ fontSize: 9, color: "var(--text-3)" }}>total</div>
           </div>
           <div style={{ textAlign: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--primary)", fontFamily: "'Geist Mono', monospace" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--primary)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {friend.thisMonth}
             </div>
             <div style={{ fontSize: 9, color: "var(--text-3)" }}>this mo.</div>
@@ -87,7 +87,7 @@ export function FriendCard({ friend, onOpen, onUnfriend }: FriendCardProps) {
             marginTop: 10, width: "100%", padding: "6px 0",
             background: "none", border: "1px solid var(--border-mid)",
             color: "var(--text-3)", borderRadius: 8, fontSize: 11, fontWeight: 500,
-            cursor: "pointer", fontFamily: "'Geist', sans-serif",
+            cursor: "pointer", fontFamily: "var(--font-sans)",
           }}
         >
           Unfriend

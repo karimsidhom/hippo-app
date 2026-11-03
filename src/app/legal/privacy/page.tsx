@@ -3,7 +3,7 @@ export const metadata = { title: "Privacy Policy · Hippo" };
 export default function PrivacyPage() {
   return (
     <>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Privacy Policy</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Privacy Policy</h1>
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Effective date: 2026-04-14 · Last updated: 2026-04-14</p>
 
       <h2 style={H2}>1. What Hippo is (and is not)</h2>

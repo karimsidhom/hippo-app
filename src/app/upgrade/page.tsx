@@ -48,7 +48,7 @@ export default function UpgradePage() {
         alignItems: 'center',
         padding: '0 16px 48px',
         fontFamily:
-          '-apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif',
+          "var(--font-sans)",
       }}
     >
       <nav
@@ -94,9 +94,9 @@ export default function UpgradePage() {
               borderRadius: 999,
               background: 'rgba(14,165,233,0.18)',
               color: '#0EA5E9',
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
               textTransform: 'uppercase',
               marginBottom: 12,
             }}
@@ -106,7 +106,7 @@ export default function UpgradePage() {
           <h1
             style={{
               fontSize: 24,
-              fontWeight: 700,
+              fontWeight: 600,
               letterSpacing: '-0.03em',
               lineHeight: 1.2,
               color: '#F1F5F9',
@@ -135,7 +135,7 @@ export default function UpgradePage() {
               }}
             >
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                <span style={{ fontSize: 26, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
+                <span style={{ fontSize: 26, fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
                   {PRICING.pro.monthlyDisplay}
                 </span>
                 <span style={{ fontSize: 13, color: '#64748B' }}>/month, cancel any time</span>
@@ -179,7 +179,7 @@ export default function UpgradePage() {
                 }}
               >
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginBottom: 4 }}>
-                  <span style={{ fontSize: 26, fontWeight: 800, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
+                  <span style={{ fontSize: 26, fontWeight: 700, color: '#F1F5F9', letterSpacing: '-0.03em' }}>
                     {PRICING.lifetime.oneTimeDisplay}
                   </span>
                   <span style={{ fontSize: 13, color: '#64748B' }}>once, {PRICING.lifetime.tagline.toLowerCase()}</span>
@@ -244,9 +244,9 @@ export default function UpgradePage() {
         >
           <div
             style={{
-              fontSize: 10,
-              fontWeight: 700,
-              letterSpacing: '0.08em',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: "0.06em",
               textTransform: 'uppercase',
               color: '#64748B',
               marginBottom: 14,

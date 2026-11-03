@@ -408,7 +408,7 @@ export default function DashboardPage() {
             color: "var(--text-3)",
             marginBottom: 8,
             letterSpacing: ".04em",
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
           }}>
             {isStaff
               ? [roleLabel, profile?.specialty, profile?.institution].filter(Boolean).join(" \u00b7 ")
@@ -416,11 +416,11 @@ export default function DashboardPage() {
           </div>
           <div style={{
             fontSize: 32,
-            fontWeight: 800,
+            fontWeight: 600,
             color: "var(--text)",
             letterSpacing: "-1.5px",
             lineHeight: 1,
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
           }}>
             {greetName}
           </div>
@@ -498,21 +498,21 @@ export default function DashboardPage() {
         <div style={{ marginBottom: 8 }}>
           <div style={{
             fontSize: 64,
-            fontWeight: 800,
+            fontWeight: 700,
             color: "var(--text)",
             letterSpacing: "-3px",
             lineHeight: .85,
-            fontFamily: "'Geist Mono', monospace",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           }}>
             {cases.length}
           </div>
           <div style={{
-            fontSize: 10,
+            fontSize: 11,
             color: "var(--text-3)",
             marginTop: 8,
             textTransform: "uppercase",
-            letterSpacing: "1.2px",
-            fontWeight: 500,
+            letterSpacing: "0.06em",
+            fontWeight: 600,
           }}>
             Total Cases Logged
           </div>
@@ -552,9 +552,9 @@ export default function DashboardPage() {
               }}>
                 <span style={{
                   fontSize: 18,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text)",
-                  fontFamily: "'Geist Mono', monospace",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                   letterSpacing: "-0.5px",
                   lineHeight: 1,
                 }}>
@@ -563,12 +563,12 @@ export default function DashboardPage() {
                 {s.icon && <Flame size={11} color="var(--warning)" />}
               </div>
               <div style={{
-                fontSize: 9,
+                fontSize: 11,
                 color: "var(--text-3)",
                 marginTop: 4,
                 textTransform: "uppercase",
-                letterSpacing: ".8px",
-                fontWeight: 500,
+                letterSpacing: "0.06em",
+                fontWeight: 600,
               }}>
                 {s.l}
               </div>
@@ -625,8 +625,8 @@ export default function DashboardPage() {
               >
                 <span
                   style={{
-                    fontSize: 10,
-                    fontWeight: 700,
+                    fontSize: 11,
+                    fontWeight: 600,
                     textTransform: "uppercase",
                     letterSpacing: "0.06em",
                     color: "var(--text-3)",
@@ -765,7 +765,7 @@ export default function DashboardPage() {
                             style={{
                               fontSize: 11,
                               color: "var(--text-3)",
-                              fontFamily: "'Geist Mono', monospace",
+                              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                               whiteSpace: "nowrap",
                             }}
                           >
@@ -811,8 +811,8 @@ export default function DashboardPage() {
         {/* ── Activity (all roles) ─────────────────────────────────────── */}
         <section style={{ marginBottom: 28 }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px",
+            fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em",
             marginBottom: 12,
           }}>Activity</div>
           <VolumeHeatmap data={heatmapData} />
@@ -828,8 +828,8 @@ export default function DashboardPage() {
             marginBottom: 12,
           }}>
             <span style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px",
+              fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "0.06em",
             }}>Recent</span>
             <Link href="/cases" style={{
               fontSize: 11, color: "var(--text-3)", textDecoration: "none",
@@ -877,7 +877,7 @@ export default function DashboardPage() {
                   <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
                     <span style={{
                       fontSize: 11, color: "var(--text-3)",
-                      fontFamily: "'Geist Mono', monospace",
+                      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                     }}>
                       {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" })}
                     </span>
@@ -891,7 +891,7 @@ export default function DashboardPage() {
                   {c.operativeDurationMinutes && (
                     <>
                       <span style={{ color: "var(--muted)" }}>&middot;</span>
-                      <span style={{ fontFamily: "'Geist Mono', monospace" }}>{c.operativeDurationMinutes}m</span>
+                      <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{c.operativeDurationMinutes}m</span>
                     </>
                   )}
                 </div>
@@ -911,8 +911,8 @@ export default function DashboardPage() {
               marginBottom: 12,
             }}>
               <span style={{
-                fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-                textTransform: "uppercase", letterSpacing: "1px",
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em",
               }}>Recent Sign-offs</span>
               <Link href="/inbox" style={{
                 fontSize: 11, color: "var(--text-3)", textDecoration: "none",
@@ -948,7 +948,7 @@ export default function DashboardPage() {
                     {e.signedAt && (
                       <span style={{
                         fontSize: 11, color: "var(--text-3)",
-                        fontFamily: "'Geist Mono', monospace",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                         flexShrink: 0,
                       }}>
                         {new Date(e.signedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
@@ -963,7 +963,7 @@ export default function DashboardPage() {
                     {e.entrustmentScore && (
                       <>
                         <span style={{ color: "var(--muted)" }}>&middot;</span>
-                        <span style={{ fontFamily: "'Geist Mono', monospace" }}>O-Score {e.entrustmentScore}</span>
+                        <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>O-Score {e.entrustmentScore}</span>
                       </>
                     )}
                   </div>
@@ -1016,7 +1016,7 @@ export default function DashboardPage() {
                 <div
                   style={{
                     fontSize: 15,
-                    fontWeight: 700,
+                    fontWeight: 600,
                     color: "var(--text)",
                     letterSpacing: "-0.2px",
                     marginBottom: 2,
@@ -1186,8 +1186,8 @@ export default function DashboardPage() {
         {topProcs.length > 0 && (
           <section style={{ marginBottom: 28 }}>
             <div style={{
-              fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-              textTransform: "uppercase", letterSpacing: "1px",
+              fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "0.06em",
               marginBottom: 14,
             }}>Top Procedures</div>
             {topProcs.map(([name, count], i) => (
@@ -1202,7 +1202,7 @@ export default function DashboardPage() {
                   fontSize: 10,
                   fontWeight: 600,
                   color: "var(--text-3)",
-                  fontFamily: "'Geist Mono', monospace",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                   width: 16,
                   flexShrink: 0,
                 }}>{i + 1}</span>
@@ -1223,7 +1223,7 @@ export default function DashboardPage() {
                 <span style={{
                   fontSize: 12, fontWeight: 600,
                   color: "var(--text-2)",
-                  fontFamily: "'Geist Mono', monospace",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                   minWidth: 20, textAlign: "right",
                 }}>{count}</span>
               </div>

@@ -223,11 +223,11 @@ export function ProgramCalendar() {
         >
           <span
             style={{
-              fontSize: 10,
+              fontSize: 11,
               fontWeight: 600,
               color: "var(--text-3)",
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: "0.06em",
               display: "flex",
               alignItems: "center",
               gap: 6,
@@ -430,8 +430,8 @@ export function ProgramCalendar() {
                         ? "var(--primary)"
                         : "var(--text)",
                     fontSize: 12,
-                    fontFamily: "'Geist Mono', monospace",
-                    fontWeight: isToday ? 700 : 500,
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                    fontWeight: isToday ? 600 : 500,
                     padding: 0,
                     transition: "background 0.15s",
                   }}
@@ -473,10 +473,10 @@ export function ProgramCalendar() {
           >
             <div
               style={{
-                fontSize: 10,
+                fontSize: 11,
                 color: "var(--text-3)",
                 textTransform: "uppercase",
-                letterSpacing: "1px",
+                letterSpacing: "0.06em",
                 fontWeight: 600,
                 marginBottom: 8,
               }}
@@ -501,10 +501,10 @@ export function ProgramCalendar() {
         <div>
           <div
             style={{
-              fontSize: 10,
+              fontSize: 11,
               color: "var(--text-3)",
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: "0.06em",
               fontWeight: 600,
               marginBottom: 8,
             }}
@@ -640,7 +640,7 @@ function EventRow({
               style={{
                 fontSize: 11,
                 color: "var(--text-3)",
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
                 flexShrink: 0,
               }}
             >

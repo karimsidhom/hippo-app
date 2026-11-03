@@ -104,8 +104,8 @@ function EpaRow({
           <div style={{
             position: "absolute", inset: 0,
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 9, fontWeight: 700, color: "var(--text)",
-            fontFamily: "'Geist Mono', monospace",
+            fontSize: 9, fontWeight: 600, color: "var(--text)",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
           }}>
             {epa.percentComplete}%
           </div>
@@ -115,8 +115,8 @@ function EpaRow({
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
             <span style={{
-              fontSize: 9, fontWeight: 700, color,
-              fontFamily: "'Geist Mono', monospace",
+              fontSize: 9, fontWeight: 600, color,
+              fontFamily: "var(--font-mono)",
               background: `${color}15`, padding: "1px 5px", borderRadius: 3,
               flexShrink: 0,
             }}>
@@ -176,26 +176,26 @@ function EpaRow({
             <div style={{
               background: "var(--surface2)", borderRadius: 6, padding: "8px 10px", textAlign: "center",
             }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "var(--text)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                 {epa.totalCases}
               </div>
-              <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase" }}>Mapped Cases</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Mapped Cases</div>
             </div>
             <div style={{
               background: "var(--surface2)", borderRadius: 6, padding: "8px 10px", textAlign: "center",
             }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: "#0ea5e9", fontFamily: "'Geist Mono', monospace" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: "#0ea5e9", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                 {observationCount}
               </div>
-              <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase" }}>Observations</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Observations</div>
             </div>
             <div style={{
               background: "var(--surface2)", borderRadius: 6, padding: "8px 10px", textAlign: "center",
             }}>
-              <div style={{ fontSize: 16, fontWeight: 700, color: color, fontFamily: "'Geist Mono', monospace" }}>
+              <div style={{ fontSize: 16, fontWeight: 600, color: color, fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                 {epa.targetCases - observationCount > 0 ? epa.targetCases - observationCount : 0}
               </div>
-              <div style={{ fontSize: 9, color: "var(--text-3)", textTransform: "uppercase" }}>Remaining</div>
+              <div style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", fontWeight: 600, letterSpacing: "0.06em" }}>Remaining</div>
             </div>
           </div>
 
@@ -507,7 +507,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
               background: activeTab === "foundations" ? "var(--surface)" : "transparent",
               border: activeTab === "foundations" ? "1px solid var(--border-mid)" : "1px solid transparent",
               borderRadius: 6, cursor: "pointer",
-              fontSize: 12, fontWeight: activeTab === "foundations" ? 700 : 500,
+              fontSize: 12, fontWeight: activeTab === "foundations" ? 600 : 500,
               color: activeTab === "foundations" ? "var(--text)" : "var(--text-3)",
               fontFamily: "inherit", transition: "all .15s",
             }}
@@ -521,7 +521,7 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
               background: activeTab === "specialty" ? "var(--surface)" : "transparent",
               border: activeTab === "specialty" ? "1px solid var(--border-mid)" : "1px solid transparent",
               borderRadius: 6, cursor: "pointer",
-              fontSize: 12, fontWeight: activeTab === "specialty" ? 700 : 500,
+              fontSize: 12, fontWeight: activeTab === "specialty" ? 600 : 500,
               color: activeTab === "specialty" ? "var(--text)" : "var(--text-3)",
               fontFamily: "inherit", transition: "all .15s",
             }}
@@ -579,8 +579,8 @@ export function EpaAnalyticsPanel({ cases, specialty, trainingCountry }: EpaAnal
             }}>
               <span style={{ color: card.color }}>{card.icon}</span>
               <span style={{
-                fontSize: 22, fontWeight: 700, color: "var(--text)",
-                fontFamily: "'Geist Mono', monospace",
+                fontSize: 22, fontWeight: 600, color: "var(--text)",
+                fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
               }}>
                 {card.value}
               </span>

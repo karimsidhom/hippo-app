@@ -386,7 +386,7 @@ export default function LogbookPrintPage() {
           <tbody>
             {safeCases.map((c, i) => (
               <tr key={c.id}>
-                <td style={{ color: "#999", fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
+                <td style={{ color: "#999", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', fontSize: 9 }}>
                   {safeCases.length - i}
                 </td>
                 <td>{c.caseDate ? formatDay(c.caseDate as unknown as string) : "—"}</td>
@@ -396,7 +396,7 @@ export default function LogbookPrintPage() {
                 <td style={{ textAlign: "center" }}>
                   {c.difficultyScore ? `${c.difficultyScore}/5` : "—"}
                 </td>
-                <td style={{ textAlign: "right", fontFamily: "ui-monospace, monospace" }}>
+                <td style={{ textAlign: "right", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                   {c.operativeDurationMinutes ?? "—"}
                 </td>
                 <td style={{ fontSize: 9 }}>
@@ -442,21 +442,21 @@ export default function LogbookPrintPage() {
                   const isSigned = o.status === "SIGNED";
                   return (
                     <tr key={o.id} className={isSigned ? "logbook-epa-signed" : undefined}>
-                      <td style={{ color: "#999", fontFamily: "ui-monospace, monospace", fontSize: 9 }}>
+                      <td style={{ color: "#999", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', fontSize: 9 }}>
                         {sortedEpas.length - i}
                       </td>
-                      <td style={{ textAlign: "center", fontWeight: 700, color: isSigned ? "#0f5132" : "#94a3b8", fontSize: 11 }}>
+                      <td style={{ textAlign: "center", fontWeight: 600, color: isSigned ? "#0f5132" : "#94a3b8", fontSize: 11 }}>
                         {isSigned ? "✓" : "—"}
                       </td>
                       <td>{formatDay(o.observationDate)}</td>
-                      <td style={{ fontFamily: "ui-monospace, monospace", fontWeight: 600, fontSize: 10 }}>
+                      <td style={{ fontFamily: "var(--font-mono)", fontWeight: 600, fontSize: 10 }}>
                         {o.epaId}
                       </td>
                       <td style={{ fontWeight: 500 }}>{o.epaTitle}</td>
-                      <td style={{ textAlign: "center", fontFamily: "ui-monospace, monospace" }}>
+                      <td style={{ textAlign: "center", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                         {o.entrustmentScore ? `O-${o.entrustmentScore}` : "—"}
                       </td>
-                      <td style={{ fontSize: 9, fontWeight: isSigned ? 700 : 500, color: statusColor(o.status) }}>
+                      <td style={{ fontSize: 9, fontWeight: isSigned ? 600 : 500, color: statusColor(o.status) }}>
                         {statusLabel(o.status)}
                       </td>
                       <td style={{ fontSize: 9.5, color: isSigned ? "#0f172a" : "#94a3b8" }}>
@@ -464,7 +464,7 @@ export default function LogbookPrintPage() {
                           <>
                             <div>{o.signedByName}</div>
                             {o.signedAt && (
-                              <div style={{ fontSize: 8, color: "#64748b", fontFamily: "ui-monospace, monospace" }}>
+                              <div style={{ fontSize: 8, color: "#64748b", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                                 {formatDate(o.signedAt)}
                               </div>
                             )}
@@ -536,7 +536,7 @@ export default function LogbookPrintPage() {
         .logbook-root {
           background: #e5e7eb;
           min-height: 100vh;
-          font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, sans-serif;
+          font-family: var(--font-sans);
           color: #0f172a;
           padding: 80px 16px 32px;
         }
@@ -579,16 +579,16 @@ export default function LogbookPrintPage() {
           min-width: 0;
         }
         .logbook-eyebrow {
-          font-size: 9px;
-          font-weight: 700;
-          letter-spacing: 0.1em;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           color: #0EA5E9;
           margin-bottom: 6px;
         }
         .logbook-title {
           font-size: 22px;
-          font-weight: 700;
+          font-weight: 600;
           letter-spacing: -0.02em;
           margin-bottom: 4px;
           color: #0f172a;
@@ -615,13 +615,13 @@ export default function LogbookPrintPage() {
         }
         .logbook-brand-wordmark {
           font-size: 18px;
-          font-weight: 800;
+          font-weight: 600;
           letter-spacing: -0.01em;
           color: #0EA5E9;
         }
         .logbook-brand-wordmark sup {
           font-size: 9px;
-          font-weight: 700;
+          font-weight: 600;
           margin-left: 1px;
           vertical-align: super;
           color: #0EA5E9;
@@ -633,7 +633,8 @@ export default function LogbookPrintPage() {
           letter-spacing: 0.01em;
         }
         .logbook-brand-caption {
-          font-size: 9px;
+          font-size: 11px;
+          font-weight: 600;
           color: #94a3b8;
           letter-spacing: 0.06em;
           text-transform: uppercase;
@@ -658,16 +659,16 @@ export default function LogbookPrintPage() {
           border-right: none;
         }
         .logbook-summary-label {
-          font-size: 8.5px;
+          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.06em;
           color: #64748b;
           font-weight: 600;
           margin-bottom: 2px;
         }
         .logbook-summary-value {
           font-size: 13px;
-          font-weight: 700;
+          font-weight: 600;
           color: #0f172a;
         }
 
@@ -684,9 +685,9 @@ export default function LogbookPrintPage() {
           background: #fdfefe;
         }
         .logbook-breakdown-label {
-          font-size: 8.5px;
+          font-size: 11px;
           text-transform: uppercase;
-          letter-spacing: 0.08em;
+          letter-spacing: 0.06em;
           color: #64748b;
           font-weight: 600;
           margin-bottom: 6px;
@@ -704,7 +705,9 @@ export default function LogbookPrintPage() {
         }
         .logbook-breakdown-num {
           font-weight: 600;
-          font-family: ui-monospace, monospace;
+          font-family: var(--font-sans);
+          font-variant-numeric: tabular-nums;
+          font-feature-settings: "tnum" 1;
           color: #0f172a;
         }
 
@@ -717,9 +720,9 @@ export default function LogbookPrintPage() {
           page-break-inside: avoid;
         }
         .logbook-certification-label {
-          font-size: 8.5px;
-          font-weight: 700;
-          letter-spacing: 0.1em;
+          font-size: 11px;
+          font-weight: 600;
+          letter-spacing: 0.06em;
           text-transform: uppercase;
           color: #0EA5E9;
           margin-bottom: 6px;
@@ -762,7 +765,7 @@ export default function LogbookPrintPage() {
           padding: 6px 8px;
           text-align: left;
           font-weight: 600;
-          font-size: 9px;
+          font-size: 11px;
           text-transform: uppercase;
           letter-spacing: 0.06em;
         }
@@ -794,7 +797,7 @@ export default function LogbookPrintPage() {
         }
         .logbook-section-title {
           font-size: 14px;
-          font-weight: 700;
+          font-weight: 600;
           color: #0f172a;
           letter-spacing: -0.2px;
         }
@@ -804,7 +807,7 @@ export default function LogbookPrintPage() {
         }
         .logbook-section-stats strong {
           color: #0f172a;
-          font-weight: 700;
+          font-weight: 600;
         }
         .logbook-epa-table tbody tr {
           border-left: 3px solid transparent;

@@ -499,11 +499,11 @@ function Field({
     <div style={{ marginBottom: 14 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           color: "var(--text-3)",
           fontWeight: 600,
           textTransform: "uppercase",
-          letterSpacing: "0.8px",
+          letterSpacing: "0.06em",
           marginBottom: 6,
         }}
       >

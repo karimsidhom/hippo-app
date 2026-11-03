@@ -115,7 +115,7 @@ export function SectionEditor({
           gap: 8,
         }}
       >
-        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+        <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
           {view.label}
         </h3>
         {problem && (
@@ -137,8 +137,9 @@ export function SectionEditor({
               margin: '0 0 8px',
               fontSize: 11,
               textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              letterSpacing: "0.06em",
               color: 'var(--text-3)',
+              fontWeight: 600,
             }}
           >
             {previousDate
@@ -226,8 +227,9 @@ export function SectionEditor({
               margin: '0 0 8px',
               fontSize: 11,
               textTransform: 'uppercase',
-              letterSpacing: '0.08em',
+              letterSpacing: "0.06em",
               color: 'var(--text-3)',
+              fontWeight: 600,
             }}
           >
             This meeting

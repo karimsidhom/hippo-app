@@ -3,7 +3,7 @@ export const metadata = { title: "Security · Hippo" };
 export default function SecurityPage() {
   return (
     <>
-      <h1 style={{ fontSize: 28, fontWeight: 700, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Security</h1>
+      <h1 style={{ fontSize: 28, fontWeight: 600, color: "var(--text, #f4f4f5)", letterSpacing: "-.4px", marginBottom: 6 }}>Security</h1>
       <p style={{ fontSize: 12, color: "var(--text-3, #71717a)", marginBottom: 28 }}>Last updated: 2026-04-14</p>
 
       <p>Hippo is early-stage. We are transparent about what controls are in place today and what is on the roadmap before institutional agreements are signed.</p>

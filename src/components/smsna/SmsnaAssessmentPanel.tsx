@@ -43,7 +43,7 @@ export function SmsnaAssessmentPanel() {
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
         <ClipboardList size={16} style={{ color: "var(--primary)" }} />
-        <h3 style={{ fontSize: 14, fontWeight: 700, color: "var(--text)", margin: 0 }}>
+        <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--text)", margin: 0 }}>
           OPRS Operative Assessments
         </h3>
       </div>
@@ -88,7 +88,7 @@ export function SmsnaAssessmentPanel() {
             <span style={{ fontSize: 12, fontWeight: 500, color: "var(--text)", flex: 1 }}>
               {cat.name}
             </span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: "var(--text)", fontFamily: "'Geist Mono', monospace" }}>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
               {countsByCategory[cat.key] ?? 0}
             </span>
           </div>

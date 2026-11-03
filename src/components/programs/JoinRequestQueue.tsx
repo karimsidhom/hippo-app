@@ -87,10 +87,10 @@ export function JoinRequestQueue({ onChanged }: { onChanged?: () => void }) {
     >
       <h2
         style={{
-          fontSize: 13,
-          fontWeight: 700,
+          fontSize: 11,
+          fontWeight: 600,
           textTransform: 'uppercase',
-          letterSpacing: '0.08em',
+          letterSpacing: "0.06em",
           color: 'var(--text-3)',
           margin: '0 0 12px',
         }}

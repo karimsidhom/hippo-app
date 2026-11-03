@@ -163,7 +163,7 @@ export default function ProgramsPage() {
             <div
               style={{
                 fontSize: 28,
-                fontWeight: 800,
+                fontWeight: 600,
                 color: "var(--text)",
                 letterSpacing: "-1px",
                 lineHeight: 1,
@@ -326,13 +326,13 @@ export default function ProgramsPage() {
                   {isPdLike(p.myRole) && (
                     <span
                       style={{
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: 600,
                         color: "var(--primary)",
                         background: "rgba(14,165,233,0.12)",
                         padding: "2px 6px",
                         borderRadius: 4,
-                        letterSpacing: "0.5px",
+                        letterSpacing: "0.06em",
                         textTransform: "uppercase",
                       }}
                     >
@@ -1281,7 +1281,7 @@ function SheetShell({
             <div
               style={{
                 fontSize: 14,
-                fontWeight: 700,
+                fontWeight: 600,
                 color: "var(--text)",
                 letterSpacing: "-0.2px",
                 whiteSpace: "nowrap",
@@ -1356,11 +1356,11 @@ function Field({
     <div style={{ marginBottom: 14 }}>
       <div
         style={{
-          fontSize: 10,
+          fontSize: 11,
           color: "var(--text-3)",
           fontWeight: 600,
           textTransform: "uppercase",
-          letterSpacing: "0.8px",
+          letterSpacing: "0.06em",
           marginBottom: 6,
         }}
       >
@@ -1375,11 +1375,11 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
     <div
       style={{
-        fontSize: 10,
+        fontSize: 11,
         color: "var(--text-3)",
         fontWeight: 600,
         textTransform: "uppercase",
-        letterSpacing: "1px",
+        letterSpacing: "0.06em",
         marginBottom: 10,
       }}
     >

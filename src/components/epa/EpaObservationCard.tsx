@@ -182,8 +182,8 @@ export function EpaObservationCard({
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span
           style={{
-            fontSize: 10, fontWeight: 700, color: stageColor,
-            fontFamily: "'Geist Mono', monospace",
+            fontSize: 10, fontWeight: 600, color: stageColor,
+            fontFamily: "var(--font-mono)",
             background: `${stageColor}15`, padding: "2px 6px", borderRadius: 4, flexShrink: 0,
           }}
         >
@@ -220,11 +220,11 @@ export function EpaObservationCard({
         {oScore != null && oScore >= 1 && oScore <= 5 && (
           <span
             style={{
-              fontSize: 10, fontWeight: 700,
+              fontSize: 10, fontWeight: 600,
               color: ENTRUSTMENT_COLORS[oScore],
               background: `${ENTRUSTMENT_COLORS[oScore]}15`,
               padding: "2px 7px", borderRadius: 4,
-              fontFamily: "'Geist Mono', monospace",
+              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
             }}
             title={ENTRUSTMENT_SHORT[oScore]}
           >
@@ -301,7 +301,7 @@ export function EpaObservationCard({
                       width: "100%", boxSizing: "border-box",
                       background: "var(--surface2)", border: "1px solid var(--border-mid)",
                       borderRadius: 6, color: "var(--text-2)", fontSize: 11,
-                      padding: "6px 8px", fontFamily: "'Geist Mono', monospace",
+                      padding: "6px 8px", fontFamily: "var(--font-mono)",
                     }}
                   />
                   <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -376,8 +376,8 @@ export function EpaObservationCard({
           }}
         >
           <div style={{
-            fontSize: 10, fontWeight: 700, color: "#ef4444",
-            textTransform: "uppercase", letterSpacing: ".06em", marginBottom: 4,
+            fontSize: 11, fontWeight: 600, color: "#ef4444",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4,
           }}>
             Returned for revision
           </div>

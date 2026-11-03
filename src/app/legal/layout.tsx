@@ -8,7 +8,7 @@ export default function LegalLayout({ children }: { children: ReactNode }) {
       minHeight: "100vh",
       background: "var(--bg, #09090b)",
       color: "var(--text, #f4f4f5)",
-      fontFamily: "'Geist', -apple-system, system-ui, sans-serif",
+      fontFamily: "var(--font-sans)",
     }}>
       <div style={{
         maxWidth: 720, margin: "0 auto", padding: "32px 20px 80px",

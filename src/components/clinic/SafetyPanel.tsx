@@ -110,7 +110,7 @@ export function SafetyPanel({ encounterId, hasNote, isFinalized, note, noteType 
             background: quality.score >= 80 ? "rgba(16,185,129,.10)" : quality.score >= 60 ? "rgba(245,158,11,.10)" : "rgba(239,68,68,.10)",
             color:      quality.score >= 80 ? "var(--success)"      : quality.score >= 60 ? "var(--warning)"      : "var(--danger)",
             display: "flex", alignItems: "center", justifyContent: "center",
-            fontSize: 12, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+            fontSize: 12, fontWeight: 600, fontVariantNumeric: "tabular-nums",
           }}>
             {quality.score}
           </div>
@@ -181,7 +181,7 @@ export function SafetyPanel({ encounterId, hasNote, isFinalized, note, noteType 
                   {a.detail}
                 </div>
                 {a.section && (
-                  <div style={{ fontSize: 10, color: "var(--text-3)", marginTop: 6, textTransform: "uppercase", letterSpacing: ".06em" }}>
+                  <div style={{ fontSize: 11, color: "var(--text-3)", marginTop: 6, textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600 }}>
                     Found in: {a.section}
                   </div>
                 )}

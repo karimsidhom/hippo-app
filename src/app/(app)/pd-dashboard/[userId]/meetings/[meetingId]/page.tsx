@@ -272,7 +272,7 @@ export default function MeetingPage() {
       </Link>
 
       <header style={{ margin: '12px 0 20px' }}>
-        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.01em' }}>
+        <h1 style={{ margin: 0, fontSize: 26, fontWeight: 600, color: 'var(--text)', letterSpacing: '-0.01em' }}>
           Program Director 1:1
         </h1>
         <p style={{ margin: '6px 0 0', fontSize: 14, color: 'var(--text-2)' }}>
@@ -324,10 +324,11 @@ export default function MeetingPage() {
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 10, marginTop: 12 }}>
           <span
             style={{
-              fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em',
+              fontSize: 11, textTransform: 'uppercase', letterSpacing: "0.06em",
               padding: '3px 10px', borderRadius: 999,
               background: readOnly ? 'var(--success)' : 'var(--surface2)',
               color: readOnly ? '#fff' : 'var(--text-3)',
+              fontWeight: 600,
             }}
           >
             {readOnly ? 'Published' : 'Draft'}
@@ -507,7 +508,7 @@ export default function MeetingPage() {
 const metaLabel: React.CSSProperties = {
   fontSize: 11,
   textTransform: 'uppercase',
-  letterSpacing: '0.07em',
+  letterSpacing: "0.06em",
   color: 'var(--text-3)',
   fontWeight: 600,
 };
@@ -524,10 +525,10 @@ const metaInput: React.CSSProperties = {
 };
 
 const sectionHeading: React.CSSProperties = {
-  fontSize: 12,
+  fontSize: 11,
   textTransform: 'uppercase',
-  letterSpacing: '0.08em',
+  letterSpacing: "0.06em",
   color: 'var(--text-3)',
   margin: '26px 0 10px',
-  fontWeight: 700,
+  fontWeight: 600,
 };

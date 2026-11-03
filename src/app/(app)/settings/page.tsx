@@ -267,7 +267,7 @@ export default function SettingsPage() {
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-[var(--text)]">Settings</h1>
+          <h1 className="text-2xl font-semibold text-[var(--text)]">Settings</h1>
           <p className="text-[var(--text-2)] text-sm mt-0.5">Manage your account and privacy preferences</p>
         </div>
         {/* Auto-save indicator — appears briefly after any save */}
@@ -429,14 +429,14 @@ export default function SettingsPage() {
                     <Building2 size={14} style={{ color: "var(--text-3)" }} />
                     <span style={{
                       fontSize: 11, fontWeight: 600, color: "var(--text-3)",
-                      textTransform: "uppercase", letterSpacing: ".5px",
+                      textTransform: "uppercase", letterSpacing: "0.06em",
                     }}>Institution</span>
                     {profile?.roleType && ROLES_REQUIRING_INSTITUTION.has(profile.roleType) && (
                       <span style={{
-                        fontSize: 9, fontWeight: 600, color: "#0EA5E9",
+                        fontSize: 11, fontWeight: 600, color: "#0EA5E9",
                         background: "rgba(14,165,233,0.1)",
                         padding: "2px 6px", borderRadius: 4,
-                        textTransform: "uppercase", letterSpacing: ".5px",
+                        textTransform: "uppercase", letterSpacing: "0.06em",
                       }}>Required for your role</span>
                     )}
                   </div>
@@ -732,9 +732,9 @@ export default function SettingsPage() {
                         <Sparkles className="w-4 h-4 text-[#0EA5E9]" />
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-[var(--text)] flex items-center gap-2">
+                        <div className="text-sm font-semibold text-[var(--text)] flex items-center gap-2">
                           Hippo Pro
-                          <span className="text-[10px] font-bold uppercase tracking-wider bg-[#0EA5E9]/20 text-[#0EA5E9] rounded-full px-2 py-0.5">
+                          <span className="text-[11px] font-semibold uppercase tracking-[0.06em] bg-[#0EA5E9]/20 text-[#0EA5E9] rounded-full px-2 py-0.5">
                             {tier === "institution" ? "Institution" : "Pro"}
                           </span>
                         </div>
@@ -756,7 +756,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
-                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">What&apos;s included</p>
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.06em] mb-3">What&apos;s included</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {PRICING.pro.features.map(f => (
                         <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
@@ -786,7 +786,7 @@ export default function SettingsPage() {
                         <Zap className="w-4 h-4 text-[#0EA5E9]" />
                       </div>
                       <div>
-                        <div className="text-sm font-bold text-[var(--text)]">Upgrade to Hippo Pro</div>
+                        <div className="text-sm font-semibold text-[var(--text)]">Upgrade to Hippo Pro</div>
                         <div className="text-[11px] text-[var(--text-2)] mt-0.5">
                           {PRICING.pro.monthlyDisplay}/month, cancel any time
                         </div>
@@ -812,7 +812,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
-                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">Pro includes</p>
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.06em] mb-3">Pro includes</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {PRICING.pro.features.map(f => (
                         <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
@@ -824,7 +824,7 @@ export default function SettingsPage() {
                   </div>
 
                   <div className="bg-[var(--surface)] border border-[#1f1f23] rounded-xl p-5">
-                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-wider mb-3">Free plan includes</p>
+                    <p className="text-[11px] font-semibold text-[#71717a] uppercase tracking-[0.06em] mb-3">Free plan includes</p>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {PRICING.free.features.map(f => (
                         <div key={f} className="flex items-center gap-2 text-xs text-[#a1a1aa]">
@@ -854,7 +854,7 @@ export default function SettingsPage() {
               <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-5 space-y-4">
                 {/* Category chips */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3)] mb-2 block">
                     What kind of feedback?
                   </label>
                   <div className="flex gap-2">
@@ -886,7 +886,7 @@ export default function SettingsPage() {
 
                 {/* Message textarea */}
                 <div>
-                  <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
+                  <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3)] mb-2 block">
                     Message
                   </label>
                   <textarea
@@ -1046,7 +1046,7 @@ export default function SettingsPage() {
             </div>
             <div className="px-5 py-5 space-y-4">
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3)] mb-2 block">
                   New password
                 </label>
                 <div className="relative">
@@ -1073,7 +1073,7 @@ export default function SettingsPage() {
                 </div>
               </div>
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3)] mb-2 block">
                   Confirm new password
                 </label>
                 <input
@@ -1176,7 +1176,7 @@ export default function SettingsPage() {
               </div>
 
               <div>
-                <label className="text-[11px] font-semibold uppercase tracking-wider text-[var(--text-3)] mb-2 block">
+                <label className="text-[11px] font-semibold uppercase tracking-[0.06em] text-[var(--text-3)] mb-2 block">
                   To confirm, type:{" "}
                   <span className="text-[#ef4444] font-mono normal-case tracking-normal">
                     {expectedDelete}

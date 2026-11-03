@@ -115,7 +115,8 @@ export default function JoinProgramPage() {
               color: "var(--text-3)",
               marginTop: 8,
               textTransform: "uppercase",
-              letterSpacing: "1px",
+              letterSpacing: "0.06em",
+              fontWeight: 600,
             }}
           >
             Program Invitation
@@ -296,7 +297,7 @@ export default function JoinProgramPage() {
               <div
                 style={{
                   fontSize: 22,
-                  fontWeight: 700,
+                  fontWeight: 600,
                   color: "var(--text)",
                   letterSpacing: "-0.5px",
                   marginBottom: 4,

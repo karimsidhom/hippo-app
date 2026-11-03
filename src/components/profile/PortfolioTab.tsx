@@ -64,10 +64,10 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
             {item.isFeatured && (
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 3,
-                fontSize: 9, padding: "2px 6px", borderRadius: 4,
+                fontSize: 11, padding: "2px 6px", borderRadius: 4,
                 background: "rgba(14,165,233,0.08)", color: "var(--primary)",
                 border: "1px solid rgba(14,165,233,0.12)",
-                textTransform: "uppercase", letterSpacing: ".5px", fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600,
               }}>
                 <Star size={8} /> Featured
               </span>
@@ -75,10 +75,10 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
             {item.isMilestone && (
               <span style={{
                 display: "inline-flex", alignItems: "center", gap: 3,
-                fontSize: 9, padding: "2px 6px", borderRadius: 4,
+                fontSize: 11, padding: "2px 6px", borderRadius: 4,
                 background: "rgba(16,185,129,0.08)", color: "var(--success)",
                 border: "1px solid rgba(16,185,129,0.12)",
-                textTransform: "uppercase", letterSpacing: ".5px", fontWeight: 600,
+                textTransform: "uppercase", letterSpacing: "0.06em", fontWeight: 600,
               }}>
                 <Award size={8} /> Milestone
               </span>
@@ -94,7 +94,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
               <span style={{ fontSize: 11, color: "var(--text-2)" }}>{item.caseLog.procedureName}</span>
               <span style={{ fontSize: 11, color: "var(--text-3)" }}>{item.caseLog.surgicalApproach}</span>
               {item.caseLog.operativeDurationMinutes && (
-                <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "'Geist Mono', monospace" }}>
+                <span style={{ fontSize: 11, color: "var(--text-3)", fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>
                   {item.caseLog.operativeDurationMinutes}min
                 </span>
               )}
@@ -117,7 +117,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
                 position: "absolute", top: 10, right: 10,
                 background: "none", border: "none", cursor: "pointer",
                 color: "var(--text-3)", fontSize: 10,
-                fontFamily: "'Geist', sans-serif",
+                fontFamily: "var(--font-sans)",
               }}
             >
               Remove
@@ -138,7 +138,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
             color: "var(--text-3)",
             fontSize: 12, fontWeight: 500,
             cursor: "pointer",
-            fontFamily: "'Geist', sans-serif",
+            fontFamily: "var(--font-sans)",
             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
             transition: "all .15s",
           }}
@@ -156,8 +156,8 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
           padding: 16,
         }}>
           <div style={{
-            fontSize: 10, fontWeight: 600, color: "var(--text-3)",
-            textTransform: "uppercase", letterSpacing: "1px", marginBottom: 10,
+            fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
           }}>Add Case to Portfolio</div>
 
           <select
@@ -213,7 +213,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
               style={{
                 padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
                 border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
                 opacity: saving || !selectedCaseId || !title.trim() ? 0.5 : 1,
               }}
             >
@@ -225,7 +225,7 @@ export function PortfolioTab({ items, isOwn, cases, onAdd, onRemove }: Props) {
                 padding: "8px 16px", background: "none",
                 border: "1px solid var(--border)", color: "var(--text-3)",
                 borderRadius: 6, fontSize: 12,
-                cursor: "pointer", fontFamily: "'Geist', sans-serif",
+                cursor: "pointer", fontFamily: "var(--font-sans)",
               }}
             >
               Cancel

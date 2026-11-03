@@ -1,4 +1,6 @@
 import type { Metadata, Viewport } from "next";
+import { GeistSans } from "geist/font/sans";
+import { GeistMono } from "geist/font/mono";
 import { HippoIntro } from "@/components/HippoIntro";
 import "./globals.css";
 import { SubscriptionProvider } from "@/context/SubscriptionContext";
@@ -121,7 +123,7 @@ export default function RootLayout({
   // routes alike. Other deployments leave the var unset and stay teal.
   const moduleScope = process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic" ? "clinic" : undefined;
   return (
-    <html lang="en" className="light" data-theme="light" suppressHydrationWarning data-module={moduleScope}>
+    <html lang="en" className={`light ${GeistSans.variable} ${GeistMono.variable}`} data-theme="light" suppressHydrationWarning data-module={moduleScope}>
       <head>
         {/* Sync the user's stored theme onto <html> BEFORE React hydrates.
             Without this, ThemeProvider's useEffect would mutate <html> after
@@ -130,8 +132,6 @@ export default function RootLayout({
             single self-invoking function — see ThemeBootstrapScript in
             src/context/ThemeContext.tsx. */}
         <ThemeBootstrapScript />
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body
         className="min-h-screen antialiased"

@@ -40,7 +40,7 @@ export default function PatientsPage() {
     <div style={{ paddingTop: 4, animation: "fadeIn .3s ease backwards" }}>
       <div style={{ marginBottom: 14 }}>
         <div className="section-title">Patients</div>
-        <h1 style={{ fontSize: 20, fontWeight: 700, color: "var(--text)", margin: "2px 0", letterSpacing: "-0.3px" }}>
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", margin: "2px 0", letterSpacing: "-0.3px" }}>
           Your roster
         </h1>
       </div>

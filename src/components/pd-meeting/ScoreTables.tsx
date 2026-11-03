@@ -22,7 +22,7 @@ const head: React.CSSProperties = {
   ...cell,
   fontSize: 11,
   textTransform: 'uppercase',
-  letterSpacing: '0.06em',
+  letterSpacing: "0.06em",
   color: 'var(--text-3)',
   fontWeight: 600,
 };
@@ -65,7 +65,7 @@ export function ScoreTables({
             }}
           >
             <header style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+              <h3 style={{ margin: 0, fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>
                 {t.title}
               </h3>
             </header>

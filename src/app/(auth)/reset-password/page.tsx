@@ -21,7 +21,7 @@ const EASE = "cubic-bezier(.16,1,.3,1)";
 const labelStyle: React.CSSProperties = {
   display: "block",
   fontSize: 11,
-  fontWeight: 500,
+  fontWeight: 600,
   color: "var(--text-2)",
   textTransform: "uppercase",
   letterSpacing: "0.06em",
@@ -119,7 +119,7 @@ export default function ResetPasswordPage() {
           <span
             style={{
               fontSize: 28,
-              fontWeight: 700,
+              fontWeight: 600,
               color: "var(--text)",
               letterSpacing: "-0.6px",
             }}

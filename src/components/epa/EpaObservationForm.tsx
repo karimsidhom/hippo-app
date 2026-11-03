@@ -74,7 +74,7 @@ const sectionStyle: React.CSSProperties = {
   background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 20,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16, fontWeight: 700, color: "var(--text-1)", margin: "0 0 16px",
+  fontSize: 16, fontWeight: 600, color: "var(--text-1)", margin: "0 0 16px",
   letterSpacing: "-0.01em",
 };
 
@@ -270,13 +270,13 @@ export function EpaObservationForm({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <span style={{
-            fontSize: 14, fontWeight: 700, color: stageColor,
-            fontFamily: "'Geist Mono', monospace",
+            fontSize: 14, fontWeight: 600, color: stageColor,
+            fontFamily: "var(--font-mono)",
             background: `${stageColor}15`, padding: "3px 10px", borderRadius: 6,
           }}>
             {epaId}
           </span>
-          <span style={{ fontSize: 9, fontWeight: 600, color: stageColor, textTransform: "uppercase", letterSpacing: ".5px", opacity: 0.7 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: stageColor, textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.7 }}>
             {stageLabel}
           </span>
         </div>
@@ -369,7 +369,7 @@ export function EpaObservationForm({
           borderRadius: 12,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-1)" }}>
               Send for sign-off
             </div>
             <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
@@ -420,7 +420,7 @@ export function EpaObservationForm({
                     width: 36, height: 36, borderRadius: "50%",
                     background: "rgba(16,185,129,.15)", color: "#10b981",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    fontSize: 14, fontWeight: 600, flexShrink: 0,
                   }}>
                     {(pickedAssessor.name || pickedAssessor.email).slice(0, 1).toUpperCase()}
                   </div>
@@ -490,7 +490,7 @@ export function EpaObservationForm({
                           width: 32, height: 32, borderRadius: "50%",
                           background: "var(--surface2)", color: "var(--text-2)",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          fontSize: 12, fontWeight: 600, flexShrink: 0,
                         }}>
                           {(a.name || a.email).slice(0, 1).toUpperCase()}
                         </div>
@@ -539,7 +539,7 @@ export function EpaObservationForm({
                   {lookupLoading
                     ? <>Checking{"\u2026"}</>
                     : assessorLookup?.isHippoUser
-                      ? <><span style={{ color: "#10b981", fontWeight: 700 }}>{"\u2713"}</span>{" "}This email matches a Hippo user, so it goes in-app with an email backup.</>
+                      ? <><span style={{ color: "#10b981", fontWeight: 600 }}>{"\u2713"}</span>{" "}This email matches a Hippo user, so it goes in-app with an email backup.</>
                       : <>We&apos;ll email a secure sign-off link valid for 12 months. No login needed.</>
                   }
                 </div>
@@ -587,7 +587,7 @@ export function EpaObservationForm({
             gridTemplateColumns: "1fr repeat(6, 52px)",
             gap: 0,
             fontSize: 10,
-            fontWeight: 700,
+            fontWeight: 600,
             color: "#cbd5e1",
             textAlign: "center",
             padding: "6px 0 10px",
@@ -707,7 +707,7 @@ export function EpaObservationForm({
                       {selected && <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }} />}
                     </div>
                     <div style={{
-                      fontSize: 11, fontWeight: selected ? 700 : 500,
+                      fontSize: 11, fontWeight: selected ? 600 : 500,
                       color: selected ? opt.color : "var(--text-2)",
                       textAlign: "center", lineHeight: 1.3,
                     }}>
@@ -830,7 +830,7 @@ export function EpaObservationForm({
         borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "rgba(255,255,255,0.08)",
         background: (safetyConcern || professionalismConcern) ? "#ef444408" : "var(--bg-3)",
       }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#cbd5e1", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#cbd5e1", marginBottom: 10 }}>
           Flags
         </div>
         <div style={{ display: "flex", gap: 16, marginBottom: (safetyConcern || professionalismConcern) ? 10 : 0 }}>
@@ -931,7 +931,7 @@ function ChoiceCard({
       }}
     >
       <span style={{ display: "inline-flex", lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{label}</span>
       <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500 }}>{sub}</span>
     </button>
   );

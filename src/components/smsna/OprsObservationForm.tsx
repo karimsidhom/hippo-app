@@ -50,7 +50,7 @@ const sectionStyle: React.CSSProperties = {
   background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12, padding: 20,
 };
 const sectionTitleStyle: React.CSSProperties = {
-  fontSize: 16, fontWeight: 700, color: "var(--text-1)", margin: "0 0 16px",
+  fontSize: 16, fontWeight: 600, color: "var(--text-1)", margin: "0 0 16px",
   letterSpacing: "-0.01em",
 };
 
@@ -253,13 +253,13 @@ export function OprsObservationForm({
       }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 10 }}>
           <span style={{
-            fontSize: 14, fontWeight: 700, color: OPRS_COLOR,
-            fontFamily: "'Geist Mono', monospace",
+            fontSize: 14, fontWeight: 600, color: OPRS_COLOR,
+            fontFamily: "var(--font-sans)",
             background: `${OPRS_COLOR}15`, padding: "3px 10px", borderRadius: 6,
           }}>
             OPRS
           </span>
-          <span style={{ fontSize: 9, fontWeight: 600, color: OPRS_COLOR, textTransform: "uppercase", letterSpacing: ".5px", opacity: 0.7 }}>
+          <span style={{ fontSize: 11, fontWeight: 600, color: OPRS_COLOR, textTransform: "uppercase", letterSpacing: "0.06em", opacity: 0.7 }}>
             SMSNA Fellowship
           </span>
         </div>
@@ -293,7 +293,7 @@ export function OprsObservationForm({
                   cursor: "pointer", transition: "all .15s", textAlign: "center",
                 }}
               >
-                <div style={{ fontSize: 13, fontWeight: selected ? 700 : 500, color: selected ? color : "var(--text-2)" }}>
+                <div style={{ fontSize: 13, fontWeight: selected ? 600 : 500, color: selected ? color : "var(--text-2)" }}>
                   {d.label}
                 </div>
               </button>
@@ -342,7 +342,7 @@ export function OprsObservationForm({
           background: "var(--bg-2)", border: "1px solid var(--border-mid)", borderRadius: 12,
         }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-            <div style={{ fontSize: 14, fontWeight: 700, color: "var(--text-1)" }}>
+            <div style={{ fontSize: 14, fontWeight: 600, color: "var(--text-1)" }}>
               Send for sign-off
             </div>
             <span style={{ fontSize: 11, color: "var(--text-3)", marginLeft: "auto" }}>
@@ -388,7 +388,7 @@ export function OprsObservationForm({
                     width: 36, height: 36, borderRadius: "50%",
                     background: "rgba(16,185,129,.15)", color: "#10b981",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                    fontSize: 14, fontWeight: 700, flexShrink: 0,
+                    fontSize: 14, fontWeight: 600, flexShrink: 0,
                   }}>
                     {(pickedAssessor.name || pickedAssessor.email).slice(0, 1).toUpperCase()}
                   </div>
@@ -454,7 +454,7 @@ export function OprsObservationForm({
                           width: 32, height: 32, borderRadius: "50%",
                           background: "var(--surface2)", color: "var(--text-2)",
                           display: "flex", alignItems: "center", justifyContent: "center",
-                          fontSize: 12, fontWeight: 700, flexShrink: 0,
+                          fontSize: 12, fontWeight: 600, flexShrink: 0,
                         }}>
                           {(a.name || a.email).slice(0, 1).toUpperCase()}
                         </div>
@@ -500,7 +500,7 @@ export function OprsObservationForm({
                   {lookupLoading
                     ? <>Checking…</>
                     : assessorLookup?.isHippoUser
-                      ? <><span style={{ color: "#10b981", fontWeight: 700 }}>✓</span>{" "}This email matches a Hippo user — we&rsquo;ll route as in-app + email backup.</>
+                      ? <><span style={{ color: "#10b981", fontWeight: 600 }}>✓</span>{" "}This email matches a Hippo user — we&rsquo;ll route as in-app + email backup.</>
                       : <>We&rsquo;ll email a secure sign-off link valid for 12 months. No login needed.</>
                   }
                 </div>
@@ -582,7 +582,7 @@ export function OprsObservationForm({
                   {selected && <div style={{ width: 10, height: 10, borderRadius: "50%", background: "#fff" }} />}
                 </div>
                 <div style={{
-                  fontSize: 11, fontWeight: selected ? 700 : 500,
+                  fontSize: 11, fontWeight: selected ? 600 : 500,
                   color: selected ? opt.color : "var(--text-2)",
                   textAlign: "center", lineHeight: 1.3,
                 }}>
@@ -675,7 +675,7 @@ export function OprsObservationForm({
         borderColor: (safetyConcern || professionalismConcern) ? "#ef444440" : "rgba(255,255,255,0.08)",
         background: (safetyConcern || professionalismConcern) ? "#ef444408" : "var(--bg-3)",
       }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: "#cbd5e1", marginBottom: 10 }}>
+        <div style={{ fontSize: 14, fontWeight: 600, color: "#cbd5e1", marginBottom: 10 }}>
           Flags
         </div>
         <div style={{ display: "flex", gap: 16, marginBottom: (safetyConcern || professionalismConcern) ? 10 : 0 }}>
@@ -768,7 +768,7 @@ function OprsItemGroup({
       {/* Column headers */}
       <div style={{
         display: "grid", gridTemplateColumns: "1fr repeat(5, 52px)", gap: 0,
-        fontSize: 10, fontWeight: 700, color: "#cbd5e1", textAlign: "center",
+        fontSize: 10, fontWeight: 600, color: "#cbd5e1", textAlign: "center",
         padding: "6px 0 10px", borderBottom: "2px solid var(--border-mid)", marginBottom: 2,
       }}>
         <div style={{ textAlign: "left", fontSize: 11, color: "#94a3b8" }}>Item</div>
@@ -859,7 +859,7 @@ function ChoiceCard({
       }}
     >
       <span style={{ display: "inline-flex", lineHeight: 1 }}>{icon}</span>
-      <span style={{ fontSize: 12, fontWeight: 700, marginTop: 4 }}>{label}</span>
+      <span style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{label}</span>
       <span style={{ fontSize: 10, color: "var(--text-3)", fontWeight: 500 }}>{sub}</span>
     </button>
   );

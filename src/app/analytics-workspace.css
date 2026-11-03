@@ -3,16 +3,16 @@
 .analytics-workspace {
   width: 100%;
   min-width: 0;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: var(--fs-14);
+  line-height: 1.55;
 }
 
 .analytics-heading { margin-bottom: 24px; }
 .analytics-heading h1 {
   margin: 0;
   color: var(--text);
-  font-size: 30px;
-  font-weight: 650;
+  font-size: var(--fs-30);
+  font-weight: 600;
   letter-spacing: -.035em;
   line-height: 1.2;
 }
@@ -61,7 +61,7 @@
 .analytics-section-title {
   margin: 0 0 18px;
   color: var(--text-2);
-  font-size: 18px;
+  font-size: var(--fs-18);
   font-weight: 600;
   line-height: 1.4;
   letter-spacing: 0;
@@ -79,15 +79,15 @@
 .analytics-chart svg text[font-size="9"],
 .analytics-chart svg text[font-size="10"],
 .analytics-chart svg text[font-size="11"] {
-  font-size: 12px;
+  font-size: var(--fs-12);
   fill: var(--text-3);
 }
 .analytics-chart svg text[fill="#f1f5f9"] { fill: var(--text); }
 .analytics-chart svg line[stroke="#1e2130"] { stroke: var(--border-mid); }
 .analytics-chart .heatmap-cell[fill="#16161f"] { fill: var(--surface2); }
-.analytics-chart .text-xs { font-size: 13px; }
+.analytics-chart .text-xs { font-size: var(--fs-13); }
 .analytics-chart table,
-.analytics-workspace table { font-variant-numeric: tabular-nums; }
+.analytics-workspace table { font-family: var(--font-sans); font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 .analytics-workspace table th,
 .analytics-workspace table td { padding-right: 12px; }
 .analytics-workspace table th:last-child,
@@ -98,11 +98,11 @@
   .analytics-chart-pair { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
 }
 @media (min-width: 1024px) {
-  .analytics-heading h1 { font-size: 36px; }
+  .analytics-heading h1 { font-size: var(--fs-36); }
   .analytics-cohort-kpis { grid-template-columns: repeat(4, minmax(0, 1fr)) !important; }
 }
 @media (max-width: 767px) {
-  .analytics-procedure-select { width: 100% !important; font-size: 16px !important; }
+  .analytics-procedure-select { width: 100% !important; font-size: var(--fs-16) !important; }
 }
 @media (prefers-reduced-motion: reduce) {
   .analytics-workspace { animation: none !important; }

@@ -72,7 +72,7 @@ export function TopBar({ onMenuToggle, onQuickAdd }: TopBarProps) {
           >
             <Bell className="w-4 h-4" />
             {unreadCount > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#ef4444] rounded-full text-white text-[9px] flex items-center justify-center font-bold">
+              <span className="absolute -top-0.5 -right-0.5 w-4 h-4 bg-[#ef4444] rounded-full text-white text-[9px] flex items-center justify-center font-semibold">
                 {unreadCount}
               </span>
             )}

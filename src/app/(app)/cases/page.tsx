@@ -639,7 +639,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
               style={{
                 width: "100%",
                 minHeight: "55vh",
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)",
                 fontSize: 12,
                 lineHeight: 1.7,
                 color: "var(--text)",
@@ -657,7 +657,7 @@ function DictationSheet({ c, onClose }: { c: CaseLog; onClose: () => void }) {
             <pre
               onDoubleClick={() => setEditing(true)}
               style={{
-                fontFamily: "'Geist Mono', monospace",
+                fontFamily: "var(--font-sans)",
                 fontSize: 12,
                 lineHeight: 1.7,
                 color: "var(--text)",
