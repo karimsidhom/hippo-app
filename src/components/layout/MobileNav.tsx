@@ -1,0 +1,69 @@
+"use client";
+
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  LayoutDashboard, FilePlus, ClipboardList, BarChart2, Users, Plus
+} from "lucide-react";
+
+const MOBILE_NAV = [
+  { href: "/dashboard", label: "Home", icon: LayoutDashboard },
+  { href: "/cases", label: "Cases", icon: ClipboardList },
+  { href: "/log", label: "Log", icon: FilePlus, isCenter: true },
+  { href: "/analytics", label: "Stats", icon: BarChart2 },
+  { href: "/social", label: "Social", icon: Users },
+];
+
+interface MobileNavProps {
+  onQuickAdd: () => void;
+}
+
+export function MobileNav({ onQuickAdd }: MobileNavProps) {
+  const pathname = usePathname();
+
+  return (
+    <nav
+      className="fixed bottom-0 left-0 right-0 z-30 md:hidden bg-[#0d0d14]/95 backdrop-blur-md border-t border-[var(--border)]"
+      // safe-area-inset-bottom pushes the nav above the iPhone home
+      // indicator — without this, the Log / Home / Cases icons sit
+      // directly under the indicator pill and are hard to tap.
+      style={{ paddingBottom: "env(safe-area-inset-bottom)" }}
+    >
+      <div className="flex items-center justify-around px-2 h-16">
+        {MOBILE_NAV.map(({ href, label, icon: Icon, isCenter }) => {
+          const isActive = pathname === href;
+
+          if (isCenter) {
+            return (
+              <button
+                key={href}
+                onClick={onQuickAdd}
+                className="relative -top-4 w-14 h-14 bg-[var(--primary)] hover:bg-[var(--primary-lo)] rounded-2xl flex flex-col items-center justify-center shadow-glow-blue transition-all active:scale-95"
+              >
+                <Plus className="w-6 h-6 text-white" />
+              </button>
+            );
+          }
+
+          return (
+            <Link
+              key={href}
+              href={href}
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg transition-colors ${
+                isActive ? "text-[var(--primary)]" : "text-[var(--text-3)]"
+              }`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? "text-[var(--primary)]" : ""}`} />
+              <span className={`text-[10px] font-medium ${isActive ? "text-[var(--primary)]" : "text-[var(--text-3)]"}`}>
+                {label}
+              </span>
+              {isActive && (
+                <div className="absolute bottom-0 w-1 h-1 bg-[var(--primary)] rounded-full" />
+              )}
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
+  );
+}

@@ -1,0 +1,616 @@
+'use client';
+
+import { loadSafetyStatus } from '@/lib/safety';
+import { HIPPO_INTRO_EVENT } from '@/components/HippoIntro';
+import { stripHonorific } from '@/lib/names';
+import React, {
+  createContext, useContext, useState,
+  useEffect, useCallback,
+} from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase';
+import { Profile, CaseLog, Milestone } from '@/lib/types';
+import { safeNext } from '@/lib/safe-next';
+import {
+  DESIGN_PREVIEW,
+  previewUser,
+  previewProfile,
+  previewCases,
+  previewMilestones,
+} from '@/lib/design-preview';
+
+// ── Types ─────────────────────────────────────────────────────────────────────
+
+interface AuthUser {
+  id:    string;
+  name:  string;
+  email: string;
+  image?: string | null;
+}
+
+export interface AuthResult {
+  ok:    boolean;
+  error: string;
+}
+
+interface AuthContextValue {
+  // Auth state
+  user:    AuthUser | null;
+  loading: boolean;
+  // Auth actions
+  register: (name: string, email: string, password: string) => Promise<AuthResult>;
+  login:    (email: string, password: string, next?: string | null) => Promise<AuthResult>;
+  /**
+   * Send a password-reset email via Supabase Auth. The reset link in the
+   * email lands on /reset-password where the user can set a new password.
+   */
+  sendPasswordReset: (email: string) => Promise<AuthResult>;
+  logout:   () => void;
+  // Profile
+  profile:        Profile | null;
+  updateProfile:  (updates: Partial<Profile> & { name?: string }) => Promise<void>;
+  onboardingDone: boolean;
+  /** Patch the in-memory user object (e.g. after a photo upload/removal)
+   *  without a full profile reload, so the new image shows everywhere
+   *  (TopBar, Sidebar, profile page) immediately. */
+  updateUser: (patch: Partial<AuthUser>) => void;
+  // Cases
+  cases:      CaseLog[];
+  addCase:    (c: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>) => CaseLog;
+  addCaseAsync: (c: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>) => Promise<CaseLog>;
+  updateCase: (id: string, updates: Partial<CaseLog>) => void;
+  deleteCase: (id: string) => void;
+  // Milestones
+  milestones:   Milestone[];
+  addMilestone: (m: Omit<Milestone, 'id'>) => void;
+  // Account
+  deleteAccount: () => void;
+}
+
+// ── Context ───────────────────────────────────────────────────────────────────
+
+const AuthContext = createContext<AuthContextValue | null>(null);
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error('useAuth must be used inside <AuthProvider>');
+  return ctx;
+}
+
+// ── Serialization helpers ─────────────────────────────────────────────────────
+
+function deserializeCase(raw: Record<string, unknown>): CaseLog {
+  return {
+    ...raw,
+    caseDate:  new Date(raw.caseDate  as string),
+    createdAt: new Date(raw.createdAt as string),
+    updatedAt: new Date(raw.updatedAt as string),
+  } as CaseLog;
+}
+
+function deserializeMilestone(raw: Record<string, unknown>): Milestone {
+  return {
+    ...raw,
+    achievedAt: raw.achievedAt ? new Date(raw.achievedAt as string) : new Date(),
+  } as Milestone;
+}
+
+// ── Provider ──────────────────────────────────────────────────────────────────
+
+/**
+ * supabase-js does not throw when the auth server can't be reached: it
+ * returns an AuthRetryableFetchError whose message is the browser's
+ * "Failed to fetch". Shown raw, that reads like a crash. Translate the
+ * network case; every other auth message passes through unchanged.
+ */
+const NETWORK_AUTH_MESSAGE =
+  "We couldn't reach Hippo's sign-in service. Check your connection and try again.";
+function authErrorMessage(error: { name?: string; message: string; status?: number }): string {
+  const network =
+    error.name === 'AuthRetryableFetchError' ||
+    /failed to fetch|network ?error|load failed|fetch failed/i.test(error.message);
+  return network ? NETWORK_AUTH_MESSAGE : error.message;
+}
+
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const router     = useRouter();
+  // Stable Supabase client (never recreated)
+  const [supabase] = useState(createClient);
+
+  const [loading,    setLoading]    = useState(true);
+  const [user,       setUser]       = useState<AuthUser | null>(null);
+  const [profile,    setProfile]    = useState<Profile | null>(null);
+  const [cases,      setCases]      = useState<CaseLog[]>([]);
+  const [milestones, setMilestones] = useState<Milestone[]>([]);
+
+  // ── Data loader ────────────────────────────────────────────────────────────
+  //
+  // Resilient to deploy-time blips. The old loader used a single Promise.all
+  // and ignored non-OK responses; a transient 500 or 504 on any of the three
+  // calls (common when a Vercel lambda cold-starts right after a deploy) left
+  // the user with a logged-in shell and no data, silently. That's the failure
+  // mode where "their data doesn't load after an update."
+  //
+  // Changes here:
+  //   1. Each endpoint has its own fetch-with-retry — one failure on /api/cases
+  //      no longer prevents /api/milestones from loading.
+  //   2. Transient 5xx / network errors retry once after 800 ms. Most deploy
+  //      cold-starts resolve inside that window.
+  //   3. cache: "no-store" + same-origin credentials explicit — defeats any
+  //      intermediate cache layer that might serve stale post-deploy content.
+  //   4. If a fetch ultimately fails, we leave the caller's existing state
+  //      alone rather than clearing to empty. A stale cached list is better
+  //      than a blank "no cases" screen.
+
+  const fetchWithRetry = useCallback(
+    async (path: string): Promise<Response | null> => {
+      const attempt = async () =>
+        fetch(path, {
+          cache: 'no-store',
+          credentials: 'same-origin',
+          headers: { 'cache-control': 'no-cache' },
+        });
+      try {
+        const r1 = await attempt();
+        if (r1.ok) return r1;
+        // Only retry on transient server errors. 4xx means the request is
+        // wrong — retrying won't help and would mask real auth bugs.
+        if (r1.status >= 500) {
+          await new Promise((res) => setTimeout(res, 800));
+          const r2 = await attempt();
+          if (r2.ok) return r2;
+          console.warn(`[AuthContext] ${path} failed after retry: ${r2.status}`);
+          return null;
+        }
+        console.warn(`[AuthContext] ${path} returned ${r1.status}`);
+        return null;
+      } catch (err) {
+        // Network / CORS / aborted — one retry, same reasoning.
+        await new Promise((res) => setTimeout(res, 800));
+        try {
+          const r2 = await attempt();
+          if (r2.ok) return r2;
+          console.warn(
+            `[AuthContext] ${path} retry failed: ${r2.status}`,
+          );
+          return null;
+        } catch (err2) {
+          console.warn(`[AuthContext] ${path} network error:`, err2);
+          return null;
+        }
+      }
+    },
+    [],
+  );
+
+  const loadUserData = useCallback(
+    async (id: string, name: string, email: string) => {
+      setUser({ id, name, email });
+
+      // Run the three loads independently with Promise.allSettled so one
+      // failure never blocks the others. Each branch checks for null (the
+      // fetchWithRetry contract for "failed after retry") and preserves
+      // existing state in that case.
+      const [profileResult, casesResult, milestonesResult] =
+        await Promise.allSettled([
+          fetchWithRetry('/api/auth/me'),
+          fetchWithRetry('/api/cases'),
+          fetchWithRetry('/api/milestones'),
+        ]);
+
+      if (profileResult.status === 'fulfilled' && profileResult.value) {
+        try {
+          const data = await profileResult.value.json();
+          setProfile((data.profile ?? null) as Profile | null);
+          // The DB row is the source of truth for the display name. The
+          // auth token's user_metadata.name is only what was typed at
+          // signup and never changes when the user edits their name.
+          const dbName = typeof data.user?.name === 'string' ? data.user.name.trim() : '';
+          if (dbName) setUser(prev => (prev ? { ...prev, name: dbName } : prev));
+          // Same reasoning as the name sync above: the DB row (not the
+          // auth token) is the source of truth for the profile photo, so
+          // the shell (TopBar / Sidebar avatars) picks up a newly
+          // uploaded/removed photo on the next load without a full logout.
+          const dbImage =
+            typeof data.user?.image === 'string' || data.user?.image === null
+              ? (data.user.image as string | null)
+              : undefined;
+          if (dbImage !== undefined) setUser(prev => (prev ? { ...prev, image: dbImage } : prev));
+        } catch (err) {
+          console.warn('[AuthContext] profile parse failed:', err);
+        }
+      }
+
+      if (casesResult.status === 'fulfilled' && casesResult.value) {
+        try {
+          const raw: Record<string, unknown>[] = await casesResult.value.json();
+          setCases(raw.map(deserializeCase));
+        } catch (err) {
+          console.warn('[AuthContext] cases parse failed:', err);
+        }
+      }
+
+      if (milestonesResult.status === 'fulfilled' && milestonesResult.value) {
+        try {
+          const raw: Record<string, unknown>[] =
+            await milestonesResult.value.json();
+          setMilestones(raw.map(deserializeMilestone));
+        } catch (err) {
+          console.warn('[AuthContext] milestones parse failed:', err);
+        }
+      }
+    },
+    [fetchWithRetry],
+  );
+
+  // ── Auth state listener ────────────────────────────────────────────────────
+
+  useEffect(() => {
+    // Design-preview mode (dev only, opt-in via NEXT_PUBLIC_DESIGN_PREVIEW=1):
+    // load fixture state and never touch Supabase, so the signed-in surfaces
+    // can be reviewed locally. See src/lib/design-preview.ts.
+    if (DESIGN_PREVIEW) {
+      setUser(previewUser);
+      setProfile(previewProfile);
+      setCases(previewCases);
+      setMilestones(previewMilestones);
+      setLoading(false);
+      return;
+    }
+
+    // Hydrate from existing session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const su = session.user;
+        loadUserData(
+          su.id,
+          su.user_metadata?.name ?? su.email ?? '',
+          su.email ?? '',
+        ).finally(() => setLoading(false));
+      } else {
+        setLoading(false);
+      }
+    });
+
+    // Keep in sync with Supabase auth changes (login from another tab, token refresh, etc.)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) {
+        const su = session.user;
+        loadUserData(
+          su.id,
+          su.user_metadata?.name ?? su.email ?? '',
+          su.email ?? '',
+        );
+      } else {
+        // Signed out
+        setUser(null);
+        setProfile(null);
+        setCases([]);
+        setMilestones([]);
+      }
+    });
+
+    return () => subscription.unsubscribe();
+  }, [loadUserData, supabase]);
+
+  // ── Auth actions ───────────────────────────────────────────────────────────
+
+  const register = useCallback(async (
+    name: string, email: string, password: string,
+  ): Promise<AuthResult> => {
+    try {
+      // 1. Create user in Supabase auth + Prisma DB (server-side, service role)
+      const res = await fetch('/api/auth/register', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, email, password }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        return { ok: false, error: data.error ?? 'Registration failed. Please try again.' };
+      }
+
+      const registration=await res.json();
+      if(registration.verificationRequired){router.push('/verify-email');return {ok:true,error:''};}
+      // 2. Sign in from the browser to obtain a local session cookie
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { ok: false, error: authErrorMessage(error) };
+
+      router.push('/onboarding');
+      return { ok: true, error: '' };
+    } catch {
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
+    }
+  }, [supabase, router]);
+
+  const login = useCallback(async (
+    email: string, password: string, next?: string | null,
+  ): Promise<AuthResult> => {
+    try {
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      if (error) return { ok: false, error: authErrorMessage(error) };
+
+      // Ensure DB user row exists (idempotent)
+      await fetch('/api/auth/sync', { method: 'POST' }).catch(() => {});
+
+      // Replay the hippo intro over the route change into the app; it lives
+      // in the root layout, so it plays through while the dashboard loads.
+      window.dispatchEvent(new Event(HIPPO_INTRO_EVENT));
+
+      // A shared safety review is identity setup for its selected app; do not
+      // force a Handover/Relay account through unrelated Cases onboarding first.
+      const setupDestination = safeNext(next);
+      if (setupDestination && new URL(setupDestination, window.location.origin).pathname === '/safety') {
+        router.push(setupDestination); return {ok:true,error:''};
+      }
+      const safety=await loadSafetyStatus(supabase,'cases');
+      if(!safety.complete){router.push('/safety?app=cases');return {ok:true,error:''};}
+      // Redirect based on onboarding status
+      const meRes = await fetch('/api/auth/me');
+      if (meRes.ok) {
+        const { profile: p } = await meRes.json();
+        router.push(p?.onboardingCompleted ? (safeNext(next) ?? '/dashboard') : '/onboarding');
+      } else {
+        router.push('/onboarding');
+      }
+
+      return { ok: true, error: '' };
+    } catch {
+      return { ok: false, error: NETWORK_AUTH_MESSAGE };
+    }
+  }, [supabase, router]);
+
+  /**
+   * Send a password-reset email. The link in the email points the user
+   * to /reset-password where they can set a new password.
+   *
+   * Always returns { ok: true } regardless of whether the email exists,
+   * to avoid leaking which addresses are registered (Supabase already
+   * does this server-side, but we mirror it client-side for safety).
+   */
+  const sendPasswordReset = useCallback(
+    async (email: string): Promise<AuthResult> => {
+      try {
+        const origin =
+          typeof window !== 'undefined' ? window.location.origin : '';
+        const { error } = await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          { redirectTo: `${origin}/reset-password` },
+        );
+        if (error) {
+          // We deliberately do not surface "user not found" here to avoid
+          // leaking enumeration. Network / config errors do surface.
+          if (/not found|invalid email/i.test(error.message)) {
+            return { ok: true, error: '' };
+          }
+          return { ok: false, error: authErrorMessage(error) };
+        }
+        return { ok: true, error: '' };
+      } catch (err) {
+        return {
+          ok: false,
+          error: err instanceof Error ? err.message : 'Reset request failed.',
+        };
+      }
+    },
+    [supabase],
+  );
+
+  const logout = useCallback(async () => {
+    await supabase.auth.signOut();
+    // onAuthStateChange will clear the state
+    router.push('/login');
+  }, [supabase, router]);
+
+  // ── Profile ────────────────────────────────────────────────────────────────
+
+  const updateProfile = useCallback(async (updates: Partial<Profile> & { name?: string }) => {
+    // Optimistic update (handle null profile for new users)
+    setProfile(prev => prev
+      ? { ...prev, ...updates, updatedAt: new Date() }
+      : { ...updates, updatedAt: new Date() } as Profile
+    );
+
+    try {
+      const res = await fetch('/api/profile', {
+        method:  'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify(updates),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        setProfile(saved as Profile);
+        if (typeof updates.name === 'string') {
+          const clean = stripHonorific(updates.name);
+          if (clean) setUser(prev => (prev ? { ...prev, name: clean } : prev));
+        }
+      }
+    } catch (e) {
+      console.error('[AuthContext] updateProfile error:', e);
+    }
+  }, []);
+
+  const updateUser = useCallback((patch: Partial<AuthUser>) => {
+    setUser(prev => (prev ? { ...prev, ...patch } : prev));
+  }, []);
+
+  // ── Cases ──────────────────────────────────────────────────────────────────
+
+  const addCase = useCallback((
+    input: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>,
+  ): CaseLog => {
+    const tempId = 'tmp_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const optimistic: CaseLog = {
+      ...input,
+      id:        tempId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setCases(prev => [optimistic, ...prev]);
+
+    // Persist to server
+    fetch('/api/cases', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        ...input,
+        caseDate: input.caseDate instanceof Date
+          ? input.caseDate.toISOString()
+          : input.caseDate,
+      }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(serverCase => {
+        if (serverCase) {
+          setCases(prev =>
+            prev.map(c => c.id === tempId ? deserializeCase(serverCase) : c),
+          );
+        }
+      })
+      .catch(e => console.error('[AuthContext] addCase error:', e));
+
+    return optimistic;
+  }, []);
+
+  /** Async version of addCase — awaits the server response so the returned
+   *  CaseLog has the real server-generated ID instead of a temp one.  */
+  const addCaseAsync = useCallback(async (
+    input: Omit<CaseLog, 'id' | 'createdAt' | 'updatedAt'>,
+  ): Promise<CaseLog> => {
+    const tempId = 'tmp_' + Math.random().toString(36).slice(2) + Date.now().toString(36);
+    const optimistic: CaseLog = {
+      ...input,
+      id:        tempId,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    setCases(prev => [optimistic, ...prev]);
+
+    try {
+      const res = await fetch('/api/cases', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          ...input,
+          caseDate: input.caseDate instanceof Date
+            ? input.caseDate.toISOString()
+            : input.caseDate,
+        }),
+      });
+
+      if (!res.ok) throw new Error(`Case creation failed (${res.status})`);
+
+      const serverCase = await res.json();
+      const deserialized = deserializeCase(serverCase);
+      setCases(prev =>
+        prev.map(c => c.id === tempId ? deserialized : c),
+      );
+      return deserialized;
+    } catch (e) {
+      console.error('[AuthContext] addCaseAsync error:', e);
+      return optimistic;
+    }
+  }, []);
+
+  const updateCase = useCallback((id: string, updates: Partial<CaseLog>) => {
+    setCases(prev =>
+      prev.map(c => c.id === id ? { ...c, ...updates, updatedAt: new Date() } : c),
+    );
+
+    fetch(`/api/cases/${id}`, {
+      method:  'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(updates),
+    }).catch(e => console.error('[AuthContext] updateCase error:', e));
+  }, []);
+
+  const deleteCase = useCallback((id: string) => {
+    // Optimistically remove from UI
+    setCases(prev => prev.filter(c => c.id !== id));
+
+    // Skip server call for unsaved optimistic cases (they were never in the DB)
+    if (id.startsWith('tmp_')) return;
+
+    fetch(`/api/cases/${id}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    })
+      .then(async res => {
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          console.error('[deleteCase] server error', res.status, body);
+          // If the delete failed server-side, reload cases from DB to restore correct state
+          fetch('/api/cases', { credentials: 'include' })
+            .then(r => r.ok ? r.json() : null)
+            .then(raw => {
+              if (raw) setCases((raw as Record<string, unknown>[]).map(deserializeCase));
+            })
+            .catch(() => {});
+        }
+      })
+      .catch(e => console.error('[AuthContext] deleteCase network error:', e));
+  }, []);
+
+  // ── Milestones ─────────────────────────────────────────────────────────────
+
+  const addMilestone = useCallback((m: Omit<Milestone, 'id'>) => {
+    const tempId = 'ms_' + Math.random().toString(36).slice(2);
+    const optimistic: Milestone = { ...m, id: tempId };
+    setMilestones(prev => [...prev, optimistic]);
+
+    fetch('/api/milestones', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify(m),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(serverMs => {
+        if (serverMs) {
+          // The server returns the existing row when this milestone was
+          // already awarded (a refetch or a second award can land first), so
+          // swap the temp entry out and drop any copy of the real id rather
+          // than mapping in place, which rendered the same key twice.
+          const saved = deserializeMilestone(serverMs);
+          setMilestones(prev => [
+            ...prev.filter(ms => ms.id !== tempId && ms.id !== saved.id),
+            saved,
+          ]);
+        }
+      })
+      .catch(e => console.error('[AuthContext] addMilestone error:', e));
+  }, []);
+
+  // ── Delete account ─────────────────────────────────────────────────────────
+
+  const deleteAccount = useCallback(async () => {
+    // TODO: add DELETE /api/auth/account endpoint for full data wipe
+    await supabase.auth.signOut();
+    setUser(null);
+    setProfile(null);
+    setCases([]);
+    setMilestones([]);
+    router.push('/signup');
+  }, [supabase, router]);
+
+  // ── Value ──────────────────────────────────────────────────────────────────
+
+  const onboardingDone = profile?.onboardingCompleted ?? false;
+
+  const value: AuthContextValue = {
+    user, loading,
+    register, login, sendPasswordReset, logout,
+    profile, updateProfile, onboardingDone, updateUser,
+    cases, addCase, addCaseAsync, updateCase, deleteCase,
+    milestones, addMilestone,
+    deleteAccount,
+  };
+
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+    </AuthContext.Provider>
+  );
+}

@@ -1,0 +1,2099 @@
+// Hippo — Prisma Schema
+// Provider: Supabase Postgres
+// Auth: Supabase Auth (User.id === auth.users.id)
+
+generator client {
+  provider      = "prisma-client-js"
+  binaryTargets = ["native", "rhel-openssl-1.0.x", "rhel-openssl-3.0.x"]
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")   // Pooled (pgbouncer) — runtime
+  directUrl = env("DIRECT_URL")     // Direct — migrations only
+}
+
+// ─── Enums ────────────────────────────────────────────────────────────────────
+
+enum Role {
+  USER
+  ADMIN
+  PRO
+}
+
+enum UserRoleType {
+  RESIDENT
+  FELLOW
+  STAFF
+  ATTENDING
+  PROGRAM_DIRECTOR
+}
+
+enum AutonomyLevel {
+  OBSERVER
+  ASSISTANT
+  SUPERVISOR_PRESENT
+  INDEPENDENT
+  TEACHING
+}
+
+enum SurgicalApproach {
+  OPEN
+  LAPAROSCOPIC
+  ROBOTIC
+  ENDOSCOPIC
+  HYBRID
+  PERCUTANEOUS
+  OTHER
+}
+
+enum OutcomeCategory {
+  UNCOMPLICATED
+  MINOR_COMPLICATION
+  MAJOR_COMPLICATION
+  REOPERATION
+  DEATH
+  UNKNOWN
+}
+
+enum ComplicationCategory {
+  NONE
+  BLEEDING
+  INFECTION
+  ORGAN_INJURY
+  ANASTOMOTIC_LEAK
+  DVT_PE
+  ILEUS
+  CONVERSION
+  READMISSION
+  OTHER
+}
+
+enum AgeBin {
+  UNDER_18
+  AGE_18_30
+  AGE_31_45
+  AGE_46_60
+  AGE_61_75
+  OVER_75
+  UNKNOWN
+}
+
+enum FriendRequestStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum EpaAchievementLevel {
+  NOT_ACHIEVED
+  ACHIEVED
+}
+
+enum EpaObservationStatus {
+  DRAFT
+  SUBMITTED
+  PENDING_REVIEW
+  SIGNED
+  RETURNED
+}
+
+enum ProgramMemberRole {
+  // Existing values kept first so the migration is additive — every
+  // current OWNER / MEMBER row stays valid without rewrites.
+  OWNER         // legacy: full read+write+finalize. Now equivalent to PD.
+  MEMBER        // legacy: vanilla member. Now an alias for FACULTY when
+                // unset.
+  // Granular roles (Stage-2 entrada-takeover sprint).
+  PD            // Program Director — owns the program; full read+write,
+                // finalises CC reviews, manages roster + invites.
+  CHAIR         // Department / division chair — read-only program-wide,
+                // can finalise CC reviews on the chair's seat.
+  CC_MEMBER     // Competence Committee — read-only program-wide; can
+                // write notes + decisions on CC reviews they're invited
+                // to. No roster/invite management.
+  FACULTY       // Supervising attending — only sees the residents they
+                // have an active FacultyAssignment to. Standard EPA
+                // sign-off + clinic supervision; no PD dashboard.
+  COORDINATOR   // Programme coordinator — manages invites, scheduling,
+                // and roster admin. NEVER sees PHI or case content.
+  DEPT_HEAD     // Department head — read across multiple programmes
+                // they have membership in. Above PD; rolled-up view
+                // only.
+  RESIDENT      // A trainee on the roster. Sees their own record only.
+                // Distinct from legacy MEMBER, which this file documents
+                // as an alias for FACULTY, and which would therefore file
+                // a resident under a supervising-attending role.
+}
+
+enum JoinRequestStatus {
+  PENDING
+  APPROVED
+  DECLINED
+  WITHDRAWN
+}
+
+enum ProgramEventType {
+  GENERAL
+  VACATION
+  MEETING
+  CONFERENCE
+  ROUNDS
+  SOCIAL
+  DOCUMENT
+}
+
+enum RecurrenceFrequency {
+  NONE
+  DAILY
+  WEEKLY
+  BIWEEKLY
+  MONTHLY
+}
+
+// ─── Models ───────────────────────────────────────────────────────────────────
+
+// User.id is explicitly set to the Supabase auth UUID on registration.
+// No @default — always provided by the auth layer.
+model User {
+  id        String   @id
+  email     String   @unique
+  name      String?
+  image     String?
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profile         Profile?
+  dictationStyle  UserDictationStyle?
+  caseLogs        CaseLog[]
+  scheduledCases  ScheduledCase[]
+  milestones      Milestone[]
+  personalRecords PersonalRecord[]
+  sentFriendReqs  FriendRequest[]      @relation("SentRequests")
+  recvFriendReqs  FriendRequest[]      @relation("ReceivedRequests")
+  friendsAsUser1  Friendship[]         @relation("User1")
+  friendsAsUser2  Friendship[]         @relation("User2")
+  feedEvents      FeedEvent[]
+  favoriteQuotes  UserFavoriteQuote[]
+  quoteHistory    UserQuoteHistory[]
+  following       Follow[]             @relation("Following")
+  followers       Follow[]             @relation("Followers")
+  portfolioCases  PortfolioCase[]
+  pearls          Pearl[]
+  pearlLikes      PearlLike[]
+  pearlSaves      PearlSave[]
+  pearlComments   PearlComment[]
+  pearlReactions  PearlReaction[]
+  pearlEndorsements PearlEndorsement[]
+  pollVotes       PollVote[]
+  epaObservations  EpaObservation[]
+  assessedObservations EpaObservation[] @relation("AssessorObservations")
+  auditLogs        AuditLog[]
+  legalAcceptances LegalAcceptance[]
+  createdPrograms       Program[]          @relation("CreatedPrograms")
+  programMemberships    ProgramMember[]
+  sentProgramInvites    ProgramInvite[]    @relation("SentProgramInvites")
+  acceptedProgramInvites ProgramInvite[]   @relation("AcceptedProgramInvites")
+  createdProgramEvents  ProgramEvent[]
+  uploadedProgramDocuments ProgramDocument[] @relation("ProgramDocumentUploader")
+  programJoinRequests    ProgramJoinRequest[] @relation("ProgramJoinRequests")
+  programJoinInvitesSent ProgramJoinRequest[] @relation("ProgramJoinInvitesSent")
+  programJoinDecisions   ProgramJoinRequest[] @relation("ProgramJoinDecisions")
+  pdMeetingsAsResident   PdMeeting[]             @relation("PdMeetingsAsResident")
+  pdMeetingsAsDirector   PdMeeting[]             @relation("PdMeetingsAsDirector")
+  residentScores         ResidentScoreEntry[]    @relation("ResidentScores")
+  residentChecklist      ResidentChecklistItem[] @relation("ResidentChecklist")
+  notifications         Notification[]
+  pushSubscriptions     PushSubscription[]
+  notificationPreferences UserNotificationPreferences?
+  caseLogImportBatches  CaseLogImportBatch[]
+  caseLogImportRows     CaseLogImportRow[]
+  // Rotation block scheduling — a user can be assigned to many rotation
+  // blocks across their training. CC reviews — a user is "the resident
+  // under review", "the chair who finalised", or "an author of a note".
+  rotationAssignments   RotationAssignment[]   @relation("RotationAssignments")
+  ccReviewsAsResident   CCReview[]             @relation("CCReviewsAsResident")
+  ccReviewsCreated      CCReview[]             @relation("CCReviewsCreated")
+  ccReviewsFinalised    CCReview[]             @relation("CCReviewsFinalised")
+  ccReviewNotes         CCReviewNote[]         @relation("CCReviewNotes")
+  // Custom-form templates this user has authored, plus form
+  // submissions where they're either the subject (assessed) or the
+  // author (assessor). Same dual-role pattern as EpaObservation.
+  formTemplatesCreated     FormTemplate[]     @relation("FormTemplatesCreated")
+  formSubmissionsAsSubject FormSubmission[]   @relation("FormSubmissionsAsSubject")
+  formSubmissionsAsAuthor  FormSubmission[]   @relation("FormSubmissionsAsAuthor")
+
+  @@map("users")
+}
+
+// Click-wrap record: one row per (user, policyKey, version) the user accepts.
+// Written during signup/onboarding and whenever a policy is revved (material
+// change) and re-acceptance is required. Never deleted — this is the legal
+// evidence trail.
+model LegalAcceptance {
+  id         String   @id @default(cuid())
+  userId     String
+  policyKey  String   // "eula" | "terms" | "privacy" | "phia" | "acceptable-use"
+  version    String   // e.g. "2026-04-14"
+  acceptedAt DateTime @default(now())
+  ipAddress  String?
+  userAgent  String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, policyKey, version])
+  @@index([userId])
+  @@map("legal_acceptances")
+}
+
+// Learned dictation style preferences. One row per user, mutated in place as
+// the user corrects drafts. `profile` is the full StyleProfile blob; we keep
+// it as JSON rather than a grid of columns because the schema version can
+// evolve without a migration and the profile is always read/written whole.
+model UserDictationStyle {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  profile         Json
+  schemaVersion   Int      @default(1)
+  correctionCount Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("user_dictation_styles")
+}
+
+model Profile {
+  id                            String       @id @default(cuid())
+  userId                        String       @unique
+  user                          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  roleType                      UserRoleType @default(RESIDENT)
+  specialty                     String?
+  subspecialty                  String?
+  institution                   String?
+  city                          String?
+  trainingCountry               String?      // "US" | "CA" — determines ACGME vs Royal College EPAs
+  pgyYear                       Int?
+  trainingYearLabel             String?
+  publicProfile                 Boolean      @default(false)
+  allowFriendRequests           Boolean      @default(true)
+  allowLeaderboardParticipation Boolean      @default(true)
+  allowBenchmarkSharing         Boolean      @default(true)
+  allowWeeklyDigest             Boolean      @default(true)
+  bio                           String?
+  onboardingCompleted           Boolean      @default(false)
+  acknowledgedShadowRecordAt    DateTime?    // First-use disclosure that Hippo may not be the official training record
+  tier                          String       @default("free")
+
+  // ── Subscription (Stripe) ────────────────────────────────────────────────
+  // Server-side source of truth for the paid tier. The Stripe webhook writes
+  // these; the client only ever reads them through /api/subscription.
+  stripeCustomerId              String?
+  stripeSubscriptionId          String?
+  subscriptionStatus            String?      // "active" | "trialing" | "past_due" | "canceled" | "comped" | null
+  currentPeriodEnd              DateTime?
+  cancelAtPeriodEnd             Boolean      @default(false)
+
+  // ── Social ───────────────────────────────────────────────────────────────
+  // When true, accepted friends can see this user's recent case list
+  // (procedure, date, role, autonomy — never notes or patient data).
+  shareCasesWithFriends         Boolean      @default(false)
+
+  // ── Theme preference (cross-device sync) ─────────────────────────────────
+  // Mirrors localStorage["hippo-theme"] but syncs across devices through
+  // Supabase. Bootstrap script in <head> still reads localStorage as the
+  // synchronous fast path; this DB value is canonical and overwrites
+  // localStorage on hydrate.
+  theme                         String       @default("dark")  // "light" | "dark" | "system"
+
+  // ── Dictation preferences ─────────────────────────────────────────────────
+  // Controls the dictation engine: length, tone, billing overlay, teaching
+  // pearls, and missing-field prompts. All editable from /settings/dictation.
+  dictationLength               String       @default("complete")  // "complete" | "extra-detailed" | "brief"
+  dictationTone                 String       @default("standard")  // "standard" | "academic" | "concise-attending" | "resident-teaching"
+  billingEnabled                Boolean      @default(false)       // gated default — see app code
+  billingRegion                 String?                            // "MB" | "AB" | "BC" | "SK" | "ON" | "QC" | "NS" | "NB" | "PE" | "NL" | "YT" | "NT" | "NU" — null = unset
+  teachingPearlsEnabled         Boolean      @default(false)
+  missingFieldPromptsEnabled    Boolean      @default(true)
+  postopPlanInclusion           String       @default("always")    // "always" | "if-entered"
+  expectedGraduation            DateTime?                          // drives "on track" projections (Pro)
+  residencyStartDate            DateTime?                          // PGY-1 day one; anchors the autonomy slope
+
+  createdAt                     DateTime     @default(now())
+  updatedAt                     DateTime     @updatedAt
+
+  @@map("profiles")
+}
+
+model Specialty {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  slug      String   @unique
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+
+  procedures ProcedureDefinition[]
+
+  @@map("specialties")
+}
+
+model ProcedureDefinition {
+  id                 String           @id @default(cuid())
+  specialtyId        String
+  specialty          Specialty        @relation(fields: [specialtyId], references: [id])
+  name               String
+  category           String
+  defaultApproach    SurgicalApproach @default(LAPAROSCOPIC)
+  cptCode            String?
+  avgDurationMinutes Int?
+  difficultyBase     Int              @default(3)
+  isActive           Boolean          @default(true)
+  createdAt          DateTime         @default(now())
+
+  caseLogs CaseLog[]
+
+  @@unique([specialtyId, name])
+  @@map("procedure_definitions")
+}
+
+model CaseLog {
+  id                      String               @id @default(cuid())
+  userId                  String
+  user                    User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialtyId             String?              // stores the specialty slug — no FK constraint
+  procedureDefinitionId   String?
+  procedureDefinition     ProcedureDefinition? @relation(fields: [procedureDefinitionId], references: [id])
+  procedureName           String
+  procedureCategory       String?
+  surgicalApproach        SurgicalApproach     @default(LAPAROSCOPIC)
+  role                    String
+  autonomyLevel           AutonomyLevel        @default(SUPERVISOR_PRESENT)
+  difficultyScore         Int                  @default(3)
+  operativeDurationMinutes Int?
+  consoleTimeMinutes      Int?
+  dockingTimeMinutes      Int?
+  attendingLabel          String?
+  institutionSite         String?
+  patientAgeBin           AgeBin               @default(UNKNOWN)
+  diagnosisCategory       String?
+  outcomeCategory         OutcomeCategory      @default(UNCOMPLICATED)
+  complicationCategory    ComplicationCategory @default(NONE)
+  conversionOccurred      Boolean              @default(false)
+  notes                   String?
+  tags                    String[]             @default([])
+  reflection              String?
+  isPublic                Boolean              @default(false)
+  benchmarkOptIn          Boolean              @default(true)
+  caseDate                DateTime
+
+  // ── Import provenance ────────────────────────────────────────────────────
+  importedFromLog   Boolean              @default(false)
+  importBatchId     String?
+  importBatch       CaseLogImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  originalRowNumber Int?
+  importedMetadata  Json?
+
+  // ── Rotation block this case belongs to ─────────────────────────────────
+  // Optional — programs that use rotation scheduling auto-attribute the
+  // case based on its caseDate falling inside an active assignment.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation(fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+
+  createdAt               DateTime             @default(now())
+  updatedAt               DateTime             @updatedAt
+
+  portfolioCase   PortfolioCase?
+  epaObservations EpaObservation[]
+  // Custom-form submissions tied to this case (Mini-CEX / DOPS).
+  formSubmissions FormSubmission[] @relation("CaseFormSubmissions")
+
+  @@index([userId])
+  @@index([userId, caseDate(sort: Desc)])
+  @@index([importBatchId])
+  @@index([rotationAssignmentId])
+  @@map("case_logs")
+}
+
+// ---------------------------------------------------------------------------
+// Case-log import provenance
+//
+// CaseLogImportBatch stores one upload (Excel / CSV / PDF / text). The
+// CaseLogImportRow table stores the raw row → mapped fields trail per row,
+// so the user can review or roll back an import.
+// ---------------------------------------------------------------------------
+
+enum CaseLogImportStatus {
+  PARSED      // upload parsed, awaiting preview / commit
+  PREVIEW     // preview generated, awaiting user commit
+  COMMITTED   // cases inserted into the user's log
+  ROLLED_BACK // user undid the import
+  FAILED
+}
+
+// Per-resident case targets for "on track" projections (Pro). No FK to User
+// on purpose, matching CaseLog.specialtyId: the row is owned by userId and
+// scoped by every query.
+model CaseTarget {
+  id         String    @id @default(cuid())
+  userId     String
+  label      String
+  matchType  String    // "TOTAL" | "CATEGORY" | "PROCEDURE" | "INDEPENDENT"
+  matchValue String?
+  target     Int
+  dueDate    DateTime?
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  @@index([userId])
+}
+
+model CaseLogImportBatch {
+  id                String              @id @default(cuid())
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  filename          String
+  fileType          String              // "xlsx" | "csv" | "pdf" | "txt"
+  sheetName         String?             // for multi-sheet xlsx
+  importedAt        DateTime            @default(now())
+  status            CaseLogImportStatus @default(PARSED)
+
+  totalRows         Int                 @default(0)
+  importedCount     Int                 @default(0)
+  skippedCount      Int                 @default(0)
+  duplicateCount    Int                 @default(0)
+  missingFieldCount Int                 @default(0)
+
+  rawColumnNames    String[]            @default([])
+  columnMapping     Json?               // { hippoField: sourceColumn }
+  warnings          String[]            @default([])
+
+  rows              CaseLogImportRow[]
+  cases             CaseLog[]
+
+  @@index([userId])
+  @@map("case_log_import_batches")
+}
+
+enum CaseLogImportRowStatus {
+  PENDING
+  IMPORTED
+  SKIPPED
+  DUPLICATE
+  FAILED
+}
+
+model CaseLogImportRow {
+  id                String                 @id @default(cuid())
+  batchId           String
+  batch             CaseLogImportBatch     @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  userId            String
+  user              User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  originalRowNumber Int
+  mappedCaseId      String?                // CaseLog.id once committed
+  rawRowJson        Json
+  mappedFieldsJson  Json?
+  unmappedFieldsJson Json?
+  status            CaseLogImportRowStatus @default(PENDING)
+  warnings          String[]               @default([])
+
+  @@index([batchId])
+  @@index([userId])
+  @@map("case_log_import_rows")
+}
+
+model Milestone {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type          String
+  procedureName String?
+  value         Int
+  achievedAt    DateTime @default(now())
+  badgeKey      String
+
+  @@index([userId])
+  @@map("milestones")
+}
+
+model PersonalRecord {
+  id            String   @id @default(cuid())
+  userId        String
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procedureName String
+  recordType    String
+  value         Float
+  previousValue Float?
+  achievedAt    DateTime @default(now())
+
+  @@index([userId])
+  @@map("personal_records")
+}
+
+model FriendRequest {
+  id         String              @id @default(cuid())
+  fromUserId String
+  fromUser   User                @relation("SentRequests",    fields: [fromUserId], references: [id], onDelete: Cascade)
+  toUserId   String
+  toUser     User                @relation("ReceivedRequests", fields: [toUserId],   references: [id], onDelete: Cascade)
+  status     FriendRequestStatus @default(PENDING)
+  createdAt  DateTime            @default(now())
+
+  @@unique([fromUserId, toUserId])
+  @@map("friend_requests")
+}
+
+model Friendship {
+  id        String   @id @default(cuid())
+  user1Id   String
+  user1     User     @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id   String
+  user2     User     @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([user1Id, user2Id])
+  @@map("friendships")
+}
+
+model FeedEvent {
+  id          String   @id @default(cuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  eventType   String   // MILESTONE | PERSONAL_RECORD | CASE_LOGGED | STREAK
+  title       String
+  description String?
+  isPublic    Boolean  @default(true)
+  metadata    Json?
+  createdAt   DateTime @default(now())
+
+  @@index([userId])
+  @@index([createdAt(sort: Desc)])
+  @@map("feed_events")
+}
+
+// ─── Quote Library ───────────────────────────────────────────────────────────
+
+model Quote {
+  id               Int      @id @default(autoincrement())
+  quote            String
+  shortQuote       String?  @map("short_quote")
+  author           String
+  era              String
+  source           String?
+  sourceConfidence String   @default("medium") @map("source_confidence")
+  themes           String[]
+  category         String
+  mood             String
+  useCase          String[] @map("use_case")
+  isVerified       Boolean  @default(true) @map("is_verified")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  favorites UserFavoriteQuote[]
+  history   UserQuoteHistory[]
+
+  @@index([author])
+  @@index([category])
+  @@index([mood])
+  @@map("quotes")
+}
+
+model UserFavoriteQuote {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  quoteId     Int      @map("quote_id")
+  favoritedAt DateTime @default(now()) @map("favorited_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, quoteId])
+  @@index([userId])
+  @@index([quoteId])
+  @@map("user_favorite_quotes")
+}
+
+model UserQuoteHistory {
+  id      String   @id @default(cuid())
+  userId  String   @map("user_id")
+  quoteId Int      @map("quote_id")
+  shownAt DateTime @default(now()) @map("shown_at")
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quote Quote @relation(fields: [quoteId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([shownAt(sort: Desc)])
+  @@map("user_quote_history")
+}
+
+// ─── Scheduled Cases ─────────────────────────────────────────────────────────
+// An upcoming OR case that the resident has entered ahead of time.
+// Drives the Pre-Op Brief → Post-Op Debrief lifecycle:
+//   upcoming → brief → done → debrief → linked to CaseLog.
+// Lightweight — only the info needed for a brief. The real data goes
+// into CaseLog once the case is done and debriefed.
+
+model ScheduledCase {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  procedureName  String
+  attendingLabel String?
+  scheduledAt    DateTime
+  /// "upcoming" | "done" | "cancelled"
+  status         String   @default("upcoming")
+  notes          String?
+  /// Set when the resident debriefs and a CaseLog is created from this
+  /// scheduled case. Null while still upcoming/cancelled.
+  caseLogId      String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId, scheduledAt(sort: Asc)])
+  @@map("scheduled_cases")
+}
+
+// ─── Follow System ───────────────────────────────────────────────────────────
+// Asymmetric follow (like Twitter/Instagram). Users can follow others to see
+// their public profile, portfolio, and pearls.
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  follower    User     @relation("Following", fields: [followerId], references: [id], onDelete: Cascade)
+  followingId String
+  following   User     @relation("Followers", fields: [followingId], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+
+  @@unique([followerId, followingId])
+  @@index([followerId])
+  @@index([followingId])
+  @@map("follows")
+}
+
+// ─── Portfolio Cases ─────────────────────────────────────────────────────────
+// A curated public selection from a user's private case log. Contains only
+// PHIA-safe fields — user writes a separate public title and description.
+
+model PortfolioCase {
+  id           String   @id @default(cuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseLogId    String   @unique
+  caseLog      CaseLog  @relation(fields: [caseLogId], references: [id], onDelete: Cascade)
+  title        String
+  description  String?
+  isFeatured   Boolean  @default(false)
+  isMilestone  Boolean  @default(false)
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([userId, displayOrder])
+  @@map("portfolio_cases")
+}
+
+// ─── Pearls ──────────────────────────────────────────────────────────────────
+// De-identified educational snippets. All text is PHIA-scrubbed on save.
+// Never linked to a specific patient — only references procedure type.
+
+model Pearl {
+  id            String      @id @default(cuid())
+  authorId      String
+  author        User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  procedureName String
+  category      String?
+  title         String
+  content       String
+  tags          String[]    @default([])
+  likeCount     Int         @default(0)
+  saveCount     Int         @default(0)
+  commentCount  Int         @default(0)
+  reactionCount Int         @default(0)   // total structured reactions (sum of all kinds)
+  endorseCount  Int         @default(0)   // number of attending endorsements
+  isPublished   Boolean     @default(true)
+  postType      String      @default("pearl")   // "pearl" | "case_share" | "research" | "discussion" | "poll"
+  imageUrl      String?                          // Optional image URL (Supabase storage)
+  linkUrl       String?                          // For research posts — external URL
+  linkedCaseId  String?                          // For case shares — reference to CaseLog
+  isAnonymous   Boolean     @default(false)      // posted without name/avatar; still verified account
+  isFeatured    Boolean     @default(false)      // curated seed for empty feed & "alive empty state"
+  pollOptions   Json?                            // For poll posts — array of {id,label}. Votes live in PollVote.
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  likes         PearlLike[]
+  saves         PearlSave[]
+  comments      PearlComment[]
+  reactions     PearlReaction[]
+  endorsements  PearlEndorsement[]
+  pollVotes     PollVote[]
+
+  @@index([authorId])
+  @@index([createdAt(sort: Desc)])
+  @@index([procedureName])
+  @@map("pearls")
+}
+
+model PearlLike {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([userId])
+  @@map("pearl_likes")
+}
+
+model PearlSave {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([userId])
+  @@map("pearl_saves")
+}
+
+model PearlComment {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([pearlId, createdAt(sort: Desc)])
+  @@index([authorId])
+  @@map("pearl_comments")
+}
+
+// Surgeon-native structured reactions. Replaces plain "like" with a small
+// taxonomy that drives feed ranking and expresses what the viewer actually
+// took away from the pearl.
+//
+// Allowed `kind` values (string enum kept loose to evolve without migration):
+//   "technique"  🔪 Clean technique
+//   "saved"      🎯 Saved me
+//   "teaching"   🧠 Teaching gold
+//   "warning"    🚨 Warning sign
+//   "seen"       👀 Saw this too
+model PearlReaction {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind      String
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId, kind])
+  @@index([pearlId, kind])
+  @@index([userId])
+  @@map("pearl_reactions")
+}
+
+// Attending "co-sign" on a pearl. Gated on Profile.roleType at the API level.
+// Visible as a verified ribbon on the card — the social moat that no other
+// platform has.
+model PearlEndorsement {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([pearlId])
+  @@index([userId])
+  @@map("pearl_endorsements")
+}
+
+// Poll vote — one per user per pearl. `optionId` matches an id from the
+// Pearl.pollOptions JSON array.
+model PollVote {
+  id        String   @id @default(cuid())
+  pearlId   String
+  pearl     Pearl    @relation(fields: [pearlId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  optionId  String
+  createdAt DateTime @default(now())
+
+  @@unique([pearlId, userId])
+  @@index([pearlId, optionId])
+  @@map("poll_votes")
+}
+
+// ─── EPA Observations ────────────────────────────────────────────────────────
+
+model EpaObservation {
+  id                String                @id @default(cuid())
+  userId            String
+  user              User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  caseLogId         String?
+  caseLog           CaseLog?              @relation(fields: [caseLogId], references: [id], onDelete: SetNull)
+
+  epaId             String                // e.g. "C1", "F2"
+  epaTitle          String                // denormalized for display
+  specialtySlug     String
+  trainingSystem    String                // "ACGME" or "RCPSC"
+
+  observationDate   DateTime
+  setting           String?               // "OR", "Clinic", "Simulation", "Ward"
+  complexity        String?               // "Low", "Moderate", "High"
+  technique         String?               // Technique used (from EPA techniqueOptions)
+  assessorName      String
+  assessorRole      String?
+  assessorEmail     String?
+  // If the attending is a Hippo user, link them directly so the observation
+  // appears in their in-app Sign-Off inbox (no token round-trip needed).
+  assessorUserId    String?
+  assessor          User?                 @relation("AssessorObservations", fields: [assessorUserId], references: [id], onDelete: SetNull)
+
+  achievement       EpaAchievementLevel   @default(NOT_ACHIEVED)
+  entrustmentScore  Int?                  // Royal College O-Score (1-5)
+  canmedsRatings    Json?                 // CanMEDS milestone ratings per role [{roleId, rating}]
+  observationNotes  String?
+  strengthsNotes    String?
+  improvementNotes  String?
+  criteriaRatings   Json?
+  safetyConcern     Boolean               @default(false)
+  professionalismConcern Boolean          @default(false)
+  concernDetails    String?
+
+  status            EpaObservationStatus  @default(DRAFT)
+  signedAt          DateTime?
+  signedByName      String?
+  returnedReason    String?
+
+  // Rotation block this EPA observation belongs to. Optional. Lets the CC
+  // dashboard slice EPAs by rotation when reviewing a resident.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation(fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+
+  notifications     AttendingNotification[]
+
+  @@index([userId])
+  @@index([userId, epaId])
+  @@index([userId, status])
+  @@index([caseLogId])
+  @@index([assessorUserId, status])
+  @@index([rotationAssignmentId])
+  @@map("epa_observations")
+}
+
+model AttendingNotification {
+  id                String   @id @default(cuid())
+  epaObservationId  String
+  epaObservation    EpaObservation @relation(fields: [epaObservationId], references: [id], onDelete: Cascade)
+
+  recipientEmail    String
+  recipientName     String
+  accessToken       String   @unique @default(cuid())
+
+  sentAt            DateTime @default(now())
+  viewedAt          DateTime?
+  respondedAt       DateTime?
+  // Long-lived by default — attendings often sign weeks/months later.
+  // Null = never expires (e.g. in-app-only notifications).
+  expiresAt         DateTime?
+  /// "email" | "in_app" | "push" — how the notification was delivered
+  channel           String   @default("email")
+
+  @@index([accessToken])
+  @@index([epaObservationId])
+  @@map("attending_notifications")
+}
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+// Append-only record of all sensitive reads/writes. Never mutate rows —
+// corrections are new rows with `action="audit.correction"` pointing to the
+// original. Surfaced to users (their own activity) and to PDs (their residents').
+model AuditLog {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  userId     String?  // Actor — nullable for system events
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action     String   // e.g. "case.create", "case.update", "case.delete", "epa.create", "epa.sign", "export.download", "auth.login", "profile.update", "consent.shadowRecord"
+  entityType String   // "CaseLog" | "EpaObservation" | "Profile" | "User" | "Export" | "Auth"
+  entityId   String?  // id of affected entity (nullable for auth events)
+  before     Json?    // snapshot before change (redacted of PHI-free-text when possible)
+  after      Json?    // snapshot after change
+  ipAddress  String?
+  userAgent  String?
+  metadata   Json?    // extra context (reason, source route, correlation id)
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+// ─── Programs ─────────────────────────────────────────────────────────────────
+// A Program is a private group created by a PD that contains residents,
+// fellows, attendings, and other staff. Members share a calendar.
+// Only PDs can create programs. Members join three ways: the resident
+// requests a discoverable program, the director invites an existing
+// user, or an emailed ProgramInvite token is redeemed.
+
+model Program {
+  id          String   @id @default(cuid())
+  name        String
+  institution String?
+  specialty   String?
+  description String?
+
+  // Appears in the onboarding program search. False runs the program
+  // invite-only.
+  discoverable          Boolean  @default(true)
+  // Drives the next-meeting-due date on the PD dashboard. Semi-annual
+  // by default, matching the University of Manitoba Urology cycle.
+  meetingIntervalMonths Int      @default(6)
+
+  createdById String
+  createdBy   User     @relation("CreatedPrograms", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  members      ProgramMember[]
+  invites      ProgramInvite[]
+  events       ProgramEvent[]
+  documents    ProgramDocument[]
+  rotations    Rotation[]
+  ccReviews    CCReview[]
+  formTemplates FormTemplate[]
+  joinRequests ProgramJoinRequest[]
+  pdMeetings     PdMeeting[]
+  scoreEntries   ResidentScoreEntry[]
+  checklistItems ResidentChecklistItem[]
+  meetingConfig  ProgramMeetingConfig?
+
+  @@index([createdById])
+  @@map("programs")
+}
+
+model ProgramDocument {
+  id           String   @id @default(cuid())
+  programId    String
+  program      Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  uploadedById String?
+  uploadedBy   User?    @relation("ProgramDocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  title        String
+  fileName     String
+  mimeType     String
+  sizeBytes    Int
+  storagePath  String   @unique
+  createdAt    DateTime @default(now())
+
+  @@index([programId, createdAt])
+  @@map("program_documents")
+}
+
+model ProgramMember {
+  id        String            @id @default(cuid())
+  programId String
+  program   Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      ProgramMemberRole @default(MEMBER)
+  joinedAt  DateTime          @default(now())
+
+  // Faculty assignments where THIS member is the supervising attending.
+  // Only meaningful for role == FACULTY (or legacy MEMBER acting as
+  // faculty); otherwise stays empty. Cascade-delete on member removal.
+  facultyAssignments FacultyAssignment[] @relation("FacultyOf")
+
+  // Faculty assignments where THIS member is the resident under
+  // supervision. Most members will only ever populate this side.
+  residentAssignments FacultyAssignment[] @relation("ResidentOf")
+
+  @@unique([programId, userId])
+  @@index([userId])
+  @@map("program_members")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Faculty assignments — which faculty supervise which residents.
+// ───────────────────────────────────────────────────────────────────────────
+// CBD programmes assign each resident a primary supervising attending
+// for a rotation block (or longitudinally across the year). The same
+// programme may also assign multiple secondary supervisors. The
+// FacultyAssignment table is the join — when a FACULTY-role
+// ProgramMember opens /pd-dashboard, every API filters the resident
+// roster to ONLY those they have an active assignment to. This is the
+// hard-gate that lets institutions safely give Hippo accounts to half
+// the faculty without compromising resident psychological safety.
+//
+// Both sides reference ProgramMember (not User) so an assignment can
+// only exist within a shared program — preventing cross-program data
+// leakage by construction.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model FacultyAssignment {
+  id          String        @id @default(cuid())
+  programId   String        // denormalised for fast filtering
+  facultyId   String        // ProgramMember.id of the supervising attending
+  faculty     ProgramMember @relation("FacultyOf",  fields: [facultyId],  references: [id], onDelete: Cascade)
+  residentId  String        // ProgramMember.id of the resident under sup'n
+  resident    ProgramMember @relation("ResidentOf", fields: [residentId], references: [id], onDelete: Cascade)
+  // Optional dates so an assignment can be time-boxed to a rotation
+  // block or academic half-year. Null start/end = open-ended.
+  startDate   DateTime?
+  endDate     DateTime?
+  // "Primary" supervisor flag — most residents have one primary at a
+  // time plus optional secondary supervisors.
+  isPrimary   Boolean       @default(false)
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([facultyId, residentId, startDate])
+  @@index([programId, facultyId])
+  @@index([programId, residentId])
+  @@map("faculty_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Custom assessment forms (Mini-CEX, DOPS, MSF, coaching, in-training,
+// professionalism rubrics — anything beyond the canonical EPA + O-SCORE).
+// ───────────────────────────────────────────────────────────────────────────
+//
+// FormTemplate     — owners design a form: list of typed fields with
+//                    optional rubric scoring. Stored as Prisma JSON so a
+//                    schema bump doesn't require a migration each time
+//                    the institution adds a new question type.
+// FormSubmission   — one resident's filled-in instance. Sign-off
+//                    routing piggy-backs on the EpaObservation pattern
+//                    (DRAFT → SUBMITTED → SIGNED / RETURNED).
+// FormResponse     — one cell of one submission, keyed on the field id
+//                    inside the template's schema. Kept relational so
+//                    we can index + aggregate by field across many
+//                    submissions for the cohort dashboards.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum FormCategory {
+  MINI_CEX
+  DOPS
+  MSF
+  COACHING
+  IN_TRAINING
+  PROFESSIONALISM
+  CUSTOM
+}
+
+enum FormSubmissionStatus {
+  DRAFT
+  SUBMITTED
+  SIGNED
+  RETURNED
+}
+
+model FormTemplate {
+  id          String       @id @default(cuid())
+  programId   String
+  program     Program      @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  category    FormCategory @default(CUSTOM)
+  // Free-shaped JSON — see src/lib/forms/types.ts for the canonical
+  // FormSchema interface. Field types: short_text / long_text /
+  // number / boolean / single_choice / multi_choice / likert /
+  // rubric_grid / signature.
+  schema      Json
+  // True when the form is published and residents can submit; false
+  // while the owner is still designing.
+  active      Boolean      @default(true)
+  createdById String
+  createdBy   User         @relation("FormTemplatesCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  submissions FormSubmission[]
+
+  @@index([programId])
+  @@map("form_templates")
+}
+
+model FormSubmission {
+  id            String               @id @default(cuid())
+  templateId    String
+  template      FormTemplate         @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  // The user the form is ABOUT — the resident or trainee being
+  // assessed. Same shape as EpaObservation.userId.
+  subjectId     String
+  subject       User                 @relation("FormSubmissionsAsSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+  // The user filling the form in. Same shape as EpaObservation.assessor.
+  authorId      String
+  author        User                 @relation("FormSubmissionsAsAuthor",  fields: [authorId],  references: [id], onDelete: Cascade)
+  status        FormSubmissionStatus @default(DRAFT)
+  // Optional case-log link — useful for Mini-CEX / DOPS that should
+  // attach to a specific case the resident logged.
+  caseLogId     String?
+  caseLog       CaseLog?             @relation("CaseFormSubmissions", fields: [caseLogId], references: [id], onDelete: SetNull)
+  // Optional rotation block — same idea as EpaObservation.
+  rotationAssignmentId String?
+  rotationAssignment   RotationAssignment? @relation("FormSubmissions", fields: [rotationAssignmentId], references: [id], onDelete: SetNull)
+  // The signed-off summary the author leaves behind. Free-text.
+  summary       String?
+  // Aggregate score the rubric produced (when the schema computes
+  // one). Pure read-model — recomputed on every save.
+  aggregateScore Float?
+  signedAt      DateTime?
+  returnedReason String?
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  responses     FormResponse[]
+
+  @@index([templateId])
+  @@index([subjectId, status])
+  @@index([authorId, status])
+  @@index([caseLogId])
+  @@index([rotationAssignmentId])
+  @@map("form_submissions")
+}
+
+model FormResponse {
+  id            String         @id @default(cuid())
+  submissionId  String
+  submission    FormSubmission @relation(fields: [submissionId], references: [id], onDelete: Cascade)
+  fieldId       String         // matches a field id inside FormTemplate.schema
+  // Stored as JSON so any field type (text, number, choice array,
+  // rubric grid) can round-trip without per-type columns. The
+  // application layer is responsible for shape correctness.
+  value         Json
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+
+  @@unique([submissionId, fieldId])
+  @@index([submissionId])
+  @@map("form_responses")
+}
+
+model ProgramInvite {
+  id           String    @id @default(cuid())
+  programId    String
+  program      Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  email        String
+  token        String    @unique
+  invitedById  String
+  invitedBy    User      @relation("SentProgramInvites", fields: [invitedById], references: [id], onDelete: Cascade)
+  acceptedById String?
+  acceptedBy   User?     @relation("AcceptedProgramInvites", fields: [acceptedById], references: [id], onDelete: SetNull)
+  createdAt    DateTime  @default(now())
+  expiresAt    DateTime
+  acceptedAt   DateTime?
+  revokedAt    DateTime?
+
+  @@index([programId])
+  @@index([email])
+  @@map("program_invites")
+}
+
+// A pending handshake between a user and a program. One table covers
+// both directions: invitedById null means the resident asked to join,
+// invitedById set means the director invited them. The transition rules
+// live in src/lib/program-join/state.ts, not here and not in the route
+// handlers.
+model ProgramJoinRequest {
+  id           String            @id @default(cuid())
+  programId    String
+  program      Program           @relation(fields: [programId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User              @relation("ProgramJoinRequests", fields: [userId], references: [id], onDelete: Cascade)
+  status       JoinRequestStatus @default(PENDING)
+
+  // What the resident told us at sign-up, shown to the director so they
+  // can recognise the person before approving. Never authoritative.
+  claimedPgy   Int?
+  message      String?
+
+  // Set when the director invited this user rather than the user asking
+  // to join. Flips the handshake: the resident accepts instead of the
+  // director approving.
+  invitedById  String?
+  invitedBy    User?             @relation("ProgramJoinInvitesSent", fields: [invitedById], references: [id], onDelete: SetNull)
+
+  decidedById   String?
+  decidedBy     User?            @relation("ProgramJoinDecisions", fields: [decidedById], references: [id], onDelete: SetNull)
+  decidedAt     DateTime?
+  declineReason String?
+
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  @@unique([programId, userId])
+  @@index([programId, status])
+  @@index([userId, status])
+  @@map("program_join_requests")
+}
+
+// ─── PD 1:1 meeting record ────────────────────────────────────────────────────
+// Modelled on the University of Manitoba Urology letter. Eight fixed sections
+// rendered as previous-meeting beside this-meeting; the previous column is read
+// through previousMeetingId and never copied into this row.
+
+enum PdMeetingStatus {
+  DRAFT
+  PUBLISHED
+}
+
+model PdMeeting {
+  id         String  @id @default(cuid())
+  programId  String
+  program    Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId String
+  resident   User    @relation("PdMeetingsAsResident", fields: [residentId], references: [id], onDelete: Cascade)
+  // The PD who held the meeting. Kept even if they later leave the program.
+  directorId String
+  director   User    @relation("PdMeetingsAsDirector", fields: [directorId], references: [id], onDelete: Cascade)
+
+  meetingDate  DateTime
+  // Free text, e.g. "PGY-3 mid-year". Printed under the date.
+  cycleLabel   String?
+  // The resident's training year at the time, printed in the RE: line.
+  // Snapshotted, not read live.
+  pgyAtMeeting Int?
+
+  status      PdMeetingStatus @default(DRAFT)
+  publishedAt DateTime?
+
+  // The previous PUBLISHED meeting for this resident in this program.
+  // Resolved once at creation and then frozen, so correcting an old record
+  // never re-points a later meeting's left column.
+  previousMeetingId String?    @unique
+  previousMeeting   PdMeeting? @relation("PdMeetingChain", fields: [previousMeetingId], references: [id], onDelete: SetNull)
+  nextMeeting       PdMeeting? @relation("PdMeetingChain")
+
+  // The eight sections, this meeting's column only.
+  // Shape: { [sectionId]: { bullets: PdBullet[] } }, see src/lib/pd-meeting/types.ts
+  sections Json
+
+  // Everything needed to reprint this record identically later: config,
+  // score rows, checklist state and the Hippo-derived metrics as they stood
+  // at publish time. Written on publish, null while DRAFT.
+  snapshot Json?
+
+  acknowledgedAt DateTime?
+  // Denormalised so the PDF prints the name as it was at acknowledgment.
+  acknowledgedName String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([programId, meetingDate])
+  @@index([residentId, status])
+  @@map("pd_meetings")
+}
+
+// Longitudinal data hangs off the resident, not the meeting, so it is entered
+// once and every later meeting shows the whole history.
+model ResidentScoreEntry {
+  id         String   @id @default(cuid())
+  programId  String
+  program    Program  @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId String
+  resident   User     @relation("ResidentScores", fields: [residentId], references: [id], onDelete: Cascade)
+  // Matches a ProgramMeetingConfig scoreTable id, e.g. "mini_quest" or "aua".
+  tableId    String
+  sittingAt  DateTime
+  // Column id to value. Strings so "Away" and "Post call" round-trip
+  // alongside "60.8", exactly as the paper letter records them.
+  values     Json
+  note       String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([programId, residentId, tableId, sittingAt])
+  @@map("resident_score_entries")
+}
+
+model ResidentChecklistItem {
+  id          String    @id @default(cuid())
+  programId   String
+  program     Program   @relation(fields: [programId], references: [id], onDelete: Cascade)
+  residentId  String
+  resident    User      @relation("ResidentChecklist", fields: [residentId], references: [id], onDelete: Cascade)
+  // Matches a ProgramMeetingConfig checklist item id.
+  itemId      String
+  completed   Boolean   @default(false)
+  completedAt DateTime?
+  note        String?
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([residentId, programId, itemId])
+  @@index([programId, residentId])
+  @@map("resident_checklist_items")
+}
+
+model ProgramMeetingConfig {
+  id        String  @id @default(cuid())
+  programId String  @unique
+  program   Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+  // Letterhead: uploaded logo plus the address block printed beside it.
+  logoUrl    String?
+  letterhead Json?
+  // Label and visibility overrides for the eight fixed sections. The IDs
+  // themselves live in code, because the PDF layout depends on knowing them.
+  sectionConfig Json?
+  // [{ id, title, items: [{ id, label, targetYear? }] }]
+  checklists     Json
+  // [{ id, title, columns: [{ id, label }] }]
+  scoreTables    Json
+  // [{ id, label }]
+  certifications Json
+  // The boilerplate paragraph under the RE: line.
+  introText String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("program_meeting_configs")
+}
+
+model ProgramEvent {
+  id              String               @id @default(cuid())
+  programId       String
+  program         Program              @relation(fields: [programId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  startAt         DateTime
+  endAt           DateTime?
+  allDay          Boolean              @default(false)
+  location        String?
+  url             String?
+  type            ProgramEventType     @default(GENERAL)
+  recurrence      RecurrenceFrequency  @default(NONE)
+  recurrenceUntil DateTime?
+  createdById     String
+  createdBy       User                 @relation(fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+
+  @@index([programId, startAt])
+  @@index([createdById])
+  @@map("program_events")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Rotations (CBD block scheduling)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// In Canadian residency programs cases and EPAs are bucketed by rotation
+// "blocks" — Karim is on Endourology Mar 15 → Apr 26, then on a different
+// service through to May 24, etc. Programs run 4-, 6-, or 13-block years.
+// Entrada makes block-attribution central; without this we can't slice
+// EPA / case-volume data the way every PD asks for.
+//
+// Two-table model:
+//
+//   Rotation              — a service the program runs (Urology Endourology,
+//                           General Surgery, Trauma Call Block). Names and
+//                           durations are program-defined.
+//   RotationAssignment    — a single resident on a single rotation across
+//                           a date range. CaseLog + EpaObservation tie back
+//                           via the assignment so we can answer "what did
+//                           Karim do during his Endourology block?".
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum RotationCategory {
+  CORE
+  SUBSPECIALTY
+  ELECTIVE
+  RESEARCH
+  CALL
+  OTHER
+}
+
+model Rotation {
+  id          String           @id @default(cuid())
+  programId   String
+  program     Program          @relation(fields: [programId], references: [id], onDelete: Cascade)
+  name        String
+  shortName   String?
+  // Optional Hippo specialty link — lets cases auto-suggest this rotation
+  // when their procedureCategory matches.
+  specialty   String?
+  category    RotationCategory @default(CORE)
+  description String?
+  // Hex colour for the calendar dot. Programs can theme their rotations.
+  colour      String?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  assignments RotationAssignment[]
+
+  @@unique([programId, name])
+  @@index([programId])
+  @@map("rotations")
+}
+
+model RotationAssignment {
+  id          String   @id @default(cuid())
+  rotationId  String
+  rotation    Rotation @relation(fields: [rotationId], references: [id], onDelete: Cascade)
+  // Resident on the block. Keep User as the source of truth so attendings
+  // can be assigned too (some programs use this for staff coverage).
+  userId      String
+  user        User     @relation("RotationAssignments", fields: [userId], references: [id], onDelete: Cascade)
+  startDate   DateTime
+  endDate     DateTime
+  // Optional rotation-block label ("Block 7" / "PGY-3 Q2") — surfaced in UI.
+  blockLabel  String?
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  cases       CaseLog[]
+  observations EpaObservation[]
+  formSubmissions FormSubmission[] @relation("FormSubmissions")
+
+  @@index([userId, startDate])
+  @@index([rotationId, startDate])
+  @@map("rotation_assignments")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Competence Committee (CC) workflow
+// ───────────────────────────────────────────────────────────────────────────
+//
+// In CBD, every program runs a Competence Committee that meets ~quarterly
+// to review each resident's portfolio holistically and decide on stage
+// transitions, remediation, watch-status, etc. Without a CC workflow,
+// programs can't legally use a tool as their primary CBD platform.
+//
+//   CCReview        — one resident's review at a single CC meeting. The
+//                     resident-snapshot of all metrics + the committee's
+//                     decision + dissent are captured here.
+//   CCReviewNote    — individual member notes (multi-member discussions
+//                     with attribution and timestamps).
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum CCDecision {
+  PROMOTE
+  CONTINUE
+  ON_WATCH
+  REMEDIATION
+  PROBATION
+  GRADUATE
+  WITHDRAW
+}
+
+enum CCReviewStatus {
+  IN_PROGRESS
+  FINALISED
+  ARCHIVED
+}
+
+model CCReview {
+  id          String         @id @default(cuid())
+  programId   String
+  program     Program        @relation(fields: [programId], references: [id], onDelete: Cascade)
+  // The resident under review.
+  residentId  String
+  resident    User           @relation("CCReviewsAsResident", fields: [residentId], references: [id], onDelete: Cascade)
+  // Meeting date + cycle label ("Q3 2026 / PGY-3 mid-year").
+  meetingDate DateTime
+  cycleLabel  String?
+  // Pre-meeting auto-snapshot of the resident's metrics so the review is
+  // reproducible later (case volume, EPA completion, MSF aggregate).
+  // Free-shaped JSON; the renderer reads what it needs.
+  snapshot    Json?
+  // Final committee decision once the meeting is done.
+  decision    CCDecision?
+  decisionRationale String?
+  // Free-text private summary the chair signs before finalising.
+  chairSummary    String?
+  // Dissent — names + reasons of any committee members who disagreed.
+  dissent         String?
+  status          CCReviewStatus @default(IN_PROGRESS)
+  finalisedAt     DateTime?
+  finalisedById   String?
+  finalisedBy     User?          @relation("CCReviewsFinalised", fields: [finalisedById], references: [id], onDelete: SetNull)
+  createdById     String
+  createdBy       User           @relation("CCReviewsCreated", fields: [createdById], references: [id], onDelete: Cascade)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  notes CCReviewNote[]
+
+  @@index([programId, meetingDate])
+  @@index([residentId])
+  @@map("cc_reviews")
+}
+
+model CCReviewNote {
+  id        String   @id @default(cuid())
+  reviewId  String
+  review    CCReview @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  authorId  String
+  author    User     @relation("CCReviewNotes", fields: [authorId], references: [id], onDelete: Cascade)
+  body      String
+  // Optional category so the dashboard can group notes by theme.
+  category  String?
+  createdAt DateTime @default(now())
+
+  @@index([reviewId])
+  @@map("cc_review_notes")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Notifications (in-app + web push)
+// ───────────────────────────────────────────────────────────────────────────
+//
+// Two separate notification surfaces:
+//
+//  1. `AttendingNotification` (above) — outbound email + token-link for
+//     attendings to review an EPA. Has lived here since before in-app.
+//     We keep it intact: it's the ONLY way we can alert an attending who
+//     doesn't have a Hippo account.
+//
+//  2. `Notification` (below) — in-app notification center for Hippo users.
+//     Written whenever a meaningful event happens (EPA submitted, signed,
+//     returned, milestone unlocked, etc.). Surfaced via the bell icon in
+//     the top nav and the /notifications page. Optional web-push fan-out
+//     delivers the same message to the user's registered devices.
+//
+// Keeping these separate is intentional: the email/token flow has
+// different expiry, per-EPA uniqueness, and legal auditing requirements
+// than the in-app feed.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model Notification {
+  id         String   @id @default(cuid())
+  userId     String   // recipient
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // A short machine key so we can switch on it in the UI for icons and
+  // deep-links. Keep it loose (string, not enum) so product can add new
+  // types without a migration. Known values:
+  //   - epa.awaiting_review   (attending: new EPA to sign)
+  //   - epa.verified          (resident: your EPA was signed)
+  //   - epa.returned          (resident: your EPA needs edits)
+  //   - epa.batch_signed      (attending: confirmed N signed)
+  type       String
+
+  title      String
+  body       String?
+  // Where tapping the notification should take the user. Always an in-app
+  // path (`/inbox`, `/cases/[id]`) — never an external URL.
+  actionUrl  String?
+
+  // Links back to the entity when relevant so UI can fetch fresh status.
+  epaObservationId String?
+
+  readAt     DateTime?   // null = unread
+  createdAt  DateTime    @default(now())
+
+  @@index([userId, readAt, createdAt])
+  @@index([userId, createdAt])
+  @@index([epaObservationId])
+  @@map("notifications")
+}
+
+// Registered web-push endpoint. One row per (user, endpoint) — a user can
+// have multiple devices (phone, iPad, desktop). We never overwrite; the
+// unique index on endpoint handles duplicate re-subscriptions silently.
+model PushSubscription {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Full PushSubscription JSON (endpoint, keys.p256dh, keys.auth). Stored
+  // as-is because the shape is opaque to our code — we hand the whole
+  // thing back to `web-push` when sending.
+  endpoint  String   @unique
+  p256dh    String   // encryption key
+  auth      String   // auth secret
+  userAgent String?  // which device this was registered from
+
+  createdAt DateTime @default(now())
+  lastUsed  DateTime @default(now())
+
+  @@index([userId])
+  @@map("push_subscriptions")
+}
+
+// Per-user opt-in toggles. Default values favour notifications being ON —
+// residents need to know when their EPA is signed. Individual toggles let
+// an attending with 50 residents silence the per-submission flood while
+// keeping batch summaries on.
+model UserNotificationPreferences {
+  id                    String   @id @default(cuid())
+  userId                String   @unique
+  user                  User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // Channel master toggles.
+  inAppEnabled          Boolean  @default(true)
+  pushEnabled           Boolean  @default(true)
+  emailEnabled          Boolean  @default(true)
+
+  // Per-event toggles. True = notify. Defaults all-on.
+  notifyOnEpaSubmitted  Boolean  @default(true)   // attending side
+  notifyOnEpaVerified   Boolean  @default(true)   // resident side
+  notifyOnEpaReturned   Boolean  @default(true)   // resident side
+  notifyOnBatchSigned   Boolean  @default(true)   // resident + attending confirm
+
+  // Weekly + meeting-prep digest toggles. Each is a separate channel
+  // so a user can opt in to the resident summary but skip the PD or
+  // attending one even if they wear multiple hats.
+  weeklyResidentDigest  Boolean  @default(true)   // "you logged X cases / Y EPAs pending"
+  weeklyAttendingDigest Boolean  @default(true)   // "X EPAs need your sign-off"
+  weeklyPdDigest        Boolean  @default(true)   // "X residents silent / Y EPAs in CC backlog"
+  ccMeetingPrepDigest   Boolean  @default(true)   // 1 week before each scheduled CC review
+
+  // Sound + haptics (read by the client; stored server-side so they
+  // follow the user across devices).
+  soundEnabled          Boolean  @default(true)
+  hapticsEnabled        Boolean  @default(true)
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  @@map("user_notification_preferences")
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// HIPPO CLINIC — Outpatient AI scribe module
+// ───────────────────────────────────────────────────────────────────────────
+// Additive: parallel namespace prefixed `clinic_*`. Reuses User/Profile.
+// Every patient row is institution-scoped; finalize is gated on clinician
+// review. Raw transcripts are preserved even if generation fails.
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum ClinicNoteType {
+  NEW_CONSULT
+  FOLLOW_UP
+  POST_OP
+  CANCER_SURVEILLANCE
+  RESULTS_REVIEW
+  PROCEDURE_COUNSELLING
+  MEDICATION_FOLLOW_UP
+  DISCHARGE_FOLLOW_UP
+  CUSTOM
+}
+
+enum ClinicInputMode {
+  AMBIENT
+  DICTATION
+  TYPED
+  PASTED
+  UPLOADED
+}
+
+enum ClinicNoteStatus {
+  DRAFT
+  RECORDING
+  UPLOADING
+  TRANSCRIBING
+  GENERATING
+  NEEDS_REVIEW
+  FINALIZED
+  FAILED
+}
+
+enum ClinicConsentMode {
+  VERBAL
+  WRITTEN
+  DECLINED
+  NOT_REQUIRED
+}
+
+enum ClinicFollowUpStatus {
+  DUE_SOON
+  OVERDUE
+  WAITING_RESULTS
+  NEEDS_CALL
+  NEEDS_LETTER
+  NEEDS_BOOKING
+  COMPLETED
+  CANCELLED
+}
+
+enum ClinicChunkStatus {
+  PENDING
+  UPLOADED
+  TRANSCRIBED
+  FAILED
+}
+
+// ── Patient ───────────────────────────────────────────────────────────────
+// Institution-scoped lightweight patient record. PHI lives here; never in
+// social/community tables. `mrn` is hashed on save (see lib/clinic/phi.ts).
+model ClinicPatient {
+  id               String   @id @default(cuid())
+  ownerUserId      String
+  institutionLabel String?
+  mrnHash          String?  // SHA-256 of clinic-specific MRN
+  givenName        String
+  familyName       String
+  dateOfBirth      DateTime?
+  sex              String?
+  contactPhone     String?
+  contactEmail     String?
+  pronouns         String?
+  preferredName    String?
+  externalId       String?
+  notes            String?
+  isTemporary      Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  encounters ClinicEncounter[]
+
+  @@index([ownerUserId, familyName, givenName])
+  @@index([ownerUserId, createdAt(sort: Desc)])
+  @@index([ownerUserId, mrnHash])
+  @@map("clinic_patients")
+}
+
+// ── Encounter ─────────────────────────────────────────────────────────────
+// One outpatient visit. Owns the recording session, transcript, note.
+model ClinicEncounter {
+  id                  String              @id @default(cuid())
+  clinicianId         String
+  patientId           String?
+  patient             ClinicPatient?      @relation(fields: [patientId], references: [id], onDelete: SetNull)
+  institutionLabel    String?
+  noteType            ClinicNoteType      @default(NEW_CONSULT)
+  inputMode           ClinicInputMode     @default(AMBIENT)
+  templateKey         String?             // e.g. "urology.elevated-psa", "general.new-consult"
+  visitReason         String?             // free-text "what brought them in"
+  scheduledFor        DateTime?
+  encounterDate       DateTime            @default(now())
+  recordingStartedAt  DateTime?
+  recordingStoppedAt  DateTime?
+  durationSeconds     Int                 @default(0)
+  consentMode         ClinicConsentMode?
+  consentText         String?
+  consentRecordedAt   DateTime?
+  status              ClinicNoteStatus    @default(DRAFT)
+  failureReason       String?
+  finalizedAt         DateTime?
+  finalizedById       String?
+  signedBy            String?
+  signatureText       String?
+  retainAudio         Boolean             @default(false)
+  audioDeletedAt      DateTime?
+  metadata            Json?
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  chunks       ClinicRecordingChunk[]
+  transcripts  ClinicTranscript[]
+  notes        ClinicNote[]
+  noteVersions ClinicNoteVersion[]
+  exports      ClinicExport[]
+  followUps    ClinicFollowUpTask[]
+  audioStatus  ClinicAudioStatus?
+  consents     ClinicConsentRecord[]
+  aiAuditLogs  ClinicAiAuditLog[]
+  markers      ClinicEncounterMarker[]
+
+  @@index([clinicianId, encounterDate(sort: Desc)])
+  @@index([clinicianId, status])
+  @@index([patientId, encounterDate(sort: Desc)])
+  @@map("clinic_encounters")
+}
+
+// ── Audio chunks ──────────────────────────────────────────────────────────
+// Continuous chunked uploads from the phone. Resumable. We never delete
+// until transcription is confirmed (or the user/admin explicitly purges).
+model ClinicRecordingChunk {
+  id            String              @id @default(cuid())
+  encounterId   String
+  encounter     ClinicEncounter     @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  chunkIndex    Int
+  startMs       Int                 // offset from recording start
+  durationMs    Int
+  sizeBytes     Int                 @default(0)
+  mimeType      String?
+  storagePath   String?             // Supabase Storage path
+  storageBucket String              @default("clinic-audio")
+  status        ClinicChunkStatus   @default(PENDING)
+  uploadedAt    DateTime?
+  transcribedAt DateTime?
+  createdAt     DateTime            @default(now())
+
+  @@unique([encounterId, chunkIndex])
+  @@index([encounterId, status])
+  @@map("clinic_recording_chunks")
+}
+
+// ── Transcript ────────────────────────────────────────────────────────────
+// Streaming transcript segments. Multiple rows per encounter, ordered by
+// startMs. Each segment retains who-said-what when speaker labels are
+// available and a `provenance` tag separating "said" from "AI inferred".
+model ClinicTranscript {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  chunkId     String?
+  startMs     Int      @default(0)
+  endMs       Int      @default(0)
+  speaker     String?  // "clinician" | "patient" | null
+  text        String
+  isFinal     Boolean  @default(true)
+  confidence  Float?
+  provenance  String   @default("said") // "said" | "ai-inferred"
+  source      String   @default("whisper") // "whisper" | "browser-stt" | "manual"
+  createdAt   DateTime @default(now())
+
+  @@index([encounterId, startMs])
+  @@map("clinic_transcripts")
+}
+
+// ── Encounter markers ─────────────────────────────────────────────────────
+// In-recording bookmarks the clinician taps: Important, Exam, Plan, etc.
+model ClinicEncounterMarker {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  kind        String   // "important" | "exam" | "plan" | "medication" | "follow-up" | "patient-instruction"
+  atMs        Int
+  label       String?
+  createdAt   DateTime @default(now())
+
+  @@index([encounterId, atMs])
+  @@map("clinic_encounter_markers")
+}
+
+// ── Note ──────────────────────────────────────────────────────────────────
+// The structured 4-paragraph clinical note + letter + patient instructions.
+// Sections are stored as JSON so any section can be regenerated independently
+// without touching the rest. Highlights array marks AI-uncertain spans.
+model ClinicNote {
+  id                  String   @id @default(cuid())
+  encounterId         String
+  encounter           ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+
+  templateKey         String?
+  paragraphs          Json     // { p1, p2, p3, p4 } — the 4-paragraph model
+  structured          Json?    // template-specific structured fields (PSA, IPSS, etc)
+  letter              String?  // referrer letter version
+  patientInstructions String?
+  shortSummary        String?  // longitudinal chart line
+  uncertainSpans      Json?    // [{section, start, end, reason}]
+  inferredFlags       Json?    // sections marked AI-inferred vs said
+  generationModel     String?
+  generationPromptHash String?
+  reviewedAt          DateTime?
+  reviewedById        String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  versions ClinicNoteVersion[]
+
+  @@index([encounterId])
+  @@map("clinic_notes")
+}
+
+// ── Note version history ──────────────────────────────────────────────────
+// Every save (clinician edit OR AI regeneration) emits a snapshot. This is
+// the audit trail: who changed what, was it AI or human?
+model ClinicNoteVersion {
+  id          String   @id @default(cuid())
+  noteId      String
+  note        ClinicNote @relation(fields: [noteId], references: [id], onDelete: Cascade)
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  versionIdx  Int
+  source      String   // "ai-initial" | "ai-regen-section" | "clinician-edit" | "finalize"
+  section     String?  // null = whole note
+  paragraphs  Json
+  letter      String?
+  patientInstructions String?
+  shortSummary String?
+  authorId    String?
+  authorKind  String   @default("clinician") // "clinician" | "ai"
+  createdAt   DateTime @default(now())
+
+  @@unique([noteId, versionIdx])
+  @@index([encounterId, createdAt])
+  @@map("clinic_note_versions")
+}
+
+// ── Templates ─────────────────────────────────────────────────────────────
+// Specialty- and topic-aware templates. Built-ins live in code; user
+// customizations live here and override by key.
+model ClinicTemplate {
+  id           String   @id @default(cuid())
+  ownerUserId  String?  // null = built-in / institution-shared
+  scope        String   @default("user") // "user" | "institution" | "builtin"
+  templateKey  String   // e.g. "urology.elevated-psa"
+  name         String
+  specialty    String?
+  noteType     ClinicNoteType @default(NEW_CONSULT)
+  description  String?
+  sections     Json     // [{ key, label, required, hint }]
+  structuredFields Json? // [{ key, label, type, options }]
+  letterStyle  String?
+  systemPrompt String?  // override of base AI prompt
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([ownerUserId, templateKey])
+  @@index([scope, templateKey])
+  @@map("clinic_templates")
+}
+
+// ── Follow-up tasks ───────────────────────────────────────────────────────
+model ClinicFollowUpTask {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  patientId   String?
+  kind        String   // "investigation" | "imaging" | "lab" | "referral" | "med-change" | "instruction" | "callback" | "letter" | "booking"
+  title       String
+  detail      String?
+  dueAt       DateTime?
+  intervalLabel String? // "6 weeks", "3 months"
+  status      ClinicFollowUpStatus @default(DUE_SOON)
+  completedAt DateTime?
+  completedNotes String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([ownerUserId, status, dueAt])
+  @@index([encounterId])
+  @@map("clinic_followup_tasks")
+}
+
+// ── Consent records ───────────────────────────────────────────────────────
+model ClinicConsentRecord {
+  id           String   @id @default(cuid())
+  encounterId  String
+  encounter    ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  patientId    String?
+  mode         ClinicConsentMode
+  text         String   // wording shown
+  capturedById String
+  capturedAt   DateTime @default(now())
+  ipAddress    String?
+  userAgent    String?
+
+  @@index([encounterId])
+  @@map("clinic_consent_records")
+}
+
+// ── Exports ───────────────────────────────────────────────────────────────
+model ClinicExport {
+  id          String   @id @default(cuid())
+  encounterId String
+  encounter   ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId String
+  kind        String   // "clinic-note" | "letter" | "patient-instructions" | "summary" | "pdf" | "ehr-paste"
+  format      String   // "txt" | "html" | "pdf" | "docx"
+  storagePath String?
+  generatedAt DateTime @default(now())
+
+  @@index([encounterId])
+  @@index([ownerUserId, generatedAt(sort: Desc)])
+  @@map("clinic_exports")
+}
+
+// ── Audio status ──────────────────────────────────────────────────────────
+model ClinicAudioStatus {
+  id              String   @id @default(cuid())
+  encounterId     String   @unique
+  encounter       ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  state           String   @default("idle") // idle | recording | paused | uploading | transcribing | done | failed
+  qualityWarning  String?
+  chunksTotal     Int      @default(0)
+  chunksUploaded  Int      @default(0)
+  chunksTranscribed Int    @default(0)
+  lastUpdate      DateTime @default(now())
+
+  @@map("clinic_audio_status")
+}
+
+// ── AI audit ──────────────────────────────────────────────────────────────
+// ── Billing codes ─────────────────────────────────────────────────────────
+// Province-specific fee schedule rows. Empty by default — populated only
+// when a verified fee schedule has been ingested. The clinical UI checks
+// `clinic_billing_codes` for the user's province and shows
+// "billing module not configured" if the table is empty.
+//
+// Every row carries a `source` citation (e.g. "MB-MMC-2024-04") so the
+// audit trail can show which manual / version we matched against. We
+// never invent fees; if a clinician needs a code we don't have, they
+// add it manually and we record `source = "user-added"`.
+model ClinicBillingCode {
+  id            String   @id @default(cuid())
+  province      String   // "MB" | "AB" | "BC" | "ON" | "SK" | "QC" | ...
+  code          String
+  shortLabel    String
+  description   String?
+  modifier      String?
+  feeCents      Int?
+  noteTypes     String[] @default([])  // optional applicability filter
+  specialties   String[] @default([])  // optional applicability filter
+  source        String                 // citation (manual + version) or "user-added"
+  isActive      Boolean  @default(true)
+  ownerUserId   String?                // null = global / institution-shared; set = user-added
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([province, code, ownerUserId])
+  @@index([province, isActive])
+  @@index([ownerUserId, province])
+  @@map("clinic_billing_codes")
+}
+
+// ── Billing suggestions ───────────────────────────────────────────────────
+// One row per code suggested for an encounter. The clinician confirms or
+// dismisses; the audit table picks both up. Fee values are denormalised
+// at suggestion-time so a later fee change doesn't rewrite history.
+model ClinicBillingSuggestion {
+  id            String   @id @default(cuid())
+  encounterId   String
+  ownerUserId   String
+  province      String
+  code          String
+  shortLabel    String
+  feeCents      Int?
+  rationale     String?  // why this code matched (template, note type, keywords)
+  status        String   @default("suggested") // "suggested" | "accepted" | "dismissed"
+  reviewedAt    DateTime?
+  reviewedById  String?
+  createdAt     DateTime @default(now())
+
+  @@index([encounterId])
+  @@index([ownerUserId, status, createdAt])
+  @@map("clinic_billing_suggestions")
+}
+
+model ClinicAiAuditLog {
+  id             String   @id @default(cuid())
+  encounterId    String
+  encounter      ClinicEncounter @relation(fields: [encounterId], references: [id], onDelete: Cascade)
+  ownerUserId    String
+  action         String   // "transcribe" | "generate-note" | "regenerate-section" | "shorten" | "letter" | "patient-friendly" | "extract-followups"
+  model          String?
+  promptHash     String?
+  inputCharCount Int      @default(0)
+  outputCharCount Int     @default(0)
+  ok             Boolean  @default(true)
+  errorMessage   String?
+  durationMs     Int?
+  createdAt      DateTime @default(now())
+
+  @@index([encounterId, createdAt])
+  @@map("clinic_ai_audit_logs")
+}

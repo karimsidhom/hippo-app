@@ -1,0 +1,221 @@
+import { NextResponse, type NextRequest } from 'next/server';
+import { createServerClient } from '@supabase/ssr';
+import { createClient } from '@supabase/supabase-js';
+import {
+  applyCookieMigration,
+  hippoCookieOptions,
+  normaliseRequestCookies,
+  planCookieMigration,
+  supabaseRef,
+} from '@/lib/hippo-id';
+import { safeNext } from '@/lib/safe-next';
+import { requireSafety, SafetyError, safetyUrl } from '@/lib/safety';
+
+// Routes that don't need auth
+// /install is public so the link works as a shareable "get the app" URL —
+// no login required. The page itself handles already-installed / iOS /
+// unsupported-browser states honestly.
+// /offline is the service-worker fallback — if it requires auth the SW
+// can't serve it to a logged-out user who lost connectivity.
+const PUBLIC_ROUTES = new Set([
+  '/', '/login', '/signup', '/forgot-password', '/reset-password',
+  '/onboarding', '/install', '/offline', '/verify-email', '/safety',
+]);
+const PUBLIC_API_PREFIXES = [
+  '/api/auth/',
+  '/api/stripe/webhook',
+  '/api/cron/',
+  // Review route is a public token link emailed to attendings who may
+  // not have a Hippo account. The API verifies the token.
+  '/api/epa/review/',
+];
+
+// Public page prefixes.
+//   /join/:token  — program invites
+//   /review/:token — EPA review flow for attendings without accounts
+//   /legal/*      — privacy / terms / PHIA / etc; must be publicly readable
+const PUBLIC_PAGE_PREFIXES = ['/join/', '/review/', '/legal/'];
+
+// Renamed from `middleware` to `proxy` per Next 16's deprecation of the
+// `middleware` file convention. Exported function name is `proxy`; the
+// Next runtime calls this on every matched request before any route
+// handler. Behaviour and matcher are unchanged.
+export async function proxy(request: NextRequest) {
+  const { pathname } = request.nextUrl;
+
+  // ─── Hippo Clinic landing override ──────────────────────────────────────
+  // When NEXT_PUBLIC_DEFAULT_MODULE=clinic is set on a deployment (e.g. the
+  // dedicated v0-heidi-clone Vercel project for Hippo Clinic), we redirect
+  // the root and the Log dashboard to /clinic so the URL surface defaults
+  // to the clinic experience. Other deployments (e.g. surgitrack →
+  // hippomedicine.com) don't set this var, so their behaviour is unchanged.
+  // The check is intentionally early — happens before auth — so the
+  // unauthenticated landing also goes straight to /clinic where the auth
+  // gate will then redirect to /login as usual.
+  if (process.env.NEXT_PUBLIC_DEFAULT_MODULE === "clinic") {
+    if (pathname === "/" || pathname === "/dashboard") {
+      const url = request.nextUrl.clone();
+      url.pathname = "/clinic";
+      return NextResponse.redirect(url);
+    }
+  }
+
+  // Always allow static assets + PWA manifest and service worker
+  if (
+    pathname.startsWith('/_next') ||
+    pathname.startsWith('/favicon') ||
+    pathname === '/manifest.json' ||
+    pathname === '/sw.js' ||
+    pathname === '/sw.js.map' ||
+    pathname === '/robots.txt' ||
+    pathname === '/sitemap.xml' ||
+    pathname === '/surfacing-cases-login.mp4' ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico|json)$/)
+  ) {
+    return NextResponse.next();
+  }
+
+  // Public API routes
+  if (PUBLIC_API_PREFIXES.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  // Hippo ID: the one-time move of host-only auth cookies to the parent
+  // domain (null in the steady state). It runs before anything reads the
+  // session so this request and every handler after it see one session.
+  const host = request.headers.get('x-forwarded-host') ?? request.headers.get('host');
+  const migration = planCookieMigration(
+    host,
+    request.headers.get('cookie'),
+    supabaseRef(process.env.NEXT_PUBLIC_SUPABASE_URL),
+  );
+  if (migration) normaliseRequestCookies(request.cookies, migration);
+
+  let response = NextResponse.next({ request });
+  // Every exit below goes through here: redirects and JSON replies keep any
+  // cookies Supabase refreshed, and the migration's raw Set-Cookie headers
+  // go on last (response.cookies.set after this would drop them).
+  const finish = (out: NextResponse) => {
+    if (out !== response) for (const c of response.cookies.getAll()) out.cookies.set(c);
+    if (migration) applyCookieMigration(out.headers, migration);
+    return out;
+  };
+
+  // Skip auth if Supabase isn't configured (build-time / missing env)
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return finish(response);
+  }
+
+  // Build server Supabase client — syncs session cookies on every request
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookieOptions: hippoCookieOptions(host),
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value }) =>
+            request.cookies.set(name, value),
+          );
+          response = NextResponse.next({ request });
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+
+  // Refresh session (keeps tokens alive)
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  let isAuthed = !!user;
+  const isPublicPage =
+    PUBLIC_ROUTES.has(pathname) ||
+    PUBLIC_PAGE_PREFIXES.some((p) => pathname.startsWith(p));
+  const isApiRoute = pathname.startsWith('/api/');
+
+  // The invite-preview GET is token-secured and must be public so the join
+  // page can render for logged-out users.
+  const isInvitePreviewGet =
+    isApiRoute && pathname.startsWith('/api/programs/invites/');
+
+  // CORS preflight for the Chrome extension hits the API host without
+  // cookies — let the route handler's OPTIONS run so it can echo back
+  // the Access-Control-Allow-* headers. Without this the middleware's
+  // 401 short-circuits the preflight and the extension can't even
+  // attempt the authed GET.
+  const isExtensionApi = pathname.startsWith("/api/clinic/extension/");
+  if (isExtensionApi && request.method === "OPTIONS") {
+    return finish(response);
+  }
+
+  // Native API requests carry a verified bearer session instead of browser cookies.
+  // Header presence alone never authorizes a request; handlers keep their own identity/safety checks.
+  if (isApiRoute && !isAuthed) {
+    const token = request.headers.get('authorization')?.match(/^Bearer ([^\s]+)$/i)?.[1];
+    if (token) {
+      try {
+        const bearer = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY, {
+          auth: { persistSession: false, autoRefreshToken: false }, global: { headers: { Authorization: `Bearer ${token}` } },
+        });
+        const verified = await bearer.auth.getUser(token);
+        isAuthed = !verified.error && !!verified.data.user;
+      } catch { isAuthed = false; }
+    }
+  }
+
+  // ── Protect API routes ─────────────────────────────────────────────────────
+  if (isApiRoute && !isAuthed) {
+    // Allow the GET-only invite preview through so the join page works for
+    // logged-out users. The POST accept path re-checks auth at the route level.
+    if (isInvitePreviewGet && request.method === 'GET') {
+      return finish(response);
+    }
+    return finish(NextResponse.json({ error: 'Unauthorized' }, { status: 401 }));
+  }
+
+  // ── Design-preview escape hatch (dev only) ────────────────────────────────
+  // With NEXT_PUBLIC_DESIGN_PREVIEW=1 on a local dev server, the signed-in
+  // pages render against fixture data (src/lib/design-preview.ts) so UI work
+  // can be reviewed without a session. Double-gated on NODE_ENV so this can
+  // never relax auth on a deployed build.
+  if (
+    process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_DESIGN_PREVIEW === '1'
+  ) {
+    return response;
+  }
+
+  // ── Redirect unauthenticated users away from app pages ────────────────────
+  if (!isPublicPage && !isApiRoute && !isAuthed) {
+    const loginUrl = new URL('/login', request.url);
+    // Keep the query (e.g. /log?handoff=<id> from Hippo Link) through sign-in.
+    loginUrl.searchParams.set('next', pathname + request.nextUrl.search);
+    return finish(NextResponse.redirect(loginUrl));
+  }
+
+  // Page entry is independently gated; identity/setup pages remain reachable.
+  if(isAuthed && !isApiRoute && !isPublicPage) {
+    const app=pathname.startsWith('/clinic')?'clinic':'cases';
+    try {await requireSafety(supabase,app);}catch(error){if(error instanceof SafetyError && error.status===403)return finish(NextResponse.redirect(safetyUrl(app)));return finish(new NextResponse('Safety verification is temporarily unavailable. Please retry.',{status:503,headers:{'Cache-Control':'no-store'}}));}
+  }
+  // ── Redirect authenticated users away from auth pages ─────────────────────
+  if (isAuthed && (pathname === '/login' || pathname === '/signup')) {
+    const next = safeNext(request.nextUrl.searchParams.get('next'));
+    return finish(NextResponse.redirect(new URL(next ?? '/dashboard', request.url)));
+  }
+
+  return finish(response);
+}
+
+export const config = {
+  matcher: [
+    '/((?!_next/static|_next/image|favicon.ico).*)',
+  ],
+};

@@ -1,0 +1,136 @@
+/* Local picker rules also apply when its sheet is portaled to document.body. */
+.pp-field { position: relative; }
+.pp-field .pp-trigger { min-height: 48px; font-family: var(--font-sans); font-size: var(--fs-14); }
+.pp-field .pp-trigger[data-filled="true"] { padding-right: 52px; }
+.pp-field > .pp-trigger__clear {
+  position: absolute;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 44px;
+  height: 44px;
+  border: 0;
+  background: transparent;
+}
+.pp-scrim {
+  inset: var(--overlay-top, 0px) 0 auto;
+  height: var(--overlay-height, 100dvh);
+  container: procedure-picker / size;
+  z-index: 400;
+  align-items: stretch;
+  padding: 0;
+  box-sizing: border-box;
+  font-family: var(--font-sans);
+  color: var(--text);
+}
+.pp-scrim .pp-sheet {
+  height: 100%;
+  min-height: 0;
+  max-height: 100%;
+  max-width: none;
+  padding-top: env(safe-area-inset-top);
+  box-sizing: border-box;
+  border: 0;
+  border-radius: 0;
+  background: var(--surface);
+  animation: none;
+}
+.pp-scrim .pp-sheet:focus { outline: none; }
+.pp-scrim .pp-sheet__head {
+  gap: 16px;
+  min-height: 72px;
+  padding: 16px 16px 16px 24px;
+}
+.pp-scrim .pp-sheet__title {
+  font-family: var(--font-sans);
+  font-size: var(--fs-24);
+  line-height: 1.2;
+  font-weight: 600;
+  letter-spacing: -.025em;
+}
+.pp-scrim .pp-sheet__close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+}
+.pp-scrim .pp-search { margin: 0 24px 16px; }
+.pp-scrim .pp-search input {
+  height: 48px;
+  padding-right: 48px;
+  font-size: var(--fs-16);
+  background: var(--bg);
+}
+.pp-scrim .pp-search__clear { width: 44px; height: 44px; right: 2px; }
+.pp-scrim .pp-chips {
+  min-height: 56px;
+  gap: 8px;
+  flex-wrap: nowrap;
+  align-items: center;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  padding: 0 24px 16px;
+  scroll-padding-inline: 24px;
+}
+.pp-scrim .pp-chip {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 8px;
+  font-size: var(--fs-13);
+  font-weight: 500;
+}
+.pp-scrim .pp-list { padding: 0 16px max(16px, env(safe-area-inset-bottom)); }
+.pp-scrim .pp-section__label {
+  padding: 16px 8px 8px;
+  background: var(--surface);
+  font-size: var(--fs-11);
+  font-weight: 600;
+  letter-spacing: .06em;
+}
+.pp-scrim .pp-row { min-height: 64px; padding: 16px 8px; }
+.pp-scrim .pp-row__name { font-size: var(--fs-15); overflow-wrap: anywhere; }
+.pp-scrim .pp-row__meta { max-width: 40%; }
+.pp-scrim .pp-row__cat { font-size: var(--fs-11); white-space: normal; }
+.pp-scrim :where(button, input):focus-visible {
+  outline: 2px solid var(--primary-hi);
+  outline-offset: 2px;
+}
+@media (min-width: 640px) {
+  .pp-scrim {
+    --picker-gap: clamp(0px, calc(var(--overlay-height, 100dvh) - 400px), 24px);
+    align-items: center;
+    padding: var(--picker-gap);
+  }
+  .pp-scrim .pp-sheet {
+    height: min(680px, calc(var(--overlay-height, 100dvh) - var(--picker-gap) - var(--picker-gap)));
+    max-width: 560px;
+    padding-top: 0;
+    border: 1px solid var(--border-mid);
+    border-radius: 16px;
+  }
+}
+@media (max-width: 359px) {
+  .pp-scrim .pp-sheet__head { padding-left: 16px; }
+  .pp-scrim .pp-search { margin-inline: 16px; }
+  .pp-scrim .pp-chips { padding-inline: 16px; }
+  .pp-scrim .pp-list { padding-inline: 8px; }
+}
+@container procedure-picker (max-height: 400px) {
+  .pp-scrim .pp-sheet__head { min-height: 44px; padding: 0 16px; }
+  .pp-scrim .pp-sheet__title { font-size: var(--fs-20); }
+  .pp-scrim .pp-search { margin: 0 16px 8px; }
+  .pp-scrim .pp-search input { height: 44px; }
+  .pp-scrim .pp-chips { min-height: 44px; padding: 0 16px 8px; }
+  .pp-scrim .pp-chip { min-height: 36px; height: 36px; }
+  .pp-scrim .pp-list { padding-bottom: 8px; scroll-padding-bottom: 8px; }
+  .pp-scrim .pp-section__label { position: static; padding-top: 8px; }
+}

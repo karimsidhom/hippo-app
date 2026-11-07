@@ -1,0 +1,1468 @@
+"use client";
+
+import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
+import { useRouter } from "next/navigation";
+import { useCases } from "@/hooks/useCases";
+import { useMilestones } from "@/hooks/useMilestones";
+import { useUser } from "@/hooks/useUser";
+import { CelebrationModal } from "@/components/shared/CelebrationModal";
+import { ProcedurePicker } from "@/components/shared/ProcedurePicker";
+import { validateNotes } from "@/lib/phia";
+import { checkMilestones, checkPersonalRecords } from "@/lib/milestones";
+import { SPECIALTIES, AUTONOMY_LEVELS, SURGICAL_APPROACHES, OUTCOME_CATEGORIES, COMPLICATION_CATEGORIES, DIFFICULTY_SCORES } from "@/lib/constants";
+import { getProceduresBySpecialty, type Procedure } from "@/lib/procedureLibrary";
+import { matchProcedure, HUB_LINK_APP_LABELS } from "@/lib/hub-link";
+import type { InboxItem } from "@/lib/link/types";
+import { timeAgo } from "@/components/link/HandoffInbox";
+import type { AutonomyLevel, SurgicalApproach, OutcomeCategory, ComplicationCategory, AgeBin, Milestone, PersonalRecord, EpaSuggestion, EpaObservationInput } from "@/lib/types";
+import { ChevronLeft, ChevronRight, Check, AlertTriangle, Shield, Mic, Sparkles, ClipboardCheck } from "lucide-react";
+import { VoiceTextarea } from "@/components/VoiceTextarea";
+import { DeriveFromNote, type DerivePrefill } from "@/components/log/DeriveFromNote";
+import type { VoiceLogParseResult } from "@/lib/voice-log/parse";
+import { EpaSuggestionSheet } from "@/components/epa/EpaSuggestionSheet";
+import { EpaObservationForm } from "@/components/epa/EpaObservationForm";
+import { EpaDeliveryConfirmation, type EpaDeliveryInfo } from "@/components/epa/EpaDeliveryConfirmation";
+import { useInteraction } from "@/hooks/useInteraction";
+import { isSmsnaProfile, resolveTrainingSystem, SMSNA_SPECIALTY_SLUG, SMSNA_SPECIALTY_NAME } from "@/lib/smsna/gate";
+import { getSmsnaProcedures, getSmsnaCategoryForProcedure, SMSNA_CATEGORIES } from "@/lib/smsna/taxonomy";
+import { OprsObservationForm } from "@/components/smsna/OprsObservationForm";
+
+interface LogFormState {
+  specialtySlug: string;
+  specialtyName: string;
+  procedureName: string;
+  procedureCategory: string | null;
+  surgicalApproach: string;
+  role: string;
+  autonomyLevel: string;
+  difficultyScore: number;
+  consoleTimeMinutes?: number;
+  dockingTimeMinutes?: number;
+  attendingLabel: string;
+  institutionSite: string;
+  patientAgeBin: string;
+  diagnosisCategory: string;
+  outcomeCategory: string;
+  complicationCategory: string;
+  conversionOccurred: boolean;
+  notes: string;
+  reflection: string;
+  tags: string[];
+  isPublic: boolean;
+  benchmarkOptIn: boolean;
+  caseDate: Date;
+}
+
+const STEPS = [
+  { label: "Essentials", description: "Procedure, date, role" },
+  { label: "Operative Details", description: "Approach, difficulty, findings" },
+  { label: "Outcomes & Notes", description: "Outcome, complications, notes" },
+  { label: "Review", description: "Confirm and submit" },
+];
+
+export default function LogCasePage() {
+  const router = useRouter();
+  const fx = useInteraction();
+  const { cases, addCase, addCaseAsync } = useCases();
+  const { milestones, personalRecords, addMilestone } = useMilestones();
+  const { user, profile, loading: authLoading } = useUser();
+
+  const isSmsna = isSmsnaProfile(profile);
+
+  const userSpecialtySlug = (() => {
+    if (isSmsna) return SMSNA_SPECIALTY_SLUG;
+    if (!profile?.specialty) return "urology";
+    const found = SPECIALTIES.find(s => s.name === profile.specialty || s.slug === profile.specialty);
+    return found?.slug ?? "urology";
+  })();
+  const userSpecialtyName = (() => {
+    if (isSmsna) return SMSNA_SPECIALTY_NAME;
+    const found = SPECIALTIES.find(s => s.slug === userSpecialtySlug);
+    return found?.name ?? "Urology";
+  })();
+
+  const [step, setStep] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [celebration, setCelebration] = useState<{ milestones: Milestone[]; prs: PersonalRecord[] } | null>(null);
+
+  const [form, setForm] = useState<LogFormState>({
+    specialtySlug: userSpecialtySlug,
+    specialtyName: userSpecialtyName,
+    procedureName: "",
+    procedureCategory: null,
+    surgicalApproach: "ROBOTIC",
+    role: "First Surgeon",
+    autonomyLevel: "SUPERVISOR_PRESENT",
+    difficultyScore: 3,
+    consoleTimeMinutes: undefined,
+    dockingTimeMinutes: undefined,
+    attendingLabel: "",
+    institutionSite: "",
+    diagnosisCategory: "",
+    patientAgeBin: "UNKNOWN",
+    outcomeCategory: "UNCOMPLICATED",
+    complicationCategory: "NONE",
+    conversionOccurred: false,
+    notes: "",
+    reflection: "",
+    tags: [],
+    isPublic: false,
+    benchmarkOptIn: true,
+    caseDate: new Date(),
+  });
+
+  const [notesValidation, setNotesValidation] = useState<{ safe: boolean; warnings: string[] }>({ safe: true, warnings: [] });
+  const [tagInput, setTagInput] = useState("");
+  const [patientAgeDisplay, setPatientAgeDisplay] = useState("");
+
+  // EPA suggestion flow state
+  const [epaSuggestions, setEpaSuggestions] = useState<EpaSuggestion[]>([]);
+  const [epaSuggestionsLoading, setEpaSuggestionsLoading] = useState(false);
+  const [epaNote, setEpaNote] = useState<string | null>(null);
+  const [showEpaSuggestions, setShowEpaSuggestions] = useState(false);
+  const [selectedEpaSuggestion, setSelectedEpaSuggestion] = useState<EpaSuggestion | null>(null);
+  const [savedCaseId, setSavedCaseId] = useState<string | null>(null);
+  // Inline error shown inside the EPA/OPRS form on a failed create/submit —
+  // previously console-only, so a resident could get a 400 and never know.
+  const [epaSubmitError, setEpaSubmitError] = useState<string | null>(null);
+  // Post-submit delivery confirmation. Navigation to /cases is deferred
+  // until this is dismissed so the resident actually sees it.
+  const [epaDelivery, setEpaDelivery] = useState<{ info: EpaDeliveryInfo; assessorName: string } | null>(null);
+
+  // SMSNA fellows never see EPA suggestions — they go straight to the OPRS form.
+  const [showOprs, setShowOprs] = useState(false);
+
+  // Portal root for rendering modals outside the scrollable content
+  const [portalRoot, setPortalRoot] = useState<HTMLElement | null>(null);
+  useEffect(() => {
+    setPortalRoot(document.getElementById("portal-root"));
+  }, []);
+
+  // Voice case logging — dictate a quick description, Claude fills the form.
+  const [voiceTranscript, setVoiceTranscript] = useState("");
+  const [voiceParsing, setVoiceParsing] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceFilled, setVoiceFilled] = useState(false);
+
+  const handleVoiceParse = async () => {
+    const trimmed = voiceTranscript.trim();
+    if (!trimmed || voiceParsing) return;
+    setVoiceParsing(true);
+    setVoiceError(null);
+    try {
+      const res = await fetch("/api/voice-log", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ transcript: trimmed }),
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error ?? `Parse failed (${res.status})`);
+      }
+      const json = (await res.json()) as VoiceLogParseResult;
+      const f = json.fields;
+      const updates: Partial<LogFormState> = {};
+      if (f.procedureName) updates.procedureName = f.procedureName;
+      if (f.surgicalApproach) updates.surgicalApproach = f.surgicalApproach;
+      if (f.role) updates.role = f.role;
+      if (f.autonomyLevel) updates.autonomyLevel = f.autonomyLevel;
+      if (f.attendingLabel) updates.attendingLabel = f.attendingLabel;
+      if (f.outcomeCategory) updates.outcomeCategory = f.outcomeCategory;
+      if (f.complicationCategory) updates.complicationCategory = f.complicationCategory;
+      if (f.notes) updates.notes = f.notes;
+      if (f.reflection) updates.reflection = f.reflection;
+      if (f.caseDate) updates.caseDate = new Date(f.caseDate);
+      updateForm(updates);
+      setVoiceFilled(true);
+      if (json.warnings?.length) {
+        setVoiceError(json.warnings[0]);
+      }
+    } catch (err) {
+      console.error("Voice log parse failed", err);
+      setVoiceError(err instanceof Error ? err.message : "Parse failed");
+    } finally {
+      setVoiceParsing(false);
+    }
+  };
+
+  // Dictate once: an operative note parsed server-side into a prefill.
+  const ROLE_FROM_DERIVED: Record<DerivePrefill["role"], string> = {
+    PRIMARY: "First Surgeon", ASSIST: "Assist", OBSERVER: "Observer", TEACHING: "First Surgeon",
+  };
+  const handleDerivedApply = (pf: DerivePrefill) => {
+    const updates: Partial<LogFormState> = {};
+    if (pf.procedureName) updates.procedureName = pf.procedureName;
+    if (pf.surgicalApproach) updates.surgicalApproach = pf.surgicalApproach;
+    if (pf.role) updates.role = ROLE_FROM_DERIVED[pf.role];
+    if (pf.autonomyLevel) updates.autonomyLevel = pf.autonomyLevel;
+    if (pf.attendingLabel) updates.attendingLabel = pf.attendingLabel;
+    if (pf.outcomeCategory) updates.outcomeCategory = pf.outcomeCategory;
+    if (pf.complicationCategory) updates.complicationCategory = pf.complicationCategory;
+    updates.conversionOccurred = Boolean(pf.conversionOccurred);
+    if (typeof pf.operativeDurationMinutes === "number") updates.consoleTimeMinutes = pf.operativeDurationMinutes;
+    updateForm(updates);
+  };
+
+  // A case is SMSNA-graded when the fellow pathway is active OR the SMSNA
+  // specialty chip is selected for this case — SMSNA is a pickable section
+  // like any other specialty.
+  const caseIsSmsna = isSmsna || form.specialtySlug === SMSNA_SPECIALTY_SLUG;
+
+  const specialtyProcedures = caseIsSmsna
+    ? getSmsnaProcedures()
+    : getProceduresBySpecialty(form.specialtySlug || "urology");
+
+  // Category resolved for the OPRS form — falls back to the catch-all
+  // "General Urology and Office Procedures" bucket for a procedure name
+  // that doesn't match a known SMSNA category (e.g. free-text "Other").
+  const smsnaCategory =
+    getSmsnaCategoryForProcedure(form.procedureName)
+    ?? SMSNA_CATEGORIES.find(c => c.key === "general-office")!;
+
+  const updateForm = (updates: Partial<LogFormState>) => {
+    setForm((prev) => ({ ...prev, ...updates }));
+  };
+
+  // What picking a procedure sets: shared by the picker and the Hippo Link prefill.
+  const procedureUpdates = (name: string, proc: Procedure): Partial<LogFormState> => {
+    const rawApproach = proc.approaches[0] ?? '';
+    const approach = (rawApproach.toUpperCase().replace(/ /g, '_') || 'OPEN') as SurgicalApproach;
+    return {
+      procedureName: name,
+      procedureCategory: proc.category || null,
+      surgicalApproach: approach,
+      difficultyScore: proc.complexityTier + 1,
+    };
+  };
+
+  // Hippo Link: /log?handoff=<id> (the inbox Log button and Handover's deep
+  // link) prefills the form once from a de-identified Handover draft. Nothing
+  // saves until the user does; the handoff is marked consumed only after the
+  // case is saved with a real id.
+  const [handoff, setHandoff] = useState<{ id: string; raw: string; fromApp: string; createdAt: string } | null>(null);
+  const [handoffNotice, setHandoffNotice] = useState<string | null>(null);
+  const handoffLoaded = useRef(false);
+  useEffect(() => {
+    if (authLoading || handoffLoaded.current) return;
+    const id = new URLSearchParams(window.location.search).get("handoff");
+    if (!id) return;
+    handoffLoaded.current = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/link/handoffs/${encodeURIComponent(id)}`, { credentials: "include", cache: "no-store" });
+        if (!res.ok) {
+          setHandoffNotice("That case from Handover was not found on this account.");
+          return;
+        }
+        const item = (await res.json()) as InboxItem;
+        if (item.status !== "pending") {
+          setHandoffNotice(item.status === "consumed"
+            ? "That case from Handover is already logged."
+            : "That case from Handover was dismissed.");
+          return;
+        }
+        if (item.expired) {
+          setHandoffNotice("That case from Handover has expired.");
+          return;
+        }
+        const p = item.payload;
+        const procs = isSmsna ? getSmsnaProcedures() : getProceduresBySpecialty(userSpecialtySlug);
+        const { match } = matchProcedure(p.procedureName, procs);
+        updateForm({
+          specialtySlug: userSpecialtySlug,
+          specialtyName: userSpecialtyName,
+          ...(match
+            ? procedureUpdates(match.name, match)
+            : { procedureName: p.procedureName, procedureCategory: null }),
+          ...(p.caseDate ? { caseDate: new Date(p.caseDate) } : {}),
+          role: p.roleGuess,
+          attendingLabel: p.attendingLabel,
+          institutionSite: p.institutionSite,
+          diagnosisCategory: p.diagnosisCategory,
+        });
+        setHandoff({ id: item.id, raw: p.procedureName, fromApp: item.fromApp, createdAt: item.createdAt });
+      } catch {
+        setHandoffNotice("Couldn't load the case from Handover. Check your connection.");
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [authLoading]);
+
+  const consumeHandoff = async (id: string) => {
+    try {
+      await fetch(`/api/link/handoffs/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "consumed" }),
+      });
+    } catch {
+      // The case is saved; the inbox card can still be dismissed by hand.
+    }
+  };
+
+  const handleNotesChange = (text: string) => {
+    updateForm({ notes: text });
+    if (text.length > 10) {
+      const result = validateNotes(text);
+      setNotesValidation({ safe: result.safe, warnings: result.warnings });
+    } else {
+      setNotesValidation({ safe: true, warnings: [] });
+    }
+  };
+
+  const addTag = () => {
+    const tag = tagInput.trim().toLowerCase();
+    if (tag && !form.tags?.includes(tag)) {
+      updateForm({ tags: [...(form.tags || []), tag] });
+    }
+    setTagInput("");
+  };
+
+  const removeTag = (tag: string) => {
+    updateForm({ tags: (form.tags || []).filter((t) => t !== tag) });
+  };
+
+  const canAdvance = () => {
+    if (step === 0) return !!form.procedureName && !!form.caseDate && !!form.role;
+    if (step === 1) return true;
+    if (step === 2) return notesValidation.safe;
+    return true;
+  };
+
+  /** Quick submit — log the essentials and go */
+  const handleQuickSubmit = async () => {
+    if (!form.procedureName) return;
+    await doSubmit();
+  };
+
+  /** Full submit from review step */
+  const handleSubmit = async () => {
+    if (!form.procedureName) return;
+    await doSubmit();
+  };
+
+  const doSubmit = async () => {
+    setSubmitting(true);
+
+    const caseInput = {
+      userId: user?.id ?? '',
+      specialtyId: form.specialtySlug ?? null,
+      specialtyName: form.specialtyName,
+      procedureDefinitionId: null,
+      procedureName: form.procedureName,
+      procedureCategory: form.procedureCategory ?? null,
+      surgicalApproach: form.surgicalApproach as SurgicalApproach,
+      role: form.role,
+      autonomyLevel: form.autonomyLevel as AutonomyLevel,
+      difficultyScore: form.difficultyScore || 3,
+      operativeDurationMinutes: null,
+      consoleTimeMinutes: form.consoleTimeMinutes ?? null,
+      dockingTimeMinutes: form.dockingTimeMinutes ?? null,
+      attendingLabel: form.attendingLabel || null,
+      institutionSite: form.institutionSite || null,
+      patientAgeBin: (form.patientAgeBin ?? 'UNKNOWN') as AgeBin,
+      diagnosisCategory: form.diagnosisCategory || null,
+      outcomeCategory: (form.outcomeCategory ?? 'UNCOMPLICATED') as OutcomeCategory,
+      complicationCategory: (form.complicationCategory ?? 'NONE') as ComplicationCategory,
+      conversionOccurred: form.conversionOccurred ?? false,
+      notes: form.notes ?? null,
+      tags: form.tags ?? [],
+      reflection: form.reflection ?? null,
+      isPublic: false,
+      benchmarkOptIn: form.benchmarkOptIn ?? true,
+      caseDate: form.caseDate || new Date(),
+    };
+
+    // Step 1: Save the case
+    let realCaseId: string | null = null;
+    try {
+      const newCase = await addCaseAsync(caseInput);
+      if (newCase && !newCase.id.startsWith('tmp_')) {
+        realCaseId = newCase.id;
+        setSavedCaseId(newCase.id);
+        if (handoff) {
+          void consumeHandoff(handoff.id);
+          setHandoff(null);
+        }
+      }
+    } catch (e) {
+      console.error('[doSubmit] addCaseAsync threw:', e);
+    }
+
+    setSubmitting(false);
+
+    // SMSNA cases never see EPA suggestions — the EPA framework doesn't
+    // apply to them. Go straight to the OPRS grading form instead.
+    if (caseIsSmsna) {
+      setShowOprs(true);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      return;
+    }
+
+    // Step 2: ALWAYS show EPA suggestions — even if case save got a temp ID.
+    // When the server save failed (realCaseId == null) we fall back to sending
+    // inline case details so the suggestion engine still runs. This is the
+    // same fallback QuickAddModal uses; without it, users who lose a network
+    // round-trip see an empty modal and think the feature is broken.
+    startEpaSuggestionFetch(realCaseId, caseInput);
+
+    // Force the EPA suggestion modal open — this MUST run no matter what
+    setShowEpaSuggestions(true);
+
+    // Scroll to top so the fixed modal is visible
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  /**
+   * Start fetching EPA suggestions in the background.
+   * Called immediately after case save — runs in parallel with milestone checks.
+   * Does NOT redirect on failure — always shows the EPA modal.
+   */
+  const startEpaSuggestionFetch = async (
+    caseLogId: string | null,
+    caseInput: Omit<Parameters<typeof addCaseAsync>[0], never>,
+  ) => {
+    setEpaSuggestionsLoading(true);
+    setEpaSuggestions([]);
+    setEpaNote(null);
+    try {
+      const reqBody: Record<string, unknown> = caseLogId
+        ? { caseLogId }
+        : {
+            caseDetails: {
+              procedureName: caseInput.procedureName,
+              procedureCategory: caseInput.procedureCategory ?? null,
+              surgicalApproach: caseInput.surgicalApproach ?? null,
+              role: caseInput.role ?? null,
+              autonomyLevel: caseInput.autonomyLevel ?? null,
+              difficultyScore: caseInput.difficultyScore ?? null,
+              diagnosisCategory: caseInput.diagnosisCategory ?? null,
+              attendingLabel: caseInput.attendingLabel ?? null,
+              outcomeCategory: caseInput.outcomeCategory ?? null,
+              notes: caseInput.notes ?? null,
+              specialtyId: caseInput.specialtyId ?? null,
+            },
+          };
+      const res = await fetch("/api/epa/ai-suggest", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(reqBody),
+      });
+      if (res.ok) {
+        const json = await res.json();
+        const suggestions: EpaSuggestion[] = json.suggestions ?? [];
+        setEpaSuggestions(suggestions);
+        setEpaNote(typeof json.note === "string" ? json.note : null);
+      } else {
+        const errText = await res.text();
+        console.error('[startEpaSuggestionFetch] API error:', res.status, errText);
+        setEpaNote("Couldn't load EPA suggestions right now. You can link an EPA from this case later.");
+      }
+    } catch (err) {
+      console.error('[startEpaSuggestionFetch] Fetch error:', err);
+      setEpaNote("Couldn't reach the EPA suggestion service. Check your connection.");
+    } finally {
+      setEpaSuggestionsLoading(false);
+    }
+  };
+
+  /** Handle user selecting an EPA suggestion */
+  const handleEpaSelect = (suggestion: EpaSuggestion) => {
+    setEpaSubmitError(null);
+    setSelectedEpaSuggestion(suggestion);
+    setShowEpaSuggestions(false);
+  };
+
+  /** Handle skipping EPA suggestions */
+  const handleEpaSkip = () => {
+    setShowEpaSuggestions(false);
+    setSelectedEpaSuggestion(null);
+    router.push("/cases");
+  };
+
+  /** Handle EPA observation form submission */
+  const handleEpaObservationSubmit = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
+    try {
+      // Create the observation
+      const createRes = await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      const createBody = await createRes.json().catch(() => null);
+      if (!createRes.ok) {
+        throw new Error(createBody?.error ?? "Failed to create observation");
+      }
+      const observation = createBody;
+
+      // Submit the observation
+      const submitRes = await fetch(`/api/epa/observations/${observation.id}/submit`, {
+        method: "POST",
+        credentials: "include",
+      });
+      const submitBody = await submitRes.json().catch(() => null);
+      if (!submitRes.ok) {
+        throw new Error(submitBody?.error ?? "Failed to submit observation");
+      }
+
+      // "Logged and sent" — the most satisfying interaction the app has.
+      fx.log();
+      setSelectedEpaSuggestion(null);
+      // Hold on /log so the resident actually sees who was notified and
+      // how — navigation happens once they dismiss the confirmation.
+      setEpaDelivery({
+        info: submitBody?.delivery ?? { channel: "none", emailSent: false },
+        assessorName: data.assessorName,
+      });
+    } catch (err) {
+      fx.error();
+      console.error("EPA observation submit failed:", err);
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to submit observation. Please try again.",
+      );
+    }
+  };
+
+  /** Handle EPA observation save as draft */
+  const handleEpaObservationDraft = async (data: EpaObservationInput) => {
+    setEpaSubmitError(null);
+    try {
+      const res = await fetch("/api/epa/observations", {
+        method: "POST",
+        credentials: "include",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          ...data,
+          observationDate: data.observationDate instanceof Date
+            ? data.observationDate.toISOString()
+            : data.observationDate,
+        }),
+      });
+      const body = await res.json().catch(() => null);
+      if (!res.ok) {
+        throw new Error(body?.error ?? "Failed to save draft");
+      }
+      setSelectedEpaSuggestion(null);
+      router.push("/cases");
+    } catch (err) {
+      console.error("EPA observation draft save failed:", err);
+      setEpaSubmitError(
+        err instanceof Error ? err.message : "Failed to save draft. Please try again.",
+      );
+    }
+  };
+
+  return (
+    <div className="case-log-flow max-w-2xl mx-auto animate-fade-in">
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-semibold text-[var(--text)]">Log a Case</h1>
+        <p className="text-[var(--text-2)] text-sm mt-1">Record your operative experience</p>
+      </div>
+
+      {handoff && (
+        <div role="status" style={{
+          display: "flex", gap: 10, alignItems: "flex-start", marginBottom: 20, padding: "12px 14px",
+          borderRadius: 8, border: "1px solid var(--border-mid)", background: "var(--primary-dim)",
+        }}>
+          <ClipboardCheck size={16} style={{ color: "var(--primary)", flexShrink: 0, marginTop: 1 }} />
+          <div style={{ fontSize: 13, lineHeight: 1.5, color: "var(--text-2)" }}>
+            <span style={{ color: "var(--text)", fontWeight: 600 }}>
+              From {HUB_LINK_APP_LABELS[handoff.fromApp] ?? "Handover"}, {timeAgo(handoff.createdAt)}.
+            </span>{" "}
+            Check each field, then save. Nothing is saved until you do.
+          </div>
+        </div>
+      )}
+      {handoffNotice && (
+        <div role="status" style={{
+          marginBottom: 20, padding: "12px 14px", borderRadius: 8, fontSize: 13,
+          border: "1px solid var(--border-mid)", background: "var(--surface)", color: "var(--text-2)",
+        }}>
+          {handoffNotice}
+        </div>
+      )}
+
+      {/* Step Indicators */}
+      <div className="flex items-center gap-2 mb-8">
+        {STEPS.map((s, i) => (
+          <div key={i} className="flex items-center gap-2 flex-1">
+            <div
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-semibold flex-shrink-0 transition-all duration-200 ${
+                i < step
+                  ? "bg-[#10b981] text-white"
+                  : i === step
+                  ? "bg-[var(--primary)] text-white shadow-glow-blue"
+                  : "bg-[var(--surface2)] text-[var(--text-3)] border border-[var(--border)]"
+              }`}
+            >
+              {i < step ? <Check className="w-4 h-4" /> : i + 1}
+            </div>
+            <div className="hidden sm:block">
+              <p className={`text-xs font-medium ${i === step ? "text-[var(--text)]" : "text-[var(--text-3)]"}`}>
+                {s.label}
+              </p>
+            </div>
+            {i < STEPS.length - 1 && (
+              <div className={`flex-1 h-0.5 mx-2 ${i < step ? "bg-[#10b981]" : "bg-[var(--border)]"}`} />
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* Form Card */}
+      <div className="bg-[var(--surface)] border border-[var(--border)] rounded-xl p-6 shadow-card">
+        {/* ── Step 1: Essentials ── */}
+        {step === 0 && (
+          <div className="space-y-5 animate-slide-up">
+            {/* Dictate once: derive the case from the operative note */}
+            <DeriveFromNote specialty={form.specialtySlug || null} onApply={handleDerivedApply} />
+
+            {/* Voice dictation — fill the form by talking */}
+            <div
+              style={{
+                padding: "14px 16px",
+                background: voiceFilled
+                  ? "rgba(16,185,129,0.06)"
+                  : "var(--primary-dim)",
+                border: `1px solid ${
+                  voiceFilled
+                    ? "rgba(16,185,129,0.25)"
+                    : "var(--border-glass)"
+                }`,
+                borderRadius: 10,
+                marginBottom: 12,
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  marginBottom: 10,
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: voiceFilled ? "var(--success)" : "var(--primary-hi)",
+                }}
+              >
+                {voiceFilled ? (
+                  <><Check size={13} /> Form filled from voice</>
+                ) : (
+                  <><Mic size={13} /> Quick log — dictate your case</>
+                )}
+              </div>
+              <VoiceTextarea
+                value={voiceTranscript}
+                onChange={setVoiceTranscript}
+                placeholder='e.g. "Did a lap chole today with Dr. Chen, robotic, I was console surgeon, 90 minutes, uncomplicated"'
+                disabled={voiceParsing}
+                rows={3}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    handleVoiceParse();
+                  }
+                }}
+              />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginTop: 10,
+                  gap: 12,
+                }}
+              >
+                <div style={{ fontSize: 10, color: "var(--text-3)" }}>
+                  ⌘↵ to fill form · review below before submitting
+                </div>
+                <button
+                  onClick={handleVoiceParse}
+                  disabled={voiceParsing || !voiceTranscript.trim()}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 5,
+                    padding: "6px 14px",
+                    background: voiceParsing
+                      ? "var(--primary-glow)"
+                      : "var(--primary-dim)",
+                    border: "1px solid var(--border-glass)",
+                    borderRadius: 6,
+                    color: voiceParsing ? "var(--text-3)" : "var(--primary-hi)",
+                    fontSize: 11,
+                    fontWeight: 600,
+                    cursor:
+                      voiceParsing || !voiceTranscript.trim()
+                        ? "not-allowed"
+                        : "pointer",
+                    fontFamily: "inherit",
+                    opacity: !voiceTranscript.trim() && !voiceParsing ? 0.5 : 1,
+                  }}
+                >
+                  <Sparkles size={11} />
+                  {voiceParsing ? "Parsing…" : "Fill form"}
+                </button>
+              </div>
+              {voiceError && (
+                <div
+                  style={{
+                    marginTop: 8,
+                    fontSize: 10,
+                    color: "#fca5a5",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  {voiceError}
+                </div>
+              )}
+            </div>
+
+            <div>
+              <h2 className="text-lg font-semibold text-[var(--text)] mb-4">Basic Information</h2>
+            </div>
+
+            {/* Specialty */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Specialty *</label>
+              {isSmsna ? (
+                <div style={{
+                  display: "inline-flex", alignItems: "center", gap: 6,
+                  padding: "6px 12px", borderRadius: 20, fontSize: 13, fontWeight: 500,
+                  border: "1px solid #2563eb", background: "#1a1a2e", color: "var(--text)",
+                }}>
+                  SMSNA Fellowship
+                </div>
+              ) : (
+                <div style={{ display: "flex", gap: 6, overflowX: "auto", paddingBottom: 4 }}>
+                  {SPECIALTIES.map((spec) => (
+                    <button
+                      key={spec.slug}
+                      type="button"
+                      onClick={() => updateForm({ specialtySlug: spec.slug, specialtyName: spec.name, procedureName: "" })}
+                      style={{
+                        flexShrink: 0,
+                        padding: "6px 12px",
+                        borderRadius: 20,
+                        fontSize: 13,
+                        fontWeight: 500,
+                        border: "1px solid",
+                        cursor: "pointer",
+                        fontFamily: "inherit",
+                        transition: "all 0.15s",
+                        background: form.specialtySlug === spec.slug ? "#1a1a2e" : "var(--surface2)",
+                        borderColor: form.specialtySlug === spec.slug ? "#2563eb" : "var(--border)",
+                        color: form.specialtySlug === spec.slug ? "var(--text)" : "var(--text-2)",
+                      }}
+                    >
+                      {spec.name.replace(" Surgery", "").replace("/ Otolaryngology", "")}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Procedure */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Procedure *</label>
+              <ProcedurePicker
+                procedures={specialtyProcedures}
+                value={form.procedureName || ""}
+                onChange={(name, proc) => updateForm(procedureUpdates(name, proc))}
+              />
+              {handoff?.raw && handoff.raw !== form.procedureName && (
+                <p style={{ fontSize: 12, color: "var(--text-3)", marginTop: 6 }}>
+                  From {HUB_LINK_APP_LABELS[handoff.fromApp] ?? "Handover"}: {handoff.raw}
+                </p>
+              )}
+            </div>
+
+            {/* Case Date */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Case Date *</label>
+              <input
+                type="date"
+                value={form.caseDate instanceof Date ? form.caseDate.toISOString().split("T")[0] : ""}
+                max={new Date().toISOString().split("T")[0]}
+                onChange={(e) => updateForm({ caseDate: new Date(e.target.value) })}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+            </div>
+
+            {/* Role */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Role *</label>
+              <div className="flex gap-2">
+                {["First Surgeon", "Assist", "Observer"].map((r) => (
+                  <button
+                    key={r}
+                    onClick={() => updateForm({ role: r })}
+                    className={`flex-1 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 border ${
+                      form.role === r
+                        ? "bg-[var(--surface2)] border-[var(--primary)] text-[#3b82f6]"
+                        : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-mid)]"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Attending Surgeon */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Attending Surgeon</label>
+              <input
+                type="text"
+                placeholder="e.g. Dr. Smith"
+                value={form.attendingLabel || ""}
+                onChange={(e) => updateForm({ attendingLabel: e.target.value })}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+            </div>
+
+            {/* Hospital / Institution */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Hospital / Institution</label>
+              <input
+                type="text"
+                placeholder="e.g. Toronto General Hospital"
+                value={form.institutionSite || ""}
+                onChange={(e) => updateForm({ institutionSite: e.target.value })}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+            </div>
+
+            {/* Diagnosis */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Diagnosis / Indication</label>
+              <input
+                type="text"
+                placeholder="e.g. Bladder cancer, BPH..."
+                value={form.diagnosisCategory || ""}
+                onChange={(e) => updateForm({ diagnosisCategory: e.target.value })}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+            </div>
+
+            {/* Autonomy */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Autonomy Level *</label>
+              <div className="space-y-2">
+                {AUTONOMY_LEVELS.map((al) => (
+                  <button
+                    key={al.value}
+                    onClick={() => updateForm({ autonomyLevel: al.value as AutonomyLevel })}
+                    className={`w-full flex items-start gap-3 px-4 py-3 rounded-lg text-sm transition-all duration-150 border text-left ${
+                      form.autonomyLevel === al.value
+                        ? "bg-[var(--surface2)] border-[var(--primary)]"
+                        : "bg-[var(--surface2)] border-[var(--border)] hover:border-[var(--border-mid)]"
+                    }`}
+                  >
+                    <span
+                      className="w-2.5 h-2.5 rounded-full mt-1 flex-shrink-0"
+                      style={{ backgroundColor: al.color }}
+                    />
+                    <div>
+                      <p className={`font-medium ${form.autonomyLevel === al.value ? "text-[var(--text)]" : "text-[var(--text-2)]"}`}>
+                        {al.label}
+                      </p>
+                      <p className="text-xs text-[var(--text-3)] mt-0.5">{al.description}</p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 2: Operative Details ── */}
+        {step === 1 && (
+          <div className="space-y-5 animate-slide-up">
+            <h2 className="text-lg font-semibold text-[var(--text)]">Operative Details</h2>
+
+            {/* Surgical Approach */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Surgical Approach</label>
+              <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
+                {SURGICAL_APPROACHES.map((a) => (
+                  <button
+                    key={a.value}
+                    onClick={() => updateForm({ surgicalApproach: a.value as SurgicalApproach })}
+                    className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 border ${
+                      form.surgicalApproach === a.value
+                        ? "bg-[var(--surface2)] border-[var(--primary)] text-[var(--text)]"
+                        : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-mid)]"
+                    }`}
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Robotic timing — only for robotic cases */}
+            {(form.surgicalApproach === "ROBOTIC") && (
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Console Time (min)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min={1}
+                    max={1440}
+                    placeholder="e.g. 155"
+                    value={form.consoleTimeMinutes || ""}
+                    onChange={(e) => updateForm({ consoleTimeMinutes: parseInt(e.target.value) || undefined })}
+                    className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Docking Time (min)</label>
+                  <input
+                    type="number"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    min={1}
+                    max={60}
+                    placeholder="e.g. 15"
+                    value={form.dockingTimeMinutes || ""}
+                    onChange={(e) => updateForm({ dockingTimeMinutes: parseInt(e.target.value) || undefined })}
+                    className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Difficulty Score */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">
+                Difficulty Score: <span className="text-[var(--text)] font-semibold">
+                  {DIFFICULTY_SCORES.find(d => d.value === form.difficultyScore)?.label || "Moderate"}
+                </span>
+              </label>
+              <div className="flex gap-2">
+                {DIFFICULTY_SCORES.map((d) => (
+                  <button
+                    key={d.value}
+                    onClick={() => updateForm({ difficultyScore: d.value })}
+                    className={`flex-1 py-3 rounded-lg text-sm font-semibold transition-all duration-150 border ${
+                      form.difficultyScore === d.value
+                        ? "border-current opacity-100"
+                        : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-3)] opacity-60 hover:opacity-80"
+                    }`}
+                    style={form.difficultyScore === d.value ? { color: d.color, borderColor: d.color, backgroundColor: `${d.color}15` } : {}}
+                  >
+                    {d.value}
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-[var(--text-3)] mt-1">
+                {DIFFICULTY_SCORES.find(d => d.value === form.difficultyScore)?.description}
+              </p>
+            </div>
+
+            {/* Patient Age */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Patient Age</label>
+              <input
+                type="number"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                min={0}
+                max={120}
+                placeholder="e.g. 58"
+                value={patientAgeDisplay}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setPatientAgeDisplay(val);
+                  const age = parseInt(val);
+                  if (!age) { updateForm({ patientAgeBin: "UNKNOWN" as AgeBin }); return; }
+                  if (age < 18) updateForm({ patientAgeBin: "UNDER_18" as AgeBin });
+                  else if (age <= 30) updateForm({ patientAgeBin: "AGE_18_30" as AgeBin });
+                  else if (age <= 45) updateForm({ patientAgeBin: "AGE_31_45" as AgeBin });
+                  else if (age <= 60) updateForm({ patientAgeBin: "AGE_46_60" as AgeBin });
+                  else if (age <= 75) updateForm({ patientAgeBin: "AGE_61_75" as AgeBin });
+                  else updateForm({ patientAgeBin: "OVER_75" as AgeBin });
+                }}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+              />
+              <p className="text-xs text-[var(--text-3)] mt-1">Grouped for analytics — exact age not stored</p>
+            </div>
+
+            {/* Tags */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Tags</label>
+              <div className="flex gap-2 mb-2">
+                <input
+                  type="text"
+                  placeholder="e.g. complex anatomy, teaching, bilateral..."
+                  value={tagInput}
+                  onChange={(e) => setTagInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addTag())}
+                  className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                />
+                <button
+                  onClick={addTag}
+                  className="px-3 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] hover:text-[var(--text)] rounded-lg text-sm transition-colors"
+                >
+                  Add
+                </button>
+              </div>
+              {form.tags && form.tags.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {form.tags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="flex items-center gap-1 px-2 py-0.5 bg-[var(--surface2)] border border-[var(--primary)]/30 text-[#3b82f6] rounded-full text-xs"
+                    >
+                      {tag}
+                      <button onClick={() => removeTag(tag)} className="hover:text-[#ef4444] transition-colors">×</button>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 3: Outcomes & Notes ── */}
+        {step === 2 && (
+          <div className="space-y-5 animate-slide-up">
+            <h2 className="text-lg font-semibold text-[var(--text)]">Outcomes & Notes</h2>
+
+            {/* Outcome */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Outcome</label>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                {OUTCOME_CATEGORIES.map((o) => (
+                  <button
+                    key={o.value}
+                    onClick={() => updateForm({ outcomeCategory: o.value as OutcomeCategory })}
+                    className={`px-3 py-2.5 rounded-lg text-xs font-medium transition-all duration-150 border text-left ${
+                      form.outcomeCategory === o.value
+                        ? "border-current"
+                        : "bg-[var(--surface2)] border-[var(--border)] text-[var(--text-2)] hover:border-[var(--border-mid)]"
+                    }`}
+                    style={form.outcomeCategory === o.value ? { color: o.color, borderColor: o.color, backgroundColor: `${o.color}15` } : {}}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Complication */}
+            {form.outcomeCategory !== "UNCOMPLICATED" && (
+              <div>
+                <label className="block text-sm font-medium text-[var(--text-2)] mb-2">Complication Type</label>
+                <select
+                  value={form.complicationCategory || "NONE"}
+                  onChange={(e) => updateForm({ complicationCategory: e.target.value as ComplicationCategory })}
+                  className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-[var(--primary)]"
+                >
+                  {COMPLICATION_CATEGORIES.map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Conversion */}
+            <div>
+              <label className="flex items-center gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.conversionOccurred || false}
+                  onChange={(e) => updateForm({ conversionOccurred: e.target.checked })}
+                  className="w-4 h-4 rounded border-[var(--border)] bg-[var(--surface2)] accent-[var(--primary)]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">Conversion occurred</p>
+                  <p className="text-xs text-[var(--text-3)]">e.g. laparoscopic to open</p>
+                </div>
+              </label>
+            </div>
+
+            {/* PHIA Notice */}
+            <div className="flex items-start gap-3 p-3 bg-[#1a1a26] border border-[var(--border-mid)] rounded-lg">
+              <Shield className="w-4 h-4 text-[var(--primary)] mt-0.5 flex-shrink-0" />
+              <p className="text-xs text-[var(--text-2)]">
+                <span className="font-medium text-[var(--text)]">PHIA Reminder:</span> Do not enter patient names, health card numbers, MRNs, dates of birth, or any other identifying information. Notes are screened automatically.
+              </p>
+            </div>
+
+            {/* Notes */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">
+                Operative Notes <span className="text-[var(--text-3)] font-normal">(optional, no PHI)</span>
+              </label>
+              <textarea
+                value={form.notes || ""}
+                onChange={(e) => handleNotesChange(e.target.value)}
+                placeholder="Key technical steps, challenges, learning points... (no patient identifiers)"
+                rows={4}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+              />
+              {notesValidation.warnings.length > 0 && (
+                <div className="mt-2 space-y-1">
+                  {notesValidation.warnings.map((w, i) => (
+                    <div key={i} className="flex items-start gap-1.5 text-xs text-[#f59e0b]">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      {w}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Reflection */}
+            <div>
+              <label className="block text-sm font-medium text-[var(--text-2)] mb-2">
+                Personal Reflection <span className="text-[var(--text-3)] font-normal">(optional)</span>
+              </label>
+              <textarea
+                value={form.reflection || ""}
+                onChange={(e) => updateForm({ reflection: e.target.value })}
+                placeholder="What did you learn? What would you do differently?"
+                rows={3}
+                className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] placeholder-[var(--text-3)] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--primary)] resize-none"
+              />
+            </div>
+          </div>
+        )}
+
+        {/* ── Step 4: Review ── */}
+        {step === 3 && (
+          <div className="space-y-5 animate-slide-up">
+            <h2 className="text-lg font-semibold text-[var(--text)]">Review & Submit</h2>
+
+            {/* Summary */}
+            <div className="bg-[var(--surface2)] border border-[var(--border)] rounded-lg p-4 space-y-3">
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Procedure</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">{form.procedureName}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Date</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">
+                    {form.caseDate instanceof Date ? form.caseDate.toLocaleDateString("en-CA") : ""}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Role</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">{form.role}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Autonomy</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">
+                    {AUTONOMY_LEVELS.find(a => a.value === form.autonomyLevel)?.label}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Approach</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">{form.surgicalApproach}</p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Difficulty</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">
+                    {DIFFICULTY_SCORES.find(d => d.value === form.difficultyScore)?.label} ({form.difficultyScore}/5)
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[var(--text-3)] text-xs">Outcome</p>
+                  <p className="text-[var(--text)] font-medium mt-0.5">
+                    {OUTCOME_CATEGORIES.find(o => o.value === form.outcomeCategory)?.label}
+                  </p>
+                </div>
+                {form.diagnosisCategory && (
+                  <div>
+                    <p className="text-[var(--text-3)] text-xs">Diagnosis</p>
+                    <p className="text-[var(--text)] font-medium mt-0.5">{form.diagnosisCategory}</p>
+                  </div>
+                )}
+              </div>
+              {form.notes && (
+                <div className="pt-3 border-t border-[var(--border)]">
+                  <p className="text-[var(--text-3)] text-xs mb-1">Operative Notes</p>
+                  <p className="text-[var(--text-2)] text-xs whitespace-pre-wrap">{form.notes}</p>
+                </div>
+              )}
+            </div>
+
+            {/* Benchmark Opt-in */}
+            <div className="p-4 bg-[var(--surface2)] border border-[var(--primary)]/30 rounded-lg">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={form.benchmarkOptIn || false}
+                  onChange={(e) => updateForm({ benchmarkOptIn: e.target.checked })}
+                  className="w-4 h-4 mt-0.5 rounded border-[var(--border)] bg-[var(--surface2)] accent-[var(--primary)]"
+                />
+                <div>
+                  <p className="text-sm font-medium text-[var(--text)]">Contribute to anonymized benchmarks</p>
+                  <p className="text-xs text-[var(--text-3)] mt-0.5">
+                    Your anonymized operative data helps generate national benchmarks for all trainees.
+                  </p>
+                </div>
+              </label>
+            </div>
+          </div>
+        )}
+
+        {/* ── Navigation ── */}
+        <div className="flex items-center justify-between mt-6 pt-4 border-t border-[var(--border)]">
+          <button
+            onClick={() => setStep(Math.max(0, step - 1))}
+            disabled={step === 0}
+            className="flex items-center gap-2 px-4 py-2 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text-2)] rounded-lg text-sm disabled:opacity-30 hover:text-[var(--text)] hover:border-[var(--border-mid)] transition-all duration-150"
+          >
+            <ChevronLeft className="w-4 h-4" />
+            Back
+          </button>
+
+          <div className="flex items-center gap-2">
+            {/* Quick Log — available on step 0 once essentials are filled */}
+            {step === 0 && canAdvance() && (
+              <button
+                onClick={handleQuickSubmit}
+                disabled={submitting}
+                className="flex items-center gap-2 px-4 py-2 bg-[var(--surface2)] border border-[#10b981]/40 text-[#10b981] font-medium rounded-lg text-sm hover:bg-[#10b981]/10 transition-all duration-150 active:scale-95"
+              >
+                {submitting ? (
+                  <div className="w-4 h-4 border-2 border-[#10b981]/30 border-t-[#10b981] rounded-full animate-spin" />
+                ) : (
+                  <Check className="w-4 h-4" />
+                )}
+                Quick Log
+              </button>
+            )}
+
+            {step < STEPS.length - 1 ? (
+              <button
+                onClick={() => setStep(step + 1)}
+                disabled={!canAdvance()}
+                className="flex items-center gap-2 px-5 py-2 bg-[var(--primary)] hover:bg-[var(--primary-lo)] text-white font-medium rounded-lg text-sm disabled:opacity-40 transition-all duration-150 active:scale-95"
+              >
+                {step === 0 ? "Add More Details" : "Continue"}
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            ) : (
+              <button
+                onClick={handleSubmit}
+                disabled={submitting}
+                className="flex items-center gap-2 px-5 py-2 bg-[#10b981] hover:bg-[#059669] text-white font-medium rounded-lg text-sm disabled:opacity-40 transition-all duration-150 active:scale-95"
+              >
+                {submitting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Saving...
+                  </>
+                ) : (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Log Case
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Portalled Modals (rendered outside scrollable content) ── */}
+      {portalRoot && createPortal(
+        <>
+          {/* Celebration Modal */}
+          {celebration && (
+            <CelebrationModal
+              milestones={celebration.milestones}
+              prs={celebration.prs}
+              onClose={() => {
+                setCelebration(null);
+                setShowEpaSuggestions(true);
+              }}
+            />
+          )}
+
+          {/* EPA Suggestion Sheet */}
+          {showEpaSuggestions && (
+            <EpaSuggestionSheet
+              suggestions={epaSuggestions}
+              note={epaNote}
+              onSelect={handleEpaSelect}
+              onSkip={handleEpaSkip}
+              loading={epaSuggestionsLoading}
+            />
+          )}
+
+          {/* EPA Observation Form Modal */}
+          {selectedEpaSuggestion && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0, 0, 0, 0.7)",
+                  backdropFilter: "blur(4px)",
+                  zIndex: 1002,
+                }}
+                onClick={() => {
+                  setSelectedEpaSuggestion(null);
+                  router.push("/cases");
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1003,
+                  maxWidth: 720,
+                  width: "94vw",
+                  // Cap to 90vh and subtract safe-area-inset-top/bottom so
+                  // the modal's top/bottom edges (and the scroll region
+                  // inside) never slide under the iPhone notch or home
+                  // indicator. WebKit clamps this fine.
+                  maxHeight: "calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                  background: "#0f1825",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 16,
+                  padding: "28px 28px 24px",
+                  boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+                }}
+              >
+                {epaSubmitError && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "10px 12px", marginBottom: 16,
+                    background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 8, fontSize: 13, color: "#fca5a5", lineHeight: 1.4,
+                  }}>
+                    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#ef4444" }} />
+                    <span>{epaSubmitError}</span>
+                  </div>
+                )}
+                <EpaObservationForm
+                  epaId={selectedEpaSuggestion.epaId}
+                  epaTitle={selectedEpaSuggestion.epaTitle}
+                  specialtySlug={form.specialtySlug}
+                  trainingSystem={resolveTrainingSystem(profile)}
+                  prefillData={savedCaseId ? {
+                    caseLogId: savedCaseId,
+                    caseDate: form.caseDate,
+                    procedureName: form.procedureName,
+                    attendingLabel: form.attendingLabel || undefined,
+                  } : undefined}
+                  onSubmit={handleEpaObservationSubmit}
+                  onCancel={() => {
+                    setSelectedEpaSuggestion(null);
+                    router.push("/cases");
+                  }}
+                  onSaveDraft={handleEpaObservationDraft}
+                />
+              </div>
+            </>
+          )}
+
+          {/* OPRS Observation Form Modal (SMSNA) — identical wrapper markup */}
+          {caseIsSmsna && showOprs && (
+            <>
+              <div
+                style={{
+                  position: "fixed",
+                  inset: 0,
+                  background: "rgba(0, 0, 0, 0.7)",
+                  backdropFilter: "blur(4px)",
+                  zIndex: 1002,
+                }}
+                onClick={() => {
+                  setShowOprs(false);
+                  router.push("/cases");
+                }}
+              />
+              <div
+                style={{
+                  position: "fixed",
+                  top: "50%",
+                  left: "50%",
+                  transform: "translate(-50%, -50%)",
+                  zIndex: 1003,
+                  maxWidth: 720,
+                  width: "94vw",
+                  maxHeight: "calc(90vh - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
+                  overflowY: "auto",
+                  WebkitOverflowScrolling: "touch",
+                  background: "#0f1825",
+                  border: "1px solid rgba(255,255,255,0.08)",
+                  borderRadius: 16,
+                  padding: "28px 28px 24px",
+                  boxShadow: "0 25px 60px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04)",
+                }}
+              >
+                {epaSubmitError && (
+                  <div style={{
+                    display: "flex", alignItems: "flex-start", gap: 8,
+                    padding: "10px 12px", marginBottom: 16,
+                    background: "rgba(239,68,68,0.08)", border: "1px solid rgba(239,68,68,0.3)",
+                    borderRadius: 8, fontSize: 13, color: "#fca5a5", lineHeight: 1.4,
+                  }}>
+                    <AlertTriangle size={15} style={{ flexShrink: 0, marginTop: 1, color: "#ef4444" }} />
+                    <span>{epaSubmitError}</span>
+                  </div>
+                )}
+                <OprsObservationForm
+                  categoryKey={smsnaCategory.key}
+                  categoryName={smsnaCategory.name}
+                  procedureName={form.procedureName}
+                  prefillData={savedCaseId ? {
+                    caseLogId: savedCaseId,
+                    caseDate: form.caseDate,
+                    procedureName: form.procedureName,
+                    attendingLabel: form.attendingLabel || undefined,
+                  } : undefined}
+                  onSubmit={handleEpaObservationSubmit}
+                  onCancel={() => {
+                    setShowOprs(false);
+                    router.push("/cases");
+                  }}
+                  onSaveDraft={handleEpaObservationDraft}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Post-submit delivery confirmation — navigation to /cases was
+              deferred so the resident sees this before leaving the page. */}
+          {epaDelivery && (
+            <EpaDeliveryConfirmation
+              delivery={epaDelivery.info}
+              assessorName={epaDelivery.assessorName}
+              onClose={() => {
+                setEpaDelivery(null);
+                router.push("/cases");
+              }}
+            />
+          )}
+        </>,
+        portalRoot,
+      )}
+    </div>
+  );
+}

@@ -1,0 +1,138 @@
+import { NextResponse } from 'next/server';
+import { requireAuth } from '@/lib/api-auth';
+import { db } from '@/lib/db';
+import { getDirectedResidents } from '@/lib/program-auth';
+
+/**
+ * GET /api/pd/residents
+ * Returns the resident/fellow roster the caller is allowed to see.
+ *
+ * Two-tier visibility (Stage-2 faculty-permissions sprint):
+ *   • PD / OWNER / CHAIR / CC_MEMBER / DEPT_HEAD / COORDINATOR — see
+ *     every member of the program(s) they hold that role on.
+ *   • FACULTY (and legacy MEMBER) — see ONLY the residents they have
+ *     an active FacultyAssignment to. The faculty member can still
+ *     hit the dashboard; it just shows their direct trainees.
+ *
+ * The Profile.roleType gate (PROGRAM_DIRECTOR / ATTENDING / STAFF)
+ * remains as the entry-level gate so non-staff users still get a 403.
+ */
+export async function GET() {
+  const { user, error } = await requireAuth();
+  if (error) return error;
+
+  const STAFF_ROLES = ['PROGRAM_DIRECTOR', 'ATTENDING', 'STAFF'];
+
+  const pdProfile = await db.profile.findUnique({ where: { userId: user.id } });
+  if (!pdProfile || !STAFF_ROLES.includes(pdProfile.roleType ?? '')) {
+    return NextResponse.json(
+      { error: 'Access denied. Staff role required.' },
+      { status: 403 },
+    );
+  }
+
+  // Membership of a Program, never the self-declared institution string,
+  // decides whose data a staff member may read. `institution` is free text
+  // the caller sets on their own profile, so scoping on it let any account
+  // claim PROGRAM_DIRECTOR at a real institution and read its whole roster.
+  // getDirectedResidents returns an empty set for a caller who belongs to
+  // no program — there is deliberately no institution-wide fallback.
+  const scope = await getDirectedResidents(user.id);
+
+  const profiles = scope.residentUserIds.length
+    ? await db.profile.findMany({
+        where: {
+          userId: { in: scope.residentUserIds },
+          roleType: { in: ['RESIDENT', 'FELLOW'] },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              image: true,
+            },
+          },
+        },
+      })
+    : [];
+
+  // The most recent 1:1 per resident. The cohort page had no meeting column
+  // at all, so the only way to find out who was overdue was to open every
+  // resident in turn.
+  const lastMeetings = await db.pdMeeting.findMany({
+    where: { residentId: { in: profiles.map((p) => p.userId) } },
+    orderBy: { meetingDate: 'desc' },
+    select: { residentId: true, meetingDate: true, status: true },
+  });
+  const lastMeetingBy = new Map<string, { meetingDate: Date; status: string }>();
+  for (const m of lastMeetings) {
+    if (!lastMeetingBy.has(m.residentId)) {
+      lastMeetingBy.set(m.residentId, { meetingDate: m.meetingDate, status: m.status });
+    }
+  }
+
+  // Date boundaries
+  const now = new Date();
+  // Rolling 30 days, not the calendar month: on the 2nd of a month a
+  // calendar count reads 0 for every resident and tells a director nothing.
+  const last30Days = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const dayOfWeek = now.getDay();
+  const startOfWeek = new Date(now);
+  startOfWeek.setDate(now.getDate() - (dayOfWeek === 0 ? 6 : dayOfWeek - 1));
+  startOfWeek.setHours(0, 0, 0, 0);
+
+  // Build result for each resident
+  const residents = await Promise.all(
+    profiles.map(async (profile) => {
+      const userId = profile.userId;
+
+      // Case counts
+      const [totalCases, casesThisMonth, casesThisWeek, lastCase] = await Promise.all([
+        db.caseLog.count({ where: { userId } }),
+        db.caseLog.count({ where: { userId, caseDate: { gte: last30Days } } }),
+        db.caseLog.count({ where: { userId, caseDate: { gte: startOfWeek } } }),
+        db.caseLog.findFirst({
+          where: { userId },
+          orderBy: { caseDate: 'desc' },
+          select: { caseDate: true },
+        }),
+      ]);
+
+      // EPA counts
+      const [totalEpas, signedEpas, pendingEpas] = await Promise.all([
+        db.epaObservation.count({ where: { userId } }),
+        db.epaObservation.count({ where: { userId, status: 'SIGNED' } }),
+        db.epaObservation.count({
+          where: { userId, status: { in: ['DRAFT', 'SUBMITTED', 'PENDING_REVIEW'] } },
+        }),
+      ]);
+
+      return {
+        userId,
+        name: profile.user.name,
+        email: profile.user.email,
+        image: profile.user.image,
+        roleType: profile.roleType,
+        specialty: profile.specialty,
+        pgyYear: profile.pgyYear,
+        trainingYearLabel: profile.trainingYearLabel,
+        totalCases,
+        casesThisMonth,
+        casesThisWeek,
+        epaTotal: totalEpas,
+        epaSigned: signedEpas,
+        epaPending: pendingEpas,
+        lastCaseDate: lastCase?.caseDate ?? null,
+        lastMeetingDate: lastMeetingBy.get(userId)?.meetingDate ?? null,
+        lastMeetingStatus: lastMeetingBy.get(userId)?.status ?? null,
+      };
+    }),
+  );
+
+  return NextResponse.json({
+    institution: pdProfile.institution,
+    residents,
+  });
+}

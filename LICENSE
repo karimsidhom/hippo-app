@@ -1,0 +1,77 @@
+HIPPO — PROPRIETARY SOFTWARE LICENSE
+Copyright (c) 2026 Hippo Medicine Inc. All rights reserved.
+
+                        ─── NOT OPEN SOURCE ───
+
+This source code, and every compiled or derivative artifact produced from it
+(including but not limited to: the hippomedicine.com web application, the
+Hippo iOS application, the Hippo Android application, documentation,
+database schemas, machine-learning prompts and fine-tuning data, design
+assets, logos, copy, and marketing material), is the proprietary and
+confidential property of Hippo Medicine Inc. ("Hippo"). It is protected by
+Canadian and international copyright, trademark, trade-secret, and
+intellectual-property law.
+
+1. NO LICENSE GRANTED.
+   No license — express, implied, statutory, by estoppel, or otherwise — is
+   granted to any person or entity under this repository. Access to this
+   source, whether by clone, fork, download, screenshot, or any other means,
+   does not grant any right to use, copy, modify, merge, publish,
+   distribute, sublicense, sell, or create derivative works.
+
+2. AUTHORIZED USE.
+   The software may be used ONLY by:
+   (a) Hippo Medicine Inc. and its employees, officers, and directors;
+   (b) Contractors operating under a signed written agreement with Hippo
+       that includes an IP-assignment clause assigning all contributions to
+       Hippo; and
+   (c) End users of the hosted application at hippomedicine.com and the
+       Hippo iOS/Android applications, solely as permitted by the Hippo
+       End User License Agreement (EULA) and Terms of Use published at
+       https://hippomedicine.com/legal.
+
+3. NO REVERSE ENGINEERING.
+   You may not decompile, disassemble, reverse engineer, or otherwise attempt
+   to derive the source code of the application beyond what is already
+   disclosed in this repository, except to the extent such activity is
+   expressly permitted by applicable law notwithstanding this limitation.
+
+4. NO AI / ML TRAINING.
+   You may not use this software, or any output or content derived from it,
+   to train, fine-tune, align, evaluate, or otherwise improve any machine
+   learning model or artificial intelligence system, in whole or in part.
+   This restriction is a condition of access and applies to both human
+   users and automated crawlers.
+
+5. TRADEMARKS.
+   "Hippo", "Hippo Medicine", the Hippo logomark, and all associated marks
+   are trademarks of Hippo Medicine Inc. No license to these marks is
+   granted by this license, the availability of source code, or any course
+   of dealing. Use of the marks is governed by Hippo's Trademark Policy.
+
+6. CONFIDENTIALITY.
+   The contents of this repository, including unreleased features, product
+   roadmaps, and internal comments, are Confidential Information of Hippo.
+   Authorized users must not disclose Confidential Information to any third
+   party without prior written consent.
+
+7. NO WARRANTY.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+   MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT.
+   IN NO EVENT SHALL HIPPO MEDICINE INC. BE LIABLE FOR ANY CLAIM, DAMAGES
+   OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
+   ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+8. GOVERNING LAW.
+   This license is governed by the laws of the Province of Manitoba and the
+   federal laws of Canada applicable therein, without regard to conflict-of-
+   laws principles. The courts of Manitoba shall have exclusive jurisdiction
+   over any dispute arising from this license.
+
+9. CONTACT.
+   Licensing, partnership, and legal inquiries:  legal@hippomedicine.com
+   Security disclosures:                          security@hippomedicine.com
+
+— END OF LICENSE —

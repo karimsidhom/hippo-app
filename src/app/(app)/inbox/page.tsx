@@ -1,0 +1,1408 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Link from "next/link";
+import {
+  CheckCircle2, RotateCcw, Inbox, Stethoscope, Clock, AlertTriangle,
+  ClipboardCheck, Users, Lock, Sparkles, Loader2, ListChecks, Zap,
+} from "lucide-react";
+import { useAuth } from "@/context/AuthContext";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { PaywallModal } from "@/components/PaywallModal";
+import { EpaStatusBadge, type EpaStatus } from "@/components/epa/EpaStatusBadge";
+import { useInteraction } from "@/hooks/useInteraction";
+import { HandoffInbox } from "@/components/link/HandoffInbox";
+
+const ENTRUSTMENT_LABELS: Record<number, string> = {
+  1: "Had to do",
+  2: "Talk through",
+  3: "Prompted",
+  4: "Just in case",
+  5: "Independent",
+};
+const ENTRUSTMENT_COLORS: Record<number, string> = {
+  1: "#ef4444", 2: "#f97316", 3: "#eab308", 4: "#22c55e", 5: "#10b981",
+};
+
+interface LinkedCase {
+  id: string;
+  procedureName: string;
+  caseDate: string;
+  surgicalApproach: string;
+  notes?: string | null;
+  reflection?: string | null;
+}
+interface Resident {
+  id: string;
+  name: string | null;
+  email: string;
+  image: string | null;
+}
+interface Observation {
+  id: string;
+  epaId: string;
+  epaTitle: string;
+  observationDate: string;
+  setting: string | null;
+  complexity: string | null;
+  entrustmentScore: number | null;
+  achievement: string;
+  observationNotes: string | null;
+  strengthsNotes: string | null;
+  improvementNotes: string | null;
+  safetyConcern: boolean;
+  professionalismConcern: boolean;
+  concernDetails: string | null;
+  status: string;
+  signedByName: string | null;
+  signedAt: string | null;
+  returnedReason: string | null;
+  user: Resident;
+  caseLog: LinkedCase | null;
+}
+
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium" });
+}
+
+/** An observation date is a calendar day stored at UTC midnight; read it in UTC. */
+function formatDay(iso: string): string {
+  return new Date(iso).toLocaleDateString(undefined, { dateStyle: "medium", timeZone: "UTC" });
+}
+
+interface AttendingSummary {
+  pendingReview: number;
+  residentsToObserve: number;
+  pearlsMentioning: number;
+}
+
+/**
+ * /inbox: Hippo Link handoffs (from Handover) for everyone, first; the EPA
+ * sign-off inbox below is unchanged and stays for attendings, PDs and staff.
+ */
+export default function InboxPage() {
+  const { profile } = useAuth();
+  const roleType = profile?.roleType;
+  const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
+  return (
+    <>
+      {!isStaff && (
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18, animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
+          <Inbox size={20} style={{ color: "var(--text)" }} />
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>Inbox</h1>
+        </div>
+      )}
+      <HandoffInbox showEmpty={!isStaff} />
+      {isStaff && <SignOffInbox />}
+    </>
+  );
+}
+
+function SignOffInbox() {
+  const { profile } = useAuth();
+  const { isPro } = useSubscription();
+  const fx = useInteraction();
+  const roleType = profile?.roleType;
+  const isStaff = roleType === "ATTENDING" || roleType === "STAFF" || roleType === "PROGRAM_DIRECTOR";
+  const isPD = roleType === "PROGRAM_DIRECTOR";
+
+  const [loading, setLoading] = useState(true);
+  const [pending, setPending] = useState<Observation[]>([]);
+  const [recent, setRecent] = useState<Observation[]>([]);
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState<string | null>(null);
+  const [returnReasonFor, setReturnReasonFor] = useState<string | null>(null);
+  const [returnReason, setReturnReason] = useState("");
+  const [summary, setSummary] = useState<AttendingSummary | null>(null);
+  // Pro features
+  const [bulkMode, setBulkMode] = useState(false);
+  const [bulkPaywall, setBulkPaywall] = useState(false);
+  const [aiPaywall, setAiPaywall] = useState(false);
+  const [bulkScores, setBulkScores] = useState<Record<string, number>>({});
+  const [bulkSigning, setBulkSigning] = useState(false);
+  const pendingSectionRef = useRef<HTMLElement | null>(null);
+
+  const load = useCallback(async () => {
+    if (!isStaff) { setLoading(false); return; }
+    setLoading(true);
+    try {
+      const [inboxRes, summaryRes] = await Promise.all([
+        fetch("/api/attending/inbox"),
+        fetch("/api/attending/summary"),
+      ]);
+      const data = await inboxRes.json();
+      setPending(data.pending ?? []);
+      setRecent(data.recent ?? []);
+      if (summaryRes.ok) {
+        setSummary(await summaryRes.json());
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [isStaff]);
+
+  useEffect(() => { load(); }, [load]);
+
+  // ── Role-gate: show a friendly redirect for residents/fellows ──────────────
+  if (!isStaff) {
+    return (
+      <div style={{
+        display: "flex", flexDirection: "column", alignItems: "center",
+        justifyContent: "center", padding: "72px 20px 48px",
+        maxWidth: 360, margin: "0 auto", textAlign: "center",
+      }}>
+        <Lock size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+        <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+          Inbox is for attendings
+        </div>
+        <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 18 }}>
+          The inbox is for attendings and program directors reviewing EPA sign-offs.
+        </div>
+        <Link
+          href="/dashboard"
+          style={{
+            fontSize: 12, fontWeight: 600, color: "var(--primary)",
+            textDecoration: "none", padding: "8px 14px",
+            border: "1px solid var(--primary)", borderRadius: 6,
+          }}
+        >
+          Back to dashboard
+        </Link>
+      </div>
+    );
+  }
+
+  async function act(
+    id: string,
+    action: "sign" | "return",
+    payload?: {
+      reason?: string;
+      entrustmentScore?: number;
+      achievement?: "NOT_ACHIEVED" | "ACHIEVED";
+      strengthsNotes?: string;
+      improvementNotes?: string;
+      safetyConcern?: boolean;
+      professionalismConcern?: boolean;
+      concernDetails?: string;
+    },
+  ) {
+    setSubmitting(id);
+    try {
+      const body: Record<string, unknown> = { action };
+      if (action === "return") {
+        body.returnedReason = payload?.reason ?? "";
+      } else if (payload) {
+        if (payload.entrustmentScore !== undefined) body.entrustmentScore = payload.entrustmentScore;
+        if (payload.achievement !== undefined) body.achievement = payload.achievement;
+        if (payload.strengthsNotes) body.strengthsNotes = payload.strengthsNotes;
+        if (payload.improvementNotes) body.improvementNotes = payload.improvementNotes;
+        if (payload.safetyConcern !== undefined) body.safetyConcern = payload.safetyConcern;
+        if (payload.professionalismConcern !== undefined) body.professionalismConcern = payload.professionalismConcern;
+        if (payload.concernDetails) body.concernDetails = payload.concernDetails;
+      }
+      const res = await fetch(`/api/attending/observations/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      // Audible + tactile confirmation. sign = warm success chime,
+      // return = softer downward sweep so attendings can hear the
+      // difference without looking at the screen.
+      if (action === "sign") fx.log(); else fx.toggle();
+      setExpanded(null);
+      setReturnReasonFor(null);
+      setReturnReason("");
+      await load();
+    } catch (err) {
+      fx.error();
+      alert("Action failed: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setSubmitting(null);
+    }
+  }
+
+  return (
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 18 }}>
+        <Inbox size={20} style={{ color: "var(--text)" }} />
+        <h1 style={{ fontSize: 20, fontWeight: 600, color: "var(--text)", letterSpacing: "-.3px" }}>Sign-Offs</h1>
+        {pending.length > 0 && (
+          <span style={{
+            fontSize: 11, fontWeight: 600, padding: "2px 8px",
+            background: "var(--primary, #3b82f6)", color: "#fff", borderRadius: 99,
+          }}>
+            {pending.length} pending
+          </span>
+        )}
+      </div>
+
+      <p style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 20 }}>
+        EPAs your residents have sent to you for sign-off. Open any one to review the
+        resident&apos;s self-assessment, adjust the entrustment score if needed, and sign.
+      </p>
+
+      {/* ── EPA summary ─────────────────────────────────────────────────── */}
+      {summary && (
+        <div style={{
+          display: "grid", gridTemplateColumns: "repeat(2, 1fr)",
+          gap: 10, marginBottom: 24,
+        }}>
+          <SummaryTile
+            icon={<ClipboardCheck size={18} strokeWidth={1.5} />}
+            label="Pending your review"
+            value={summary.pendingReview}
+            accentColor={summary.pendingReview > 0 ? "var(--warning)" : "var(--text-3)"}
+            onClick={() => {
+              pendingSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+            }}
+          />
+          <SummaryTile
+            icon={<Users size={18} strokeWidth={1.5} />}
+            label="Residents to observe"
+            value={summary.residentsToObserve}
+            accentColor="var(--text-3)"
+            href={isPD ? "/pd-dashboard" : undefined}
+          />
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ padding: 40, textAlign: "center", color: "var(--text-3)" }}>Loading…</div>
+      ) : pending.length === 0 && recent.length === 0 ? (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+        }}>
+          <CheckCircle2 size={32} strokeWidth={1.25} style={{ color: "var(--success)", marginBottom: 12 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            You&apos;re all caught up
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: 14 }}>
+            {isPD ? "Check the cohort for who to observe next." : "New EPA review requests will appear here."}
+          </div>
+          <Link
+            href={isPD ? "/pd-dashboard" : "/cases"}
+            style={{
+              fontSize: 12, fontWeight: 600, color: "var(--primary)",
+              textDecoration: "none",
+            }}
+          >
+            {isPD ? "Open PD dashboard →" : "Back to cases →"}
+          </Link>
+        </div>
+      ) : (
+        <>
+          {pending.length > 0 && (
+            <section ref={pendingSectionRef} style={{ marginBottom: 32, scrollMarginTop: 60 }}>
+              <div style={{
+                display: "flex", alignItems: "center", justifyContent: "space-between",
+                marginBottom: 12,
+              }}>
+                <div style={{
+                  fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+                  letterSpacing: "0.06em", color: "var(--text-3)",
+                }}>
+                  Pending ({pending.length})
+                </div>
+                {pending.length >= 2 && (
+                  <button
+                    onClick={() => {
+                      if (!isPro) { setBulkPaywall(true); return; }
+                      setBulkMode(!bulkMode);
+                      setBulkScores({});
+                      setExpanded(null);
+                    }}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 5,
+                      padding: "4px 10px", borderRadius: 6,
+                      background: bulkMode ? "rgba(59,130,246,.14)" : "transparent",
+                      border: bulkMode
+                        ? "1px solid rgba(59,130,246,.5)"
+                        : "1px solid var(--border-mid)",
+                      color: bulkMode ? "var(--primary)" : "var(--text-2)",
+                      fontSize: 11, fontWeight: 600, cursor: "pointer",
+                      fontFamily: "inherit",
+                    }}
+                    title="Bulk sign-off mode"
+                  >
+                    <ListChecks size={12} />
+                    {bulkMode ? "Exit bulk mode" : "Bulk sign-off"}
+                  </button>
+                )}
+              </div>
+
+              {bulkMode ? (
+                <BulkQueue
+                  pending={pending}
+                  scores={bulkScores}
+                  onScore={(id, score) =>
+                    setBulkScores(prev => ({ ...prev, [id]: score }))
+                  }
+                  signing={bulkSigning}
+                  onSignAll={async () => {
+                    const toSign = pending.filter(o => bulkScores[o.id]);
+                    if (toSign.length === 0) return;
+                    // Summary by resident for the confirmation — PDs signing
+                    // for several residents at once deserve to see who
+                    // they're about to verify before they commit.
+                    const byResident = new Map<string, number>();
+                    for (const o of toSign) {
+                      const key = o.user.name || o.user.email;
+                      byResident.set(key, (byResident.get(key) ?? 0) + 1);
+                    }
+                    const residentSummary = Array.from(byResident.entries())
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 6)
+                      .map(([name, n]) => `  • ${n} × ${name}`)
+                      .join("\n");
+                    const extraResidents = byResident.size > 6
+                      ? `\n  …and ${byResident.size - 6} more residents`
+                      : "";
+                    if (!window.confirm(
+                      `Sign ${toSign.length} EPA${toSign.length === 1 ? "" : "s"} as the verifying attending?\n\n` +
+                      `${residentSummary}${extraResidents}\n\n` +
+                      `Residents will be notified immediately. This records your name on the academic record.`
+                    )) return;
+                    setBulkSigning(true);
+                    try {
+                      // One HTTP call instead of N. Much faster for 50+ EPAs,
+                      // and the server returns per-item success so we can
+                      // surface partial failures.
+                      const res = await fetch(`/api/attending/observations/batch`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "sign",
+                          confirmed: true,
+                          items: toSign.map(o => ({
+                            id: o.id,
+                            entrustmentScore: bulkScores[o.id],
+                            achievement: "ACHIEVED",
+                          })),
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      const data = await res.json() as {
+                        succeeded: number;
+                        failed: number;
+                        total: number;
+                        results: Array<{ id: string; ok: boolean; error?: string }>;
+                      };
+                      if (data.failed > 0) {
+                        // Surface specific failures so the attending knows
+                        // which EPAs still need attention, not just a count.
+                        const failedItems = data.results.filter(r => !r.ok);
+                        const byId = new Map(pending.map(p => [p.id, p]));
+                        const detail = failedItems
+                          .slice(0, 8) // cap the alert so it doesn't wall-of-text
+                          .map(f => {
+                            const obs = byId.get(f.id);
+                            const who = obs ? (obs.user.name || obs.user.email) : f.id;
+                            return `• ${obs?.epaId ?? f.id} (${who}) — ${f.error ?? "unknown"}`;
+                          })
+                          .join("\n");
+                        const extra = failedItems.length > 8 ? `\n…and ${failedItems.length - 8} more.` : "";
+                        alert(
+                          `${data.succeeded} signed. ${data.failed} could not be signed:\n\n${detail}${extra}\n\nThey stay in your inbox.`,
+                        );
+                        fx.toggle();
+                      } else {
+                        fx.log();
+                      }
+                    } catch (err) {
+                      fx.error();
+                      alert("Batch sign failed: " + (err instanceof Error ? err.message : String(err)));
+                    } finally {
+                      setBulkSigning(false);
+                      setBulkScores({});
+                      setBulkMode(false);
+                      await load();
+                    }
+                  }}
+                  onReturnAll={async (reason) => {
+                    const toReturn = pending.filter(o => bulkScores[o.id]);
+                    if (toReturn.length === 0 || !reason.trim()) return;
+                    if (!window.confirm(
+                      `Return ${toReturn.length} EPA${toReturn.length === 1 ? "" : "s"} ` +
+                      `to their residents with the same feedback? This cannot be undone in bulk.`
+                    )) return;
+                    setBulkSigning(true);
+                    try {
+                      const res = await fetch(`/api/attending/observations/batch`, {
+                        method: "POST",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                          action: "return",
+                          confirmed: true,
+                          returnedReason: reason,
+                          items: toReturn.map(o => ({ id: o.id })),
+                        }),
+                      });
+                      if (!res.ok) throw new Error(await res.text());
+                      const data = await res.json();
+                      if (data.failed > 0) {
+                        alert(`${data.succeeded} returned. ${data.failed} failed — check the list.`);
+                        fx.toggle();
+                      } else {
+                        fx.toggle();
+                      }
+                    } catch (err) {
+                      fx.error();
+                      alert("Batch return failed: " + (err instanceof Error ? err.message : String(err)));
+                    } finally {
+                      setBulkSigning(false);
+                      setBulkScores({});
+                      setBulkMode(false);
+                      await load();
+                    }
+                  }}
+                />
+              ) : (
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {pending.map(obs => (
+                    <ObservationCard
+                      key={obs.id}
+                      obs={obs}
+                      isPro={isPro}
+                      onAiGateTrigger={() => setAiPaywall(true)}
+                      isExpanded={expanded === obs.id}
+                      onToggle={() => setExpanded(expanded === obs.id ? null : obs.id)}
+                      isSubmitting={submitting === obs.id}
+                      onSign={(payload) => act(obs.id, "sign", payload)}
+                      onReturnRequest={() => { setReturnReasonFor(obs.id); setReturnReason(""); }}
+                      returnOpen={returnReasonFor === obs.id}
+                      returnReason={returnReason}
+                      onReturnReasonChange={setReturnReason}
+                      onReturnSubmit={() => act(obs.id, "return", { reason: returnReason })}
+                      onReturnCancel={() => { setReturnReasonFor(null); setReturnReason(""); }}
+                    />
+                  ))}
+                </div>
+              )}
+            </section>
+          )}
+
+          {recent.length > 0 && (
+            <section>
+              <div style={{
+                fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+                letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 12,
+              }}>
+                Recently signed
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                {recent.map(obs => (
+                  <div key={obs.id} style={{
+                    padding: "10px 14px",
+                    background: "var(--bg-1)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    display: "flex", alignItems: "center", gap: 10, justifyContent: "space-between",
+                    fontSize: 13,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+                      <EpaStatusBadge status={obs.status as EpaStatus} size="sm" />
+                      <span style={{ color: "var(--text-2)", fontWeight: 500 }}>{obs.epaId}</span>
+                      <span style={{ color: "var(--text-3)" }}>·</span>
+                      <span style={{ color: "var(--text-2)", minWidth: 0, textOverflow: "ellipsis", overflow: "hidden", whiteSpace: "nowrap" }}>
+                        {obs.user.name || obs.user.email}
+                      </span>
+                    </div>
+                    <span style={{ color: "var(--text-3)", fontSize: 11, flexShrink: 0 }}>
+                      {obs.signedAt ? formatDate(obs.signedAt) : formatDay(obs.observationDate)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          )}
+        </>
+      )}
+
+      <PaywallModal
+        open={bulkPaywall}
+        onClose={() => setBulkPaywall(false)}
+        feature="bulkSignoff"
+        headline="Sign off a whole queue in minutes"
+        body="Bulk mode lets you pick an entrustment score for every pending EPA and sign them all at once. Save an hour a week."
+      />
+      <PaywallModal
+        open={aiPaywall}
+        onClose={() => setAiPaywall(false)}
+        feature="aiOscore"
+        headline="AI O-score suggestions"
+        body="A calibrated entrustment-score recommendation for every observation, based on the case context and the resident's self-assessment."
+      />
+    </div>
+  );
+}
+
+interface SignPayload {
+  entrustmentScore?: number;
+  achievement?: "NOT_ACHIEVED" | "ACHIEVED";
+  strengthsNotes?: string;
+  improvementNotes?: string;
+  safetyConcern?: boolean;
+  professionalismConcern?: boolean;
+  concernDetails?: string;
+}
+
+interface CardProps {
+  obs: Observation;
+  isPro: boolean;
+  onAiGateTrigger: () => void;
+  isExpanded: boolean;
+  onToggle: () => void;
+  isSubmitting: boolean;
+  onSign: (payload: SignPayload) => void;
+  onReturnRequest: () => void;
+  returnOpen: boolean;
+  returnReason: string;
+  onReturnReasonChange: (v: string) => void;
+  onReturnSubmit: () => void;
+  onReturnCancel: () => void;
+}
+
+interface AiSuggestion {
+  score: 1 | 2 | 3 | 4 | 5;
+  confidence: "low" | "medium" | "high";
+  reasoning: string;
+  engine?: "ai" | "fallback";
+}
+
+function ObservationCard({
+  obs, isPro, onAiGateTrigger, isExpanded, onToggle, isSubmitting,
+  onSign, onReturnRequest, returnOpen, returnReason,
+  onReturnReasonChange, onReturnSubmit, onReturnCancel,
+}: CardProps) {
+  // Attending's editable grading — defaults to resident's self-assessment.
+  const [score, setScore] = useState<number | null>(obs.entrustmentScore ?? null);
+  const [achievement, setAchievement] = useState<"NOT_ACHIEVED" | "ACHIEVED">(
+    (obs.achievement as "NOT_ACHIEVED" | "ACHIEVED") ?? "ACHIEVED",
+  );
+  const [strengths, setStrengths] = useState(obs.strengthsNotes ?? "");
+  const [improvements, setImprovements] = useState(obs.improvementNotes ?? "");
+  const [safety, setSafety] = useState(obs.safetyConcern);
+  const [professionalism, setProfessionalism] = useState(obs.professionalismConcern);
+  const [concernDetails, setConcernDetails] = useState(obs.concernDetails ?? "");
+  // AI O-score suggestion — loaded on demand when attending clicks the chip.
+  const [aiSuggestion, setAiSuggestion] = useState<AiSuggestion | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+
+  const handleAiSuggest = async () => {
+    if (!isPro) { onAiGateTrigger(); return; }
+    if (aiLoading) return;
+    setAiLoading(true);
+    try {
+      const res = await fetch("/api/epa/oscore-suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ observationId: obs.id }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as AiSuggestion;
+        setAiSuggestion(data);
+      }
+    } catch (err) {
+      console.warn("AI suggest failed", err);
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleSign = () => {
+    onSign({
+      entrustmentScore: score ?? undefined,
+      achievement,
+      strengthsNotes: strengths.trim() || undefined,
+      improvementNotes: improvements.trim() || undefined,
+      safetyConcern: safety,
+      professionalismConcern: professionalism,
+      concernDetails: (safety || professionalism) && concernDetails.trim()
+        ? concernDetails.trim() : undefined,
+    });
+  };
+
+  return (
+    <div style={{
+      background: "var(--bg-1)",
+      border: "1px solid var(--border-mid)",
+      borderRadius: 10,
+      overflow: "hidden",
+    }}>
+      <button
+        onClick={onToggle}
+        style={{
+          display: "flex", alignItems: "center", gap: 12,
+          width: "100%", padding: "14px 16px",
+          background: "none", border: "none",
+          textAlign: "left", cursor: "pointer",
+          color: "var(--text)", fontFamily: "inherit",
+        }}
+      >
+        <div style={{
+          width: 36, height: 36, borderRadius: 8,
+          background: "rgba(59,130,246,.12)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+          color: "#3b82f6", flexShrink: 0,
+        }}>
+          <Stethoscope size={16} />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{
+              fontSize: 10, fontWeight: 600, padding: "1px 6px", borderRadius: 3,
+              background: "rgba(14,165,233,.12)", color: "#0ea5e9",
+              fontFamily: "var(--font-mono)",
+            }}>
+              {obs.epaId}
+            </span>
+            <span style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+              {obs.epaTitle}
+            </span>
+          </div>
+          <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+            {obs.user.name || obs.user.email}
+            {obs.caseLog ? ` · ${obs.caseLog.procedureName}` : ""}
+            {" · "}
+            <Clock size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
+            {formatDay(obs.observationDate)}
+          </div>
+        </div>
+        {obs.entrustmentScore && (
+          <div style={{
+            fontSize: 11, color: "var(--text-3)",
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1', flexShrink: 0,
+          }}>
+            Self: {obs.entrustmentScore}/5
+          </div>
+        )}
+      </button>
+
+      {isExpanded && (
+        <div style={{ padding: "0 16px 16px", borderTop: "1px solid var(--border)" }}>
+          {/* ── Resident's submission (read-only) ─────────────────────── */}
+          <div style={{ paddingTop: 14 }}>
+            <SectionHeader>Resident's submission</SectionHeader>
+            <div style={{ display: "grid", gap: 10, fontSize: 13 }}>
+              {obs.caseLog && (
+                <Row label="Case">
+                  {obs.caseLog.procedureName} · {obs.caseLog.surgicalApproach}
+                  {" · "}{formatDay(obs.caseLog.caseDate)}
+                </Row>
+              )}
+              {obs.setting && <Row label="Setting">{obs.setting}</Row>}
+              {obs.complexity && <Row label="Complexity">{obs.complexity}</Row>}
+              {obs.entrustmentScore && (
+                <Row label="Self-assessment">
+                  <span style={{
+                    fontSize: 11, fontWeight: 600,
+                    color: ENTRUSTMENT_COLORS[obs.entrustmentScore],
+                    background: `${ENTRUSTMENT_COLORS[obs.entrustmentScore]}15`,
+                    padding: "2px 8px", borderRadius: 4,
+                    fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                  }}>
+                    O-{obs.entrustmentScore} · {ENTRUSTMENT_LABELS[obs.entrustmentScore]}
+                  </span>
+                </Row>
+              )}
+              {obs.observationNotes && (
+                <Row label="Notes">
+                  <span style={{ whiteSpace: "pre-wrap" }}>{obs.observationNotes}</span>
+                </Row>
+              )}
+            </div>
+          </div>
+
+          {/* ── Attending's assessment (editable) ─────────────────────── */}
+          {!returnOpen && (
+            <div style={{ marginTop: 18 }}>
+              <SectionHeader>Your assessment</SectionHeader>
+
+              {/* O-score selector */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", justifyContent: "space-between",
+                  marginBottom: 6,
+                }}>
+                  <FieldLabel>Entrustment score (O-score)</FieldLabel>
+                  <button
+                    type="button"
+                    onClick={handleAiSuggest}
+                    disabled={aiLoading}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 4,
+                      padding: "3px 8px", borderRadius: 5,
+                      background: "rgba(59,130,246,.08)",
+                      border: "1px solid rgba(59,130,246,.35)",
+                      color: "var(--primary)",
+                      fontSize: 10, fontWeight: 600, fontFamily: "inherit",
+                      cursor: aiLoading ? "wait" : "pointer",
+                      opacity: aiLoading ? 0.7 : 1,
+                    }}
+                    title="Get an AI entrustment recommendation"
+                  >
+                    {aiLoading ? (
+                      <Loader2 size={10} className="animate-spin" />
+                    ) : (
+                      <Sparkles size={10} />
+                    )}
+                    {aiLoading ? "Thinking…" : "AI suggest"}
+                  </button>
+                </div>
+                {aiSuggestion && (
+                  <div style={{
+                    marginBottom: 8, padding: "8px 10px",
+                    borderRadius: 6,
+                    background: "rgba(59,130,246,.07)",
+                    border: "1px solid rgba(59,130,246,.28)",
+                    fontSize: 12, color: "var(--text-2)", lineHeight: 1.45,
+                  }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 3 }}>
+                      <Sparkles size={11} style={{ color: "var(--primary)" }} />
+                      <span style={{ fontWeight: 600, color: "var(--text)" }}>
+                        Suggested O-{aiSuggestion.score}
+                      </span>
+                      <span style={{ fontSize: 10, color: "var(--text-3)" }}>
+                        · {aiSuggestion.confidence} confidence
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setScore(aiSuggestion.score)}
+                        style={{
+                          marginLeft: "auto",
+                          padding: "2px 8px", borderRadius: 4,
+                          background: "var(--primary-solid)", border: "none",
+                          color: "#fff", fontSize: 10, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        Use
+                      </button>
+                    </div>
+                    <div style={{ color: "var(--text-3)", fontSize: 11 }}>
+                      {aiSuggestion.reasoning}
+                    </div>
+                  </div>
+                )}
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {[1, 2, 3, 4, 5].map(n => {
+                    const selected = score === n;
+                    return (
+                      <button
+                        key={n}
+                        type="button"
+                        onClick={() => setScore(n)}
+                        style={{
+                          flex: 1, minWidth: 84,
+                          padding: "8px 10px",
+                          borderRadius: 6,
+                          border: selected
+                            ? `1px solid ${ENTRUSTMENT_COLORS[n]}`
+                            : "1px solid var(--border-mid)",
+                          background: selected
+                            ? `${ENTRUSTMENT_COLORS[n]}20`
+                            : "var(--surface2)",
+                          color: selected ? ENTRUSTMENT_COLORS[n] : "var(--text-2)",
+                          fontSize: 11, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                          display: "flex", flexDirection: "column", alignItems: "center", gap: 2,
+                        }}
+                      >
+                        <span style={{ fontSize: 14, fontWeight: 600 }}>{n}</span>
+                        <span style={{ fontSize: 10, opacity: .85 }}>{ENTRUSTMENT_LABELS[n]}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Achievement */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Achievement</FieldLabel>
+                <div style={{ display: "flex", gap: 6 }}>
+                  {(["ACHIEVED", "NOT_ACHIEVED"] as const).map(val => {
+                    const selected = achievement === val;
+                    const color = val === "ACHIEVED" ? "#10b981" : "var(--text-2)";
+                    return (
+                      <button
+                        key={val}
+                        type="button"
+                        onClick={() => setAchievement(val)}
+                        style={{
+                          flex: 1,
+                          padding: "8px 12px", borderRadius: 6,
+                          border: selected ? `1px solid ${color}` : "1px solid var(--border-mid)",
+                          background: selected ? `${color}20` : "var(--surface2)",
+                          color: selected ? color : "var(--text-2)",
+                          fontSize: 12, fontWeight: 600,
+                          cursor: "pointer", fontFamily: "inherit",
+                        }}
+                      >
+                        {val === "ACHIEVED" ? "Achieved" : "Not yet"}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Strengths */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Strengths <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <textarea
+                  value={strengths}
+                  onChange={e => setStrengths(e.target.value)}
+                  rows={2}
+                  placeholder="What did the resident do well?"
+                  style={TEXTAREA_STYLE}
+                />
+              </div>
+
+              {/* Improvements */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>For improvement <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <textarea
+                  value={improvements}
+                  onChange={e => setImprovements(e.target.value)}
+                  rows={2}
+                  placeholder="What could be better next time?"
+                  style={TEXTAREA_STYLE}
+                />
+              </div>
+
+              {/* Concerns */}
+              <div style={{ marginBottom: 14 }}>
+                <FieldLabel>Flag a concern <span style={{ color: "var(--text-3)", fontWeight: 400 }}>(optional)</span></FieldLabel>
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <label style={CHECKBOX_LABEL}>
+                    <input type="checkbox" checked={safety} onChange={e => setSafety(e.target.checked)} />
+                    <AlertTriangle size={12} style={{ color: "#f59e0b" }} />
+                    Patient safety
+                  </label>
+                  <label style={CHECKBOX_LABEL}>
+                    <input type="checkbox" checked={professionalism} onChange={e => setProfessionalism(e.target.checked)} />
+                    <AlertTriangle size={12} style={{ color: "#f59e0b" }} />
+                    Professionalism
+                  </label>
+                </div>
+                {(safety || professionalism) && (
+                  <textarea
+                    value={concernDetails}
+                    onChange={e => setConcernDetails(e.target.value)}
+                    rows={2}
+                    placeholder="Please describe the concern (required when flagging)."
+                    style={TEXTAREA_STYLE}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
+          {returnOpen ? (
+            <div style={{ marginTop: 14 }}>
+              <textarea
+                placeholder="Why are you returning this? (shared with the resident)"
+                value={returnReason}
+                onChange={e => onReturnReasonChange(e.target.value)}
+                rows={3}
+                style={{
+                  width: "100%", padding: "8px 10px",
+                  background: "var(--surface2)",
+                  border: "1px solid var(--border-mid)",
+                  borderRadius: 6, color: "var(--text)",
+                  fontSize: 13, fontFamily: "inherit", resize: "vertical",
+                }}
+              />
+              <div style={{ display: "flex", gap: 8, marginTop: 8, justifyContent: "flex-end" }}>
+                <button onClick={onReturnCancel} style={BTN_SECONDARY}>Cancel</button>
+                <button
+                  disabled={!returnReason.trim() || isSubmitting}
+                  onClick={onReturnSubmit}
+                  style={{
+                    ...BTN_PRIMARY,
+                    background: "#f59e0b",
+                    opacity: !returnReason.trim() || isSubmitting ? .6 : 1,
+                  }}
+                >
+                  {isSubmitting ? "Returning…" : "Send back to resident"}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div style={{ display: "flex", gap: 8, marginTop: 14, justifyContent: "flex-end" }}>
+              <button onClick={onReturnRequest} style={BTN_SECONDARY} disabled={isSubmitting}>
+                <RotateCcw size={13} /> Return
+              </button>
+              <button
+                onClick={handleSign}
+                style={{
+                  ...BTN_PRIMARY,
+                  opacity: (!score || ((safety || professionalism) && !concernDetails.trim()) || isSubmitting) ? .6 : 1,
+                }}
+                disabled={!score || ((safety || professionalism) && !concernDetails.trim()) || isSubmitting}
+                title={!score ? "Select an entrustment score to sign" : undefined}
+              >
+                <CheckCircle2 size={14} />
+                {isSubmitting ? "Signing…" : "Sign off"}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Row({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: "110px 1fr", gap: 10, alignItems: "start" }}>
+      <span style={{ fontSize: 11, color: "var(--text-3)", textTransform: "uppercase", letterSpacing: "0.06em", paddingTop: 2, fontWeight: 600 }}>{label}</span>
+      <span style={{ color: "var(--text-2)", lineHeight: 1.5 }}>{children}</span>
+    </div>
+  );
+}
+
+function SectionHeader({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 600, textTransform: "uppercase",
+      letterSpacing: "0.06em", color: "var(--text-3)", marginBottom: 10,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+function FieldLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <div style={{
+      fontSize: 11, fontWeight: 600, color: "var(--text-2)", marginBottom: 6,
+    }}>
+      {children}
+    </div>
+  );
+}
+
+const TEXTAREA_STYLE: React.CSSProperties = {
+  width: "100%", padding: "8px 10px",
+  background: "var(--surface2)",
+  border: "1px solid var(--border-mid)",
+  borderRadius: 6, color: "var(--text)",
+  fontSize: 13, fontFamily: "inherit", resize: "vertical",
+};
+
+const CHECKBOX_LABEL: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  padding: "6px 10px",
+  background: "var(--surface2)",
+  border: "1px solid var(--border-mid)",
+  borderRadius: 6,
+  fontSize: 12, color: "var(--text-2)", cursor: "pointer",
+};
+
+function SummaryTile({
+  icon, label, value, accentColor, onClick, href,
+}: {
+  icon: React.ReactNode;
+  label: string;
+  value: number;
+  accentColor: string;
+  onClick?: () => void;
+  href?: string;
+}) {
+  const content = (
+    <>
+      <div style={{
+        display: "flex", alignItems: "center", justifyContent: "space-between",
+        marginBottom: 8,
+      }}>
+        <span style={{ color: accentColor }}>{icon}</span>
+        <span style={{
+          fontSize: 22, fontWeight: 600,
+          fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+          color: accentColor === "var(--text-3)" ? "var(--text)" : accentColor,
+          lineHeight: 1,
+        }}>
+          {value}
+        </span>
+      </div>
+      <div style={{
+        fontSize: 11, fontWeight: 500, color: "var(--text-3)",
+        lineHeight: 1.35,
+      }}>
+        {label}
+      </div>
+    </>
+  );
+  const baseStyle: React.CSSProperties = {
+    display: "block", textAlign: "left",
+    padding: "12px 14px",
+    background: "var(--surface)",
+    border: "1px solid var(--border)",
+    borderRadius: 10,
+    cursor: "pointer",
+    fontFamily: "inherit",
+    textDecoration: "none",
+    width: "100%",
+    transition: "border-color .15s, transform .1s",
+  };
+  if (href) {
+    return (
+      <Link href={href} style={baseStyle}>
+        {content}
+      </Link>
+    );
+  }
+  return (
+    <button type="button" onClick={onClick} style={baseStyle}>
+      {content}
+    </button>
+  );
+}
+
+const BTN_PRIMARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  padding: "8px 14px",
+  background: "var(--primary, #3b82f6)",
+  color: "#fff", border: "none", borderRadius: 6,
+  fontSize: 13, fontWeight: 600, cursor: "pointer",
+  fontFamily: "inherit",
+};
+const BTN_SECONDARY: React.CSSProperties = {
+  display: "inline-flex", alignItems: "center", gap: 6,
+  padding: "8px 14px",
+  background: "var(--surface2)",
+  color: "var(--text-2)",
+  border: "1px solid var(--border-mid)",
+  borderRadius: 6,
+  fontSize: 13, fontWeight: 500, cursor: "pointer",
+  fontFamily: "inherit",
+};
+
+// ─── Bulk sign-off queue ──────────────────────────────────────────────────
+// Pro-only fast lane for attendings with a backlog. Shows every pending EPA
+// in a compact row, each with a 1-5 pill strip. Attending clicks through the
+// queue, then "Sign all N" submits them serially.
+//
+// Only ACHIEVED, no-concern sign-offs are permitted from bulk mode — anything
+// that needs narrative feedback should be signed from the full review card.
+
+interface BulkQueueProps {
+  pending: Observation[];
+  scores: Record<string, number>;
+  onScore: (id: string, score: number) => void;
+  signing: boolean;
+  onSignAll: () => void;
+  onReturnAll: (reason: string) => void;
+}
+
+function BulkQueue({ pending, scores, onScore, signing, onSignAll, onReturnAll }: BulkQueueProps) {
+  const [returnMode, setReturnMode] = useState(false);
+  const [returnReasonAll, setReturnReasonAll] = useState("");
+  const [residentFilter, setResidentFilter] = useState<string>("all");
+
+  // Unique list of residents in the pending queue — powers the filter.
+  // Keys by userId so we don't dedupe away two residents named "J. Smith".
+  const residents = useMemo(() => {
+    const map = new Map<string, { id: string; label: string }>();
+    for (const obs of pending) {
+      if (!map.has(obs.user.id)) {
+        map.set(obs.user.id, { id: obs.user.id, label: obs.user.name || obs.user.email });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.label.localeCompare(b.label));
+  }, [pending]);
+
+  const visible = useMemo(() => {
+    if (residentFilter === "all") return pending;
+    return pending.filter(o => o.user.id === residentFilter);
+  }, [pending, residentFilter]);
+
+  const visibleIds = useMemo(() => new Set(visible.map(v => v.id)), [visible]);
+  const visibleReadyCount = visible.filter(o => scores[o.id]).length;
+  // readyCount is still global — the "Sign all N" button signs every
+  // scored EPA, even ones not currently visible. That's intentional:
+  // scoring persists across filter toggles so attendings can score
+  // Dr. Smith's then Dr. Jones's then sign the whole batch.
+  const readyCount = pending.filter(o => scores[o.id]).length;
+
+  // Helper — set score on every observation that doesn't yet have one,
+  // within the current filter. If everything's already scored, this
+  // overwrites (common: PD wants to set everyone to 4).
+  const setAllTo = (score: number) => {
+    for (const obs of visible) {
+      onScore(obs.id, score);
+    }
+  };
+
+  // Helper — clear all scores (for the current filter only, so you can
+  // re-pick without wiping other residents' progress).
+  const clearAll = () => {
+    for (const obs of visible) {
+      // Setting to 0 is semantically "not scored" since the picker uses 1-5.
+      onScore(obs.id, 0 as unknown as number);
+    }
+  };
+
+  return (
+    <div style={{
+      padding: "10px 12px",
+      background: "var(--bg-1)",
+      border: "1px solid var(--border-mid)",
+      borderRadius: 10,
+    }}>
+      <div style={{
+        display: "flex", alignItems: "center", gap: 6,
+        padding: "4px 0 10px",
+        fontSize: 11, color: "var(--text-3)",
+      }}>
+        <Zap size={12} style={{ color: "var(--primary)" }} />
+        <span>Pick an O-score for each. Signs as <strong>Achieved</strong>, no concerns flagged.</span>
+      </div>
+
+      {/* Bulk actions: filter by resident + set-all shortcuts. These save
+          PDs with 70+ pending EPAs from scoring every one individually. */}
+      {pending.length > 3 && (
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: 8,
+          flexWrap: "wrap",
+          paddingBottom: 10,
+          marginBottom: 10,
+          borderBottom: "1px solid var(--border)",
+        }}>
+          {residents.length > 1 && (
+            <select
+              value={residentFilter}
+              onChange={(e) => setResidentFilter(e.target.value)}
+              disabled={signing}
+              className="st-input"
+              style={{
+                fontSize: 11,
+                padding: "6px 24px 6px 8px",
+                width: "auto",
+                minWidth: 140,
+              }}
+            >
+              <option value="all">All residents ({pending.length})</option>
+              {residents.map(r => {
+                const count = pending.filter(o => o.user.id === r.id).length;
+                return (
+                  <option key={r.id} value={r.id}>{r.label} ({count})</option>
+                );
+              })}
+            </select>
+          )}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 4,
+            fontSize: 10, color: "var(--text-3)",
+          }}>
+            <span>Set all to:</span>
+            {[1, 2, 3, 4, 5].map(n => (
+              <button
+                key={n}
+                type="button"
+                onClick={() => setAllTo(n)}
+                disabled={signing}
+                className="press"
+                title={`Set all ${visible.length} visible to O-${n}`}
+                style={{
+                  width: 24, height: 24, borderRadius: 4,
+                  border: `1px solid ${ENTRUSTMENT_COLORS[n]}40`,
+                  background: `${ENTRUSTMENT_COLORS[n]}15`,
+                  color: ENTRUSTMENT_COLORS[n],
+                  fontSize: 11, fontWeight: 600,
+                  cursor: signing ? "wait" : "pointer",
+                  fontFamily: "inherit",
+                }}
+              >
+                {n}
+              </button>
+            ))}
+            <button
+              type="button"
+              onClick={clearAll}
+              disabled={signing}
+              className="press"
+              style={{
+                background: "transparent",
+                border: "none",
+                color: "var(--text-3)",
+                fontSize: 10,
+                padding: "4px 6px",
+                cursor: signing ? "wait" : "pointer",
+                fontFamily: "inherit",
+                textDecoration: "underline",
+              }}
+            >
+              Clear
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+        {visible.map(obs => {
+          const picked = scores[obs.id];
+          return (
+            <div
+              key={obs.id}
+              style={{
+                display: "flex", alignItems: "center", gap: 8,
+                padding: "8px 10px",
+                background: picked ? "rgba(34,197,94,.06)" : "var(--surface)",
+                border: picked
+                  ? "1px solid rgba(34,197,94,.35)"
+                  : "1px solid var(--border)",
+                borderRadius: 8,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{
+                  display: "flex", alignItems: "center", gap: 6,
+                  fontSize: 12,
+                }}>
+                  <span style={{
+                    fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 3,
+                    fontFamily: "var(--font-mono)",
+                    background: "rgba(14,165,233,.12)", color: "#0ea5e9",
+                  }}>
+                    {obs.epaId}
+                  </span>
+                  <span style={{
+                    color: "var(--text)", fontWeight: 600,
+                    overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                  }}>
+                    {obs.epaTitle}
+                  </span>
+                </div>
+                <div style={{ fontSize: 10.5, color: "var(--text-3)", marginTop: 1 }}>
+                  {obs.user.name || obs.user.email}
+                  {obs.caseLog ? ` · ${obs.caseLog.procedureName}` : ""}
+                  {obs.entrustmentScore ? ` · self: ${obs.entrustmentScore}/5` : ""}
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: 3, flexShrink: 0 }}>
+                {[1, 2, 3, 4, 5].map(n => {
+                  const selected = picked === n;
+                  return (
+                    <button
+                      key={n}
+                      type="button"
+                      onClick={() => onScore(obs.id, n)}
+                      disabled={signing}
+                      style={{
+                        width: 26, height: 26, borderRadius: 5,
+                        border: selected
+                          ? `1px solid ${ENTRUSTMENT_COLORS[n]}`
+                          : "1px solid var(--border-mid)",
+                        background: selected
+                          ? `${ENTRUSTMENT_COLORS[n]}22`
+                          : "var(--surface2)",
+                        color: selected ? ENTRUSTMENT_COLORS[n] : "var(--text-3)",
+                        fontSize: 11, fontWeight: 600,
+                        cursor: signing ? "wait" : "pointer",
+                        fontFamily: "inherit",
+                      }}
+                    >
+                      {n}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <div style={{
+        marginTop: 12, paddingTop: 10,
+        borderTop: "1px solid var(--border)",
+      }}>
+        {returnMode ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+              Return {readyCount} selected EPA{readyCount === 1 ? "" : "s"} to residents with shared feedback.
+            </div>
+            <textarea
+              value={returnReasonAll}
+              onChange={e => setReturnReasonAll(e.target.value)}
+              placeholder="Reason for return — this message goes to every selected resident."
+              rows={3}
+              disabled={signing}
+              className="st-input"
+              style={{ resize: "vertical", minHeight: 68 }}
+            />
+            <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+              <button
+                type="button"
+                onClick={() => { setReturnMode(false); setReturnReasonAll(""); }}
+                disabled={signing}
+                className="st-btn st-btn-secondary st-btn-sm"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => onReturnAll(returnReasonAll)}
+                disabled={readyCount === 0 || signing || !returnReasonAll.trim()}
+                style={{
+                  ...BTN_PRIMARY,
+                  background: "#f59e0b",
+                  opacity: readyCount === 0 || signing || !returnReasonAll.trim() ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing || !returnReasonAll.trim() ? "not-allowed" : "pointer",
+                }}
+              >
+                {signing
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <RotateCcw size={13} />}
+                {signing ? `Returning ${readyCount}…` : `Return ${readyCount}`}
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+            <div style={{ fontSize: 11, color: "var(--text-3)" }}>
+              {readyCount} of {pending.length} selected
+            </div>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button
+                type="button"
+                onClick={() => setReturnMode(true)}
+                disabled={readyCount === 0 || signing}
+                className="st-btn st-btn-secondary st-btn-sm"
+                style={{
+                  opacity: readyCount === 0 || signing ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
+                }}
+              >
+                <RotateCcw size={12} />
+                Return {readyCount || ""}
+              </button>
+              <button
+                onClick={onSignAll}
+                disabled={readyCount === 0 || signing}
+                style={{
+                  ...BTN_PRIMARY,
+                  opacity: readyCount === 0 || signing ? 0.55 : 1,
+                  cursor: readyCount === 0 || signing ? "not-allowed" : "pointer",
+                }}
+              >
+                {signing
+                  ? <Loader2 size={13} className="animate-spin" />
+                  : <CheckCircle2 size={13} />}
+                {signing
+                  ? `Signing ${readyCount}…`
+                  : readyCount > 0
+                    ? `Sign all ${readyCount}`
+                    : "Pick scores to sign"}
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

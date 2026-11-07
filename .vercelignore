@@ -1,0 +1,25 @@
+# Vercel deploys the Next.js web app only — the mobile/ subtree is a
+# separate Expo React Native project with its own build toolchain. In
+# particular, mobile/ios/ contains ~30K CocoaPods files on the
+# developer's machine after running `expo prebuild`, which pushes the
+# upload past Vercel's 15K file limit.
+#
+# None of this is needed server-side. Keeping the mobile source tree
+# in git is useful for history + review; excluding it from Vercel
+# uploads is hygiene.
+
+mobile/
+
+# Local-only build caches that shouldn't leak into deploys.
+.next/
+.turbo/
+coverage/
+.DS_Store
+
+# Tests aren't deployed, but if we ever add them they don't need to
+# ride along to Vercel.
+**/__tests__/
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx

@@ -1,0 +1,431 @@
+// ---------------------------------------------------------------------------
+// Email sending utility — uses Resend.
+//
+// IMPORTANT: the Resend client is lazy-initialised. Previously this module
+// called `new Resend(process.env.RESEND_API_KEY)` at module-load time,
+// which crashed Vercel's page-data collection step when the env var wasn't
+// yet available (Next.js 16 evaluates every imported module during build).
+// A single route importing this file would fail the whole build with
+// "Missing API key. Pass it to the constructor new Resend('re_123')".
+//
+// The lazy getter means callers get a clean null when unconfigured —
+// sendEmail() already treated that as "skip", so the switch is drop-in.
+// ---------------------------------------------------------------------------
+
+import { doctorName } from '@/lib/names';
+import { Resend } from "resend";
+
+let _resend: Resend | null = null;
+function getResendClient(): Resend | null {
+  const key = process.env.RESEND_API_KEY;
+  if (!key) return null;
+  if (!_resend) _resend = new Resend(key);
+  return _resend;
+}
+
+const FROM_ADDRESS =
+  process.env.EMAIL_FROM ?? "Hippo <noreply@hippomedicine.com>";
+
+export interface SendEmailOptions {
+  to: string;
+  subject: string;
+  html: string;
+  text?: string;
+}
+
+/**
+ * Structured send result. `ok: false` always carries a human-readable
+ * `reason` so callers that need to explain a failure (e.g. the EPA submit
+ * route surfacing "we could not email Dr. X") don't have to re-derive it.
+ *
+ * Callers that only care about pass/fail should destructure `{ ok }` rather
+ * than treating the whole return value as a boolean — this is an object now,
+ * not a primitive, so `if (result)` is always true regardless of `ok`.
+ */
+export type SendEmailResult = { ok: true } | { ok: false; reason: string };
+
+/** Redacts everything before the "@" so logs never contain a full address. */
+function domainOf(email: string): string {
+  const at = email.lastIndexOf("@");
+  return at === -1 ? "unknown" : email.slice(at + 1);
+}
+
+/**
+ * Send an email via Resend.
+ * Returns a structured result — never throws.
+ */
+export async function sendEmail(opts: SendEmailOptions): Promise<SendEmailResult> {
+  const resend = getResendClient();
+  if (!resend) {
+    console.warn("[email] RESEND_API_KEY not set — skipping email send");
+    return { ok: false, reason: "Email is not configured on this server." };
+  }
+
+  try {
+    const { error } = await resend.emails.send({
+      from: FROM_ADDRESS,
+      to: opts.to,
+      subject: opts.subject,
+      html: opts.html,
+      ...(opts.text ? { text: opts.text } : {}),
+    });
+
+    if (error) {
+      console.error(`[email] Resend error sending to @${domainOf(opts.to)}:`, error);
+      return { ok: false, reason: error.message || "The email provider rejected the message." };
+    }
+
+    console.log(`[email] Sent to ${opts.to}: ${opts.subject}`);
+    return { ok: true };
+  } catch (err) {
+    console.error(`[email] Send failed for @${domainOf(opts.to)}:`, err);
+    return {
+      ok: false,
+      reason: err instanceof Error ? err.message : "Unknown email send failure.",
+    };
+  }
+}
+
+// ---------------------------------------------------------------------------
+// EPA review notification email
+// ---------------------------------------------------------------------------
+
+export interface EpaReviewEmailData {
+  assessorName: string;
+  assessorEmail: string;
+  residentName: string;
+  epaId: string;
+  epaTitle: string;
+  procedureName: string;
+  caseDate: string;
+  reviewUrl: string;
+  /** Set when the attending is already a Hippo user — link to their in-app inbox. */
+  inAppUrl?: string;
+  isHippoUser?: boolean;
+}
+
+export function buildEpaReviewEmail(data: EpaReviewEmailData): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const subject = `EPA Sign-off Request: ${data.epaId} — ${data.procedureName}`;
+
+  const text = `Hi ${doctorName(data.assessorName, 'Doctor')},
+
+${data.residentName} is requesting your sign-off on an EPA observation.
+
+EPA: ${data.epaId} — ${data.epaTitle}
+Procedure: ${data.procedureName}
+Date: ${data.caseDate}
+
+${data.isHippoUser && data.inAppUrl
+  ? `Sign off in the app: ${data.inAppUrl}
+Or use this public link (no login needed): ${data.reviewUrl}`
+  : `Please review and sign off here: ${data.reviewUrl}
+
+This link does not require a login. It stays valid for 12 months.`}
+
+— Hippo (hippomedicine.com)`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <!-- Header -->
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">
+        🦛 Hippo
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">EPA Sign-off Request</div>
+    </div>
+
+    <!-- Card -->
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">
+        Hi ${escapeHtml(doctorName(data.assessorName, 'Doctor'))},
+      </p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(data.residentName)}</strong> is requesting your sign-off on an EPA observation.
+      </p>
+
+      <!-- EPA details -->
+      <div style="background:#0e1520;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+          <span style="font-size:11px;font-weight:700;color:#0ea5e9;background:rgba(14,165,233,0.12);padding:2px 8px;border-radius:4px;font-family:monospace;">
+            ${escapeHtml(data.epaId)}
+          </span>
+          <span style="font-size:13px;font-weight:600;color:#e2e8f0;">${escapeHtml(data.epaTitle)}</span>
+        </div>
+        <div style="font-size:13px;color:#94a3b8;line-height:1.5;">
+          <strong>Procedure:</strong> ${escapeHtml(data.procedureName)}<br>
+          <strong>Date:</strong> ${escapeHtml(data.caseDate)}
+        </div>
+      </div>
+
+      ${data.isHippoUser && data.inAppUrl
+        ? `
+      <!-- Primary: in-app CTA -->
+      <a href="${escapeHtml(data.inAppUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
+        Open in Hippo &amp; Sign Off
+      </a>
+      <p style="color:#64748b;font-size:12px;text-align:center;margin:10px 0 0;line-height:1.5;">
+        You already have a Hippo account — this EPA is waiting in your Sign-Offs inbox.
+      </p>
+      <!-- Secondary: public link fallback -->
+      <a href="${escapeHtml(data.reviewUrl)}" style="display:block;text-align:center;color:#64748b;font-size:12px;margin-top:14px;text-decoration:underline;">
+        Or sign without the app
+      </a>`
+        : `
+      <!-- CTA button -->
+      <a href="${escapeHtml(data.reviewUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
+        Review &amp; Sign Off
+      </a>
+      <p style="color:#64748b;font-size:12px;text-align:center;margin:14px 0 0;line-height:1.5;">
+        No login required. This link stays valid for 12 months.<br>
+        You can review the observation, provide feedback, and sign off directly.
+      </p>`}
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">
+        Sent via <a href="https://hippomedicine.com" style="color:#64748b;">Hippo</a> — surgical education, simplified.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return { subject, html, text };
+}
+
+function escapeHtml(str: string): string {
+  return str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// ---------------------------------------------------------------------------
+// Resident-facing EPA outcome emails
+//
+// Sent to the resident when their attending has acted on an EPA submission.
+// Two variants:
+//   - VERIFIED — "your EPA was signed, here's what the attending said"
+//   - RETURNED — "your EPA needs edits, here's why"
+//
+// These complement the in-app/push notification: the resident gets an
+// email too (unless they've opted out via preferences) so something
+// important doesn't sit unread while they're post-call.
+// ---------------------------------------------------------------------------
+
+export interface EpaOutcomeEmailData {
+  residentName: string;
+  residentEmail: string;
+  assessorName: string;
+  epaId: string;
+  epaTitle: string;
+  /** Attending's comment on return; null on verification unless they added one. */
+  reason?: string | null;
+  appUrl: string;
+}
+
+export function buildEpaVerifiedEmail(data: EpaOutcomeEmailData): {
+  subject: string; html: string; text: string;
+} {
+  const subject = `EPA verified: ${data.epaId} — signed by ${data.assessorName}`;
+  const text = `Hi ${data.residentName},
+
+Good news — ${data.assessorName} signed off on your EPA observation.
+
+EPA: ${data.epaId} — ${data.epaTitle}
+
+This now counts toward your training record. Open Hippo to see the full feedback:
+${data.appUrl}
+
+— Hippo`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">🦛 Hippo</div>
+      <div style="font-size:12px;color:#10b981;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">EPA Verified</div>
+    </div>
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(data.residentName)},</p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(data.assessorName)}</strong> signed off on your EPA observation. This now counts toward your training record.
+      </p>
+      <div style="background:#0e1520;border:1px solid rgba(16,185,129,0.2);border-radius:8px;padding:16px;margin-bottom:20px;">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <span style="font-size:11px;font-weight:700;color:#10b981;background:rgba(16,185,129,0.12);padding:2px 8px;border-radius:4px;font-family:monospace;">${escapeHtml(data.epaId)}</span>
+          <span style="font-size:13px;font-weight:600;color:#e2e8f0;">${escapeHtml(data.epaTitle)}</span>
+        </div>
+      </div>
+      <a href="${escapeHtml(data.appUrl)}" style="display:block;text-align:center;background:#10b981;color:#fff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">
+        View in Hippo
+      </a>
+    </div>
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">You can turn these emails off in <a href="${escapeHtml(data.appUrl)}/settings/notifications" style="color:#64748b;">Settings → Notifications</a>.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  return { subject, html, text };
+}
+
+export function buildEpaReturnedEmail(data: EpaOutcomeEmailData): {
+  subject: string; html: string; text: string;
+} {
+  const subject = `EPA needs edits: ${data.epaId} — feedback from ${data.assessorName}`;
+  const reasonBlock = data.reason
+    ? `\nFeedback:\n${data.reason}\n`
+    : "\nThe attending asked for edits but didn't leave a specific reason.\n";
+
+  const text = `Hi ${data.residentName},
+
+${data.assessorName} returned your EPA for edits.
+
+EPA: ${data.epaId} — ${data.epaTitle}
+${reasonBlock}
+Open Hippo to revise and resubmit:
+${data.appUrl}
+
+— Hippo`;
+
+  const html = `<!DOCTYPE html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">🦛 Hippo</div>
+      <div style="font-size:12px;color:#f59e0b;margin-top:4px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;">EPA Returned for Edits</div>
+    </div>
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 16px;">Hi ${escapeHtml(data.residentName)},</p>
+      <p style="color:#94a3b8;font-size:14px;line-height:1.6;margin:0 0 20px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(data.assessorName)}</strong> returned your EPA with feedback. Open it, revise, and resubmit — nothing is lost.
+      </p>
+      <div style="background:#0e1520;border:1px solid rgba(245,158,11,0.2);border-radius:8px;padding:16px;margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:${data.reason ? "12" : "0"}px;">
+          <span style="font-size:11px;font-weight:700;color:#f59e0b;background:rgba(245,158,11,0.12);padding:2px 8px;border-radius:4px;font-family:monospace;">${escapeHtml(data.epaId)}</span>
+          <span style="font-size:13px;font-weight:600;color:#e2e8f0;">${escapeHtml(data.epaTitle)}</span>
+        </div>
+        ${data.reason ? `<div style="font-size:13px;color:#cbd5e1;line-height:1.55;padding:12px;background:rgba(245,158,11,0.05);border-left:2px solid rgba(245,158,11,0.4);border-radius:4px;white-space:pre-wrap;">${escapeHtml(data.reason)}</div>` : ""}
+      </div>
+      <a href="${escapeHtml(data.appUrl)}" style="display:block;text-align:center;background:#f59e0b;color:#0e1520;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;">
+        Revise &amp; Resubmit
+      </a>
+    </div>
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">You can turn these emails off in <a href="${escapeHtml(data.appUrl)}/settings/notifications" style="color:#64748b;">Settings → Notifications</a>.</p>
+    </div>
+  </div>
+</body></html>`;
+
+  return { subject, html, text };
+}
+
+// ---------------------------------------------------------------------------
+// Program invite email
+// ---------------------------------------------------------------------------
+
+export interface ProgramInviteEmailData {
+  recipientEmail: string;
+  inviterName: string;
+  programName: string;
+  programInstitution: string | null;
+  joinUrl: string;
+  expiresAt: Date;
+}
+
+export function buildProgramInviteEmail(data: ProgramInviteEmailData): {
+  subject: string;
+  html: string;
+  text: string;
+} {
+  const {
+    inviterName,
+    programName,
+    programInstitution,
+    joinUrl,
+    expiresAt,
+  } = data;
+
+  const expiresFmt = expiresAt.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+
+  const subject = `Join ${programName} on Hippo`;
+
+  const text = `${inviterName} invited you to join ${programName} on Hippo.
+
+${programInstitution ? `Institution: ${programInstitution}\n` : ""}
+This gives you access to the program's shared calendar — vacation dates, conferences, grand rounds, Zoom links, shared documents.
+
+Join here:
+${joinUrl}
+
+This invite expires on ${expiresFmt}. If you don't have a Hippo account yet, you'll be prompted to sign up first.
+
+— Hippo (hippomedicine.com)`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"></head>
+<body style="margin:0;padding:0;background:#0e1520;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
+  <div style="max-width:520px;margin:0 auto;padding:32px 24px;">
+    <div style="text-align:center;margin-bottom:28px;">
+      <div style="font-size:24px;font-weight:700;color:#e2e8f0;letter-spacing:-0.5px;">
+        Hippo
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:4px;">Program Invitation</div>
+    </div>
+
+    <div style="background:#141c28;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:24px;">
+      <p style="color:#cbd5e1;font-size:15px;line-height:1.6;margin:0 0 8px;">
+        <strong style="color:#e2e8f0;">${escapeHtml(inviterName)}</strong> invited you to join:
+      </p>
+
+      <div style="background:#0e1520;border:1px solid rgba(255,255,255,0.06);border-radius:8px;padding:16px;margin:14px 0 20px;">
+        <div style="font-size:16px;font-weight:600;color:#e2e8f0;margin-bottom:4px;">
+          ${escapeHtml(programName)}
+        </div>
+        ${programInstitution ? `<div style="font-size:12px;color:#94a3b8;">${escapeHtml(programInstitution)}</div>` : ""}
+      </div>
+
+      <p style="color:#94a3b8;font-size:13px;line-height:1.6;margin:0 0 20px;">
+        You'll get access to the program's shared calendar &mdash; vacation dates, grand rounds, conferences,
+        Zoom links, and shared documents.
+      </p>
+
+      <a href="${escapeHtml(joinUrl)}" style="display:block;text-align:center;background:#2563eb;color:#ffffff;font-size:14px;font-weight:600;padding:12px 24px;border-radius:8px;text-decoration:none;letter-spacing:-0.2px;">
+        Accept Invitation
+      </a>
+
+      <p style="color:#64748b;font-size:11px;text-align:center;margin:14px 0 0;line-height:1.6;">
+        Expires ${escapeHtml(expiresFmt)}. New to Hippo? You'll be prompted to sign up first.
+      </p>
+    </div>
+
+    <div style="text-align:center;margin-top:24px;">
+      <p style="color:#475569;font-size:11px;margin:0;">
+        <a href="https://hippomedicine.com" style="color:#64748b;">Hippo</a> &mdash; surgical education, simplified.
+      </p>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  return { subject, html, text };
+}

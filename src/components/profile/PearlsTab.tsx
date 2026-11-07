@@ -1,0 +1,207 @@
+"use client";
+
+import { useState } from "react";
+import { Plus, Shield, Sparkles } from "lucide-react";
+import { PearlCard } from "./PearlCard";
+import type { Pearl, PearlCategory } from "@/lib/types";
+
+const CATEGORIES: PearlCategory[] = [
+  "Anatomy Tip", "Technical Pearl", "Pitfall",
+  "Decision Point", "Equipment", "Post-Op", "Other",
+];
+
+interface Props {
+  pearls: Pearl[];
+  isOwn: boolean;
+  onLike: (id: string) => void;
+  onSave: (id: string) => void;
+  onCreate?: (data: { procedureName: string; category: string; title: string; content: string; tags: string[] }) => void;
+}
+
+export function PearlsTab({ pearls, isOwn, onLike, onSave, onCreate }: Props) {
+  const [showCreate, setShowCreate] = useState(false);
+  const [procedureName, setProcedureName] = useState("");
+  const [category, setCategory] = useState<string>("Technical Pearl");
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [tagInput, setTagInput] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  const handleCreate = async () => {
+    if (!procedureName.trim() || !title.trim() || !content.trim()) return;
+    setSaving(true);
+    const tags = tagInput.split(",").map((t) => t.trim()).filter(Boolean);
+    onCreate?.({ procedureName: procedureName.trim(), category, title: title.trim(), content: content.trim(), tags });
+    setSaving(false);
+    setShowCreate(false);
+    setProcedureName("");
+    setTitle("");
+    setContent("");
+    setTagInput("");
+  };
+
+  return (
+    <div>
+      {/* Pearl list */}
+      {pearls.map((pearl) => (
+        <PearlCard key={pearl.id} pearl={pearl} onLike={onLike} onSave={onSave} />
+      ))}
+
+      {pearls.length === 0 && !showCreate && (
+        <div style={{
+          display: "flex", flexDirection: "column", alignItems: "center",
+          padding: "48px 20px 24px", textAlign: "center",
+          maxWidth: 360, margin: "0 auto",
+        }}>
+          <Sparkles size={32} strokeWidth={1.25} style={{ color: "var(--text-3)", marginBottom: 14 }} />
+          <div style={{ fontSize: 15, fontWeight: 600, color: "var(--text-2)", marginBottom: 6 }}>
+            {isOwn ? "No pearls yet" : "No pearls shared yet"}
+          </div>
+          <div style={{ fontSize: 13, color: "var(--text-3)", lineHeight: 1.5, marginBottom: isOwn ? 14 : 0 }}>
+            {isOwn
+              ? "Turn a lesson from a case into a pearl — your teaching moments, saved for others."
+              : "When this person shares a pearl it will show up here."}
+          </div>
+          {isOwn && (
+            <button
+              onClick={() => setShowCreate(true)}
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 6,
+                padding: "9px 16px",
+                background: "var(--primary-solid)", color: "#fff",
+                border: "none", borderRadius: 6,
+                fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "inherit",
+                letterSpacing: ".01em",
+              }}
+            >
+              <Plus size={13} strokeWidth={2.5} />
+              Write your first pearl
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Create button */}
+      {isOwn && !showCreate && (
+        <button
+          onClick={() => setShowCreate(true)}
+          style={{
+            width: "100%", padding: 14,
+            background: "none",
+            border: "1px dashed var(--border-mid)",
+            borderRadius: 12,
+            color: "var(--text-3)",
+            fontSize: 12, fontWeight: 500,
+            cursor: "pointer",
+            fontFamily: "var(--font-sans)",
+            display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+            transition: "all .15s",
+            marginTop: 4,
+          }}
+        >
+          <Plus size={14} /> Write a Pearl
+        </button>
+      )}
+
+      {/* Create form */}
+      {isOwn && showCreate && (
+        <div style={{
+          background: "var(--surface)",
+          border: "1px solid var(--border-mid)",
+          borderRadius: 12,
+          padding: 16,
+          marginTop: 4,
+        }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10,
+          }}>New Pearl</div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8, marginBottom: 8 }}>
+            <input
+              className="st-input"
+              type="text"
+              value={procedureName}
+              onChange={(e) => setProcedureName(e.target.value)}
+              placeholder="Procedure name"
+            />
+            <select
+              className="st-input"
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+            >
+              {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
+
+          <input
+            className="st-input"
+            type="text"
+            value={title}
+            onChange={(e) => setTitle(e.target.value)}
+            placeholder="Pearl title"
+            style={{ marginBottom: 8 }}
+          />
+
+          <textarea
+            className="st-input"
+            value={content}
+            onChange={(e) => setContent(e.target.value)}
+            placeholder="Educational content (no patient info)..."
+            style={{ marginBottom: 8, resize: "none", height: 100 }}
+          />
+
+          <input
+            className="st-input"
+            type="text"
+            value={tagInput}
+            onChange={(e) => setTagInput(e.target.value)}
+            placeholder="Tags (comma-separated)"
+            style={{ marginBottom: 8 }}
+          />
+
+          {/* PHIA notice */}
+          <div style={{
+            display: "flex", alignItems: "center", gap: 6,
+            fontSize: 10, color: "var(--text-3)",
+            marginBottom: 12,
+            padding: "6px 8px",
+            background: "rgba(16,185,129,0.04)",
+            border: "1px solid rgba(16,185,129,0.08)",
+            borderRadius: 6,
+          }}>
+            <Shield size={10} color="var(--success)" />
+            Content is auto-scrubbed for PHIA/HIPAA compliance before publishing.
+          </div>
+
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={handleCreate}
+              disabled={saving || !procedureName.trim() || !title.trim() || !content.trim()}
+              style={{
+                padding: "8px 16px", background: "var(--primary-solid)", color: "#fff",
+                border: "none", borderRadius: 6, fontSize: 12, fontWeight: 600,
+                cursor: "pointer", fontFamily: "var(--font-sans)",
+                opacity: saving || !procedureName.trim() || !title.trim() || !content.trim() ? 0.5 : 1,
+              }}
+            >
+              {saving ? "Publishing..." : "Publish Pearl"}
+            </button>
+            <button
+              onClick={() => setShowCreate(false)}
+              style={{
+                padding: "8px 16px", background: "none",
+                border: "1px solid var(--border)", color: "var(--text-3)",
+                borderRadius: 6, fontSize: 12,
+                cursor: "pointer", fontFamily: "var(--font-sans)",
+              }}
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

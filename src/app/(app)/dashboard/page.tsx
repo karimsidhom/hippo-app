@@ -1,0 +1,1259 @@
+"use client";
+
+import { doctorName } from '@/lib/names';
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { ChevronRight, Flame, ArrowUpRight, Settings, Sparkles, RotateCcw, Inbox, LayoutDashboard, AlertTriangle, Trophy, BadgeCheck, Target, type LucideIcon } from "lucide-react";
+import { useSubscription } from "@/context/SubscriptionContext";
+import { useAuth } from "@/context/AuthContext";
+import { useLinkInbox } from "@/hooks/useLinkInbox";
+import { useCases } from "@/hooks/useCases";
+import { useMilestones } from "@/hooks/useMilestones";
+import { getStreak } from "@/lib/milestones";
+import { MILESTONE_THRESHOLDS } from "@/lib/constants";
+import { getWeeklyHeatmapData } from "@/lib/stats";
+import { VolumeHeatmap } from "@/components/charts/VolumeHeatmap";
+import { badgeLabel, badgeTone, TONE_VAR } from "@/lib/badges";
+import { TodaysPrinciple } from "@/components/TodaysPrinciple";
+import { BriefMeSheet } from "@/components/BriefMeSheet";
+import { ScheduleSection } from "@/components/ScheduleSection";
+import { DebriefSheet } from "@/components/DebriefSheet";
+import { ProgramCalendar } from "@/components/ProgramCalendar";
+import { ProgramInviteBanner } from "@/components/ProgramInviteBanner";
+import { OnTrackCard } from "@/components/dashboard/OnTrackCard";
+import { MyProgramStatus } from "@/components/programs/MyProgramStatus";
+import { MeetingInboxCard } from "@/components/pd-meeting/MeetingInboxCard";
+
+// Role types that see staff-specific modules (sign-offs, teaching load).
+const STAFF_ROLES = new Set(["STAFF", "ATTENDING", "PROGRAM_DIRECTOR"]);
+
+type StaffStats = {
+  pendingSignOffs: number;
+  signedThisMonth: number;
+  signedYtd: number;
+  recentSigned: {
+    id: string;
+    epaId: string;
+    epaTitle: string;
+    signedAt: string | null;
+    entrustmentScore: number | null;
+    residentName: string | null;
+  }[];
+};
+
+type CohortResident = {
+  userId: string;
+  name: string | null;
+  totalCases: number;
+  casesThisWeek: number;
+  casesThisMonth: number;
+  epaTotal: number;
+  epaSigned: number;
+  epaPending: number;
+  lastCaseDate: string | null;
+};
+
+type CohortData = {
+  institution: string;
+  residents: CohortResident[];
+};
+
+function approachColor(approach: string): string {
+  const m: Record<string, string> = {
+    ROBOTIC: "#0EA5E9", LAPAROSCOPIC: "#38BDF8", OPEN: "#F59E0B",
+    ENDOSCOPIC: "#64748B", HYBRID: "#10B981", PERCUTANEOUS: "#F97316",
+  };
+  return m[approach] ?? "#334155";
+}
+
+// ── Progress / next-up milestones ─────────────────────────────────────────
+//
+// Computes which milestones a resident is closest to unlocking, returning
+// up to two candidates ranked by progress percentage. The point of this is
+// gamification: pinning the next badge in front of the user makes case-
+// logging feel like climbing a ladder, not filling a database.
+
+interface NextMilestone {
+  /** Stable key — used for React keys. */
+  key: string;
+  /** Short headline ("100 cases", "10 independent", "30-day streak"). */
+  label: string;
+  /** Sub-label: what the user does to earn it. */
+  hint: string;
+  /** 0..1 progress toward the threshold. */
+  progress: number;
+  /** Current value. */
+  current: number;
+  /** Target value. */
+  target: number;
+  /** Visual hint. */
+  icon: LucideIcon;
+  color: string;
+}
+
+function nextThreshold(thresholds: readonly number[], current: number): number | null {
+  for (const t of thresholds) if (t > current) return t;
+  return null;
+}
+
+function getNextUpMilestones(
+  totalCases: number,
+  independentCount: number,
+  streakDays: number,
+  topProcName: string,
+  topProcCount: number,
+): NextMilestone[] {
+  const out: NextMilestone[] = [];
+
+  const totalNext = nextThreshold(MILESTONE_THRESHOLDS.TOTAL_CASES, totalCases);
+  if (totalNext) {
+    out.push({
+      key: `total_${totalNext}`,
+      label: `${totalNext} total cases`,
+      hint: `${totalNext - totalCases} to go`,
+      progress: totalCases / totalNext,
+      current: totalCases,
+      target: totalNext,
+      icon: Trophy,
+      color: totalNext >= 100 ? "var(--warning)" : "var(--primary)",
+    });
+  }
+
+  const indThresholds = [1, 10, 25, 50, 100] as const;
+  const indNext = nextThreshold(indThresholds, independentCount);
+  if (indNext) {
+    out.push({
+      key: `independent_${indNext}`,
+      label:
+        indNext === 1 ? "First independent case" : `${indNext} independent cases`,
+      hint:
+        indNext === 1
+          ? "Log a case where you operated independently"
+          : `${indNext - independentCount} more independent cases`,
+      progress: independentCount / indNext,
+      current: independentCount,
+      target: indNext,
+      icon: BadgeCheck,
+      color: "var(--success)",
+    });
+  }
+
+  const streakNext = nextThreshold(MILESTONE_THRESHOLDS.STREAK_DAYS, streakDays);
+  if (streakNext && streakDays > 0) {
+    out.push({
+      key: `streak_${streakNext}`,
+      label: `${streakNext}-day streak`,
+      hint: `Log a case daily for ${streakNext - streakDays} more day${streakNext - streakDays === 1 ? "" : "s"}`,
+      progress: streakDays / streakNext,
+      current: streakDays,
+      target: streakNext,
+      icon: Flame,
+      color: "var(--warning)",
+    });
+  }
+
+  const procThresholds = (MILESTONE_THRESHOLDS as { PROCEDURE_COUNT?: readonly number[] }).PROCEDURE_COUNT ?? [5, 10, 25, 50, 100];
+  const procNext = topProcName ? nextThreshold(procThresholds, topProcCount) : null;
+  if (procNext && topProcName) {
+    out.push({
+      key: `proc_${topProcName}_${procNext}`,
+      label: `${procNext} × ${topProcName}`,
+      hint: `${procNext - topProcCount} more ${topProcName.toLowerCase()}${procNext - topProcCount === 1 ? "" : "s"}`,
+      progress: topProcCount / procNext,
+      current: topProcCount,
+      target: procNext,
+      icon: Target,
+      color: "var(--primary)",
+    });
+  }
+
+  return out
+    .sort((a, b) => b.progress - a.progress)
+    .slice(0, 2);
+}
+
+export default function DashboardPage() {
+  useSubscription();
+  const { user, profile } = useAuth();
+  const { cases } = useCases();
+  const { milestones } = useMilestones();
+  const now = new Date();
+
+  const isStaff = !!(profile?.roleType && STAFF_ROLES.has(profile.roleType));
+  const isPD = profile?.roleType === "PROGRAM_DIRECTOR";
+  const isResident = !isStaff;
+
+  // Pre-Op Brief sheet
+  // Hippo Link: handoffs from Handover waiting to be logged (polled every 60 s).
+  const linkInbox = useLinkInbox({ pollMs: 60_000 });
+  const [briefOpen, setBriefOpen] = useState(false);
+  const [briefPrefill, setBriefPrefill] = useState<string | undefined>();
+
+  // Debrief sheet
+  const [debriefCase, setDebriefCase] = useState<{
+    id: string;
+    procedureName: string;
+    caseDate: string;
+  } | null>(null);
+
+
+  // Wide screens get a taller learning-curve chart (main column is ~800px).
+  const [wide, setWide] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1180px)");
+    const sync = () => setWide(mq.matches);
+    sync();
+    mq.addEventListener("change", sync);
+    return () => mq.removeEventListener("change", sync);
+  }, []);
+
+  // ── Staff-specific data ────────────────────────────────────────────────
+  const [staffStats, setStaffStats] = useState<StaffStats | null>(null);
+  useEffect(() => {
+    if (!isStaff) return;
+    let cancelled = false;
+    fetch("/api/staff/stats", { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setStaffStats(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isStaff]);
+
+  // ── Staff-specific: cohort / program data ───────────────────────────
+  const [cohortData, setCohortData] = useState<CohortData | null>(null);
+  useEffect(() => {
+    if (!isStaff) return;
+    let cancelled = false;
+    fetch("/api/pd/residents", { credentials: "include" })
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (!cancelled && d) setCohortData(d); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isStaff]);
+
+  // Cohort KPIs (computed client-side from roster data)
+  const cohortKpis = (() => {
+    if (!cohortData?.residents?.length) return null;
+    const rs = cohortData.residents;
+    const totalResidents = rs.length;
+    const casesThisWeek = rs.reduce((s, r) => s + r.casesThisWeek, 0);
+    const epasPending = rs.reduce((s, r) => s + r.epaPending, 0);
+    const avgEpaCompletion = Math.round(
+      rs.reduce((s, r) => s + (r.epaTotal > 0 ? (r.epaSigned / r.epaTotal) * 100 : 0), 0) / totalResidents
+    );
+    const twoWeeksAgo = Date.now() - 14 * 24 * 60 * 60 * 1000;
+    const silentResidents = rs.filter(r => {
+      if (!r.lastCaseDate) return true;
+      return new Date(r.lastCaseDate).getTime() < twoWeeksAgo;
+    }).length;
+    return { totalResidents, casesThisWeek, epasPending, avgEpaCompletion, silentResidents };
+  })();
+
+  // ── Resident-specific: returned EPA alert ─────────────────────────────
+  const [returnedCount, setReturnedCount] = useState<number>(0);
+  useEffect(() => {
+    if (!isResident) return;
+    let cancelled = false;
+    fetch("/api/epa/observations?status=RETURNED", { credentials: "include" })
+      .then(r => r.ok ? r.json() : [])
+      .then((d: unknown) => {
+        if (!cancelled && Array.isArray(d)) setReturnedCount(d.length);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [isResident]);
+
+  const thisMonth = cases.filter(c => {
+    const d = new Date(c.caseDate);
+    return d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear();
+  }).length;
+
+  const durations = cases.filter(c => (c.operativeDurationMinutes ?? 0) > 0).map(c => c.operativeDurationMinutes as number);
+  const avgOR = durations.length > 0 ? Math.round(durations.reduce((a, b) => a + b, 0) / durations.length) : 0;
+
+  const firstSurgeonCount = cases.filter(c =>
+    c.role === "Primary Surgeon" || c.role === "Console Surgeon" || c.role === "First Surgeon"
+  ).length;
+  const firstSurgeonRate = cases.length > 0 ? Math.round((firstSurgeonCount / cases.length) * 100) : 0;
+
+  const streakInfo = getStreak(cases ?? []);
+  const heatmapData = getWeeklyHeatmapData(cases ?? []);
+
+  const recentCases = [...cases]
+    .sort((a, b) => new Date(b.caseDate).getTime() - new Date(a.caseDate).getTime())
+    .slice(0, 5);
+
+  const procedureCount: Record<string, number> = {};
+  cases.forEach(c => { procedureCount[c.procedureName] = (procedureCount[c.procedureName] || 0) + 1; });
+  const topProcs = Object.entries(procedureCount).sort(([, a], [, b]) => b - a).slice(0, 5);
+  const maxCount = topProcs[0]?.[1] ?? 1;
+  const topProcName = topProcs[0]?.[0] ?? "";
+
+  // "Justin Chan" greets as "Dr. Chan"; a stored "Dr. ..." is stripped first.
+  const greetName = doctorName(user?.name, "Surgeon");
+
+  // Role label for staff identity
+  const roleLabel = profile?.roleType
+    ? profile.roleType.replace(/_/g, " ").toLowerCase().replace(/\b\w/g, c => c.toUpperCase())
+    : "";
+
+  return (
+    <div style={{ animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) backwards" }}>
+
+      {/* ══════════════════════════════════════════════════════════════════
+          SHARED CORE — all roles see everything above the divider
+          ══════════════════════════════════════════════════════════════════ */}
+
+      {/* ── Pending program invites (in-app, self-hides if none) ───────── */}
+      <ProgramInviteBanner />
+      <MyProgramStatus />
+      <MeetingInboxCard />
+
+      {/* ── Staff: EPAs to complete — persistent link to inbox ──────────
+          Always shown for attendings/PDs so the entry point is stable,
+          even when the queue is clear. The visual intensity scales with
+          pendingSignOffs: teal+accent when >0, muted when 0. */}
+      {isStaff && (
+        (() => {
+          const pending = staffStats?.pendingSignOffs ?? 0;
+          const hot = pending > 0;
+          return (
+            <Link
+              href="/inbox"
+              style={{
+                display: "flex", alignItems: "center", gap: 12,
+                padding: "12px 16px", marginBottom: 16,
+                background: hot ? "#0EA5E910" : "var(--surface)",
+                border: hot ? "1px solid #0EA5E930" : "1px solid var(--border)",
+                borderRadius: 10,
+                textDecoration: "none",
+                color: "var(--text-1)",
+              }}
+            >
+              <div style={{
+                width: 32, height: 32, borderRadius: 8,
+                background: hot ? "#0EA5E920" : "var(--bg-1)",
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: hot ? "#0EA5E9" : "var(--text-3)", flexShrink: 0,
+              }}>
+                <Inbox size={16} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+                  {pending === 0
+                    ? "EPAs to complete"
+                    : pending === 1
+                      ? "1 EPA awaiting your signature"
+                      : `${pending} EPAs awaiting your signature`}
+                </div>
+                <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+                  {pending === 0
+                    ? "You're all caught up. Tap to check the inbox."
+                    : "Residents are waiting on your feedback. Tap to review."}
+                </div>
+              </div>
+              <ChevronRight size={16} style={{ color: "var(--text-3)", flexShrink: 0 }} />
+            </Link>
+          );
+        })()
+      )}
+
+      {/* ── Resident: returned-EPA alert banner ──────────────────────────── */}
+      {isResident && returnedCount > 0 && (
+        <Link
+          href="/analytics?tab=EPAs"
+          style={{
+            display: "flex", alignItems: "center", gap: 12,
+            padding: "12px 16px", marginBottom: 16,
+            background: "#ef444410",
+            border: "1px solid #ef444430",
+            borderRadius: 10,
+            textDecoration: "none",
+            color: "var(--text-1)",
+          }}
+        >
+          <div style={{
+            width: 32, height: 32, borderRadius: 8,
+            background: "#ef444420",
+            display: "flex", alignItems: "center", justifyContent: "center",
+            color: "#ef4444", flexShrink: 0,
+          }}>
+            <RotateCcw size={16} />
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text-1)" }}>
+              {returnedCount === 1
+                ? "1 EPA was returned for revision"
+                : `${returnedCount} EPAs were returned for revision`}
+            </div>
+            <div style={{ fontSize: 12, color: "var(--text-3)", marginTop: 2 }}>
+              Your attending left feedback. Tap to review and resubmit.
+            </div>
+          </div>
+          <ChevronRight size={16} style={{ color: "var(--text-3)", flexShrink: 0 }} />
+        </Link>
+      )}
+
+      {/* ── Identity + Primary Metric ─────────────────────────────────── */}
+      <div style={{
+        marginBottom: 36,
+        display: "flex",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: 12,
+      }}>
+        <div style={{ minWidth: 0, flex: 1 }}>
+          <div style={{
+            fontSize: 11,
+            color: "var(--text-3)",
+            marginBottom: 8,
+            letterSpacing: ".04em",
+            fontFamily: "var(--font-sans)",
+          }}>
+            {isStaff
+              ? [roleLabel, profile?.specialty, profile?.institution].filter(Boolean).join(" \u00b7 ")
+              : [profile?.specialty, profile?.trainingYearLabel].filter(Boolean).join(" \u00b7 ")}
+          </div>
+          <div style={{
+            fontSize: 32,
+            fontWeight: 600,
+            color: "var(--text)",
+            letterSpacing: "-1.5px",
+            lineHeight: 1,
+            fontFamily: "var(--font-sans)",
+          }}>
+            {greetName}
+          </div>
+        </div>
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+        <Link
+          href="/settings"
+          aria-label="Settings"
+          title="Settings"
+          style={{
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            border: "1px solid var(--border)",
+            background: "var(--surface2)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            color: "var(--text-2)",
+            textDecoration: "none",
+            flexShrink: 0,
+            transition: "background .15s, color .15s, border-color .15s",
+          }}
+        >
+          <Settings size={16} strokeWidth={1.75} />
+        </Link>
+        </div>
+      </div>
+
+      {linkInbox.count > 0 && (
+        <Link
+          href="/inbox"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minHeight: 44,
+            marginTop: 16,
+            padding: "10px 14px",
+            borderRadius: 8,
+            border: "1px solid var(--border-mid)",
+            background: "var(--surface)",
+            color: "var(--text-2)",
+            fontSize: 13,
+            textDecoration: "none",
+            animation: "fadeIn .4s cubic-bezier(.16,1,.3,1) both",
+          }}
+        >
+          <span aria-hidden style={{ width: 6, height: 6, borderRadius: 3, background: "var(--primary)", flexShrink: 0 }} />
+          <span style={{ flex: 1, minWidth: 0 }}>
+            {linkInbox.count === 1
+              ? "1 case from Handover is waiting."
+              : `${linkInbox.count} cases from Handover are waiting.`}
+          </span>
+          <span style={{ color: "var(--primary)", fontWeight: 600 }}>Review</span>
+        </Link>
+      )}
+
+      {/* ── Desktop: main column + right rail. On phones both wrappers are
+          display:contents and each block's `order` keeps the original
+          single-column sequence. ─────────────────────────────────── */}
+      <div className="dash-grid">
+      <div className="dash-main">
+      <div className="dash-b dash-mobile-only" style={{ order: 3 }}>
+        {/* ── Thin divider ──────────────────────────────────────────────── */}
+        <div style={{
+          height: 1,
+          background: "var(--border)",
+          margin: "28px 0",
+        }} />
+      </div>
+      <div className="dash-b" style={{ order: 4 }}>
+        {/* ── Hero number — left-aligned, massive, mono ─────────────────── */}
+        <div style={{ marginBottom: 8 }}>
+          <div style={{
+            fontSize: 64,
+            fontWeight: 700,
+            color: "var(--text)",
+            letterSpacing: "-3px",
+            lineHeight: .85,
+            fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+          }}>
+            {cases.length}
+          </div>
+          <div style={{
+            fontSize: 11,
+            color: "var(--text-3)",
+            marginTop: 8,
+            textTransform: "uppercase",
+            letterSpacing: "0.06em",
+            fontWeight: 600,
+          }}>
+            Total Cases Logged
+          </div>
+        </div>
+      </div>
+      <div className="dash-b" style={{ order: 5 }}>
+        {/* ── Metrics row — monospace numbers, no boxes ─────────────────── */}
+        <div style={{
+          display: "grid",
+          gridTemplateColumns: isStaff ? "1fr 1fr 1fr 1fr" : "1fr 1fr 1fr 1fr",
+          gap: 0,
+          padding: "20px 0",
+          borderTop: "1px solid var(--border)",
+          borderBottom: "1px solid var(--border)",
+          marginBottom: 28,
+        }}>
+          {(isStaff
+            ? [
+                { n: String(thisMonth), l: "This mo" },
+                { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+                { n: String(staffStats?.signedThisMonth ?? 0), l: "Signed" },
+                { n: String(staffStats?.signedYtd ?? 0), l: "YTD sign" },
+              ]
+            : [
+                { n: String(thisMonth), l: "This mo" },
+                { n: avgOR ? `${avgOR}m` : "\u2014", l: "Avg OR" },
+                { n: `${firstSurgeonRate}%`, l: "Primary" },
+                { n: String(streakInfo.currentStreak), l: "Streak", icon: streakInfo.currentStreak > 0 },
+              ]
+          ).map((s, i) => (
+            <div key={i} style={{
+              paddingLeft: i > 0 ? 16 : 0,
+              borderLeft: i > 0 ? "1px solid var(--border)" : "none",
+            }}>
+              <div style={{
+                display: "flex", alignItems: "baseline", gap: 3,
+              }}>
+                <span style={{
+                  fontSize: 18,
+                  fontWeight: 600,
+                  color: "var(--text)",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                  letterSpacing: "-0.5px",
+                  lineHeight: 1,
+                }}>
+                  {s.n}
+                </span>
+                {s.icon && <Flame size={11} color="var(--warning)" />}
+              </div>
+              <div style={{
+                fontSize: 11,
+                color: "var(--text-3)",
+                marginTop: 4,
+                textTransform: "uppercase",
+                letterSpacing: "0.06em",
+                fontWeight: 600,
+              }}>
+                {s.l}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+      <div className="dash-b" style={{ order: 6 }}>
+        {/* ── Progress / next-up milestones (residents only) ─────────────────
+            The whole point of this strip: case-logging should feel like
+            climbing a ladder, not filling a database. We surface the user's
+            most recent earned badges (left) plus their two closest next
+            targets (right). Tappable — leads to /milestones for the full
+            history. */}
+        {isResident && (cases.length > 0 || milestones.length > 0) && (() => {
+          const independentCount = cases.filter(
+            (c) => c.autonomyLevel === "INDEPENDENT" || c.autonomyLevel === "TEACHING",
+          ).length;
+          const nextUp = getNextUpMilestones(
+            cases.length,
+            independentCount,
+            streakInfo.currentStreak,
+            topProcName,
+            topProcs[0]?.[1] ?? 0,
+          );
+          const recentMilestones = [...milestones]
+            .sort((a, b) => new Date(b.achievedAt).getTime() - new Date(a.achievedAt).getTime())
+            .slice(0, 4);
+
+          if (nextUp.length === 0 && recentMilestones.length === 0) return null;
+
+          return (
+            <Link
+              href="/milestones"
+              style={{
+                display: "block",
+                padding: "16px",
+                marginBottom: 28,
+                background: "var(--surface)",
+                border: "1px solid var(--border)",
+                borderRadius: 12,
+                textDecoration: "none",
+                color: "var(--text)",
+                transition: "border-color .15s",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  marginBottom: 12,
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: 11,
+                    fontWeight: 600,
+                    textTransform: "uppercase",
+                    letterSpacing: "0.06em",
+                    color: "var(--text-3)",
+                  }}
+                >
+                  Progress
+                </span>
+                <span
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 4,
+                    fontSize: 11,
+                    color: "var(--text-3)",
+                  }}
+                >
+                  {milestones.length} earned
+                  <ChevronRight size={11} />
+                </span>
+              </div>
+
+              {/* Recently earned — visual reward strip */}
+              {recentMilestones.length > 0 && (
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: nextUp.length > 0 ? 14 : 0,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  {recentMilestones.map((m) => {
+                    const badge = {
+                      label: badgeLabel(m.badgeKey),
+                      color: TONE_VAR[badgeTone(m.badgeKey)],
+                    };
+                    return (
+                      <div
+                        key={m.id}
+                        title={badge.label}
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 6,
+                          padding: "5px 10px 5px 6px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 99,
+                        }}
+                      >
+                        <span
+                          aria-hidden
+                          style={{
+                            width: 22,
+                            height: 22,
+                            borderRadius: "50%",
+                            background: `color-mix(in srgb, ${badge.color} 14%, transparent)`,
+                            border: `1px solid color-mix(in srgb, ${badge.color} 35%, transparent)`,
+                            display: "inline-flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <span style={{ width: 6, height: 6, borderRadius: "50%", background: badge.color }} />
+                        </span>
+                        <span
+                          style={{
+                            fontSize: 11,
+                            fontWeight: 500,
+                            color: "var(--text-2)",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          {badge.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Next up — closest two thresholds with progress bars */}
+              {nextUp.length > 0 && (
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns:
+                      nextUp.length > 1 ? "repeat(auto-fit, minmax(220px, 1fr))" : "1fr",
+                    gap: 10,
+                  }}
+                >
+                  {nextUp.map((nu) => {
+                    const pct = Math.max(0, Math.min(1, nu.progress)) * 100;
+                    return (
+                      <div
+                        key={nu.key}
+                        style={{
+                          padding: "10px 12px",
+                          background: "var(--surface2)",
+                          border: "1px solid var(--border)",
+                          borderRadius: 8,
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                            marginBottom: 6,
+                            gap: 8,
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: 8,
+                              minWidth: 0,
+                            }}
+                          >
+                            <nu.icon size={14} strokeWidth={2} color={nu.color} aria-hidden />
+                            <span
+                              style={{
+                                fontSize: 12,
+                                fontWeight: 600,
+                                color: "var(--text)",
+                                whiteSpace: "nowrap",
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                              }}
+                            >
+                              {nu.label}
+                            </span>
+                          </div>
+                          <span
+                            style={{
+                              fontSize: 11,
+                              color: "var(--text-3)",
+                              fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                              whiteSpace: "nowrap",
+                            }}
+                          >
+                            {nu.current}/{nu.target}
+                          </span>
+                        </div>
+                        <div
+                          style={{
+                            height: 4,
+                            background: "var(--border)",
+                            borderRadius: 99,
+                            overflow: "hidden",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: `${pct}%`,
+                              height: "100%",
+                              background: nu.color,
+                              transition: "width .3s",
+                            }}
+                          />
+                        </div>
+                        <div
+                          style={{
+                            fontSize: 10,
+                            color: "var(--text-3)",
+                            marginTop: 5,
+                          }}
+                        >
+                          {nu.hint}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </Link>
+          );
+        })()}
+      </div>
+      <div className="dash-b" style={{ order: 12 }}>
+        {/* ── Activity (all roles) ─────────────────────────────────────── */}
+        <section style={{ marginBottom: 28 }}>
+          <div style={{
+            fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+            textTransform: "uppercase", letterSpacing: "0.06em",
+            marginBottom: 12,
+          }}>Activity</div>
+          <VolumeHeatmap data={heatmapData} />
+        </section>
+      </div>
+      <div className="dash-b" style={{ order: 15 }}>
+        {/* ── Recent cases (all roles) ─────────────────────────────────── */}
+        <section>
+          <div style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 12,
+          }}>
+            <span style={{
+              fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "0.06em",
+            }}>Recent</span>
+            <Link href="/cases" style={{
+              fontSize: 11, color: "var(--text-3)", textDecoration: "none",
+              display: "flex", alignItems: "center", gap: 2,
+              transition: "color .15s",
+            }}>
+              All <ArrowUpRight size={10} />
+            </Link>
+          </div>
+
+          {recentCases.length === 0 ? (
+            <div style={{
+              padding: "48px 0",
+              textAlign: "center",
+            }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: "var(--text-2)", marginBottom: 4 }}>
+                No cases yet
+              </div>
+              <div style={{ fontSize: 12, color: "var(--text-3)" }}>
+                Tap Log to record your first procedure
+              </div>
+            </div>
+          ) : recentCases.map((c, i) => (
+            <div key={c.id} style={{
+              display: "flex",
+              alignItems: "flex-start",
+              gap: 10,
+              padding: "10px 0",
+              borderBottom: i < recentCases.length - 1 ? "1px solid var(--border)" : "none",
+              animation: `fadeIn .3s cubic-bezier(.16,1,.3,1) ${i * 50}ms both`,
+            }}>
+              <div style={{ paddingTop: 5, flexShrink: 0 }}>
+                <div style={{
+                  width: 5, height: 5, borderRadius: "50%",
+                  background: approachColor(c.surgicalApproach),
+                }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                  <span style={{
+                    fontSize: 13, fontWeight: 500, color: "var(--text)",
+                    whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                    marginRight: 8, flex: 1, minWidth: 0,
+                  }}>{c.procedureName}</span>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0 }}>
+                    <span style={{
+                      fontSize: 11, color: "var(--text-3)",
+                      fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                    }}>
+                      {new Date(c.caseDate).toLocaleDateString("en-CA", { month: "short", day: "numeric", timeZone: "UTC" })}
+                    </span>
+                  </div>
+                </div>
+                <div style={{
+                  display: "flex", gap: 6, marginTop: 2,
+                  fontSize: 11, color: "var(--text-3)",
+                }}>
+                  <span>{c.role}</span>
+                  {c.operativeDurationMinutes && (
+                    <>
+                      <span style={{ color: "var(--muted)" }}>&middot;</span>
+                      <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>{c.operativeDurationMinutes}m</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            </div>
+          ))}
+        </section>
+      </div>
+      <div className="dash-b" style={{ order: 10 }}>
+        {/* ── Staff / PD: teaching load section ────────────────────────────── */}
+        {isStaff && staffStats?.recentSigned && staffStats.recentSigned.length > 0 && (
+          <section style={{ marginBottom: 28 }}>
+            <div style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 12,
+            }}>
+              <span style={{
+                fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+                textTransform: "uppercase", letterSpacing: "0.06em",
+              }}>Recent Sign-offs</span>
+              <Link href="/inbox" style={{
+                fontSize: 11, color: "var(--text-3)", textDecoration: "none",
+                display: "flex", alignItems: "center", gap: 2,
+                transition: "color .15s",
+              }}>
+                All <ArrowUpRight size={10} />
+              </Link>
+            </div>
+            {staffStats.recentSigned.slice(0, 4).map((e, i) => (
+              <div key={e.id} style={{
+                display: "flex",
+                alignItems: "flex-start",
+                gap: 10,
+                padding: "10px 0",
+                borderBottom: i < Math.min(staffStats.recentSigned.length, 4) - 1
+                  ? "1px solid var(--border)"
+                  : "none",
+              }}>
+                <div style={{ paddingTop: 5, flexShrink: 0 }}>
+                  <div style={{
+                    width: 5, height: 5, borderRadius: "50%",
+                    background: "#10B981",
+                  }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8 }}>
+                    <span style={{
+                      fontSize: 13, fontWeight: 500, color: "var(--text)",
+                      whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                      flex: 1, minWidth: 0,
+                    }}>{e.epaId} — {e.epaTitle}</span>
+                    {e.signedAt && (
+                      <span style={{
+                        fontSize: 11, color: "var(--text-3)",
+                        fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                        flexShrink: 0,
+                      }}>
+                        {new Date(e.signedAt).toLocaleDateString("en-CA", { month: "short", day: "numeric" })}
+                      </span>
+                    )}
+                  </div>
+                  <div style={{
+                    display: "flex", gap: 6, marginTop: 2,
+                    fontSize: 11, color: "var(--text-3)",
+                  }}>
+                    <span>{e.residentName ?? "Resident"}</span>
+                    {e.entrustmentScore && (
+                      <>
+                        <span style={{ color: "var(--muted)" }}>&middot;</span>
+                        <span style={{ fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1' }}>O-Score {e.entrustmentScore}</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+      <div className="dash-b" style={{ order: 11 }}>
+        {/* ── PD only: big, obvious PD Dashboard CTA ─────────────────────
+            Intentionally gated to PROGRAM_DIRECTOR. Attendings (ATTENDING/
+            STAFF) don't see this — they don't manage the cohort, just
+            review their residents' sign-offs via the inbox above. */}
+        {isPD && (
+          <section style={{ marginBottom: 28 }}>
+            <Link
+              href="/pd-dashboard"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 14,
+                padding: "18px 18px",
+                background:
+                  "linear-gradient(135deg, rgba(14,165,233,0.08), rgba(16,185,129,0.06))",
+                border: "1px solid rgba(14,165,233,0.35)",
+                borderRadius: 12,
+                color: "var(--text)",
+                textDecoration: "none",
+                transition: "background .15s, border-color .15s",
+              }}
+            >
+              <div
+                style={{
+                  width: 44,
+                  height: 44,
+                  borderRadius: 10,
+                  background: "rgba(14,165,233,0.15)",
+                  border: "1px solid rgba(14,165,233,0.35)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  color: "#0EA5E9",
+                  flexShrink: 0,
+                }}
+              >
+                <LayoutDashboard size={20} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{
+                    fontSize: 15,
+                    fontWeight: 600,
+                    color: "var(--text)",
+                    letterSpacing: "-0.2px",
+                    marginBottom: 2,
+                  }}
+                >
+                  Program Director Dashboard
+                </div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    color: "var(--text-3)",
+                    lineHeight: 1.4,
+                  }}
+                >
+                  Full cohort view — resident logbooks, EPA progress, and
+                  inactivity alerts
+                  {cohortKpis
+                    ? ` · ${cohortKpis.totalResidents} resident${cohortKpis.totalResidents === 1 ? "" : "s"}`
+                    : ""}
+                  {cohortKpis && cohortKpis.silentResidents > 0 ? (
+                    <span style={{ color: "#F59E0B", fontWeight: 600 }}>
+                      {" · "}
+                      {cohortKpis.silentResidents} silent
+                    </span>
+                  ) : null}
+                </div>
+              </div>
+              <ChevronRight
+                size={18}
+                style={{ color: "var(--text-3)", flexShrink: 0 }}
+              />
+            </Link>
+
+            {/* Silent residents — actionable, stays as a top-level alert */}
+            {cohortKpis && cohortKpis.silentResidents > 0 && (
+              <Link
+                href="/pd-dashboard"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  padding: "10px 14px",
+                  marginTop: 10,
+                  background: "#F59E0B10",
+                  border: "1px solid #F59E0B25",
+                  borderRadius: 8,
+                  fontSize: 12,
+                  color: "var(--text-2)",
+                  textDecoration: "none",
+                }}
+              >
+                <AlertTriangle
+                  size={13}
+                  style={{ color: "#F59E0B", flexShrink: 0 }}
+                />
+                <span style={{ flex: 1 }}>
+                  {cohortKpis.silentResidents === 1
+                    ? "1 resident hasn\u2019t logged a case in 14+ days"
+                    : `${cohortKpis.silentResidents} residents haven\u2019t logged a case in 14+ days`}
+                </span>
+                <ChevronRight size={12} style={{ color: "var(--text-3)" }} />
+              </Link>
+            )}
+          </section>
+        )}
+      </div>
+      </div>
+      <aside className="dash-side">
+      <div className="dash-b" style={{ order: 1 }}>
+        {/* ── Principle ─────────────────────────────────────────────────── */}
+        <TodaysPrinciple />
+      </div>
+      <div className="dash-b" style={{ order: 2 }}>
+        {/* ── On track (Pro): projections against program minimums ─────── */}
+        <OnTrackCard />
+      </div>
+      <div className="dash-b" style={{ order: 7 }}>
+        {/* ── Pre-Op Brief CTA ──────────────────────────────────────────── */}
+        <button
+          onClick={() => {
+            setBriefPrefill(undefined);
+            setBriefOpen(true);
+          }}
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 12,
+            width: "100%",
+            padding: "14px 16px",
+            marginBottom: 28,
+            background: "var(--surface)",
+            border: "1px solid var(--border-mid)",
+            borderRadius: 10,
+            color: "var(--text)",
+            cursor: "pointer",
+            fontFamily: "inherit",
+            textAlign: "left",
+            transition: "background .15s, border-color .15s",
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 12, minWidth: 0 }}>
+            <div
+              style={{
+                width: 32,
+                height: 32,
+                borderRadius: 8,
+                background: "var(--primary-dim)",
+                border: "1px solid var(--border-mid)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                flexShrink: 0,
+              }}
+            >
+              <Sparkles size={14} style={{ color: "var(--primary)" }} />
+            </div>
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: "var(--text)" }}>
+                Brief me for tomorrow
+              </div>
+              <div
+                style={{
+                  fontSize: 11,
+                  color: "var(--text-3)",
+                  marginTop: 2,
+                  whiteSpace: "nowrap",
+                  overflow: "hidden",
+                  textOverflow: "ellipsis",
+                }}
+              >
+                Personalized prep from your case history
+              </div>
+            </div>
+          </div>
+          <ChevronRight
+            size={14}
+            style={{ color: "var(--text-3)", flexShrink: 0 }}
+          />
+        </button>
+      </div>
+      <div className="dash-b" style={{ order: 8 }}>
+        {/* ── This Week (scheduled cases) ──────────────────────────────── */}
+        <ScheduleSection
+          onBrief={(procedure, attending, when) => {
+            const parts = [procedure];
+            if (when) parts.push(when);
+            if (attending) parts.push(`with ${attending}`);
+            setBriefPrefill(parts.join(" "));
+            setBriefOpen(true);
+          }}
+          onDebrief={(sc) => {
+            setDebriefCase({
+              id: sc.caseLogId ?? sc.id,
+              procedureName: sc.procedureName,
+              caseDate: sc.scheduledAt,
+            });
+          }}
+        />
+      </div>
+      <div className="dash-b" style={{ order: 9 }}>
+        {/* ── Shared program calendar (self-hides if user in no programs) ── */}
+        <ProgramCalendar />
+      </div>
+      <div className="dash-b" style={{ order: 13 }}>
+        {/* ── Top procedures (all roles) ───────────────────────────────── */}
+        {topProcs.length > 0 && (
+          <section style={{ marginBottom: 28 }}>
+            <div style={{
+              fontSize: 11, fontWeight: 600, color: "var(--text-3)",
+              textTransform: "uppercase", letterSpacing: "0.06em",
+              marginBottom: 14,
+            }}>Top Procedures</div>
+            {topProcs.map(([name, count], i) => (
+              <div key={name} style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 12,
+                padding: "8px 0",
+                borderBottom: i < topProcs.length - 1 ? "1px solid var(--border)" : "none",
+              }}>
+                <span style={{
+                  fontSize: 10,
+                  fontWeight: 600,
+                  color: "var(--text-3)",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                  width: 16,
+                  flexShrink: 0,
+                }}>{i + 1}</span>
+                <span style={{
+                  flex: 1, fontSize: 13, fontWeight: 500,
+                  color: "var(--text)", minWidth: 0,
+                  whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+                }}>{name}</span>
+                <div style={{ width: 60, height: 2, background: "var(--border-mid)", borderRadius: 1, flexShrink: 0 }}>
+                  <div style={{
+                    height: "100%",
+                    width: `${Math.round((count / maxCount) * 100)}%`,
+                    background: "var(--primary)",
+                    borderRadius: 1,
+                    transition: "width .5s cubic-bezier(.16,1,.3,1)",
+                  }} />
+                </div>
+                <span style={{
+                  fontSize: 12, fontWeight: 600,
+                  color: "var(--text-2)",
+                  fontFamily: "var(--font-sans)", fontVariantNumeric: "tabular-nums", fontFeatureSettings: '"tnum" 1',
+                  minWidth: 20, textAlign: "right",
+                }}>{count}</span>
+              </div>
+            ))}
+          </section>
+        )}
+      </div>
+      </aside>
+      </div>
+
+      {/* The bottom-of-page "Milestones" footer used to live here. It was
+          a quiet 3-row list that nobody scrolled to. The same data now
+          renders MUCH earlier on the page (see the "Progress" card right
+          after the metrics row above) where it actually drives behaviour
+          — recent badges as a visual reward, plus the closest two
+          unearned thresholds with live progress bars. */}
+
+      {/* ── Sheets (rendered at the end so they overlay) ──────────────── */}
+      <BriefMeSheet
+        open={briefOpen}
+        onClose={() => setBriefOpen(false)}
+        prefill={briefPrefill}
+      />
+
+      <DebriefSheet
+        open={debriefCase !== null}
+        caseLog={debriefCase}
+        onClose={() => setDebriefCase(null)}
+      />
+
+    </div>
+  );
+}
