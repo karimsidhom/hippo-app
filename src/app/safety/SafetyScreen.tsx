@@ -15,6 +15,18 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
   const [checked, setChecked] = useState<Record<string, boolean>>({});
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [passing, setPassing] = useState(false);
+  const destinationFor = useCallback(async () => {
+    let destination = SAFETY_RETURNS[app];
+    if (app === "cases") {
+      const response = await fetch("/api/auth/me", { cache: "no-store" });
+      if (!response.ok)
+        throw new Error("Could not confirm your profile. Please retry.");
+      const me = await response.json();
+      if (!me.profile?.onboardingCompleted) destination = "/onboarding";
+    }
+    return destination;
+  }, [app]);
   const load = useCallback(async () => {
     try {
       const client = createClient();
@@ -25,7 +37,21 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
         );
         return;
       }
-      setStatus(await loadSafetyStatus(client, app));
+      const current = await loadSafetyStatus(client, app);
+      // Everything already on record: this screen is onboarding, not a toll
+      // booth, so a returning account passes straight through to the app.
+      if (current.complete) {
+        setPassing(true);
+        let destination = SAFETY_RETURNS[app];
+        try {
+          destination = await destinationFor();
+        } catch {
+          /* The app's own onboarding redirect still applies after entry. */
+        }
+        window.location.assign(destination);
+        return;
+      }
+      setStatus(current);
       setChecked({});
       setError("");
     } catch {
@@ -33,7 +59,7 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
         "Safety requirements could not be loaded. Your completion has not been recorded. Please retry.",
       );
     }
-  }, [app]);
+  }, [app, destinationFor]);
   useEffect(() => {
     const task = window.setTimeout(() => { void load(); }, 0);
     return () => window.clearTimeout(task);
@@ -61,15 +87,7 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
       if (!result.complete)
         throw new Error("Safety setup remains incomplete. Please retry.");
       setStatus(result);
-      let destination = SAFETY_RETURNS[app];
-      if (app === "cases") {
-        const response = await fetch("/api/auth/me", { cache: "no-store" });
-        if (!response.ok)
-          throw new Error("Could not confirm your profile. Please retry.");
-        const me = await response.json();
-        if (!me.profile?.onboardingCompleted) destination = "/onboarding";
-      }
-      window.location.assign(destination);
+      window.location.assign(await destinationFor());
     } catch (e) {
       setError(
         e instanceof Error
@@ -104,7 +122,8 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
             </button>
           </div>
         )}
-        {!status && !error && (
+        {passing && <p role="status">You are all set. Opening the app…</p>}
+        {!status && !error && !passing && (
           <p role="status">Loading your current requirements…</p>
         )}
         {status?.policies.map((policy) => (
@@ -133,27 +152,31 @@ export function SafetyScreen({ app }: { app: SafetyAppId }) {
             )}
           </article>
         ))}
-        <p className="safety-note">
-          Completion records these acknowledgments. It does not verify
-          professional credentials, grant clinical access or certify PHIA
-          compliance.
-        </p>
-        <button
-          className="safety-continue"
-          onClick={() => void complete()}
-          disabled={
-            busy ||
-            !status ||
-            status.policies.some((p) => !p.accepted && !checked[p.policyKey])
-          }
-        >
-          {busy
-            ? "Recording…"
-            : `Continue to ${app === "cases" ? "Cases" : app.charAt(0).toUpperCase() + app.slice(1)}`}
-        </button>
-        <Link className="safety-signout" href="/login">
-          Use another account
-        </Link>
+        {!passing && (
+          <>
+            <p className="safety-note">
+              Completion records these acknowledgments. It does not verify
+              professional credentials, grant clinical access or certify PHIA
+              compliance.
+            </p>
+            <button
+              className="safety-continue"
+              onClick={() => void complete()}
+              disabled={
+                busy ||
+                !status ||
+                status.policies.some((p) => !p.accepted && !checked[p.policyKey])
+              }
+            >
+              {busy
+                ? "Recording…"
+                : `Continue to ${app === "cases" ? "Cases" : app.charAt(0).toUpperCase() + app.slice(1)}`}
+            </button>
+            <Link className="safety-signout" href="/login">
+              Use another account
+            </Link>
+          </>
+        )}
       </section>
     </main>
   );
