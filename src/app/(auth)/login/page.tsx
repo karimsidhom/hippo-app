@@ -1,16 +1,14 @@
 "use client";
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   Login — Opening Experience v2
+   Login — Opening Experience v3 "Surfacing"
 
-   The Hippo mark is the hero. The animation builds atmosphere AROUND it:
-   teal glow blooms, fine contour rings trace, then the mark emerges with
-   refined scale + fade. Wordmark and tagline follow. Cross-dissolve to
-   the login form.
-
-   Phase 1 "splash":  Full-screen overlay — glow, rings, mark entrance.
-   Phase 2 "fading":  Cross-dissolve to login form.
-   Phase 3 "done":    Splash unmounted, form interactive.
+   First visit of a browser session: the Hippo mark rises out of a real
+   night lake exactly where the clip's ripple starts, the contour rings
+   draw in, the name fades up, then the mark glides into this page's own
+   header mark while the lake blurs and dims and the form fades up with a
+   small stagger. About 3.5 s; tap or Escape skips; reduced motion never
+   sees it. See src/components/SurfacingSplash.tsx.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 import { useState, useEffect } from "react";
@@ -18,35 +16,37 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { Eye, EyeOff } from "lucide-react";
 import { HippoMark } from "@/components/HippoMark";
+import { SurfacingSplash } from "@/components/SurfacingSplash";
 
 const TEAL = "var(--auth-link)";
 const EASE = "cubic-bezier(.16,1,.3,1)";
 
-// ── Hooks ─────────────────────────────────────────────────────────────────
+// ── Surfacing splash wiring ───────────────────────────────────────────────
 
-function usePrefersReducedMotion(): boolean {
-  const [reduced, setReduced] = useState(false);
-  useEffect(() => {
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setReduced(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setReduced(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  }, []);
-  return reduced;
-}
+const SPLASH_KEY = "hippo-splash-v3";
+const SPLASH_ATTR = "data-surfacing-splash";
 
-function useFirstVisit(): boolean {
-  const [first, setFirst] = useState(false);
-  useEffect(() => {
-    const key = "hippo-splash-v2";
-    if (!sessionStorage.getItem(key)) {
-      sessionStorage.setItem(key, "1");
-      setFirst(true);
-    }
-  }, []);
-  return first;
-}
+// Measured from the water master (see _design/hippo-surfacing-v3/final/NOTES.md):
+// the ripple centre as a fraction of the clip frame's height, and when the
+// ripple begins in the clip.
+const WATER = {
+  src: "/splash/surfacing/water.mp4",
+  poster: "/splash/surfacing/poster.jpg",
+  width: 720,
+  height: 1280,
+  waterlineFrac: 0.555,
+  rippleStartMs: 280,
+};
+
+// Runs inline before first paint: when the splash will play this session,
+// hold the dark canvas and keep the sign-in page hidden until the overlay
+// mounts, so no flash of the form (or the light theme) shows under it.
+const SPLASH_DECIDE = `(function(){try{if(window.matchMedia&&matchMedia('(prefers-reduced-motion: reduce)').matches)return;if(sessionStorage.getItem('${SPLASH_KEY}')==='1')return;sessionStorage.setItem('${SPLASH_KEY}','1');document.documentElement.setAttribute('${SPLASH_ATTR}','');}catch(e){}})();`;
+
+const SPLASH_CSS = `
+[${SPLASH_ATTR}] body{background:#060d13}
+[${SPLASH_ATTR}] .auth-shell{visibility:hidden}
+`;
 
 // ── Shared styles ─────────────────────────────────────────────────────────
 
@@ -77,98 +77,10 @@ function inputStyle(focused: boolean): React.CSSProperties {
   };
 }
 
-// ── Contour rings SVG (surrounds the mark) ────────────────────────────────
-
-function ContourRings({ animate }: { animate: boolean }) {
-  const r1 = 58, c1 = 2 * Math.PI * r1;
-  const r2 = 76, c2 = 2 * Math.PI * r2;
-  const r3 = 92, c3 = 2 * Math.PI * r3;
-
-  const v1 = c1 * 0.7;
-  const v2 = c2 * 0.5;
-  const v3 = c3 * 0.35;
-
-  return (
-    <svg
-      width="200"
-      height="200"
-      viewBox="0 0 200 200"
-      fill="none"
-      style={{ position: "absolute", top: "50%", left: "50%", transform: "translate(-50%, -50%)" }}
-    >
-      <defs>
-        <radialGradient id="splash-glow" cx="50%" cy="50%" r="45%">
-          <stop offset="0%" stopColor={TEAL} stopOpacity="0.12" />
-          <stop offset="100%" stopColor={TEAL} stopOpacity="0" />
-        </radialGradient>
-      </defs>
-
-      {/* Ambient glow behind rings */}
-      <circle
-        cx="100" cy="100" r="85"
-        fill="url(#splash-glow)"
-        style={animate ? {
-          opacity: 0,
-          animation: `oe-fadeIn 1.4s ease-out 0.1s backwards`,
-        } : {}}
-      />
-
-      {/* Inner ring — tight around the mark */}
-      <circle
-        cx="100" cy="100" r={r1}
-        stroke={TEAL}
-        strokeOpacity="0.15"
-        strokeWidth="0.8"
-        strokeLinecap="round"
-        strokeDasharray={`${v1} ${c1 - v1}`}
-        transform="rotate(-90 100 100)"
-        style={animate ? {
-          strokeDashoffset: v1,
-          animation: `oe-draw 1.4s ease-out 0.2s forwards`,
-        } : { strokeDashoffset: 0 }}
-      />
-
-      {/* Middle ring */}
-      <circle
-        cx="100" cy="100" r={r2}
-        stroke={TEAL}
-        strokeOpacity="0.08"
-        strokeWidth="0.6"
-        strokeLinecap="round"
-        strokeDasharray={`${v2} ${c2 - v2}`}
-        transform="rotate(45 100 100)"
-        style={animate ? {
-          strokeDashoffset: v2,
-          animation: `oe-draw 1.6s ease-out 0.4s forwards`,
-        } : { strokeDashoffset: 0 }}
-      />
-
-      {/* Outer ring — widest, most subtle */}
-      <circle
-        cx="100" cy="100" r={r3}
-        stroke={TEAL}
-        strokeOpacity="0.05"
-        strokeWidth="0.4"
-        strokeLinecap="round"
-        strokeDasharray={`${v3} ${c3 - v3}`}
-        transform="rotate(160 100 100)"
-        style={animate ? {
-          strokeDashoffset: v3,
-          animation: `oe-draw 1.8s ease-out 0.6s forwards`,
-        } : { strokeDashoffset: 0 }}
-      />
-    </svg>
-  );
-}
-
 // ── Component ─────────────────────────────────────────────────────────────
-
-type SplashPhase = "splash" | "fading" | "done";
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const reducedMotion = usePrefersReducedMotion();
-  const firstVisit = useFirstVisit();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -198,25 +110,32 @@ export default function LoginPage() {
     }
   }, []);
 
-  const [splashPhase, setSplashPhase] = useState<SplashPhase>("done");
-
-  // The sign-in page no longer runs its own first-visit splash: the suite
-  // entry animation (HippoIntro, mounted in the root layout) plays once per
-  // session on whichever page someone lands on, so this one would double it.
+  // ── Surfacing splash state ──────────────────────────────────────────
+  // "none": repeat visit or reduced motion, the form shows as always.
+  // "playing": the overlay owns the screen (the pre-paint script hides the
+  // shell under it). "revealing": the exit began, the form staggers up.
+  const [surfacing, setSurfacing] = useState<"none" | "playing" | "revealing" | "done">("none");
+  // Dark theme keeps the dimmed lake as a static backdrop behind the form;
+  // light theme lets the lake fade out to the light canvas instead.
+  const [lakeBackdrop, setLakeBackdrop] = useState(false);
 
   useEffect(() => {
-    if (splashPhase === "splash") {
-      const t = setTimeout(() => setSplashPhase("fading"), 2400);
-      return () => clearTimeout(t);
-    }
-    if (splashPhase === "fading") {
-      const t = setTimeout(() => setSplashPhase("done"), 900);
-      return () => clearTimeout(t);
-    }
-  }, [splashPhase]);
+    if (document.documentElement.hasAttribute(SPLASH_ATTR)) setSurfacing("playing");
+  }, []);
 
-  const showSplash = splashPhase !== "done";
-  const showContent = splashPhase !== "splash";
+  function handleSplashExitStart() {
+    setLakeBackdrop(document.documentElement.getAttribute("data-theme") !== "light");
+    document.documentElement.removeAttribute(SPLASH_ATTR);
+    setSurfacing("revealing");
+  }
+
+  const splashRan = surfacing !== "none";
+  // On the splash path the children stagger in individually; otherwise the
+  // container keeps its usual single fade-up.
+  const reveal = (i: number): React.CSSProperties =>
+    splashRan && surfacing !== "playing"
+      ? { animation: `oe-fadeInUp 0.55s ${EASE} ${0.25 + i * 0.08}s both` }
+      : {};
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -238,98 +157,86 @@ export default function LoginPage() {
 
   return (
     <>
-      {/* ═══ SPLASH OVERLAY ═══════════════════════════════════════════ */}
-      {showSplash && (
+      {/* Pre-paint splash decision + cover (see SPLASH_DECIDE above). */}
+      <script dangerouslySetInnerHTML={{ __html: SPLASH_DECIDE }} />
+      <style dangerouslySetInnerHTML={{ __html: SPLASH_CSS }} />
+
+      {/* ═══ SURFACING SPLASH ═════════════════════════════════════════ */}
+      {(surfacing === "playing" || surfacing === "revealing") && (
+        <SurfacingSplash
+          waterSrc={WATER.src}
+          posterSrc={WATER.poster}
+          videoWidth={WATER.width}
+          videoHeight={WATER.height}
+          waterlineFrac={WATER.waterlineFrac}
+          rippleStartMs={WATER.rippleStartMs}
+          mark={<HippoMark size={120} />}
+          markSize={120}
+          accent="#22D3EE"
+          accentDeep="#0EA5E9"
+          appName="Hippo"
+          tagline="Track mastery. Share growth."
+          targetSelector="[data-surfacing-mark-target]"
+          onExitStart={handleSplashExitStart}
+          onDone={() => setSurfacing("done")}
+        />
+      )}
+
+      {/* Dark theme keeps the dimmed lake behind the form after the splash. */}
+      {splashRan && surfacing !== "playing" && lakeBackdrop && (
         <div
-          className="oe-motion"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 100,
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            background: "var(--bg)",
-            animation: splashPhase === "fading"
-              ? `oe-splashExit 0.9s ease-out forwards`
-              : undefined,
-            pointerEvents: splashPhase === "fading" ? "none" : "auto",
-          }}
+          aria-hidden
+          style={{ position: "fixed", inset: 0, zIndex: 0, pointerEvents: "none" }}
         >
-          {/* Large background glow */}
-          <div style={{
-            position: "absolute",
-            top: "50%",
-            left: "50%",
-            width: 600,
-            height: 600,
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(14,165,233,0.06) 0%, rgba(14,165,233,0.02) 40%, transparent 70%)",
-            animation: `oe-glowBloom 1.8s ${EASE} 0s both`,
-          }} />
-
-          {/* Mark + rings composition */}
-          <div style={{ position: "relative", width: 200, height: 200 }}>
-            {/* Contour rings (behind the mark) */}
-            <ContourRings animate />
-
-            {/* Hippo mark — the hero, big and visible */}
-            <div style={{
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={WATER.poster}
+            alt=""
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: "cover",
+              filter: "blur(9px) brightness(.42)",
+              transform: "scale(1.08)",
+            }}
+          />
+          <div
+            style={{
               position: "absolute",
-              top: "50%",
-              left: "50%",
-              transform: "translate(-50%, -50%)",
-              animation: `oe-markEntrance 1s ${EASE} 0.3s both`,
-            }}>
-              <HippoMark size={80} />
-            </div>
-          </div>
-
-          {/* Wordmark */}
-          <h1 style={{
-            fontSize: 36,
-            fontWeight: 600,
-            color: "var(--text)",
-            letterSpacing: "-0.8px",
-            margin: "24px 0 0",
-            animation: `oe-fadeInUp 0.6s ${EASE} 0.9s both`,
-          }}>
-            Hippo
-          </h1>
-
-          {/* Tagline */}
-          <p style={{
-            fontSize: 14,
-            color: TEAL,
-            letterSpacing: "0.04em",
-            margin: "8px 0 0",
-            opacity: 0.6,
-            animation: `oe-fadeInUp 0.5s ${EASE} 1.2s both`,
-          }}>
-            The case log for surgical residents
-          </p>
+              left: 0,
+              right: 0,
+              bottom: 0,
+              height: "60%",
+              background: "linear-gradient(to bottom, transparent, rgba(6,13,19,.8))",
+            }}
+          />
         </div>
       )}
 
       {/* ═══ LOGIN CONTENT ════════════════════════════════════════════ */}
-      {showContent && (
+      {(
         <div className="auth-page" style={{
           width: "100%",
           maxWidth: 400,
+          position: "relative",
+          zIndex: 1,
           animation: authSuccess
             ? `oe-exitUp 0.4s ${EASE} forwards`
-            : `oe-fadeInUp 0.6s ${EASE} 0.1s both`,
+            : splashRan
+              ? undefined
+              : `oe-fadeInUp 0.6s ${EASE} 0.1s both`,
         }}>
           {/* Logo */}
-          <div style={{ textAlign: "center", marginBottom: 32 }}>
+          <div style={{ textAlign: "center", marginBottom: 32, ...reveal(0) }}>
             <div style={{
               display: "inline-flex",
               alignItems: "center",
               gap: 12,
               marginBottom: 8,
             }}>
-              <HippoMark size={44} />
+              <span data-surfacing-mark-target style={{ display: "inline-flex" }}>
+                <HippoMark size={44} />
+              </span>
               <span style={{
                 fontSize: 28,
                 fontWeight: 600,
@@ -352,6 +259,7 @@ export default function LoginPage() {
 
           {/* Divider */}
           <div style={{
+            ...reveal(1),
             width: 48,
             height: 1,
             background: `linear-gradient(90deg, transparent, rgba(14,165,233,0.15), transparent)`,
@@ -382,6 +290,7 @@ export default function LoginPage() {
 
           {/* Glass form */}
           <div style={{
+            ...reveal(2),
             background: "var(--surface)",
             border: "1px solid var(--border-mid)",
             borderRadius: 20,
@@ -516,6 +425,7 @@ export default function LoginPage() {
             fontSize: 14,
             color: "var(--text-2)",
             marginTop: 24,
+            ...reveal(3),
           }}>
             Don&apos;t have an account?{" "}
             <Link href="/signup" style={{ color: TEAL, textDecoration: "none", fontWeight: 500 }}>
