@@ -1,3 +1,4 @@
+import { InteractionSounds } from "@/components/InteractionSounds";
 import type { Metadata, Viewport } from "next";
 import { getQuoteOfTheDay } from "@/lib/quotes/utils";
 import { GeistSans } from "geist/font/sans";
@@ -153,6 +154,7 @@ export default function RootLayout({
           line={moduleScope === "clinic" ? "Clinical documentation" : "The case log for surgical residents"}
           quote={introQuote}
         />
+        <InteractionSounds />
         <ThemeProvider>
           <AuthProvider>
             <SubscriptionProvider>

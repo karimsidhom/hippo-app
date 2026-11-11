@@ -1,5 +1,6 @@
 "use client";
 
+import { SoundToggle } from "@/components/InteractionSounds";
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useUser } from "@/hooks/useUser";
 import { useSubscription } from "@/context/SubscriptionContext";
@@ -485,6 +486,7 @@ export default function SettingsPage() {
           {activeTab === "appearance" && (
             <div className="space-y-4">
               <h2 style={{ fontSize: 16, fontWeight: 600, color: "var(--text)" }}>Appearance</h2>
+              <SoundToggle />
               <p style={{ fontSize: 12, color: "var(--text-3)", marginBottom: 16 }}>
                 Choose how Hippo looks on your device.
               </p>
