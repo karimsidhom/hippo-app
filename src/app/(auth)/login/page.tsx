@@ -329,7 +329,9 @@ export default function LoginPage() {
               gap: 12,
               marginBottom: 8,
             }}>
-              <HippoMark size={44} />
+              <span data-cases-surfacing-target style={{ display: "inline-flex" }}>
+                <HippoMark size={44} />
+              </span>
               <span style={{
                 fontSize: 28,
                 fontWeight: 600,
